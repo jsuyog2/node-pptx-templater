@@ -26,6 +26,7 @@
 
 import { ZipManager } from '../managers/ZipManager.js';
 import { XMLParser } from '../parsers/XMLParser.js';
+import { ContentTypesManager } from '../managers/ContentTypesManager.js';
 import { SlideManager } from '../managers/SlideManager.js';
 import { ChartManager } from '../managers/ChartManager.js';
 import { TableManager } from '../managers/TableManager.js';
@@ -61,6 +62,12 @@ export class PPTXTemplater {
    * @type {XMLParser}
    */
   #xmlParser;
+
+  /**
+   * @private
+   * @type {ContentTypesManager}
+   */
+  #contentTypesManager;
 
   /**
    * @private
@@ -125,14 +132,15 @@ export class PPTXTemplater {
   constructor() {
     this.#xmlParser = new XMLParser();
     this.#zipManager = new ZipManager();
+    this.#contentTypesManager = new ContentTypesManager(this.#xmlParser);
     this.#relationshipManager = new RelationshipManager(this.#xmlParser);
-    this.#slideManager = new SlideManager(this.#xmlParser, this.#relationshipManager);
-    this.#chartManager = new ChartManager(this.#xmlParser);
+    this.#slideManager = new SlideManager(this.#xmlParser, this.#relationshipManager, this.#contentTypesManager);
+    this.#chartManager = new ChartManager(this.#xmlParser, this.#contentTypesManager);
     this.#tableManager = new TableManager(this.#xmlParser);
     this.#hyperlinkManager = new HyperlinkManager(this.#xmlParser, this.#relationshipManager);
-    this.#mediaManager = new MediaManager();
+    this.#mediaManager = new MediaManager(this.#contentTypesManager);
     this.#templateEngine = new TemplateEngine(this.#xmlParser);
-    this.#outputWriter = new OutputWriter(this.#zipManager);
+    this.#outputWriter = new OutputWriter(this.#zipManager, this.#contentTypesManager);
   }
 
   /**
@@ -185,6 +193,9 @@ export class PPTXTemplater {
     // Load and extract the ZIP archive (PPTX is just a ZIP)
     await this.#zipManager.load(source);
 
+    // Initialize content types manager first!
+    await this.#contentTypesManager.initialize(this.#zipManager);
+
     // Parse the core presentation relationships and structure
     await this.#relationshipManager.initialize(this.#zipManager);
 
@@ -210,6 +221,7 @@ export class PPTXTemplater {
    */
   async #initializeBlank() {
     await this.#zipManager.createBlank();
+    await this.#contentTypesManager.initialize(this.#zipManager);
     await this.#relationshipManager.initialize(this.#zipManager);
     await this.#slideManager.initialize(this.#zipManager);
     await this.#chartManager.initialize(this.#zipManager);
@@ -471,6 +483,38 @@ export class PPTXTemplater {
   }
 
   /**
+   * Adds a special navigation link (next, previous, first, last slide) to a text element.
+   *
+   * @param {Object} options
+   * @param {number} options.slide - Source slide number (1-based).
+   * @param {string} options.element - Text element to make clickable.
+   * @param {'next'|'previous'|'first'|'last'} options.action - Navigation action type.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  addTextNavigationLink(options) {
+    this.#assertLoaded();
+    const { slide, element, action } = options;
+    this.#hyperlinkManager.addTextNavigationLink(slide, element, action, this.#slideManager);
+    return this;
+  }
+
+  /**
+   * Adds a special navigation link (next, previous, first, last slide) to a shape or image.
+   *
+   * @param {Object} options
+   * @param {number} options.slide - Source slide number (1-based).
+   * @param {string} options.shapeId - Shape name/id to make clickable.
+   * @param {'next'|'previous'|'first'|'last'} options.action - Navigation action type.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  addShapeNavigationLink(options) {
+    this.#assertLoaded();
+    const { slide, shapeId, action } = options;
+    this.#hyperlinkManager.addShapeNavigationLink(slide, shapeId, action, this.#slideManager);
+    return this;
+  }
+
+  /**
    * Adds a new slide to the presentation.
    * Automatically generates required XML and relationship entries.
    *
@@ -566,7 +610,21 @@ export class PPTXTemplater {
    */
   async exportSlides(...slideNumbers) {
     this.#assertLoaded();
-    return this.#slideManager.exportSlides(slideNumbers, this.#zipManager, this.#relationshipManager);
+    return this.#slideManager.exportSlides(slideNumbers, this);
+  }
+
+  /**
+   * Imports a single slide from another PPTXTemplater instance into this presentation.
+   * Preserves all slide layouts, charts, relationships, and embedded media.
+   *
+   * @param {PPTXTemplater} sourceEngine - Source PPTXTemplater instance.
+   * @param {number|string} slideRef - Slide index (1-based), ID, or custom tag.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async importSlideFrom(sourceEngine, slideRef) {
+    this.#assertLoaded();
+    await this.#slideManager.importSlide(sourceEngine, slideRef, this.#mediaManager);
+    return this;
   }
 
   /**
@@ -889,4 +947,15 @@ export class PPTXTemplater {
   get slideCount() {
     return this.#slideManager.slideCount;
   }
+
+  // --- Public Getters for Internal Managers ---
+  get zipManager() { return this.#zipManager; }
+  get xmlParser() { return this.#xmlParser; }
+  get contentTypesManager() { return this.#contentTypesManager; }
+  get relationshipManager() { return this.#relationshipManager; }
+  get slideManager() { return this.#slideManager; }
+  get chartManager() { return this.#chartManager; }
+  get tableManager() { return this.#tableManager; }
+  get hyperlinkManager() { return this.#hyperlinkManager; }
+  get mediaManager() { return this.#mediaManager; }
 }

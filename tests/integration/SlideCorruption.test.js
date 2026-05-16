@@ -8,7 +8,7 @@ import { XMLParser } from '../../src/parsers/XMLParser.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = resolve(__dirname, '../fixtures');
-const OUTPUT_DIR = resolve(__dirname, '../output');
+const OUTPUT_DIR = resolve(__dirname, '../output-corruption');
 
 let PPTXTemplater;
 
@@ -83,7 +83,7 @@ describe('PPTXTemplater - Slide Management Corruption Prevention', () => {
     const properties = appObj.Properties;
 
     // Slides count should be 2
-    expect(properties.Slides).toBe(2);
+    expect(Number(properties.Slides)).toBe(2);
 
     // Slide Titles HeadingPair count should be 2
     const variants = properties.HeadingPairs['vt:vector']['vt:variant'];

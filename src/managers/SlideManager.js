@@ -29,10 +29,12 @@ import { PPTXError, SlideNotFoundError } from '../utils/errors.js';
 import { REL_TYPES } from './RelationshipManager.js';
 import { buildNewSlideXml } from '../templates/slideTemplate.js';
 import { generateUniqueId } from '../utils/idUtils.js';
-import { contentTypesHelper } from '../utils/contentTypesHelper.js';
 import { remapRelationshipIds } from '../utils/relationshipUtils.js';
 
 const logger = createLogger('SlideManager');
+
+/** MIME type for PPTX slide parts. */
+const SLIDE_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml';
 
 /**
  * @typedef {Object} SlideInfo
@@ -53,6 +55,8 @@ export class SlideManager {
   #xmlParser;
   /** @private @type {RelationshipManager} */
   #relationshipManager;
+  /** @private @type {ContentTypesManager} */
+  #contentTypesManager;
   /** @private @type {ZipManager} */
   #zipManager;
 
@@ -83,10 +87,12 @@ export class SlideManager {
   /**
    * @param {XMLParser} xmlParser
    * @param {RelationshipManager} relationshipManager
+   * @param {ContentTypesManager} contentTypesManager
    */
-  constructor(xmlParser, relationshipManager) {
+  constructor(xmlParser, relationshipManager, contentTypesManager) {
     this.#xmlParser = xmlParser;
     this.#relationshipManager = relationshipManager;
+    this.#contentTypesManager = contentTypesManager;
   }
 
   /**
@@ -446,7 +452,7 @@ export class SlideManager {
     this.#relationshipManager.removeRelationship('ppt/presentation.xml', info.relationshipId);
 
     // Remove content type from [Content_Types].xml
-    contentTypesHelper.removeSlideContentType(this.#zipManager, info.zipPath.split('/').pop());
+    this.#contentTypesManager.removeOverride(info.zipPath);
 
     // Remove from slides map and reindex
     this.#slides.delete(slideIndex);
@@ -485,26 +491,263 @@ export class SlideManager {
   }
 
   /**
+   * Resolves a slide reference (index, slideId string, or tag string) to SlideInfo.
+   *
+   * @param {number|string} slideRef
+   * @returns {SlideInfo|null}
+   */
+  resolveSlideInfo(slideRef) {
+    let index;
+    if (typeof slideRef === 'number') {
+      index = slideRef;
+    } else {
+      // 1. Try finding by slideId string
+      for (const info of this.#slides.values()) {
+        if (info.slideId === String(slideRef)) {
+          return info;
+        }
+      }
+      // 2. Try finding by tag
+      try {
+        const indices = this.resolveSlideRef(slideRef);
+        if (indices && indices.length > 0) {
+          index = indices[0];
+        }
+      } catch (e) {
+        // Fallback: parse as slide index
+        const parsedNum = parseInt(slideRef, 10);
+        if (!isNaN(parsedNum)) {
+          index = parsedNum;
+        }
+      }
+    }
+
+    if (index !== undefined) {
+      return this.#slides.get(index) || null;
+    }
+    return null;
+  }
+
+  /**
+   * Imports a slide from another PPTX template (PPTXTemplater instance).
+   * Preserves all relationships: layouts, media, charts, workbooks, etc.
+   *
+   * @param {PPTXTemplater} sourceEngine - Source presentation.
+   * @param {number|string} slideRef - Slide index (1-based), slide ID, or custom tag.
+   * @param {MediaManager} mediaManager - Destination media manager.
+   * @returns {Promise<number>} Index of the imported slide.
+   */
+  async importSlide(sourceEngine, slideRef, mediaManager) {
+    const sourceSlideManager = sourceEngine.slideManager;
+    const sourceRelManager = sourceEngine.relationshipManager;
+    const sourceZip = sourceEngine.zipManager;
+
+    const sourceSlideInfo = sourceSlideManager.resolveSlideInfo(slideRef);
+    if (!sourceSlideInfo) {
+      throw new SlideNotFoundError(`Source slide "${slideRef}" not found`);
+    }
+
+    const newIndex = this.#slides.size + 1;
+    let nextFileIndex = 1;
+    while (this.#zipManager.hasFile(`ppt/slides/slide${nextFileIndex}.xml`)) {
+      nextFileIndex++;
+    }
+    const slideFileName = `slide${nextFileIndex}.xml`;
+    const slideZipPath = `ppt/slides/${slideFileName}`;
+
+    // Read the source slide's XML
+    let slideXml = await sourceSlideManager.getSlideXmlAsync(sourceSlideInfo.index);
+
+    // Get relationships from the source slide
+    const sourceRels = sourceRelManager.getRelationships(sourceSlideInfo.zipPath);
+
+    // Map to track old rId -> new rId in the destination slide's .rels file
+    const idMap = new Map();
+
+    const EXT_TO_MIME_LOCAL = {
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      bmp: 'image/bmp',
+      xml: 'application/xml',
+      rels: 'application/vnd.openxmlformats-package.relationships+xml',
+    };
+
+    for (const rel of sourceRels) {
+      const resolvedTarget = sourceRelManager.resolveTarget(sourceSlideInfo.zipPath, rel.target);
+
+      if (rel.type === REL_TYPES.SLIDE_LAYOUT) {
+        // Map to destination's slide layout.
+        const layoutFileName = rel.target.split('/').pop();
+        const destLayoutPath = `ppt/slideLayouts/${layoutFileName}`;
+        
+        let targetLayout = `../slideLayouts/${layoutFileName}`;
+        if (!this.#zipManager.hasFile(destLayoutPath)) {
+          // Find first available layout
+          const layoutFiles = this.#zipManager.listFiles('ppt/slideLayouts/').filter(f => f.endsWith('.xml'));
+          if (layoutFiles.length > 0) {
+            targetLayout = `../slideLayouts/${layoutFiles[0].split('/').pop()}`;
+          } else {
+            targetLayout = '../slideLayouts/slideLayout1.xml';
+          }
+        }
+        
+        const newRId = this.#relationshipManager.addRelationship(slideZipPath, rel.type, targetLayout);
+        idMap.set(rel.id, newRId);
+
+      } else if (rel.type === REL_TYPES.IMAGE) {
+        // Copy media file
+        const mediaBytes = await sourceZip.readBinaryFile(resolvedTarget);
+        if (mediaBytes) {
+          const destMediaZipPath = await mediaManager.embedImage(mediaBytes);
+          const relativeMediaTarget = `../media/${destMediaZipPath.split('/').pop()}`;
+          const newRId = this.#relationshipManager.addRelationship(slideZipPath, rel.type, relativeMediaTarget);
+          idMap.set(rel.id, newRId);
+        }
+
+      } else if (rel.type === REL_TYPES.CHART) {
+        // Copy chart XML and its relationships
+        const chartXml = await sourceZip.readFile(resolvedTarget);
+        if (chartXml) {
+          const chartRels = sourceRelManager.getRelationships(resolvedTarget);
+          
+          let nextChartId = 1;
+          while (this.#zipManager.hasFile(`ppt/charts/chart${nextChartId}.xml`)) {
+            nextChartId++;
+          }
+          const destChartZipPath = `ppt/charts/chart${nextChartId}.xml`;
+          const chartFileName = `chart${nextChartId}.xml`;
+
+          // Handle workbook packages within charts
+          for (const chartRel of chartRels) {
+            const resolvedChartTarget = sourceRelManager.resolveTarget(resolvedTarget, chartRel.target);
+            const workbookBytes = await sourceZip.readBinaryFile(resolvedChartTarget);
+            
+            if (workbookBytes) {
+              const workbookFileName = resolvedChartTarget.split('/').pop();
+              let nextEmbedId = 1;
+              let destWorkbookZipPath = `ppt/embeddings/Microsoft_Excel_Worksheet${nextEmbedId}.xlsx`;
+              if (workbookFileName.endsWith('.bin')) {
+                destWorkbookZipPath = `ppt/embeddings/oleObject${nextEmbedId}.bin`;
+              }
+              while (this.#zipManager.hasFile(destWorkbookZipPath)) {
+                nextEmbedId++;
+                destWorkbookZipPath = workbookFileName.endsWith('.bin')
+                  ? `ppt/embeddings/oleObject${nextEmbedId}.bin`
+                  : `ppt/embeddings/Microsoft_Excel_Worksheet${nextEmbedId}.xlsx`;
+              }
+
+              this.#zipManager.writeBinaryFile(destWorkbookZipPath, workbookBytes);
+
+              const workbookContentType = workbookFileName.endsWith('.bin')
+                ? 'application/vnd.ms-office.activeX'
+                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+              this.#contentTypesManager.addOverride(destWorkbookZipPath, workbookContentType);
+
+              const relativeWorkbookPath = `../embeddings/${destWorkbookZipPath.split('/').pop()}`;
+              this.#relationshipManager.addRelationship(destChartZipPath, chartRel.type, relativeWorkbookPath);
+            }
+          }
+
+          this.#zipManager.writeFile(destChartZipPath, chartXml);
+          this.#contentTypesManager.addOverride(destChartZipPath, 'application/vnd.openxmlformats-officedocument.drawingml.chart+xml');
+
+          const relativeChartPath = `../charts/${chartFileName}`;
+          const newRId = this.#relationshipManager.addRelationship(slideZipPath, rel.type, relativeChartPath);
+          idMap.set(rel.id, newRId);
+        }
+
+      } else if (rel.type === REL_TYPES.HYPERLINK) {
+        const newRId = this.#relationshipManager.addRelationship(
+          slideZipPath,
+          rel.type,
+          rel.target,
+          rel.targetMode
+        );
+        idMap.set(rel.id, newRId);
+
+      } else {
+        // Fallback for notes, themes, styles or custom XML
+        if (rel.target && !rel.target.startsWith('http')) {
+          const targetBytes = await sourceZip.readBinaryFile(resolvedTarget);
+          if (targetBytes && !this.#zipManager.hasFile(resolvedTarget)) {
+            this.#zipManager.writeBinaryFile(resolvedTarget, targetBytes);
+            const ext = resolvedTarget.split('.').pop().toLowerCase();
+            const mime = EXT_TO_MIME_LOCAL[ext] || 'application/octet-stream';
+            this.#contentTypesManager.addDefault(ext, mime);
+          }
+        }
+        const newRId = this.#relationshipManager.addRelationship(slideZipPath, rel.type, rel.target, rel.targetMode);
+        idMap.set(rel.id, newRId);
+      }
+    }
+
+    // Remap all relationship IDs inside the imported slide XML
+    slideXml = remapRelationshipIds(slideXml, idMap);
+
+    // Save the remapped slide XML to ZIP
+    this.#zipManager.writeFile(slideZipPath, slideXml);
+    this.#slideXmlCache.set(slideZipPath, slideXml);
+
+    // Generate unique Slide ID
+    const existingIds = Array.from(this.#slides.values()).map(s => parseInt(s.slideId, 10));
+    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 255;
+    const newSlideId = String(maxId + 1);
+
+    // Add relationship from presentation.xml
+    const rId = this.#relationshipManager.addRelationship(
+      'ppt/presentation.xml',
+      REL_TYPES.SLIDE,
+      `slides/${slideFileName}`
+    );
+
+    const slideInfo = {
+      index: newIndex,
+      zipPath: slideZipPath,
+      relationshipId: rId,
+      slideId: newSlideId,
+      tags: [...sourceSlideInfo.tags],
+      title: sourceSlideInfo.title || '',
+    };
+
+    this.#slides.set(newIndex, slideInfo);
+
+    // Add entry in presentation.xml sldIdLst
+    this.#addSlideToPresentation(rId, newSlideId);
+
+    // Register slide in content types
+    this.#registerSlideContentType(slideFileName);
+
+    logger.debug(`Successfully imported slide "${slideRef}" to index ${newIndex}`);
+    return newIndex;
+  }
+
+  /**
    * Exports a subset of slides to a new PPTXTemplater.
    *
    * @param {number[]} slideIndices - 1-based slide indices to export.
-   * @param {ZipManager} zipManager
-   * @param {RelationshipManager} relationshipManager
+   * @param {PPTXTemplater} sourceEngine - Current PPTXTemplater instance.
    * @returns {Promise<PPTXTemplater>}
    */
-  async exportSlides(slideIndices, zipManager, relationshipManager) {
+  async exportSlides(slideIndices, sourceEngine) {
     // Lazy import to avoid circular dep
     const { PPTXTemplater } = await import('../core/PPTXTemplater.js');
 
     // Create a blank new PPTX
     const newEngine = await PPTXTemplater.create();
 
+    // Remove the default slides from the blank template to avoid orphans
+    const defaultSlides = newEngine.slideManager.getAllSlideIndices();
+    for (const dIdx of defaultSlides.reverse()) {
+      newEngine.slideManager.removeSlide(dIdx);
+    }
+
     // Copy selected slides into the new engine
     for (const idx of slideIndices) {
       this.#assertSlideExists(idx);
-      const xml = await this.getSlideXmlAsync(idx);
-      // addSlide using raw XML — advanced operation
-      newEngine.addSlide({ _rawXml: xml });
+      await newEngine.slideManager.importSlide(sourceEngine, idx, newEngine.mediaManager);
     }
 
     return newEngine;
@@ -660,8 +903,7 @@ export class SlideManager {
    * @private
    */
   #registerSlideContentType(slideFileName) {
-    // Content type registration is handled by the contentTypesHelper utility
-    contentTypesHelper.addSlideContentType(this.#zipManager, slideFileName);
+    this.#contentTypesManager.addOverride(`ppt/slides/${slideFileName}`, SLIDE_CONTENT_TYPE);
   }
 
   /**

@@ -25,12 +25,16 @@ const logger = createLogger('OutputWriter');
 export class OutputWriter {
   /** @private @type {ZipManager} */
   #zipManager;
+  /** @private @type {ContentTypesManager} */
+  #contentTypesManager;
 
   /**
    * @param {ZipManager} zipManager
+   * @param {ContentTypesManager} contentTypesManager
    */
-  constructor(zipManager) {
+  constructor(zipManager, contentTypesManager) {
     this.#zipManager = zipManager;
+    this.#contentTypesManager = contentTypesManager;
   }
 
   /**
@@ -66,6 +70,9 @@ export class OutputWriter {
     // Ensure all slides are flushed to the ZIP
     await this.#flushAllSlides(slideManager, zipManager);
 
+    // Flush Content Types safely
+    this.#contentTypesManager.flush(zipManager);
+
     // Wait for any queued asynchronous writes (like content types, media hashing)
     await zipManager.waitForPendingWrites();
 
@@ -83,6 +90,10 @@ export class OutputWriter {
    */
   async toStream(slideManager, zipManager) {
     await this.#flushAllSlides(slideManager, zipManager);
+
+    // Flush Content Types safely
+    this.#contentTypesManager.flush(zipManager);
+
     await zipManager.waitForPendingWrites();
     const nodeStream = await zipManager.toStream();
     return nodeStream;

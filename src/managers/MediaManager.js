@@ -85,8 +85,17 @@ const EXT_TO_MIME = {
  * @description Manages media embedding, deduplication, and retrieval in PPTX files.
  */
 export class MediaManager {
+  /** @private @type {ContentTypesManager} */
+  #contentTypesManager;
   /** @private @type {ZipManager} */
   #zipManager;
+
+  /**
+   * @param {ContentTypesManager} contentTypesManager
+   */
+  constructor(contentTypesManager) {
+    this.#contentTypesManager = contentTypesManager;
+  }
 
   /**
    * Content hash → existing media ZIP path for deduplication.
@@ -292,29 +301,7 @@ export class MediaManager {
     return 'png'; // Default fallback
   }
 
-  /**
-   * Registers a new content type for the media format in [Content_Types].xml.
-   * @private
-   */
   #registerContentType(ext, mimeType) {
-    if (!this.#zipManager) return;
-
-    const contentTypesXml = this.#zipManager.rawZip.file('[Content_Types].xml');
-    if (!contentTypesXml) return;
-
-    // Read synchronously (in-memory) since we're in constructor context
-    this.#zipManager.addPendingPromise(
-      contentTypesXml.async('text').then(xml => {
-        const defaultEntry = `Extension="${ext}" ContentType="${mimeType}"`;
-        if (!xml.includes(defaultEntry)) {
-          const newDefault = `<Default ${defaultEntry}/>`;
-          const updated = xml.replace(
-            '</Types>',
-            `  ${newDefault}\n</Types>`
-          );
-          this.#zipManager.writeFile('[Content_Types].xml', updated);
-        }
-      })
-    );
+    this.#contentTypesManager.addDefault(ext, mimeType);
   }
 }

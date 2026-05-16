@@ -13,7 +13,7 @@ import fsExtra from 'fs-extra';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = resolve(__dirname, '../fixtures');
-const OUTPUT_DIR = resolve(__dirname, '../output');
+const OUTPUT_DIR = resolve(__dirname, '../output-main');
 
 /**
  * Import the engine lazily so tests can still run without fixtures.

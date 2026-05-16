@@ -251,7 +251,8 @@ export class HyperlinkManager {
 
     const tipAttr = tooltip ? ` tooltip="${this.#escapeXml(tooltip)}"` : '';
     const actAttr = actionAttr ? ` ${actionAttr}` : '';
-    const hlinkXml = `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="${rId}"${tipAttr}${actAttr}/>`;
+    const rIdAttr = rId ? ` r:id="${rId}"` : '';
+    const hlinkXml = `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"${rIdAttr}${tipAttr}${actAttr}/>`;
 
     // We need to add the hlinkClick INSIDE the a:rPr of the text run containing our text
     let updated = slideXml;
@@ -350,7 +351,8 @@ export class HyperlinkManager {
    */
   #injectHyperlinkOnShape(slideXml, shapeName, rId, actionAttr = '') {
     const actAttr = actionAttr ? ` ${actionAttr}` : '';
-    const hlinkXml = `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="${rId}"${actAttr}/>`;
+    const rIdAttr = rId ? ` r:id="${rId}"` : '';
+    const hlinkXml = `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"${rIdAttr}${actAttr}/>`;
 
     // Find the shape by name
     const namePattern = new RegExp(`name="${this.#escapeRegex(shapeName)}"`);
@@ -389,6 +391,55 @@ export class HyperlinkManager {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&apos;');
+  }
+
+  /**
+   * Adds a special navigation action (next slide, prev slide, etc.) to a text element.
+   *
+   * @param {number} slideIndex
+   * @param {string} text
+   * @param {'next'|'previous'|'first'|'last'} navType
+   * @param {SlideManager} slideManager
+   */
+  addTextNavigationLink(slideIndex, text, navType, slideManager) {
+    const action = this.#getNavigationAction(navType);
+    const slideXml = slideManager.getSlideXml(slideIndex);
+    const updatedXml = this.#injectHyperlinkOnText(slideXml, text, '', null, `action="${action}"`);
+    slideManager.setSlideXml(slideIndex, updatedXml);
+    logger.debug(`Added navigation link (${navType}) to "${text}" in slide ${slideIndex}`);
+  }
+
+  /**
+   * Adds a special navigation action (next slide, prev slide, etc.) to a shape.
+   *
+   * @param {number} slideIndex
+   * @param {string} shapeName
+   * @param {'next'|'previous'|'first'|'last'} navType
+   * @param {SlideManager} slideManager
+   */
+  addShapeNavigationLink(slideIndex, shapeName, navType, slideManager) {
+    const action = this.#getNavigationAction(navType);
+    const slideXml = slideManager.getSlideXml(slideIndex);
+    const updatedXml = this.#injectHyperlinkOnShape(slideXml, shapeName, '', `action="${action}"`);
+    slideManager.setSlideXml(slideIndex, updatedXml);
+    logger.debug(`Added navigation link (${navType}) to shape "${shapeName}" in slide ${slideIndex}`);
+  }
+
+  /**
+   * Resolves a navigation type string to its ppaction target.
+   * @private
+   */
+  #getNavigationAction(navType) {
+    const type = String(navType).toLowerCase();
+    switch (type) {
+      case 'next': return 'ppaction://hlinkshowjump?s=nextslide';
+      case 'previous':
+      case 'prev': return 'ppaction://hlinkshowjump?s=prevslide';
+      case 'first': return 'ppaction://hlinkshowjump?s=firstslide';
+      case 'last': return 'ppaction://hlinkshowjump?s=lastslide';
+      default:
+        throw new PPTXError(`Invalid navigation type: ${navType}`);
+    }
   }
 
   /**
