@@ -32,6 +32,7 @@ const logger = createLogger('XMLParser');
  */
 const PARSER_OPTIONS = {
   ignoreAttributes: false,
+  ignoreDeclaration: true,
   attributeNamePrefix: '@_',
   allowBooleanAttributes: true,
   parseAttributeValue: false, // Keep all values as strings to avoid type coercion
@@ -75,6 +76,7 @@ const PARSER_OPTIONS = {
  */
 const BUILDER_OPTIONS = {
   ignoreAttributes: false,
+  ignoreDeclaration: true,
   attributeNamePrefix: '@_',
   cdataPropName: '__cdata',
   commentPropName: '__comment',

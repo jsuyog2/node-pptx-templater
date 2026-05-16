@@ -46,6 +46,19 @@ class ContentTypesHelper {
   }
 
   /**
+   * Removes a slide Override entry from [Content_Types].xml.
+   *
+   * @param {ZipManager} zipManager
+   * @param {string} slideFileName - e.g., 'slide5.xml'
+   */
+  removeSlideContentType(zipManager, slideFileName) {
+    this.#removeOverride(
+      zipManager,
+      `/ppt/slides/${slideFileName}`
+    );
+  }
+
+  /**
    * Adds a chart Override entry to [Content_Types].xml.
    *
    * @param {ZipManager} zipManager
@@ -84,28 +97,51 @@ class ContentTypesHelper {
     );
   }
 
+  #updateQueue = Promise.resolve();
+
   /**
    * Adds an Override entry to [Content_Types].xml.
    * @private
    */
   #addOverride(zipManager, partName, contentType) {
-    const xmlFile = zipManager.rawZip.file('[Content_Types].xml');
-    if (!xmlFile) {
-      logger.warn('[Content_Types].xml not found');
-      return;
-    }
+    this.#updateQueue = this.#updateQueue.then(async () => {
+      const xmlFile = zipManager.rawZip.file('[Content_Types].xml');
+      if (!xmlFile) {
+        logger.warn('[Content_Types].xml not found');
+        return;
+      }
+      const content = await xmlFile.async('text');
+      const entry = `PartName="${partName}"`;
+      if (!content.includes(entry)) {
+        const override = `<Override PartName="${partName}" ContentType="${contentType}"/>`;
+        const updated = content.replace('</Types>', `  ${override}\n</Types>`);
+        zipManager.writeFile('[Content_Types].xml', updated);
+        logger.debug(`Registered content type for ${partName}`);
+      }
+    });
+    zipManager.addPendingPromise(this.#updateQueue);
+  }
 
-    zipManager.addPendingPromise(
-      xmlFile.async('text').then(content => {
-        const entry = `PartName="${partName}"`;
-        if (!content.includes(entry)) {
-          const override = `<Override PartName="${partName}" ContentType="${contentType}"/>`;
-          const updated = content.replace('</Types>', `  ${override}\n</Types>`);
-          zipManager.writeFile('[Content_Types].xml', updated);
-          logger.debug(`Registered content type for ${partName}`);
-        }
-      })
-    );
+  /**
+   * Removes an Override entry from [Content_Types].xml.
+   * @private
+   */
+  #removeOverride(zipManager, partName) {
+    this.#updateQueue = this.#updateQueue.then(async () => {
+      const xmlFile = zipManager.rawZip.file('[Content_Types].xml');
+      if (!xmlFile) {
+        logger.warn('[Content_Types].xml not found');
+        return;
+      }
+      const content = await xmlFile.async('text');
+      const regex = new RegExp(`<Override[^>]*PartName="${partName}"[^>]*/>\\s*`, 'g');
+      if (regex.test(content)) {
+        const updated = content.replace(regex, '');
+        zipManager.writeFile('[Content_Types].xml', updated);
+        logger.debug(`Removed content type for ${partName}`);
+      }
+    });
+    zipManager.addPendingPromise(this.#updateQueue);
   }
 }
 

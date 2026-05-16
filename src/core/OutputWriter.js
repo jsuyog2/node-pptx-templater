@@ -107,6 +107,16 @@ export class OutputWriter {
       }
     }
 
+    // Update the slide count in docProps/app.xml to prevent repair mode issues
+    if (zipManager.hasFile('docProps/app.xml')) {
+      zipManager.addPendingPromise(
+        zipManager.rawZip.file('docProps/app.xml').async('text').then(content => {
+          const updated = content.replace(/<Slides>[0-9]+<\/Slides>/, `<Slides>${info.length}</Slides>`);
+          zipManager.writeFile('docProps/app.xml', updated);
+        })
+      );
+    }
+
     logger.debug(`Flushed ${info.length} slide(s) to ZIP`);
   }
 }

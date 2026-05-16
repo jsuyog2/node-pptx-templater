@@ -60,6 +60,30 @@ async function main() {
         { name: 'Product C', values: [70, 85, 100, 120] },
       ],
     });
+
+    ppt.removeSlide(2);
+
+    ppt.useSlide(2);
+    ppt.replaceText({
+      '{{title}}': 'New Title'
+    })
+    ppt.addHyperlink({
+      text: 'Google',
+      url: 'https://www.google.com'
+    });
+
+    ppt.addSlideLink({
+      element: 'Hello New Title',
+      sourceSlide: 2,
+      targetSlide: 1
+    })
+
+    ppt.updateTable('Table', [
+      ['Name', 'Role', 'Dept'],
+      ['Alice', 'Engineer', 'Platform'],
+      ['Bob', 'Designer', 'Product'],
+    ]);
+
     // Step 3: Save to file
     await ppt.saveToFile(OUTPUT_PATH);
     console.log('💾 Saved to:', OUTPUT_PATH);

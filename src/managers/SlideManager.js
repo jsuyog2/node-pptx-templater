@@ -30,6 +30,7 @@ import { REL_TYPES } from './RelationshipManager.js';
 import { buildNewSlideXml } from '../templates/slideTemplate.js';
 import { generateUniqueId } from '../utils/idUtils.js';
 import { contentTypesHelper } from '../utils/contentTypesHelper.js';
+import { remapRelationshipIds } from '../utils/relationshipUtils.js';
 
 const logger = createLogger('SlideManager');
 
@@ -285,7 +286,11 @@ export class SlideManager {
    */
   addNewSlide(options, relationshipManager, mediaManager) {
     const newIndex = this.#slides.size + 1;
-    const slideFileName = `slide${newIndex}.xml`;
+    let nextFileIndex = 1;
+    while (this.#zipManager.hasFile(`ppt/slides/slide${nextFileIndex}.xml`)) {
+      nextFileIndex++;
+    }
+    const slideFileName = `slide${nextFileIndex}.xml`;
     const slideZipPath = `ppt/slides/${slideFileName}`;
 
     // Find the first available layout to reference
@@ -350,13 +355,15 @@ export class SlideManager {
     const sourceInfo = this.#slides.get(sourceIndex);
 
     const newIndex = this.#slides.size + 1;
-    const slideFileName = `slide${newIndex}.xml`;
+    let nextFileIndex = 1;
+    while (this.#zipManager.hasFile(`ppt/slides/slide${nextFileIndex}.xml`)) {
+      nextFileIndex++;
+    }
+    const slideFileName = `slide${nextFileIndex}.xml`;
     const slideZipPath = `ppt/slides/${slideFileName}`;
 
     // Copy the source XML
-    const sourceXml = this.getSlideXml(sourceIndex);
-    this.#zipManager.writeFile(slideZipPath, sourceXml);
-    this.#slideXmlCache.set(slideZipPath, sourceXml);
+    let sourceXml = this.getSlideXml(sourceIndex);
 
     // Copy relationships from source slide (excluding notes, which are slide-specific)
     const idMap = relationshipManager.copyRelationships(
@@ -364,6 +371,12 @@ export class SlideManager {
       slideZipPath,
       [REL_TYPES.NOTES_SLIDE]
     );
+
+    // Remap relationship IDs in the cloned XML to match the new targets
+    sourceXml = remapRelationshipIds(sourceXml, idMap);
+
+    this.#zipManager.writeFile(slideZipPath, sourceXml);
+    this.#slideXmlCache.set(slideZipPath, sourceXml);
 
     // Add to presentation.xml
     const rId = relationshipManager.addRelationship(
@@ -403,12 +416,19 @@ export class SlideManager {
 
     // Remove from ZIP
     this.#zipManager.removeFile(info.zipPath);
+    
+    // Remove its relationships file
+    const relsFileName = info.zipPath.split('/').pop() + '.rels';
+    this.#zipManager.removeFile(`ppt/slides/_rels/${relsFileName}`);
 
     // Remove from cache
     this.#slideXmlCache.delete(info.zipPath);
 
     // Remove relationship from presentation.xml
     this.#relationshipManager.removeRelationship('ppt/presentation.xml', info.relationshipId);
+
+    // Remove content type from [Content_Types].xml
+    contentTypesHelper.removeSlideContentType(this.#zipManager, info.zipPath.split('/').pop());
 
     // Remove from slides map and reindex
     this.#slides.delete(slideIndex);
