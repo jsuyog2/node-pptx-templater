@@ -11,6 +11,7 @@
 import fsExtra from 'fs-extra';
 const { writeFile, ensureDir } = fsExtra;
 import path from 'path';
+import { XMLParser } from '../parsers/XMLParser.js';
 import { createLogger } from '../utils/logger.js';
 import { PPTXError } from '../utils/errors.js';
 import { Readable } from 'stream';
@@ -107,12 +108,59 @@ export class OutputWriter {
       }
     }
 
-    // Update the slide count in docProps/app.xml to prevent repair mode issues
+    // Update the slide count and titles in docProps/app.xml to prevent repair mode issues
     if (zipManager.hasFile('docProps/app.xml')) {
       zipManager.addPendingPromise(
         zipManager.rawZip.file('docProps/app.xml').async('text').then(content => {
-          const updated = content.replace(/<Slides>[0-9]+<\/Slides>/, `<Slides>${info.length}</Slides>`);
-          zipManager.writeFile('docProps/app.xml', updated);
+          const parser = new XMLParser();
+          const appObj = parser.parse(content, 'app.xml');
+          const properties = appObj.Properties;
+
+          if (properties) {
+            // 1. Update Slides count
+            properties.Slides = info.length;
+
+            // 2. Find old slide titles count and update HeadingPairs
+            let oldSlideTitlesCount = 0;
+            const variants = properties.HeadingPairs?.['vt:vector']?.['vt:variant'];
+            if (Array.isArray(variants)) {
+              for (let i = 0; i < variants.length; i++) {
+                if (variants[i]['vt:lpstr'] === 'Slide Titles') {
+                  const countVar = variants[i + 1];
+                  if (countVar) {
+                    oldSlideTitlesCount = parseInt(countVar['vt:i4'], 10) || 0;
+                    countVar['vt:i4'] = info.length;
+                  }
+                  break;
+                }
+              }
+            }
+
+            // 3. Update TitlesOfParts
+            const titlesVector = properties.TitlesOfParts?.['vt:vector'];
+            if (titlesVector) {
+              let lpstrs = titlesVector['vt:lpstr'];
+              if (lpstrs) {
+                if (!Array.isArray(lpstrs)) lpstrs = [lpstrs];
+
+                // Remove the old slide titles (which are at the end)
+                if (oldSlideTitlesCount > 0 && lpstrs.length >= oldSlideTitlesCount) {
+                  lpstrs = lpstrs.slice(0, lpstrs.length - oldSlideTitlesCount);
+                }
+
+                // Append new slide titles
+                const newSlideTitles = info.map(slide => slide.title || `Slide ${slide.index}`);
+                lpstrs.push(...newSlideTitles);
+
+                titlesVector['vt:lpstr'] = lpstrs;
+                titlesVector['@_size'] = String(lpstrs.length);
+              }
+            }
+
+            const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+            const updatedXml = parser.build(appObj, declaration);
+            zipManager.writeFile('docProps/app.xml', updatedXml);
+          }
         })
       );
     }

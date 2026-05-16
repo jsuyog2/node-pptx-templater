@@ -65,6 +65,8 @@ const PARSER_OPTIONS = {
       'Relationship',
       'Override',
       'Default',
+      'p14:sldId',
+      'p14:section',
     ];
     return alwaysArrayPaths.some(path => jpath.endsWith(path) || name === path.split('.').pop());
   },

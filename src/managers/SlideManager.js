@@ -128,6 +128,24 @@ export class SlideManager {
       if (rId) rIdToSlideId.set(rId, slideId);
     }
 
+    // Attempt to read slide titles from docProps/app.xml to preserve them
+    let slideTitles = [];
+    try {
+      const appXml = await zipManager.readFile('docProps/app.xml');
+      if (appXml) {
+        const appObj = this.#xmlParser.parse(appXml, 'app.xml');
+        const lpstrs = appObj?.Properties?.TitlesOfParts?.['vt:vector']?.['vt:lpstr'];
+        if (lpstrs) {
+          const allLpstrs = Array.isArray(lpstrs) ? lpstrs : [lpstrs];
+          // Slide titles are usually the last N items where N = slide count
+          // We take the last slideRels.length items
+          slideTitles = allLpstrs.slice(-slideRels.length);
+        }
+      }
+    } catch (e) {
+      logger.warn('Failed to parse app.xml for slide titles', e);
+    }
+
     // Build ordered slide list
     let slideIndex = 1;
     for (const sldId of sldIdList) {
@@ -144,7 +162,7 @@ export class SlideManager {
         relationshipId: rId,
         slideId: rIdToSlideId.get(rId) || String(256 + slideIndex),
         tags: [],
-        title: '', // Loaded lazily
+        title: slideTitles[slideIndex - 1] || '',
       };
 
       this.#slides.set(slideIndex, slideInfo);
@@ -568,7 +586,43 @@ export class SlideManager {
       : [sldIdLst['p:sldId']]
     ).filter(s => s['@_id'] !== slideId);
 
+    // Also remove from any PowerPoint sections
+    this.#removeSlideFromSections(slideId);
+
     this.#flushPresentation();
+  }
+
+  /**
+   * Removes a slide ID from all sections in presentation.xml.
+   * @private
+   * @param {string} slideId - Unique slide ID.
+   */
+  #removeSlideFromSections(slideId) {
+    if (!this.#presentationObj) return;
+    const extLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:extLst');
+    if (!extLst?.['p:ext']) return;
+
+    const exts = Array.isArray(extLst['p:ext']) ? extLst['p:ext'] : [extLst['p:ext']];
+    for (const ext of exts) {
+      const sectionLst = ext['p14:sectionLst'];
+      if (!sectionLst?.['p14:section']) continue;
+
+      const sections = sectionLst['p14:section']; // Guaranteed to be array by XMLParser config
+
+      for (const section of sections) {
+        const sldIdLst = section['p14:sldIdLst'];
+        if (!sldIdLst?.['p14:sldId']) continue;
+
+        const sldIds = sldIdLst['p14:sldId']; // Guaranteed to be array by XMLParser config
+        const targetIdStr = String(slideId);
+        const filtered = sldIds.filter(s => String(s['@_id']) !== targetIdStr);
+
+        if (filtered.length !== sldIds.length) {
+          logger.debug(`Removing slide ${targetIdStr} from section "${section['@_name']}"`);
+          section['p14:sldIdLst']['p14:sldId'] = filtered;
+        }
+      }
+    }
   }
 
   /**

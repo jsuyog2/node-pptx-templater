@@ -80,21 +80,22 @@ class ContentTypesHelper {
    * @param {string} mimeType - MIME type.
    */
   addMediaDefault(zipManager, extension, mimeType) {
-    const xml = zipManager.rawZip.file('[Content_Types].xml');
-    if (!xml) return;
+    this.#updateQueue = this.#updateQueue.then(async () => {
+      const xmlFile = zipManager.rawZip.file('[Content_Types].xml');
+      if (!xmlFile) return;
 
-    zipManager.addPendingPromise(
-      xml.async('text').then(content => {
-        const entry = `Extension="${extension}" ContentType="${mimeType}"`;
-        if (!content.includes(entry)) {
-          const updated = content.replace(
-            '</Types>',
-            `  <Default ${entry}/>\n</Types>`
-          );
-          zipManager.writeFile('[Content_Types].xml', updated);
-        }
-      })
-    );
+      const content = await xmlFile.async('text');
+      const entry = `Extension="${extension}" ContentType="${mimeType}"`;
+      if (!content.includes(entry)) {
+        const updated = content.replace(
+          '</Types>',
+          `  <Default ${entry}/>\n</Types>`
+        );
+        zipManager.writeFile('[Content_Types].xml', updated);
+        logger.debug(`Registered default content type for .${extension}`);
+      }
+    });
+    zipManager.addPendingPromise(this.#updateQueue);
   }
 
   #updateQueue = Promise.resolve();
