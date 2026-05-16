@@ -6,7 +6,7 @@ Thank you for your interest in contributing! This document guides you through th
 
 ```bash
 # Fork and clone the repository
-git clone https://github.com/your-org/pptx-templater.git
+git clone https://github.com/jsuyog2/pptx-templater.git
 cd pptx-templater
 
 # Install dependencies
@@ -104,7 +104,7 @@ When reporting bugs, please include:
 
 ## 🔒 Security
 
-For security vulnerabilities, please email security@your-org.com instead of opening a public issue.
+For security vulnerabilities, please email security@jsuyog2.com instead of opening a public issue.
 
 ## 📄 License
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>pptx-templater — Low-Level OpenXML Engine</title>
+  <title>node-pptx-templater — Low-Level OpenXML Engine</title>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +15,7 @@
   <header class="top-nav">
     <div class="logo-container">
       <span class="logo-icon">📊</span>
-      <span class="logo-text">pptx-templater</span>
+      <span class="logo-text">node-pptx-templater</span>
       <span class="logo-badge">v1.0.0</span>
     </div>
     <div class="search-container">
@@ -25,7 +25,7 @@
       <button id="theme-toggle" aria-label="Toggle Theme">
         <span class="toggle-icon">🌙</span>
       </button>
-      <a href="https://github.com/your-org/pptx-templater" class="github-link" target="_blank" rel="noopener">
+      <a href="https://github.com/jsuyog2/node-pptx-templater" class="github-link" target="_blank" rel="noopener">
         <svg height="24" viewBox="0 0 16 16" width="24" fill="currentColor">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
         </svg>
@@ -81,7 +81,7 @@
         <p class="lead">A low-level, high-performance PowerPoint OpenXML templating engine for Node.js. It generates and edits PPTX files directly through structured XML manipulation, avoiding fragile regex replacements and eliminating standard "Repair Mode" issues.</p>
         
         <div class="alert note">
-          <strong>⚡ Why pptx-templater?</strong> It runs on pure Javascript/ESM with zero native PPTX generator dependencies, making it ultra-lightweight and ideal for high-throughput server environments or serverless runtimes.
+          <strong>⚡ Why node-pptx-templater?</strong> It runs on pure Javascript/ESM with zero native PPTX generator dependencies, making it ultra-lightweight and ideal for high-throughput server environments or serverless runtimes.
         </div>
 
         <h2>Features At A Glance</h2>
@@ -109,7 +109,7 @@
       <section id="installation" class="doc-section">
         <h1>Installation</h1>
         <p>Install the library via npm. Make sure you meet the requirement of having Node.js version 18.0.0 or higher.</p>
-        <pre><code class="language-bash">npm install pptx-templater</code></pre>
+        <pre><code class="language-bash">npm install node-pptx-templater</code></pre>
         <h3>System Requirements</h3>
         <ul>
           <li><strong>Node.js:</strong> >= 18.0.0</li>
@@ -121,7 +121,7 @@
       <section id="quickstart" class="doc-section">
         <h1>Quick Start</h1>
         <p>Get up and running in under 60 seconds with this simple template rendering example.</p>
-        <pre><code class="language-javascript">import { PPTXTemplater } from 'pptx-templater';
+        <pre><code class="language-javascript">import { PPTXTemplater } from 'node-pptx-templater';
 
 // Load the source template
 const ppt = await PPTXTemplater.load('template.pptx');
@@ -154,7 +154,7 @@ await ppt.saveToFile('./output/annual_report.pptx');</code></pre>
         <p>Unlike basic copy implementations, <code>importSlideFrom</code> performs an exhaustive search and deep-copy of all associated relationships, slide layouts, embedded media, and chart workbooks, remapping them into the new presentation's namespace.</p>
         
         <h2>Example: Merging Slide Decks</h2>
-        <pre><code class="language-javascript">import { PPTXTemplater } from 'pptx-templater';
+        <pre><code class="language-javascript">import { PPTXTemplater } from 'node-pptx-templater';
 
 const master = await PPTXTemplater.load('master_template.pptx');
 const source = await PPTXTemplater.load('department_results.pptx');

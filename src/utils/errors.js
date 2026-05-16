@@ -1,5 +1,5 @@
 /**
- * @fileoverview Custom error classes for pptx-templater.
+ * @fileoverview Custom error classes for node-pptx-templater.
  *
  * All errors extend from PPTXError to allow consumers to catch all
  * library errors with a single catch clause:
@@ -8,14 +8,14 @@
  *     await ppt.saveToFile('./out.pptx');
  *   } catch (err) {
  *     if (err instanceof PPTXError) {
- *       // Handle all pptx-templater errors
+ *       // Handle all node-pptx-templater errors
  *     }
  *   }
  */
 
 /**
  * @class PPTXError
- * @description Base error class for all pptx-templater errors.
+ * @description Base error class for all node-pptx-templater errors.
  * @extends Error
  */
 export class PPTXError extends Error {

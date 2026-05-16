@@ -1,10 +1,10 @@
-# pptx-templater
+# node-pptx-templater
 
 > A low-level PowerPoint OpenXML templating engine for Node.js that generates and edits PPTX files directly through XML manipulation without relying on PowerPoint generation libraries.
 
-[![npm version](https://img.shields.io/npm/v/pptx-templater.svg)](https://www.npmjs.com/package/pptx-templater)
-[![CI](https://github.com/your-org/pptx-templater/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/pptx-templater/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/codecov/c/github/your-org/pptx-templater)](https://codecov.io/gh/your-org/pptx-templater)
+[![npm version](https://img.shields.io/npm/v/node-pptx-templater.svg)](https://www.npmjs.com/package/node-pptx-templater)
+[![CI](https://github.com/jsuyog2/node-pptx-templater/actions/workflows/ci.yml/badge.svg)](https://github.com/jsuyog2/node-pptx-templater/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/jsuyog2/node-pptx-templater)](https://codecov.io/gh/jsuyog2/node-pptx-templater)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
 [![ES Modules](https://img.shields.io/badge/ESM-only-blueviolet)](https://nodejs.org/api/esm.html)
@@ -32,7 +32,7 @@
 ## 📦 Installation
 
 ```bash
-npm install pptx-templater
+npm install node-pptx-templater
 ```
 
 **Requirements:** Node.js ≥ 18.0.0, ES Modules (`"type": "module"`)
@@ -42,7 +42,7 @@ npm install pptx-templater
 ## 🚀 Quick Start
 
 ```js
-import { PPTXTemplater } from 'pptx-templater';
+import { PPTXTemplater } from 'node-pptx-templater';
 
 // Load a template PPTX
 const ppt = await PPTXTemplater.load('template.pptx');
@@ -139,7 +139,7 @@ const buffer = await ppt.toBuffer();
 ## 🏗️ Architecture
 
 ```
-pptx-templater/
+node-pptx-templater/
 ├── PPTXTemplater     ← Main orchestrator / public API
 │   ├── ZipManager         ← ZIP archive read/write (JSZip)
 │   ├── XMLParser          ← XML parse/build (fast-xml-parser)
@@ -215,22 +215,22 @@ PowerPoint sometimes splits `{{placeholder}}` across multiple XML text runs:
 
 ```bash
 # Install globally
-npm install -g pptx-templater
+npm install -g node-pptx-templater
 
 # Build a PPTX from template + JSON data
-pptx-templater build template.pptx output.pptx --data data.json
+node-pptx-templater build template.pptx output.pptx --data data.json
 
 # Validate a PPTX structure
-pptx-templater validate presentation.pptx
+node-pptx-templater validate presentation.pptx
 
 # Inspect internal structure
-pptx-templater inspect presentation.pptx --all
+node-pptx-templater inspect presentation.pptx --all
 
 # Extract a slide's XML
-pptx-templater extract presentation.pptx --slide 1 --out slide1.xml
+node-pptx-templater extract presentation.pptx --slide 1 --out slide1.xml
 
 # Debug a corrupted PPTX
-pptx-templater debug broken.pptx --fix --out repaired.pptx
+node-pptx-templater debug broken.pptx --fix --out repaired.pptx
 ```
 
 ### Data JSON format for `build` command
@@ -303,7 +303,7 @@ PPTX_LOG_LEVEL=debug node your-script.js
 
 Extract the slide XML to inspect:
 ```bash
-pptx-templater extract template.pptx --slide 1 --out slide1.xml
+node-pptx-templater extract template.pptx --slide 1 --out slide1.xml
 ```
 
 Look for `<a:t>` elements and check if the placeholder is split.
@@ -314,7 +314,7 @@ Chart names must match the shape's `cNvPr name` attribute exactly.
 Use `--inspect --charts` to see all chart names:
 
 ```bash
-pptx-templater inspect template.pptx --charts
+node-pptx-templater inspect template.pptx --charts
 ```
 
 ### Generated PPTX fails to open
@@ -322,7 +322,7 @@ pptx-templater inspect template.pptx --charts
 Run the debug command to check for structural issues:
 
 ```bash
-pptx-templater debug output.pptx
+node-pptx-templater debug output.pptx
 ```
 
 Common causes:
@@ -333,7 +333,7 @@ Common causes:
 ### File is corrupted
 
 ```bash
-pptx-templater debug corrupted.pptx --fix --out repaired.pptx
+node-pptx-templater debug corrupted.pptx --fix --out repaired.pptx
 ```
 
 The debug command attempts:
@@ -402,8 +402,8 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 Quick steps:
 ```bash
-git clone https://github.com/your-org/pptx-templater.git
-cd pptx-templater
+git clone https://github.com/jsuyog2/node-pptx-templater.git
+cd node-pptx-templater
 npm install
 npm test
 ```

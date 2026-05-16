@@ -1,5 +1,5 @@
 /**
- * @fileoverview Vitest configuration for pptx-templater.
+ * @fileoverview Vitest configuration for node-pptx-templater.
  */
 
 import { defineConfig } from 'vitest/config';

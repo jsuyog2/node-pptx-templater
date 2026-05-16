@@ -1,5 +1,5 @@
 {
-  "name": "pptx-templater",
+  "name": "node-pptx-templater",
   "version": "1.0.0",
   "description": "Low-level PowerPoint OpenXML template engine for Node.js — generate and edit PPTX files directly through XML manipulation without relying on PowerPoint generation libraries.",
   "main": "./src/index.js",
@@ -10,14 +10,14 @@
     }
   },
   "bin": {
-    "pptx-templater": "./src/cli/index.js"
+    "node-pptx-templater": "./src/cli/index.js"
   },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src tests --ext .js",
-    "lint:fix": "eslint src tests --ext .js --fix",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
     "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\" \"examples/**/*.js\"",
     "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\"",
     "benchmark": "node benchmarks/run.js",
@@ -46,17 +46,17 @@
     "esm"
   ],
   "author": {
-    "name": "pptx-templater contributors"
+    "name": "node-pptx-templater contributors"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/pptx-templater.git"
+    "url": "https://github.com/jsuyog2/node-pptx-templater.git"
   },
   "bugs": {
-    "url": "https://github.com/your-org/pptx-templater/issues"
+    "url": "https://github.com/jsuyog2/node-pptx-templater/issues"
   },
-  "homepage": "https://your-org.github.io/pptx-templater",
+  "homepage": "https://jsuyog2.github.io/node-pptx-templater",
   "engines": {
     "node": ">=18.0.0"
   },

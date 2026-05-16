@@ -38,7 +38,7 @@ export class ContentTypesManager {
     }
 
     this.#contentTypesObj = this.#xmlParser.parse(content, TYPES_XML_PATH);
-    
+
     // Ensure structure is correct
     if (!this.#contentTypesObj.Types) {
       this.#contentTypesObj.Types = {

@@ -418,7 +418,7 @@ export class PPTXTemplater {
   addSlideLink(options) {
     this.#assertLoaded();
     const { sourceSlide, targetSlide, element } = options;
-    
+
     // Fallback: If no element text is provided, link the slide number (legacy behavior)
     if (!element) {
       this.#hyperlinkManager.addSlideHyperlink(
@@ -641,7 +641,7 @@ export class PPTXTemplater {
   importSlides(slideIndices) {
     this.#assertLoaded();
     const slidesToKeep = slideIndices.map(i => this.#slideManager.getSlideInfo(i).slideId);
-    
+
     // Remove unneeded slides from highest to lowest index to avoid shifting issues
     const allIndices = this.#slideManager.getAllSlideIndices();
     for (let i = allIndices.length; i >= 1; i--) {
@@ -650,19 +650,19 @@ export class PPTXTemplater {
         this.#slideManager.removeSlide(i);
       }
     }
-    
+
     // Calculate new target order based on the requested slideIndices
     const currentOrder = this.#slideManager.getAllSlideIndices().map(i => this.#slideManager.getSlideInfo(i).slideId);
-    
+
     const newOrder = slidesToKeep.map(id => {
       return currentOrder.indexOf(id) + 1;
     });
-    
+
     // Only reorder if needed
     if (newOrder.join(',') !== currentOrder.map((_, i) => i + 1).join(',')) {
       this.#slideManager.reorderSlides(newOrder);
     }
-    
+
     logger.debug(`Imported ${slideIndices.length} slide(s).`);
     return this;
   }
@@ -704,13 +704,13 @@ export class PPTXTemplater {
    */
   async repair() {
     this.#assertLoaded();
-    
+
     // 1. Rebuild presentation.xml slide mappings
     this.#slideManager.rebuildPresentationSlideOrder();
-    
+
     // 2. Remove orphan relationships
     this.#relationshipManager.removeOrphanRelationships(this.#zipManager);
-    
+
     logger.info('PPTX repair complete.');
     return this;
   }
@@ -741,7 +741,7 @@ export class PPTXTemplater {
     const info = this.#slideManager.getSlideInfo(slideIndex);
     const xml = this.#slideManager.getSlideXml(slideIndex);
     const rels = this.#relationshipManager.getRelationships(info.zipPath);
-    
+
     console.log(`=== Slide ${slideIndex} Inspection ===`);
     console.log(`Path: ${info.zipPath}`);
     console.log(`ID: ${info.slideId}`);
@@ -750,7 +750,7 @@ export class PPTXTemplater {
     console.log(`XML Size: ${xml.length} characters`);
     console.log(`Relationships (${rels.length}):`);
     rels.forEach(r => console.log(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`));
-    
+
     return this;
   }
 
@@ -780,28 +780,28 @@ export class PPTXTemplater {
   async validateCharts() {
     this.#assertLoaded();
     const issues = { valid: true, errors: [], warnings: [] };
-    
+
     // We lazy import ChartRelationshipManager so we don't circularly depend if not needed
     const { ChartRelationshipManager } = await import('../managers/charts/ChartRelationshipManager.js');
-    
+
     const chartFiles = this.#zipManager.listFiles('ppt/charts/')
       .filter(f => {
         const name = f.split('/').pop();
         return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels');
       });
-    
+
     for (const chartPath of chartFiles) {
       const relIssues = ChartRelationshipManager.validateChartRelationships(this.#relationshipManager, this.#zipManager, chartPath);
       issues.errors.push(...relIssues.errors);
       issues.warnings.push(...relIssues.warnings);
     }
-    
+
     if (issues.errors.length > 0) issues.valid = false;
     return issues;
   }
 
   /**
-   * Repairs common chart corruption issues such as broken caches, 
+   * Repairs common chart corruption issues such as broken caches,
    * missing embedded workbooks, or orphan nodes.
    *
    * @returns {Promise<PPTXTemplater>} this
@@ -809,7 +809,7 @@ export class PPTXTemplater {
   async repairCharts() {
     this.#assertLoaded();
     logger.info('Repairing charts...');
-    
+
     // Check all charts for missing embedded workbooks
     const chartFiles = this.#zipManager.listFiles('ppt/charts/')
       .filter(f => {
@@ -823,7 +823,7 @@ export class PPTXTemplater {
         if (!this.#zipManager.hasFile(xlsxPath)) {
           logger.warn(`Chart ${chartPath} has broken workbook reference ${rel.id}, removing to prevent repair mode.`);
           this.#relationshipManager.removeRelationship(chartPath, rel.id);
-          
+
           // Also strip c:externalData from chart XML to prevent PowerPoint looking for it
           const xml = await this.#zipManager.readFile(chartPath);
           if (xml) {
@@ -833,14 +833,14 @@ export class PPTXTemplater {
         }
       }
     }
-    
+
     return this;
   }
 
   /**
    * Inspects a specific chart's metadata and structure.
-   * 
-   * @param {string} chartId 
+   *
+   * @param {string} chartId
    */
   inspectChart(chartId) {
     this.#assertLoaded();
@@ -867,7 +867,7 @@ export class PPTXTemplater {
   /**
    * Inspects and logs the raw XML of a chart file.
    *
-   * @param {string} chartFileName 
+   * @param {string} chartFileName
    */
   async inspectChartXML(chartFileName) {
     const fullPath = chartFileName.includes('/') ? chartFileName : `ppt/charts/${chartFileName}`;

@@ -6,8 +6,8 @@ export class ChartParser {
   /**
    * Finds a chart's relationship ID and type in a slide's XML based on shape name/id.
    *
-   * @param {string} slideXml 
-   * @param {string} chartId 
+   * @param {string} slideXml
+   * @param {string} chartId
    * @returns {{ rId: string } | null}
    */
   static findChartRIdInSlide(slideXml, chartId) {
@@ -16,7 +16,7 @@ export class ChartParser {
       `<p:cNvPr[^>]*name="${chartId}"[^>]*>(?:.*?)<c:chart[^>]*r:id="(rId\\d+)"`,
       's'
     );
-    let rIdMatch = shapeNamePattern.exec(slideXml);
+    const rIdMatch = shapeNamePattern.exec(slideXml);
     if (rIdMatch) {
       return { rId: rIdMatch[1] };
     }
@@ -28,14 +28,14 @@ export class ChartParser {
   /**
    * Parses the chart XML to extract series and categories for validation.
    *
-   * @param {string} xml 
+   * @param {string} xml
    * @returns {Object} Data about the chart configuration
    */
   static parseChartData(xml) {
     // This could be used for validation and extracting current chart cache
     const ptCountMatch = xml.match(/<c:ptCount val="(\d+)"\/>/);
     const pointCount = ptCountMatch ? parseInt(ptCountMatch[1], 10) : 0;
-    
+
     return {
       pointCount
     };

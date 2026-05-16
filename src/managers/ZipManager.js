@@ -171,7 +171,7 @@ export class ZipManager {
 
   /**
    * Adds a promise to the pending queue to be awaited before saving.
-   * @param {Promise} promise 
+   * @param {Promise} promise
    */
   addPendingPromise(promise) {
     this.#pendingPromises.push(promise);

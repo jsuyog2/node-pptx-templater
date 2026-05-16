@@ -65,7 +65,7 @@ describe('ContentTypesManager', () => {
 
     manager.flush(mockZip);
     const flushedXml = mockZip.files['[Content_Types].xml'];
-    
+
     // Ensure they appear exactly once
     const xmlMatches = flushedXml.match(/Extension="xml"/g) || [];
     expect(xmlMatches.length).toBe(1);

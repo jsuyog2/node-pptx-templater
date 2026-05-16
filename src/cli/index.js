@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 /**
- * @fileoverview CLI entry point for pptx-templater.
+ * @fileoverview CLI entry point for node-pptx-templater.
  *
  * Provides command-line access to the template engine's core features.
  *
  * Usage:
- *   pptx-templater build template.pptx output.pptx [options]
- *   pptx-templater validate template.pptx
- *   pptx-templater inspect template.pptx
- *   pptx-templater extract template.pptx --slide 1 --out ./slide1.xml
- *   pptx-templater debug template.pptx
+ *   node-pptx-templater build template.pptx output.pptx [options]
+ *   node-pptx-templater validate template.pptx
+ *   node-pptx-templater inspect template.pptx
+ *   node-pptx-templater extract template.pptx --slide 1 --out ./slide1.xml
+ *   node-pptx-templater debug template.pptx
  *
  * Install globally:
- *   npm install -g pptx-templater
+ *   npm install -g node-pptx-templater
  *
  * Then run:
- *   pptx-templater --help
+ *   node-pptx-templater --help
  */
 
 import { Command } from 'commander';
@@ -44,7 +44,7 @@ const pkg = JSON.parse(
 function printBanner() {
   console.log(chalk.bold.cyan(`
 ╔═══════════════════════════════════════════════╗
-║       pptx-templater v${pkg.version.padEnd(17)}║
+║  node-pptx-templater v${pkg.version.padEnd(17)}║
 ║  Low-level OpenXML PowerPoint template engine ║
 ╚═══════════════════════════════════════════════╝
 `));
@@ -53,10 +53,10 @@ function printBanner() {
 const program = new Command();
 
 program
-  .name('pptx-templater')
+  .name('node-pptx-templater')
   .description('Low-level PowerPoint OpenXML template engine for Node.js')
   .version(pkg.version, '-v, --version', 'Display version number')
-  .addHelpText('before', chalk.bold.cyan('\npptx-templater — PowerPoint XML manipulation engine\n'));
+  .addHelpText('before', chalk.bold.cyan('\nnode-pptx-templater — PowerPoint XML manipulation engine\n'));
 
 // ─── build command ─────────────────────────────────────────────────────────
 program

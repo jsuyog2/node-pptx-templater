@@ -165,7 +165,7 @@ export class ChartManager {
       `<p:cNvPr[^>]*name="${chartId}"[^>]*>(?:.*?)<c:chart[^>]*r:id="(rId\\d+)"`,
       's'
     );
-    let rIdMatch = shapeNamePattern.exec(slideXml);
+    const rIdMatch = shapeNamePattern.exec(slideXml);
 
     // Strategy 2: Find graphicFrame shapes and match chart rIds
     if (!rIdMatch) {

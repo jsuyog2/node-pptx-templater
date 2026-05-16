@@ -33,7 +33,7 @@ describe('PPTXTemplater - Slide Management Corruption Prevention', () => {
 
   it('should remove a slide, keep metadata synchronized, and clean sections without corruption', async () => {
     const ppt = await PPTXTemplater.load(fixtureFile);
-    
+
     // We expect the original template to have 3 slides
     expect(ppt.getInfo().slideCount).toBe(3);
 

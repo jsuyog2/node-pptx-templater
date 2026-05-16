@@ -440,7 +440,7 @@ export class SlideManager {
 
     // Remove from ZIP
     this.#zipManager.removeFile(info.zipPath);
-    
+
     // Remove its relationships file
     const relsFileName = info.zipPath.split('/').pop() + '.rels';
     this.#zipManager.removeFile(`ppt/slides/_rels/${relsFileName}`);
@@ -582,7 +582,7 @@ export class SlideManager {
         // Map to destination's slide layout.
         const layoutFileName = rel.target.split('/').pop();
         const destLayoutPath = `ppt/slideLayouts/${layoutFileName}`;
-        
+
         let targetLayout = `../slideLayouts/${layoutFileName}`;
         if (!this.#zipManager.hasFile(destLayoutPath)) {
           // Find first available layout
@@ -593,7 +593,7 @@ export class SlideManager {
             targetLayout = '../slideLayouts/slideLayout1.xml';
           }
         }
-        
+
         const newRId = this.#relationshipManager.addRelationship(slideZipPath, rel.type, targetLayout);
         idMap.set(rel.id, newRId);
 
@@ -612,7 +612,7 @@ export class SlideManager {
         const chartXml = await sourceZip.readFile(resolvedTarget);
         if (chartXml) {
           const chartRels = sourceRelManager.getRelationships(resolvedTarget);
-          
+
           let nextChartId = 1;
           while (this.#zipManager.hasFile(`ppt/charts/chart${nextChartId}.xml`)) {
             nextChartId++;
@@ -624,7 +624,7 @@ export class SlideManager {
           for (const chartRel of chartRels) {
             const resolvedChartTarget = sourceRelManager.resolveTarget(resolvedTarget, chartRel.target);
             const workbookBytes = await sourceZip.readBinaryFile(resolvedChartTarget);
-            
+
             if (workbookBytes) {
               const workbookFileName = resolvedChartTarget.split('/').pop();
               let nextEmbedId = 1;

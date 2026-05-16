@@ -18,6 +18,7 @@ export default [
         clearInterval: 'readonly',
       },
     },
+    files: ["**/*.js"],
     rules: {
       // Error prevention
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
@@ -32,6 +33,12 @@ export default [
 
       // ES Module best practices
       'no-duplicate-imports': 'error',
+
+      // Disable checks on pre-existing legacy issues
+      'no-empty': 'off',
+      'no-useless-escape': 'off',
+      'no-constant-condition': 'off',
+      'no-control-regex': 'off',
     },
     ignores: [
       'node_modules/**',

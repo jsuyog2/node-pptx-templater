@@ -1,12 +1,12 @@
 /**
- * pptx-templater
+ * node-pptx-templater
  *
  * A low-level PowerPoint OpenXML templating engine for Node.js.
  * Generates and edits PPTX files directly through XML manipulation
  * without relying on PowerPoint generation libraries.
  *
- * @module pptx-templater
- * @author pptx-templater contributors
+ * @module node-pptx-templater
+ * @author node-pptx-templater contributors
  * @license MIT
  *
  * Architecture Overview:

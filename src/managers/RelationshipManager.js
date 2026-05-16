@@ -379,7 +379,7 @@ export class RelationshipManager {
       // Determine the base part path from the rels path
       // e.g. ppt/slides/_rels/slide1.xml.rels -> ppt/slides/slide1.xml
       const partPath = relsPath.replace('_rels/', '').replace('.rels', '');
-      
+
       const filtered = rels.filter(rel => {
         if (rel.targetMode === 'External') return true;
         const targetPath = this.resolveTarget(partPath, rel.target);
@@ -390,7 +390,7 @@ export class RelationshipManager {
         }
         return true;
       });
-      
+
       if (filtered.length !== rels.length) {
         this.#relationships.set(relsPath, filtered);
         this.#flushRels(relsPath, partPath);

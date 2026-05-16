@@ -36,4 +36,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Private class fields (`#field`) for encapsulation
 - Modular architecture following SOLID principles
 
-[1.0.0]: https://github.com/your-org/pptx-templater/releases/tag/v1.0.0
+[1.0.0]: https://github.com/jsuyog2/pptx-templater/releases/tag/v1.0.0
