@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+*.pptx
+!tests/fixtures/*.pptx
+tests/output/
+benchmarks/results/
+.env
+.DS_Store
+Thumbs.db
+*.log

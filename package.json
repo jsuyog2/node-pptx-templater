@@ -1,0 +1,83 @@
+{
+  "name": "pptx-templater",
+  "version": "1.0.0",
+  "description": "Low-level PowerPoint OpenXML template engine for Node.js — generate and edit PPTX files directly through XML manipulation without relying on PowerPoint generation libraries.",
+  "main": "./src/index.js",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.js"
+    }
+  },
+  "bin": {
+    "pptx-templater": "./src/cli/index.js"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src tests --ext .js",
+    "lint:fix": "eslint src tests --ext .js --fix",
+    "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\" \"examples/**/*.js\"",
+    "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\"",
+    "benchmark": "node benchmarks/run.js",
+    "docs:build": "node scripts/generate-docs.js",
+    "validate": "node scripts/validate-setup.js",
+    "example:basic": "node examples/basic-usage.js",
+    "example:charts": "node examples/chart-update.js",
+    "example:tables": "node examples/table-update.js",
+    "example:slides": "node examples/slide-selection.js",
+    "prepublishOnly": "npm run lint && npm run test"
+  },
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "openxml",
+    "template",
+    "presentation",
+    "slides",
+    "office",
+    "xml",
+    "chart",
+    "table",
+    "report",
+    "generator",
+    "nodejs",
+    "esm"
+  ],
+  "author": {
+    "name": "pptx-templater contributors"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/pptx-templater.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/pptx-templater/issues"
+  },
+  "homepage": "https://your-org.github.io/pptx-templater",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.3.6",
+    "jszip": "^3.10.1",
+    "fs-extra": "^11.2.0",
+    "commander": "^12.0.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.0.1"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ]
+}
