@@ -42,6 +42,8 @@
 import { createLogger } from '../utils/logger.js';
 import { ChartNotFoundError } from '../utils/errors.js';
 import { REL_TYPES } from './RelationshipManager.js';
+import { ChartWorkbookUpdater } from './charts/ChartWorkbookUpdater.js';
+import { ChartCacheGenerator } from './charts/ChartCacheGenerator.js';
 
 const logger = createLogger('ChartManager');
 
@@ -123,7 +125,7 @@ export class ChartManager {
     }
 
     logger.debug(`Updating chart "${chartId}" at ${chartInfo.zipPath}`);
-    this.#updateChartXml(chartInfo.zipPath, data);
+    this.#updateChartXml(chartInfo.zipPath, data, relationshipManager);
   }
 
   /**
@@ -212,44 +214,63 @@ export class ChartManager {
   /**
    * Updates the chart XML file with new data.
    * Preserves all styling, themes, and chart configuration.
-   * Only replaces data-related nodes.
    *
    * @private
    * @param {string} chartZipPath - ZIP path to the chart XML file.
    * @param {ChartData} data - New chart data.
+   * @param {RelationshipManager} relationshipManager
    */
-  #updateChartXml(chartZipPath, data) {
-    const chartXml = this.#zipManager.rawZip.file(chartZipPath);
-    if (!chartXml) {
+  #updateChartXml(chartZipPath, data, relationshipManager) {
+    if (!this.#zipManager.hasFile(chartZipPath)) {
       throw new ChartNotFoundError(`Chart file not found: ${chartZipPath}`);
     }
 
-    // We use a synchronous approach here since JSZip caches file content
-    // For the async version, use updateChartAsync()
-    chartXml.async('text').then(xml => {
-      const updatedXml = this.#applyChartData(xml, data, chartZipPath);
-      this.#zipManager.writeFile(chartZipPath, updatedXml);
-    });
+    // Register async update to ensure it completes before saving
+    this.#zipManager.addPendingPromise(
+      this.updateChartAsync(chartZipPath, data, relationshipManager)
+    );
   }
 
   /**
-   * Async version of chart update — preferred for large charts.
+   * Async version of chart update — updates XML and embedded workbook.
    *
    * @param {string} chartZipPath
    * @param {ChartData} data
+   * @param {RelationshipManager} relationshipManager
    * @returns {Promise<void>}
    */
-  async updateChartAsync(chartZipPath, data) {
+  async updateChartAsync(chartZipPath, data, relationshipManager) {
+    // 1. Read Chart XML
     const xml = await this.#zipManager.readFile(chartZipPath);
     if (!xml) throw new ChartNotFoundError(`Chart file not found: ${chartZipPath}`);
 
+    // 2. Apply Chart XML Updates
     const updatedXml = this.#applyChartData(xml, data, chartZipPath);
     this.#zipManager.writeFile(chartZipPath, updatedXml);
+
+    // 3. Find and Update Embedded Workbook
+    if (relationshipManager) {
+      const rels = relationshipManager.getRelationshipsByType(chartZipPath, REL_TYPES.PACKAGE);
+      for (const rel of rels) {
+        const xlsxPath = relationshipManager.resolveTarget(chartZipPath, rel.target);
+        const xlsxData = this.#zipManager.rawZip.file(xlsxPath);
+        if (xlsxData) {
+          console.log(`Found embedded workbook: ${xlsxPath}`);
+          const buffer = await xlsxData.async('nodebuffer');
+          const updatedXlsx = await ChartWorkbookUpdater.updateWorkbook(buffer, data);
+          if (updatedXlsx) {
+            console.log(`Writing updated workbook to: ${xlsxPath}, size: ${updatedXlsx.length}`);
+            this.#zipManager.writeBinaryFile(xlsxPath, updatedXlsx);
+          }
+        } else {
+          console.log(`Could not find workbook at: ${xlsxPath}`);
+        }
+      }
+    }
   }
 
   /**
    * Applies new chart data to the chart XML string.
-   * Handles all supported chart types.
    *
    * @private
    * @param {string} xml - Original chart XML.
@@ -266,14 +287,16 @@ export class ChartManager {
 
     let updatedXml = xml;
 
-    // Update categories (shared across all series for most chart types)
-    if (categories && categories.length > 0) {
-      updatedXml = this.#updateCategories(updatedXml, categories);
+    if (series && series.length > 0) {
+      updatedXml = ChartCacheGenerator.appendDynamicSeries(updatedXml, series.length);
     }
 
-    // Update each series
+    if (categories && categories.length > 0) {
+      updatedXml = ChartCacheGenerator.updateCategories(updatedXml, categories);
+    }
+
     if (series && series.length > 0) {
-      updatedXml = this.#updateSeries(updatedXml, series, categories);
+      updatedXml = ChartCacheGenerator.updateSeries(updatedXml, series, categories ? categories.length : null);
     }
 
     return updatedXml;
@@ -290,143 +313,5 @@ export class ChartManager {
       if (xml.includes(element)) return name;
     }
     return 'unknown';
-  }
-
-  /**
-   * Updates the category labels in chart XML.
-   * Handles both string categories (strRef) and numeric (numRef).
-   *
-   * @private
-   * @param {string} xml - Chart XML.
-   * @param {string[]} categories - New category labels.
-   * @returns {string} Updated XML.
-   */
-  #updateCategories(xml, categories) {
-    const count = categories.length;
-
-    // Build the string cache entries
-    const ptEntries = categories
-      .map((cat, i) => `<c:pt idx="${i}"><c:v>${this.#escapeXml(String(cat))}</c:v></c:pt>`)
-      .join('');
-
-    // Pattern to find the first series' cat section (used as template for all)
-    // We replace strCache or numCache content within c:cat
-    const strCachePattern = /(<c:strCache>)([\s\S]*?)(<\/c:strCache>)/;
-    const numCachePattern = /(<c:numCache>)([\s\S]*?)(<\/c:numCache>)/;
-
-    const newStrCache = `<c:ptCount val="${count}"/>${ptEntries}`;
-
-    let updated = xml;
-
-    if (strCachePattern.test(updated)) {
-      updated = updated.replace(strCachePattern, `$1${newStrCache}$3`);
-    } else if (numCachePattern.test(updated)) {
-      // Convert to string cache if was numeric
-      updated = updated.replace(numCachePattern, `$1${newStrCache}$3`);
-    }
-
-    return updated;
-  }
-
-  /**
-   * Updates series data in chart XML.
-   *
-   * @private
-   * @param {string} xml - Chart XML.
-   * @param {SeriesData[]} series - New series data.
-   * @param {string[]} [categories] - Categories for reference.
-   * @returns {string} Updated XML.
-   */
-  #updateSeries(xml, series, categories) {
-    let updated = xml;
-
-    // Find all <c:ser> blocks
-    const serPattern = /(<c:ser>)([\s\S]*?)(<\/c:ser>)/g;
-    const serMatches = [...updated.matchAll(serPattern)];
-
-    if (serMatches.length === 0) {
-      logger.warn('No series (c:ser) found in chart XML');
-      return xml;
-    }
-
-    // Update each series that has a corresponding data entry
-    let serIndex = 0;
-    updated = updated.replace(serPattern, (match, open, content, close) => {
-      if (serIndex >= series.length) return match; // Keep extra series unchanged
-
-      const serData = series[serIndex];
-      serIndex++;
-
-      let updatedContent = content;
-
-      // Update series name (c:tx)
-      if (serData.name !== undefined) {
-        updatedContent = this.#updateSeriesName(updatedContent, serData.name, serIndex - 1);
-      }
-
-      // Update values (c:val → c:numCache)
-      if (serData.values !== undefined) {
-        updatedContent = this.#updateSeriesValues(updatedContent, serData.values);
-      }
-
-      return `${open}${updatedContent}${close}`;
-    });
-
-    return updated;
-  }
-
-  /**
-   * Updates the series name in c:tx section.
-   * @private
-   */
-  #updateSeriesName(serContent, name, idx) {
-    // Update the string reference value
-    const txPattern = /(<c:tx>)([\s\S]*?)(<\/c:tx>)/;
-    if (txPattern.test(serContent)) {
-      return serContent.replace(txPattern, (match, open, content, close) => {
-        // Replace the v element value
-        const vPattern = /(<c:v>)(.*?)(<\/c:v>)/;
-        if (vPattern.test(content)) {
-          return `${open}${content.replace(vPattern, `$1${this.#escapeXml(name)}$3`)}${close}`;
-        }
-        return match;
-      });
-    }
-    return serContent;
-  }
-
-  /**
-   * Updates the numeric values in c:val → c:numCache.
-   * @private
-   */
-  #updateSeriesValues(serContent, values) {
-    const count = values.length;
-    const ptEntries = values
-      .map((val, i) => `<c:pt idx="${i}"><c:v>${Number(val)}</c:v></c:pt>`)
-      .join('');
-
-    const numCachePattern = /(<c:numCache>)([\s\S]*?)(<\/c:numCache>)/;
-    if (numCachePattern.test(serContent)) {
-      return serContent.replace(
-        numCachePattern,
-        `$1<c:formatCode>General</c:formatCode><c:ptCount val="${count}"/>${ptEntries}$3`
-      );
-    }
-    return serContent;
-  }
-
-  /**
-   * Escapes XML special characters in a string.
-   * @private
-   * @param {string} str
-   * @returns {string}
-   */
-  #escapeXml(str) {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
   }
 }

@@ -37,10 +37,10 @@ async function main() {
     console.log(`📊 Loaded ${ppt.slideCount} slides`);
 
     // Step 1: Work on specific slide
-    const slide = ppt.useSlide(1);
+    ppt.useSlide(1);
 
     // Step 2: Replace text placeholders
-    slide.replaceText({
+    ppt.replaceText({
       '{{title}}': 'Quarterly Business Review',
       '{{subtitle}}': 'Q1 2026 Results',
       '{{date}}': new Date().toLocaleDateString('en-US', {
@@ -52,7 +52,7 @@ async function main() {
 
     console.log('✅ Text replaced');
 
-    slide.updateChart('Chart', {
+    ppt.updateChart('Chart', {
       categories: ['Q1', 'Q2', 'Q3', 'Q4'],
       series: [
         { name: 'Product A', values: [145, 210, 190, 250] },

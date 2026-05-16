@@ -714,6 +714,129 @@ export class PPTXTemplater {
   }
 
   /**
+   * Validates all charts in the presentation to ensure they are not corrupted.
+   * Checks XML, caches, and embedded workbook references.
+   *
+   * @returns {Promise<Object>} Validation results for charts.
+   */
+  async validateCharts() {
+    this.#assertLoaded();
+    const issues = { valid: true, errors: [], warnings: [] };
+    
+    // We lazy import ChartRelationshipManager so we don't circularly depend if not needed
+    const { ChartRelationshipManager } = await import('../managers/charts/ChartRelationshipManager.js');
+    
+    const chartFiles = this.#zipManager.listFiles('ppt/charts/')
+      .filter(f => {
+        const name = f.split('/').pop();
+        return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels');
+      });
+    
+    for (const chartPath of chartFiles) {
+      const relIssues = ChartRelationshipManager.validateChartRelationships(this.#relationshipManager, this.#zipManager, chartPath);
+      issues.errors.push(...relIssues.errors);
+      issues.warnings.push(...relIssues.warnings);
+    }
+    
+    if (issues.errors.length > 0) issues.valid = false;
+    return issues;
+  }
+
+  /**
+   * Repairs common chart corruption issues such as broken caches, 
+   * missing embedded workbooks, or orphan nodes.
+   *
+   * @returns {Promise<PPTXTemplater>} this
+   */
+  async repairCharts() {
+    this.#assertLoaded();
+    logger.info('Repairing charts...');
+    
+    // Check all charts for missing embedded workbooks
+    const chartFiles = this.#zipManager.listFiles('ppt/charts/')
+      .filter(f => {
+        const name = f.split('/').pop();
+        return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels');
+      });
+    for (const chartPath of chartFiles) {
+      const rels = this.#relationshipManager.getRelationshipsByType(chartPath, 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/package');
+      for (const rel of rels) {
+        const xlsxPath = this.#relationshipManager.resolveTarget(chartPath, rel.target);
+        if (!this.#zipManager.hasFile(xlsxPath)) {
+          logger.warn(`Chart ${chartPath} has broken workbook reference ${rel.id}, removing to prevent repair mode.`);
+          this.#relationshipManager.removeRelationship(chartPath, rel.id);
+          
+          // Also strip c:externalData from chart XML to prevent PowerPoint looking for it
+          const xml = await this.#zipManager.readFile(chartPath);
+          if (xml) {
+            const updated = xml.replace(/<c:externalData[^>]*r:id="[^"]*"[^>]*>/, '').replace(/<\/c:externalData>/, '');
+            this.#zipManager.writeFile(chartPath, updated);
+          }
+        }
+      }
+    }
+    
+    return this;
+  }
+
+  /**
+   * Inspects a specific chart's metadata and structure.
+   * 
+   * @param {string} chartId 
+   */
+  inspectChart(chartId) {
+    this.#assertLoaded();
+    console.log(`=== Chart Inspection: ${chartId} ===`);
+    // Find chart across all slides to get info
+    let found = false;
+    for (const i of this.#slideManager.getAllSlideIndices()) {
+      try {
+        const info = this.#chartManager.getChartsInSlide(i, this.#slideManager, this.#relationshipManager);
+        const chart = info.find(c => c.zipPath.toLowerCase().includes(chartId.toLowerCase()) || c.rId === chartId);
+        if (chart) {
+          console.log(`Found on Slide ${i}`);
+          console.log(`ZIP Path: ${chart.zipPath}`);
+          console.log(`Relationship ID: ${chart.rId}`);
+          found = true;
+          break;
+        }
+      } catch (e) {}
+    }
+    if (!found) console.log('Chart not found.');
+    return this;
+  }
+
+  /**
+   * Inspects and logs the raw XML of a chart file.
+   *
+   * @param {string} chartFileName 
+   */
+  async inspectChartXML(chartFileName) {
+    const fullPath = chartFileName.includes('/') ? chartFileName : `ppt/charts/${chartFileName}`;
+    await this.inspectXML(fullPath);
+    return this;
+  }
+
+  /**
+   * Logs all chart relationships.
+   */
+  debugChartRelationships() {
+    this.#assertLoaded();
+    console.log('=== Chart Relationships ===');
+    const chartFiles = this.#zipManager.listFiles('ppt/charts/')
+      .filter(f => {
+        const name = f.split('/').pop();
+        return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels');
+      });
+    for (const chartPath of chartFiles) {
+      console.log(`\n${chartPath}:`);
+      const rels = this.#relationshipManager.getRelationships(chartPath);
+      rels.forEach(r => console.log(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`));
+    }
+    return this;
+  }
+
+  /**
    * Saves the modified PPTX to a file on disk.
    *
    * @param {string} filePath - Output file path (e.g., './output/report.pptx').
