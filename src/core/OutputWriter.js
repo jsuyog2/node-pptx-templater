@@ -8,13 +8,13 @@
  *  4. Write to file, buffer, or stream
  */
 
-import fsExtra from 'fs-extra';
+const fsExtra = require('fs-extra');
 const { writeFile, ensureDir } = fsExtra;
-import path from 'path';
-import { XMLParser } from '../parsers/XMLParser.js';
-import { createLogger } from '../utils/logger.js';
-import { PPTXError } from '../utils/errors.js';
-import { Readable } from 'stream';
+const path = require('path');
+const { XMLParser } = require('../parsers/XMLParser.js');
+const { createLogger } = require('../utils/logger.js');
+const { PPTXError } = require('../utils/errors.js');
+const { Readable } = require('stream');
 
 const logger = createLogger('OutputWriter');
 
@@ -22,7 +22,7 @@ const logger = createLogger('OutputWriter');
  * @class OutputWriter
  * @description Serializes the modified PPTX to various output formats.
  */
-export class OutputWriter {
+class OutputWriter {
   /** @private @type {ZipManager} */
   #zipManager;
   /** @private @type {ContentTypesManager} */
@@ -179,3 +179,5 @@ export class OutputWriter {
     logger.debug(`Flushed ${info.length} slide(s) to ZIP`);
   }
 }
+
+module.exports = { OutputWriter };

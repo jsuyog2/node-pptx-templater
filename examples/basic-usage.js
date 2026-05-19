@@ -11,12 +11,14 @@
  * To run: node examples/basic-usage.js
  */
 
-import { PPTXTemplater } from '../src/index.js';
-import { existsSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+// import { PPTXTemplater } from '../src/index.js';
+// import { existsSync } from 'fs';
+// import { resolve, dirname } from 'path';
+// import { fileURLToPath } from 'url';
+const { PPTXTemplater } = require('../src/index.js');
+const { existsSync } = require('fs');
+const { resolve } = require('path');
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = resolve(__dirname, '../templates/sample.pptx');
 const OUTPUT_PATH = resolve(__dirname, '../examples/output/basic-output.pptx');
 

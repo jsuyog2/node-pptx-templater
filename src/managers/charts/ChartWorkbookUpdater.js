@@ -1,9 +1,9 @@
-import JSZip from 'jszip';
-import { createLogger } from '../../utils/logger.js';
+const JSZip = require('jszip');
+const { createLogger } = require('../../utils/logger.js');
 
 const logger = createLogger('ChartWorkbookUpdater');
 
-export class ChartWorkbookUpdater {
+class ChartWorkbookUpdater {
   /**
    * Updates the embedded Excel workbook for a chart.
    *
@@ -128,3 +128,5 @@ export class ChartWorkbookUpdater {
       .replace(/'/g, '&apos;');
   }
 }
+
+module.exports = { ChartWorkbookUpdater };

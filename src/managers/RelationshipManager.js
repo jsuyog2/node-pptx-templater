@@ -35,9 +35,9 @@
  *  - .../slideToSlide       → slide → another slide (inter-slide link)
  */
 
-import { createLogger } from '../utils/logger.js';
-import { PPTXError } from '../utils/errors.js';
-import { generateRelationshipId } from '../utils/relationshipUtils.js';
+const { createLogger } = require('../utils/logger.js');
+const { PPTXError } = require('../utils/errors.js');
+const { generateRelationshipId } = require('../utils/relationshipUtils.js');
 
 const logger = createLogger('RelationshipManager');
 
@@ -45,7 +45,7 @@ const logger = createLogger('RelationshipManager');
  * OpenXML relationship type constants.
  * Using shortened forms; full URIs are in the OpenXML spec.
  */
-export const REL_TYPES = {
+const REL_TYPES = {
   SLIDE: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide',
   SLIDE_LAYOUT: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout',
   SLIDE_MASTER: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster',
@@ -70,7 +70,7 @@ export const REL_TYPES = {
  *  - ppt/presentation.xml → ppt/_rels/presentation.xml.rels
  *  - ppt/slides/slide1.xml → ppt/slides/_rels/slide1.xml.rels
  */
-export class RelationshipManager {
+class RelationshipManager {
   /**
    * @private
    * @type {XMLParser}
@@ -399,3 +399,5 @@ export class RelationshipManager {
     logger.debug(`Removed ${removedCount} orphan relationship(s).`);
   }
 }
+
+module.exports = { REL_TYPES, RelationshipManager };

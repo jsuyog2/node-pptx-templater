@@ -31,9 +31,9 @@
  *   Use <a:hlinkMouseOver r:id="..."/> instead of hlinkClick.
  */
 
-import { createLogger } from '../utils/logger.js';
-import { PPTXError } from '../utils/errors.js';
-import { REL_TYPES } from './RelationshipManager.js';
+const { createLogger } = require('../utils/logger.js');
+const { PPTXError } = require('../utils/errors.js');
+const { REL_TYPES } = require('./RelationshipManager.js');
 
 const logger = createLogger('HyperlinkManager');
 
@@ -41,7 +41,7 @@ const logger = createLogger('HyperlinkManager');
  * @class HyperlinkManager
  * @description Manages hyperlink creation and modification in PPTX slides.
  */
-export class HyperlinkManager {
+class HyperlinkManager {
   /** @private @type {XMLParser} */
   #xmlParser;
   /** @private @type {RelationshipManager} */
@@ -449,3 +449,5 @@ export class HyperlinkManager {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
+
+module.exports = { HyperlinkManager };

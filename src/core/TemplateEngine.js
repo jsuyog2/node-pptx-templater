@@ -26,7 +26,7 @@
  * This "text normalization" approach correctly handles fragmented placeholders.
  */
 
-import { createLogger } from '../utils/logger.js';
+const { createLogger } = require('../utils/logger.js');
 
 const logger = createLogger('TemplateEngine');
 
@@ -42,7 +42,7 @@ const DEFAULT_PLACEHOLDER_PATTERN = /\{\{([^{}]+)\}\}/g;
  *
  * Implements the text-normalization strategy to handle fragmented placeholders.
  */
-export class TemplateEngine {
+class TemplateEngine {
   /** @private @type {XMLParser} */
   #xmlParser;
 
@@ -319,3 +319,5 @@ export class TemplateEngine {
       .replace(/&apos;/g, "'");
   }
 }
+
+module.exports = { TemplateEngine };

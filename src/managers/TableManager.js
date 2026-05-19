@@ -45,8 +45,8 @@
  *  - <a:tc vMerge="1"> → continuation of vertical merge
  */
 
-import { createLogger } from '../utils/logger.js';
-import { TableNotFoundError } from '../utils/errors.js';
+const { createLogger } = require('../utils/logger.js');
+const { TableNotFoundError } = require('../utils/errors.js');
 
 const logger = createLogger('TableManager');
 
@@ -57,7 +57,7 @@ const logger = createLogger('TableManager');
  * The key design principle is "preserve formatting, replace content".
  * We never touch table styles, borders, or fonts — only the text.
  */
-export class TableManager {
+class TableManager {
   /** @private @type {XMLParser} */
   #xmlParser;
 
@@ -414,3 +414,5 @@ export class TableManager {
     return tables;
   }
 }
+
+module.exports = { TableManager };

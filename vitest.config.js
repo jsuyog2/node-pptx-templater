@@ -2,9 +2,9 @@
  * @fileoverview Vitest configuration for node-pptx-templater.
  */
 
-import { defineConfig } from 'vitest/config';
+const { defineConfig } = require('vitest/config');
 
-export default defineConfig({
+module.exports = defineConfig({
   esbuild: {
     // Tell esbuild to target modern Node.js so private class fields (#field) are supported
     target: 'node18',

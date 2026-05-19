@@ -20,9 +20,9 @@
  *  mc: — Markup Compatibility
  */
 
-import { XMLParser as FastXMLParser, XMLBuilder } from 'fast-xml-parser';
-import { createLogger } from '../utils/logger.js';
-import { PPTXError } from '../utils/errors.js';
+const { XMLParser: FastXMLParser, XMLBuilder } = require('fast-xml-parser');
+const { createLogger } = require('../utils/logger.js');
+const { PPTXError } = require('../utils/errors.js');
 
 const logger = createLogger('XMLParser');
 
@@ -91,7 +91,7 @@ const BUILDER_OPTIONS = {
  * @class XMLParser
  * @description Provides XML parsing and serialization with OpenXML-aware configuration.
  */
-export class XMLParser {
+class XMLParser {
   /**
    * @private
    * @type {FastXMLParser}
@@ -289,3 +289,7 @@ export class XMLParser {
     }
   }
 }
+
+module.exports = {
+  XMLParser
+};

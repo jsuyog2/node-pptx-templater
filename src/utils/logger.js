@@ -66,7 +66,7 @@ function timestamp() {
  * const logger = createLogger('SlideManager');
  * logger.info('Loaded 5 slides');
  */
-export function createLogger(moduleName) {
+function createLogger(moduleName) {
   const isTTY = process.stdout.isTTY;
 
   const log = (level, levelNum, color, message, ...args) => {
@@ -111,3 +111,7 @@ export function createLogger(moduleName) {
     error: (message, ...args) => log('error', LOG_LEVELS.error, COLORS.red, message, ...args),
   };
 }
+
+module.exports = {
+  createLogger
+};

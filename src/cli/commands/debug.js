@@ -1,13 +1,12 @@
 /**
  * @fileoverview `debug` CLI command — diagnoses and repairs corrupted PPTX files.
  */
-import chalk from 'chalk';
-import ora from 'ora';
-import { resolve } from 'path';
-import { repairXML } from '../../utils/xmlUtils.js';
-import { PPTXTemplater } from '../../index.js';
+const chalk = require('chalk');
+const ora = require('ora');
+const { resolve } = require('path');
+const { PPTXTemplater } = require('../../index.js');
 
-export async function debugCommand(filePath, opts) {
+async function debugCommand(filePath, opts) {
   const spinner = ora(`Loading PPTX for debug: ${filePath}`).start();
 
   try {
@@ -44,3 +43,5 @@ export async function debugCommand(filePath, opts) {
     process.exit(1);
   }
 }
+
+module.exports = { debugCommand };

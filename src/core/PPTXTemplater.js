@@ -24,19 +24,19 @@
  *     └── app.xml              — application metadata
  */
 
-import { ZipManager } from '../managers/ZipManager.js';
-import { XMLParser } from '../parsers/XMLParser.js';
-import { ContentTypesManager } from '../managers/ContentTypesManager.js';
-import { SlideManager } from '../managers/SlideManager.js';
-import { ChartManager } from '../managers/ChartManager.js';
-import { TableManager } from '../managers/TableManager.js';
-import { HyperlinkManager } from '../managers/HyperlinkManager.js';
-import { MediaManager } from '../managers/MediaManager.js';
-import { RelationshipManager } from '../managers/RelationshipManager.js';
-import { OutputWriter } from './OutputWriter.js';
-import { TemplateEngine } from './TemplateEngine.js';
-import { createLogger } from '../utils/logger.js';
-import { PPTXError } from '../utils/errors.js';
+const { ZipManager } = require('../managers/ZipManager.js');
+const { XMLParser } = require('../parsers/XMLParser.js');
+const { ContentTypesManager } = require('../managers/ContentTypesManager.js');
+const { SlideManager } = require('../managers/SlideManager.js');
+const { ChartManager } = require('../managers/ChartManager.js');
+const { TableManager } = require('../managers/TableManager.js');
+const { HyperlinkManager } = require('../managers/HyperlinkManager.js');
+const { MediaManager } = require('../managers/MediaManager.js');
+const { RelationshipManager } = require('../managers/RelationshipManager.js');
+const { OutputWriter } = require('./OutputWriter.js');
+const { TemplateEngine } = require('./TemplateEngine.js');
+const { createLogger } = require('../utils/logger.js');
+const { PPTXError } = require('../utils/errors.js');
 
 const logger = createLogger('PPTXTemplater');
 
@@ -50,7 +50,7 @@ const logger = createLogger('PPTXTemplater');
  * ppt.replaceText({ '{{title}}': 'My Report' });
  * await ppt.saveToFile('./output/report.pptx');
  */
-export class PPTXTemplater {
+class PPTXTemplater {
   /**
    * @private
    * @type {ZipManager}
@@ -781,8 +781,8 @@ export class PPTXTemplater {
     this.#assertLoaded();
     const issues = { valid: true, errors: [], warnings: [] };
 
-    // We lazy import ChartRelationshipManager so we don't circularly depend if not needed
-    const { ChartRelationshipManager } = await import('../managers/charts/ChartRelationshipManager.js');
+    // We lazy require ChartRelationshipManager so we don't circularly depend if not needed
+    const { ChartRelationshipManager } = require('../managers/charts/ChartRelationshipManager.js');
 
     const chartFiles = this.#zipManager.listFiles('ppt/charts/')
       .filter(f => {
@@ -959,3 +959,5 @@ export class PPTXTemplater {
   get hyperlinkManager() { return this.#hyperlinkManager; }
   get mediaManager() { return this.#mediaManager; }
 }
+
+module.exports = { PPTXTemplater };

@@ -5,7 +5,7 @@
  * attempt automatic repairs for common PPTX corruption issues.
  */
 
-import { XMLParser } from '../parsers/XMLParser.js';
+const { XMLParser } = require('../parsers/XMLParser.js');
 
 const parser = new XMLParser();
 
@@ -19,7 +19,7 @@ const parser = new XMLParser();
  * const { valid, error } = validateXML(xml);
  * if (!valid) console.error('XML error:', error);
  */
-export function validateXML(xmlString) {
+function validateXML(xmlString) {
   return parser.validate(xmlString);
 }
 
@@ -38,7 +38,7 @@ export function validateXML(xmlString) {
  * const { xml, repaired, changes } = repairXML(brokenXml);
  * if (repaired) console.log('Repaired:', changes);
  */
-export function repairXML(xmlString) {
+function repairXML(xmlString) {
   const changes = [];
   let xml = xmlString;
 
@@ -81,7 +81,7 @@ export function repairXML(xmlString) {
  * @param {string} elementName - Element tag name (e.g., 'a:tbl').
  * @returns {boolean}
  */
-export function xmlContainsElement(xmlString, elementName) {
+function xmlContainsElement(xmlString, elementName) {
   return xmlString.includes(`<${elementName}`) || xmlString.includes(`<${elementName}>`);
 }
 
@@ -92,7 +92,7 @@ export function xmlContainsElement(xmlString, elementName) {
  * @param {string} elementName
  * @returns {number}
  */
-export function countElements(xmlString, elementName) {
+function countElements(xmlString, elementName) {
   const pattern = new RegExp(`<${elementName}[\\s>/]`, 'g');
   return (xmlString.match(pattern) || []).length;
 }
@@ -104,7 +104,7 @@ export function countElements(xmlString, elementName) {
  * @param {string} attrName - Attribute name (e.g., 'r:id', 'name').
  * @returns {string[]} Array of attribute values found.
  */
-export function extractAttributeValues(xmlString, attrName) {
+function extractAttributeValues(xmlString, attrName) {
   const pattern = new RegExp(`${attrName.replace(':', '\\:')}="([^"]*)"`, 'g');
   const values = [];
   let match;
@@ -113,3 +113,11 @@ export function extractAttributeValues(xmlString, attrName) {
   }
   return values;
 }
+
+module.exports = {
+  validateXML,
+  repairXML,
+  xmlContainsElement,
+  countElements,
+  extractAttributeValues
+};

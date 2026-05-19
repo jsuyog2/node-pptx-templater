@@ -1,8 +1,8 @@
-import { createLogger } from '../../utils/logger.js';
+const { createLogger } = require('../../utils/logger.js');
 
 const logger = createLogger('ChartParser');
 
-export class ChartParser {
+class ChartParser {
   /**
    * Finds a chart's relationship ID and type in a slide's XML based on shape name/id.
    *
@@ -41,3 +41,5 @@ export class ChartParser {
     };
   }
 }
+
+module.exports = { ChartParser };

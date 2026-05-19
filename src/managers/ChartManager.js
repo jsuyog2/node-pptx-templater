@@ -39,11 +39,11 @@
  * We update both to ensure compatibility with both cached and live data.
  */
 
-import { createLogger } from '../utils/logger.js';
-import { ChartNotFoundError } from '../utils/errors.js';
-import { REL_TYPES } from './RelationshipManager.js';
-import { ChartWorkbookUpdater } from './charts/ChartWorkbookUpdater.js';
-import { ChartCacheGenerator } from './charts/ChartCacheGenerator.js';
+const { createLogger } = require('../utils/logger.js');
+const { ChartNotFoundError } = require('../utils/errors.js');
+const { REL_TYPES } = require('./RelationshipManager.js');
+const { ChartWorkbookUpdater } = require('./charts/ChartWorkbookUpdater.js');
+const { ChartCacheGenerator } = require('./charts/ChartCacheGenerator.js');
 
 const logger = createLogger('ChartManager');
 
@@ -69,7 +69,7 @@ const CHART_TYPE_MAP = {
  * Unlike high-level charting libraries, this manager edits the raw OpenXML
  * chart structure, allowing full control while preserving styles and themes.
  */
-export class ChartManager {
+class ChartManager {
   /** @private @type {XMLParser} */
   #xmlParser;
   /** @private @type {ZipManager} */
@@ -315,3 +315,5 @@ export class ChartManager {
     return 'unknown';
   }
 }
+
+module.exports = { ChartManager };

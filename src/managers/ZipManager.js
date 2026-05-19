@@ -13,11 +13,11 @@
  * raw file content within the ZIP.
  */
 
-import JSZip from 'jszip';
-import fsExtra from 'fs-extra';
-import { createLogger } from '../utils/logger.js';
-import { PPTXError } from '../utils/errors.js';
-import { BLANK_PPTX_BASE64 } from '../templates/blankPptx.js';
+const JSZip = require('jszip');
+const fsExtra = require('fs-extra');
+const { createLogger } = require('../utils/logger.js');
+const { PPTXError } = require('../utils/errors.js');
+const { BLANK_PPTX_BASE64 } = require('../templates/blankPptx.js');
 
 const logger = createLogger('ZipManager');
 
@@ -27,7 +27,7 @@ const logger = createLogger('ZipManager');
  *
  * All file paths within the ZIP use forward slashes (e.g., 'ppt/slides/slide1.xml').
  */
-export class ZipManager {
+class ZipManager {
   /**
    * @private
    * @type {JSZip}
@@ -296,3 +296,5 @@ export class ZipManager {
     return this.#zip;
   }
 }
+
+module.exports = { ZipManager };

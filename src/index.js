@@ -24,20 +24,43 @@
  * └─────────────────────────────────────────────────────────────┘
  */
 
-export { PPTXTemplater } from './core/PPTXTemplater.js';
-export { ZipManager } from './managers/ZipManager.js';
-export { XMLParser } from './parsers/XMLParser.js';
-export { SlideManager } from './managers/SlideManager.js';
-export { ChartManager } from './managers/ChartManager.js';
-export { TableManager } from './managers/TableManager.js';
-export { HyperlinkManager } from './managers/HyperlinkManager.js';
-export { MediaManager } from './managers/MediaManager.js';
-export { RelationshipManager } from './managers/RelationshipManager.js';
-export { OutputWriter } from './core/OutputWriter.js';
-export { TemplateEngine } from './core/TemplateEngine.js';
+const { PPTXTemplater } = require('./core/PPTXTemplater.js');
+const { ZipManager } = require('./managers/ZipManager.js');
+const { XMLParser } = require('./parsers/XMLParser.js');
+const { SlideManager } = require('./managers/SlideManager.js');
+const { ChartManager } = require('./managers/ChartManager.js');
+const { TableManager } = require('./managers/TableManager.js');
+const { HyperlinkManager } = require('./managers/HyperlinkManager.js');
+const { MediaManager } = require('./managers/MediaManager.js');
+const { RelationshipManager } = require('./managers/RelationshipManager.js');
+const { OutputWriter } = require('./core/OutputWriter.js');
+const { TemplateEngine } = require('./core/TemplateEngine.js');
 
 // Utility exports
-export { generateRelationshipId, parseRelationshipId } from './utils/relationshipUtils.js';
-export { validateXML, repairXML } from './utils/xmlUtils.js';
-export { createLogger } from './utils/logger.js';
-export { PPTXError, SlideNotFoundError, ChartNotFoundError, TableNotFoundError } from './utils/errors.js';
+const { generateRelationshipId, parseRelationshipId } = require('./utils/relationshipUtils.js');
+const { validateXML, repairXML } = require('./utils/xmlUtils.js');
+const { createLogger } = require('./utils/logger.js');
+const { PPTXError, SlideNotFoundError, ChartNotFoundError, TableNotFoundError } = require('./utils/errors.js');
+
+module.exports = {
+  PPTXTemplater,
+  ZipManager,
+  XMLParser,
+  SlideManager,
+  ChartManager,
+  TableManager,
+  HyperlinkManager,
+  MediaManager,
+  RelationshipManager,
+  OutputWriter,
+  TemplateEngine,
+  generateRelationshipId,
+  parseRelationshipId,
+  validateXML,
+  repairXML,
+  createLogger,
+  PPTXError,
+  SlideNotFoundError,
+  ChartNotFoundError,
+  TableNotFoundError
+};

@@ -2,11 +2,11 @@
  * @fileoverview `build` CLI command — builds a PPTX from a template + JSON data.
  */
 
-import chalk from 'chalk';
-import ora from 'ora';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { PPTXTemplater } from '../../index.js';
+const chalk = require('chalk');
+const ora = require('ora');
+const { readFileSync } = require('fs');
+const { resolve } = require('path');
+const { PPTXTemplater } = require('../../index.js');
 
 /**
  * Executes the `build` CLI command.
@@ -15,7 +15,7 @@ import { PPTXTemplater } from '../../index.js';
  * @param {string} outputPath - Path for the generated PPTX.
  * @param {Object} opts - CLI options.
  */
-export async function buildCommand(templatePath, outputPath, opts) {
+async function buildCommand(templatePath, outputPath, opts) {
   const spinner = ora(`Loading template: ${templatePath}`).start();
 
   try {
@@ -77,3 +77,5 @@ export async function buildCommand(templatePath, outputPath, opts) {
     process.exit(1);
   }
 }
+
+module.exports = { buildCommand };

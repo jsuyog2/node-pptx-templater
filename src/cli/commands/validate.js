@@ -1,12 +1,12 @@
 /**
  * @fileoverview `validate` CLI command.
  */
-import chalk from 'chalk';
-import ora from 'ora';
-import { resolve } from 'path';
-import { PPTXTemplater } from '../../index.js';
+const chalk = require('chalk');
+const ora = require('ora');
+const { resolve } = require('path');
+const { PPTXTemplater } = require('../../index.js');
 
-export async function validateCommand(filePath, opts) {
+async function validateCommand(filePath, opts) {
   const spinner = ora(`Validating: ${filePath}`).start();
   try {
     const ppt = await PPTXTemplater.load(resolve(filePath));
@@ -34,3 +34,5 @@ export async function validateCommand(filePath, opts) {
     process.exit(1);
   }
 }
+
+module.exports = { validateCommand };

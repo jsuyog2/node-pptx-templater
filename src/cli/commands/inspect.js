@@ -1,12 +1,12 @@
 /**
  * @fileoverview `inspect` CLI command — detailed PPTX structure inspection.
  */
-import chalk from 'chalk';
-import ora from 'ora';
-import { resolve } from 'path';
-import { PPTXTemplater } from '../../index.js';
+const chalk = require('chalk');
+const ora = require('ora');
+const { resolve } = require('path');
+const { PPTXTemplater } = require('../../index.js');
 
-export async function inspectCommand(filePath, opts) {
+async function inspectCommand(filePath, opts) {
   const showAll = opts.all;
   const spinner = ora(`Inspecting: ${filePath}`).start();
 
@@ -37,3 +37,5 @@ export async function inspectCommand(filePath, opts) {
     process.exit(1);
   }
 }
+
+module.exports = { inspectCommand };

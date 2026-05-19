@@ -36,11 +36,11 @@
  *   Audio: MP3, WAV, M4A
  */
 
-import { createHash } from 'crypto';
-import { createLogger } from '../utils/logger.js';
-import { PPTXError } from '../utils/errors.js';
-import { REL_TYPES } from './RelationshipManager.js';
-import fsExtra from 'fs-extra';
+const { createHash } = require('crypto');
+const { createLogger } = require('../utils/logger.js');
+const { PPTXError } = require('../utils/errors.js');
+const { REL_TYPES } = require('./RelationshipManager.js');
+const fsExtra = require('fs-extra');
 
 const logger = createLogger('MediaManager');
 
@@ -84,7 +84,7 @@ const EXT_TO_MIME = {
  * @class MediaManager
  * @description Manages media embedding, deduplication, and retrieval in PPTX files.
  */
-export class MediaManager {
+class MediaManager {
   /** @private @type {ContentTypesManager} */
   #contentTypesManager;
   /** @private @type {ZipManager} */
@@ -305,3 +305,5 @@ export class MediaManager {
     this.#contentTypesManager.addDefault(ext, mimeType);
   }
 }
+
+module.exports = { MediaManager };

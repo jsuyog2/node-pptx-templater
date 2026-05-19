@@ -18,7 +18,7 @@
  * generateRelationshipId(['rId1', 'rId3'])  // → 'rId4'
  * generateRelationshipId([])                 // → 'rId1'
  */
-export function generateRelationshipId(existingIds) {
+function generateRelationshipId(existingIds) {
   if (!existingIds || existingIds.length === 0) return 'rId1';
 
   const maxNum = existingIds.reduce((max, id) => {
@@ -40,7 +40,7 @@ export function generateRelationshipId(existingIds) {
  * parseRelationshipId('rId5')  // → 5
  * parseRelationshipId('foo')   // → -1
  */
-export function parseRelationshipId(rId) {
+function parseRelationshipId(rId) {
   const match = /^rId(\d+)$/.exec(rId);
   return match ? parseInt(match[1], 10) : -1;
 }
@@ -51,7 +51,7 @@ export function parseRelationshipId(rId) {
  * @param {string} str
  * @returns {boolean}
  */
-export function isValidRelationshipId(str) {
+function isValidRelationshipId(str) {
   return /^rId\d+$/.test(str);
 }
 
@@ -66,7 +66,7 @@ export function isValidRelationshipId(str) {
  * @example
  * remapRelationshipIds(xml, new Map([['rId1', 'rId5'], ['rId2', 'rId6']]));
  */
-export function remapRelationshipIds(xml, idMap) {
+function remapRelationshipIds(xml, idMap) {
   let updated = xml;
 
   // Sort by length descending to avoid partial replacements (e.g., rId1 replacing part of rId10)
@@ -87,3 +87,10 @@ export function remapRelationshipIds(xml, idMap) {
 
   return updated;
 }
+
+module.exports = {
+  generateRelationshipId,
+  parseRelationshipId,
+  isValidRelationshipId,
+  remapRelationshipIds
+};

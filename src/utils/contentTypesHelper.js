@@ -17,7 +17,7 @@
  *   </Types>
  */
 
-import { createLogger } from './logger.js';
+const { createLogger } = require('./logger.js');
 
 const logger = createLogger('ContentTypes');
 
@@ -146,4 +146,6 @@ class ContentTypesHelper {
   }
 }
 
-export const contentTypesHelper = new ContentTypesHelper();
+module.exports = {
+  contentTypesHelper: new ContentTypesHelper()
+};

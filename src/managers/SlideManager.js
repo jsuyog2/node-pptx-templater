@@ -24,12 +24,12 @@
  *  - p:cxnSp    → Connectors
  */
 
-import { createLogger } from '../utils/logger.js';
-import { PPTXError, SlideNotFoundError } from '../utils/errors.js';
-import { REL_TYPES } from './RelationshipManager.js';
-import { buildNewSlideXml } from '../templates/slideTemplate.js';
-import { generateUniqueId } from '../utils/idUtils.js';
-import { remapRelationshipIds } from '../utils/relationshipUtils.js';
+const { createLogger } = require('../utils/logger.js');
+const { PPTXError, SlideNotFoundError } = require('../utils/errors.js');
+const { REL_TYPES } = require('./RelationshipManager.js');
+const { buildNewSlideXml } = require('../templates/slideTemplate.js');
+const { generateUniqueId } = require('../utils/idUtils.js');
+const { remapRelationshipIds } = require('../utils/relationshipUtils.js');
 
 const logger = createLogger('SlideManager');
 
@@ -50,7 +50,7 @@ const SLIDE_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presen
  * @class SlideManager
  * @description Manages slide loading, ordering, modification, and creation.
  */
-export class SlideManager {
+class SlideManager {
   /** @private @type {XMLParser} */
   #xmlParser;
   /** @private @type {RelationshipManager} */
@@ -733,7 +733,7 @@ export class SlideManager {
    */
   async exportSlides(slideIndices, sourceEngine) {
     // Lazy import to avoid circular dep
-    const { PPTXTemplater } = await import('../core/PPTXTemplater.js');
+    const { PPTXTemplater } = require('../core/PPTXTemplater.js');
 
     // Create a blank new PPTX
     const newEngine = await PPTXTemplater.create();
@@ -948,3 +948,5 @@ export class SlideManager {
     }
   }
 }
+
+module.exports = { SlideManager };

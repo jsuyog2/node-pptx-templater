@@ -4,14 +4,14 @@
  * Implements structured, XML-safe manipulation of the OPC manifest.
  */
 
-import { createLogger } from '../utils/logger.js';
-import { PPTXError } from '../utils/errors.js';
+const { createLogger } = require('../utils/logger.js');
+const { PPTXError } = require('../utils/errors.js');
 
 const logger = createLogger('ContentTypesManager');
 
 const TYPES_XML_PATH = '[Content_Types].xml';
 
-export class ContentTypesManager {
+class ContentTypesManager {
   /** @private @type {XMLParser} */
   #xmlParser;
 
@@ -158,3 +158,5 @@ export class ContentTypesManager {
     logger.debug(`Flushed ${TYPES_XML_PATH}`);
   }
 }
+
+module.exports = { ContentTypesManager };

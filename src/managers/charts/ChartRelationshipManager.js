@@ -1,6 +1,6 @@
-import { REL_TYPES } from '../RelationshipManager.js';
+const { REL_TYPES } = require('../RelationshipManager.js');
 
-export class ChartRelationshipManager {
+class ChartRelationshipManager {
   /**
    * Validates and fixes chart relationships.
    *
@@ -31,3 +31,5 @@ export class ChartRelationshipManager {
     return issues;
   }
 }
+
+module.exports = { ChartRelationshipManager };

@@ -3,10 +3,10 @@
   "version": "1.0.1",
   "description": "Low-level PowerPoint OpenXML template engine for Node.js — generate and edit PPTX files directly through XML manipulation without relying on PowerPoint generation libraries.",
   "main": "./src/index.js",
-  "type": "module",
+  "type": "commonjs",
   "exports": {
     ".": {
-      "import": "./src/index.js"
+      "require": "./src/index.js"
     }
   },
   "bin": {
@@ -65,8 +65,8 @@
     "jszip": "^3.10.1",
     "fs-extra": "^11.2.0",
     "commander": "^12.0.0",
-    "chalk": "^5.3.0",
-    "ora": "^8.0.1"
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1"
   },
   "devDependencies": {
     "vitest": "^1.6.0",

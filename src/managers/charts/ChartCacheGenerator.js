@@ -1,9 +1,9 @@
-import { createLogger } from '../../utils/logger.js';
-import { ChartWorkbookUpdater } from './ChartWorkbookUpdater.js';
+const { createLogger } = require('../../utils/logger.js');
+const { ChartWorkbookUpdater } = require('./ChartWorkbookUpdater.js');
 
 const logger = createLogger('ChartCacheGenerator');
 
-export class ChartCacheGenerator {
+class ChartCacheGenerator {
   /**
    * Generates a string cache XML string (used for categories or series names).
    */
@@ -154,3 +154,5 @@ export class ChartCacheGenerator {
       .replace(/'/g, '&apos;');
   }
 }
+
+module.exports = { ChartCacheGenerator };

@@ -18,7 +18,7 @@
  * @description Base error class for all node-pptx-templater errors.
  * @extends Error
  */
-export class PPTXError extends Error {
+class PPTXError extends Error {
   /**
    * @param {string} message - Human-readable error description.
    * @param {Error} [cause] - Original underlying error (for error chaining).
@@ -40,7 +40,7 @@ export class PPTXError extends Error {
  * @description Thrown when a slide reference cannot be resolved.
  * @extends PPTXError
  */
-export class SlideNotFoundError extends PPTXError {
+class SlideNotFoundError extends PPTXError {
   /**
    * @param {string} message
    */
@@ -55,7 +55,7 @@ export class SlideNotFoundError extends PPTXError {
  * @description Thrown when a chart cannot be located in a slide.
  * @extends PPTXError
  */
-export class ChartNotFoundError extends PPTXError {
+class ChartNotFoundError extends PPTXError {
   /**
    * @param {string} message
    */
@@ -70,7 +70,7 @@ export class ChartNotFoundError extends PPTXError {
  * @description Thrown when a table cannot be located in a slide.
  * @extends PPTXError
  */
-export class TableNotFoundError extends PPTXError {
+class TableNotFoundError extends PPTXError {
   /**
    * @param {string} message
    */
@@ -85,7 +85,7 @@ export class TableNotFoundError extends PPTXError {
  * @description Thrown when XML parsing or building fails.
  * @extends PPTXError
  */
-export class XMLParseError extends PPTXError {
+class XMLParseError extends PPTXError {
   /**
    * @param {string} message
    * @param {Error} [cause]
@@ -101,7 +101,7 @@ export class XMLParseError extends PPTXError {
  * @description Thrown when a PPTX file has an invalid or unsupported structure.
  * @extends PPTXError
  */
-export class InvalidTemplateError extends PPTXError {
+class InvalidTemplateError extends PPTXError {
   /**
    * @param {string} message
    * @param {Error} [cause]
@@ -117,7 +117,7 @@ export class InvalidTemplateError extends PPTXError {
  * @description Thrown when a media file cannot be embedded.
  * @extends PPTXError
  */
-export class MediaEmbedError extends PPTXError {
+class MediaEmbedError extends PPTXError {
   /**
    * @param {string} message
    * @param {Error} [cause]
@@ -127,3 +127,13 @@ export class MediaEmbedError extends PPTXError {
     this.name = 'MediaEmbedError';
   }
 }
+
+module.exports = {
+  PPTXError,
+  SlideNotFoundError,
+  ChartNotFoundError,
+  TableNotFoundError,
+  XMLParseError,
+  InvalidTemplateError,
+  MediaEmbedError
+};

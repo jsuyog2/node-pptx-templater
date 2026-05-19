@@ -18,20 +18,15 @@
  *   node-pptx-templater --help
  */
 
-import { Command } from 'commander';
-import chalk from 'chalk';
-import ora from 'ora';
-import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { PPTXTemplater } from '../index.js';
-import { buildCommand } from './commands/build.js';
-import { validateCommand } from './commands/validate.js';
-import { inspectCommand } from './commands/inspect.js';
-import { extractCommand } from './commands/extract.js';
-import { debugCommand } from './commands/debug.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const { Command } = require('commander');
+const chalk = require('chalk');
+const { readFileSync } = require('fs');
+const { resolve } = require('path');
+const { buildCommand } = require('./commands/build.js');
+const { validateCommand } = require('./commands/validate.js');
+const { inspectCommand } = require('./commands/inspect.js');
+const { extractCommand } = require('./commands/extract.js');
+const { debugCommand } = require('./commands/debug.js');
 
 // Read version from package.json
 const pkg = JSON.parse(
@@ -121,12 +116,16 @@ program
 // ─── Global error handling ──────────────────────────────────────────────────
 program.exitOverride();
 
-try {
-  await program.parseAsync(process.argv);
-} catch (err) {
-  if (err.code === 'commander.helpDisplayed' || err.code === 'commander.version') {
-    process.exit(0);
+async function main() {
+  try {
+    await program.parseAsync(process.argv);
+  } catch (err) {
+    if (err.code === 'commander.helpDisplayed' || err.code === 'commander.version') {
+      process.exit(0);
+    }
+    console.error(chalk.red(`\n✗ Error: ${err.message}\n`));
+    process.exit(1);
   }
-  console.error(chalk.red(`\n✗ Error: ${err.message}\n`));
-  process.exit(1);
 }
+
+main();

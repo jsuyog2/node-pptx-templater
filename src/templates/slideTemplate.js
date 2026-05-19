@@ -38,8 +38,8 @@
  *   </p:sp>
  */
 
-import { generateUniqueId } from '../utils/idUtils.js';
-import { PPTXError } from '../utils/errors.js';
+const { generateUniqueId } = require('../utils/idUtils.js');
+const { PPTXError } = require('../utils/errors.js');
 
 /**
  * OpenXML namespace declarations used in slide XML.
@@ -69,7 +69,7 @@ const EMU = {
  * @param {number} slideIndex - 1-based slide index (for unique IDs).
  * @returns {string} Complete slide XML string.
  */
-export function buildNewSlideXml(options, slideIndex) {
+function buildNewSlideXml(options, slideIndex) {
   const { title = '', elements = [], layout = 'blank', _rawXml } = options;
 
   // If raw XML is provided, use it directly (for clone/export operations)
@@ -312,3 +312,8 @@ function escapeXml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 }
+
+module.exports = {
+  buildNewSlideXml,
+  EMU
+};

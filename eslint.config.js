@@ -1,11 +1,20 @@
-import js from '@eslint/js';
+const js = require('@eslint/js');
 
-export default [
+module.exports = [
   js.configs.recommended,
   {
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'coverage/**',
+      'benchmarks/results/**',
+    ],
+  },
+  {
+    files: ["**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: 'module',
+      sourceType: 'commonjs',
       globals: {
         process: 'readonly',
         Buffer: 'readonly',
@@ -14,11 +23,15 @@ export default [
         fetch: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        exports: 'readonly',
         setInterval: 'readonly',
         clearInterval: 'readonly',
       },
     },
-    files: ["**/*.js"],
     rules: {
       // Error prevention
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
@@ -40,11 +53,11 @@ export default [
       'no-constant-condition': 'off',
       'no-control-regex': 'off',
     },
-    ignores: [
-      'node_modules/**',
-      'dist/**',
-      'coverage/**',
-      'benchmarks/results/**',
-    ],
   },
+  {
+    files: ["tests/**/*.js"],
+    languageOptions: {
+      sourceType: 'module',
+    },
+  }
 ];

@@ -1,12 +1,12 @@
 /**
  * @fileoverview `extract` CLI command — extracts XML parts from a PPTX.
  */
-import chalk from 'chalk';
-import { resolve } from 'path';
-import { writeFileSync } from 'fs';
-import { PPTXTemplater } from '../../index.js';
+const chalk = require('chalk');
+const { resolve } = require('path');
+const { writeFileSync } = require('fs');
+const { PPTXTemplater } = require('../../index.js');
 
-export async function extractCommand(filePath, opts) {
+async function extractCommand(filePath, opts) {
   try {
     const ppt = await PPTXTemplater.load(resolve(filePath));
 
@@ -14,7 +14,7 @@ export async function extractCommand(filePath, opts) {
       const slideNum = parseInt(opts.slide, 10);
       // Access internal zip via the engine's buffer
       const buffer = await ppt.toBuffer();
-      const JSZip = (await import('jszip')).default;
+      const JSZip = require('jszip');
       const zip = await JSZip.loadAsync(buffer);
       const slideFile = zip.file(`ppt/slides/slide${slideNum}.xml`);
 
@@ -40,3 +40,5 @@ export async function extractCommand(filePath, opts) {
     process.exit(1);
   }
 }
+
+module.exports = { extractCommand };
