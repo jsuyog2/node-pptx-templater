@@ -1,50 +1,26 @@
-name: Release & Publish
+name: Publish Package
 
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*'
 
 permissions:
-  contents: write
-  id-token: write
+  id-token: write  # Required for OIDC
+  contents: read
 
 jobs:
-  release:
-    name: Release to GitHub + NPM
+  publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-
-      - name: Run lint
-        run: npm run lint
-
-      - name: Extract version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          generate_release_notes: true
-
-      - name: Publish to NPM
-        run: npm publish --access public
+          package-manager-cache: false  # never use caching in release builds
+      - run: npm ci
+      - run: npm run build --if-present
+      - run: npm test
+      - run: npm publish
