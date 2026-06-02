@@ -2,6 +2,8 @@ const fsExtra = require('fs-extra');
 const { resolve } = require('path');
 
 const DOCS_DIR = resolve(__dirname, '../docs');
+const pkg = require('../package.json');
+const VERSION = pkg.version;
 
 const HTML_CONTENT = `<!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
@@ -79,7 +81,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
     <div class="flex items-center gap-3">
       <span class="text-2xl">📊</span>
       <span class="font-title font-bold text-xl bg-gradient-to-r from-brand-500 to-purple-500 bg-clip-text text-transparent">node-pptx-templater</span>
-      <span class="bg-brand-500/10 text-brand-500 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-brand-500/30">v1.0.3</span>
+      <span class="bg-brand-500/10 text-brand-500 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-brand-500/30">v${VERSION}</span>
     </div>
     
     <div class="flex items-center gap-4">
