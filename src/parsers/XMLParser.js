@@ -125,6 +125,38 @@ function attachZOrder(normalContainer, containerId, containerMap) {
 }
 
 /**
+ * Unescapes XML entities safely and non-recursively.
+ * Supports standard XML entities and numeric decimal/hex code points.
+ *
+ * @param {string} str - XML value to unescape.
+ * @returns {string} Unescaped string.
+ */
+function unescapeXml(str) {
+  if (typeof str !== 'string') return str
+  if (str.indexOf('&') === -1) return str
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (match, dec) => {
+      try {
+        return String.fromCodePoint(parseInt(dec, 10))
+      } catch (e) {
+        return match
+      }
+    })
+    .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
+      try {
+        return String.fromCodePoint(parseInt(hex, 16))
+      } catch (e) {
+        return match
+      }
+    })
+}
+
+/**
  * Parser configuration for fast-xml-parser.
  * These settings ensure lossless round-trip XML parsing.
  */
@@ -139,7 +171,9 @@ const PARSER_OPTIONS = {
   commentPropName: '__comment',
   preserveOrder: false,
   trimValues: false,
-  processEntities: true,
+  processEntities: false,
+  tagValueProcessor: (tagName, val) => unescapeXml(val),
+  attributeValueProcessor: (attrName, val) => unescapeXml(val),
   htmlEntities: false,
   isArray: (name, jpath) => {
     // Elements that should ALWAYS be arrays (even when there's only one)
@@ -217,6 +251,9 @@ class XMLParser {
       attributeNamePrefix: '@_',
       parseAttributeValue: false,
       parseTagValue: false,
+      processEntities: false,
+      tagValueProcessor: (tagName, val) => unescapeXml(val),
+      attributeValueProcessor: (attrName, val) => unescapeXml(val),
     })
   }
 

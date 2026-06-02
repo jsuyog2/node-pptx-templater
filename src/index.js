@@ -42,7 +42,15 @@ const { ValidationEngine } = require('./core/ValidationEngine.js')
 
 // Utility exports
 const { generateRelationshipId, parseRelationshipId } = require('./utils/relationshipUtils.js')
-const { validateXML, repairXML } = require('./utils/xmlUtils.js')
+const {
+  validateXml,
+  validateXML,
+  safeParseXml,
+  repairXML,
+  scanForEntities,
+  analyzeXmlFile,
+  reportXmlComplexity,
+} = require('./utils/xmlUtils.js')
 const { createLogger } = require('./utils/logger.js')
 const {
   PPTXError,
@@ -70,8 +78,13 @@ module.exports = {
   ValidationEngine,
   generateRelationshipId,
   parseRelationshipId,
+  validateXml,
   validateXML,
+  safeParseXml,
   repairXML,
+  scanForEntities,
+  analyzeXmlFile,
+  reportXmlComplexity,
   createLogger,
   PPTXError,
   SlideNotFoundError,
