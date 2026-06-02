@@ -1,38 +1,44 @@
-# node-pptx-templater
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jsuyog2/node-pptx-templater/main/docs/logo.svg" alt="PPTXForge Logo" width="550" max-width="100%">
+</p>
 
-> High-performance, low-level PowerPoint (PPTX) OpenXML template engine for Node.js. Dynamically replace text, insert images, update charts (with Excel workbook data caching), and merge table cells without PowerPoint corruption or Repair Mode prompts.
+<h1 align="center">node-pptx-templater (PPTXForge Engine)</h1>
 
-[![npm version](https://img.shields.io/npm/v/node-pptx-templater.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/node-pptx-templater)
-[![CI Build Status](https://img.shields.io/github/actions/workflow/status/jsuyog2/node-pptx-templater/ci.yml?branch=main&style=flat-square)](https://github.com/jsuyog2/node-pptx-templater/actions/workflows/ci.yml)
-[![Bundle Size](https://img.shields.io/bundlephobia/min/node-pptx-templater?style=flat-square&color=brightgreen)](https://bundlephobia.com/package/node-pptx-templater)
-[![Downloads](https://img.shields.io/npm/dm/node-pptx-templater.svg?style=flat-square&color=orange)](https://www.npmjs.com/package/node-pptx-templater)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](./LICENSE)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=flat-square)](https://nodejs.org)
+<p align="center">
+  <strong>The High-Performance, Secure OpenXML PowerPoint Template Engine for Node.js</strong>
+</p>
 
----
-
-## ⚡ Why node-pptx-templater?
-
-Traditional PowerPoint generation libraries require building slides from scratch in code, which is verbose, hard to maintain, and strips away the power of visual design tools.
-
-`node-pptx-templater` takes a different approach: **Design visually in PowerPoint, populate dynamically in Node.js.**
-
-You create slide decks using PowerPoint, Google Slides, or Keynote, set your formatting, themes, animations, and layouts, and place placeholders like `{{company}}` or `{{revenue-chart}}`. `node-pptx-templater` parses the template and updates text, injects images, replaces chart values (updating both Excel workbook data caches and XML shapes), and merges tables dynamically while keeping the presentation 100% compliant with standard OpenXML guidelines.
+<p align="center">
+  <a href="https://www.npmjs.com/package/node-pptx-templater"><img src="https://img.shields.io/npm/v/node-pptx-templater.svg?style=flat-square&color=6366f1" alt="npm version"></a>
+  <a href="https://github.com/jsuyog2/node-pptx-templater/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/jsuyog2/node-pptx-templater/ci.yml?branch=main&style=flat-square&color=34d399" alt="CI Build Status"></a>
+  <a href="https://bundlephobia.com/package/node-pptx-templater"><img src="https://img.shields.io/bundlephobia/min/node-pptx-templater?style=flat-square&color=ec4899" alt="Bundle Size"></a>
+  <a href="https://www.npmjs.com/package/node-pptx-templater"><img src="https://img.shields.io/npm/dm/node-pptx-templater.svg?style=flat-square&color=a855f7" alt="Downloads"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT"></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=flat-square" alt="Node.js Version"></a>
+</p>
 
 ---
 
-## ✨ Features
+## ⚡ Why PPTXForge (`node-pptx-templater`)?
 
-- 🏗️ **Zero Native Office/Java Dependencies**: Runs on pure Javascript/Node.js, making it ideal for high-throughput cloud environments, Lambda, or serverless runtimes.
-- 🔁 **Fragmented Placeholder Resolution**: PowerPoint often splits text runs like `{{company}}` into `<a:r>` nodes. Our engine merges and resolves fragmented tags automatically.
-- 📊 **Full Chart Engine Integration**: Supports Bar, Column, Line, Pie, Doughnut, Area, Scatter, and Bubble charts. Automatically synchronizes chart XML properties and coordinates with the embedded Excel sheets (`ppt/embeddings/`).
-- 📋 **Flexible Table Merging & Templating**:
-  - Horizontal column merge (`gridSpan` & `hMerge`), vertical row merge (`rowSpan` & `vMerge`), and rectangular block merges.
-  - Formats cells dynamically with inline options (`align`, `fontSize`, `fill`).
-  - Automatically handles slide table duplicates by generating unique `<a16:rowId>` 32-bit hashes to **prevent PowerPoint Repair Mode** screens.
-- 🎨 **Shape & Image Manipulation**: Find shapes, clone layout blocks with offsets, replace image sources while keeping exact positions, or delete elements.
-- 🎯 **Slide Management Operations**: Duplicate, reorder, delete, and import slides from external templates with automatic media asset deduplication.
-- 🔍 **Deep Packaging Integrity Validation**: Real-time checking of relationships, XML schemas, table column numbers, and override duplicates.
+Traditional slide deck automation requires assembling slides shape-by-shape in verbose code blocks. This is fragile, difficult to maintain, and strips away the power of visual design tools like Microsoft PowerPoint, Keynote, or Google Slides.
+
+**PPTXForge takes a visual-first approach: Design visually in PowerPoint, populate dynamically in Node.js.**
+
+You design your layouts, tables, fonts, brand styles, charts, and animations inside PowerPoint, and insert placeholders like `{{customer_name}}`, `{{revenue_chart}}`, or `{{team_table}}`. The PPTXForge engine parses the OpenXML presentation, heals broken text run segmentations, updates Excel data workbook caches, merges drawing cells, and scales slides securely in pure JavaScript with zero external office dependencies.
+
+---
+
+## ✨ Enterprise-Grade Core Features
+
+* 🚀 **Zero Native/Office/Java Dependencies**: Pure CommonJS JavaScript implementation. Runs efficiently on AWS Lambda, Vercel Edge, Netlify, and Cloudflare Workers.
+* 🛡️ **Hardened XML Security**: Fully immune to Billion Laughs (XML bombs), XXE (XML External Entity Injection), and parser crashes due to oversized expansions.
+* 🧩 **Text Run Fragmentation Healing**: Solves the split-tag issue. PowerPoint splits `{{placeholders}}` into fragmented `<a:r>` nodes; our parser unifies and replaces them while keeping original formatting intact.
+* 📊 **Excel Cache Synchronized Charting**: Supports Bar, Line, Pie, Doughnut, Area, and Scatter charts. Not only updates the visual XML coordinates but also synchronizes data points inside the underlying embedded Excel spreadsheets (`ppt/embeddings/`) to bypass PowerPoint's "Update Data" warnings.
+* 📋 **DrawingML Table Cell Merging**: Easily configure horizontal spans (`gridSpan`/`hMerge`), vertical spans (`rowSpan`/`vMerge`), and rectangular blocks. Injects unique `rowId` hashes to maintain relationship integrity.
+* 🥞 **Z-Order Layer Stacking**: Reorder shapes, images, charts, and tables programmatically. Simulates PowerPoint's "Bring to Front" and "Send to Back" commands directly in the slide's `<p:spTree>`.
+* 🎛️ **Slide Management**: Duplicate, delete, reorder slides, or import slides from external decks with automatic media and theme deduplication.
+* 🔍 **OPC Package Verification**: Comprehensive check suite for content type overrides, relationship integrity, and XML structure before final output.
 
 ---
 
@@ -44,407 +50,302 @@ npm install node-pptx-templater
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start Guide
 
-Get up and running in under 60 seconds with this simple template rendering example:
+Generate a formatted presentation report from a visually designed template in under 60 seconds:
 
-```js
-const { PPTXTemplater } = require('node-pptx-templater')
+```javascript
+const { PPTXTemplater } = require('node-pptx-templater');
 
-async function main() {
-  // 1. Load your PowerPoint presentation template
-  const ppt = await PPTXTemplater.load('monthly_report_template.pptx')
+async function generateReport() {
+  // 1. Load the presentation template
+  const ppt = await PPTXTemplater.load('monthly_report_template.pptx');
+  
+  // 2. Select slide 1 and execute standard text replacements
+  ppt.useSlide(1)
+     .replaceTextByTag('title', 'Q2 Business Overview')
+     .replaceMultiple({
+       client: 'Acme Corporation',
+       analyst: 'Sarah Jenkins',
+       date: 'June 2026'
+     });
 
-  // 2. Select slide 1 and execute operations
-  ppt.useSlide(1).replaceTextByTag('title', 'Quarterly Earnings Report').replaceMultiple({
-    company: 'Acme Corporation',
-    year: '2026',
-  })
+  // 3. Update Excel-backed chart data on Slide 2
+  ppt.useSlide(2)
+     .updateChartData('revenue-chart', {
+       categories: ['April', 'May', 'June'],
+       series: [
+         { name: 'Target', values: [120000, 150000, 180000] },
+         { name: 'Actual', values: [125000, 162000, 195000] }
+       ]
+     });
 
-  // 3. Update chart series data on Slide 2
-  ppt.useSlide(2).updateChartData('sales-chart', {
-    categories: ['Q1', 'Q2', 'Q3', 'Q4'],
-    series: [
-      { name: 'Target', values: [100, 120, 140, 160] },
-      { name: 'Revenue', values: [105, 118, 145, 172] },
-    ],
-  })
+  // 4. Update table structure with cell merges and colors on Slide 3
+  ppt.useSlide(3)
+     .updateTable('performance-table', [
+       ['Region', 'Growth Metric', { value: 'Status / Notes', colSpan: 2 }],
+       ['North Region', '+12.4%', { value: 'Exceeded Target', align: 'ctr', fill: '10b981' }, ''],
+       ['South Region', '-3.1%', { value: 'Under Review', align: 'ctr', fill: 'f59e0b' }, '']
+     ]);
 
-  // 4. Update table with cell merging and formatting on Slide 3
-  ppt.useSlide(3).updateTable('sales-table', [
-    ['Region', 'Q1 Actual', 'Q2 Actual', 'Status'],
-    ['North', '120k', '140k', { value: 'On Track', align: 'ctr', fill: '10b981' }],
-    ['South', '95k', '110k', { value: 'Review', align: 'ctr', fill: 'f59e0b' }],
-  ])
+  // 5. Duplicate a layout and bring an overlay element to the front
+  ppt.duplicateSlide(3, 4);
+  ppt.useSlide(4)
+     .bringToFront('OverlayLogo')
+     .replaceTextByTag('title', 'Duplicate Region Report');
 
-  // 5. Save the non-corrupted PPTX back to disk
-  await ppt.saveToFile('./output/annual_earnings.pptx')
+  // 6. Save package without PowerPoint Repair Warnings
+  await ppt.saveToFile('./output/q2_business_report.pptx');
+  console.log('Report generated successfully!');
 }
 
-main().catch(err => console.error(err))
+generateReport().catch(console.error);
 ```
 
 ---
 
-## 🏗️ OpenXML Architecture & Internals
+## 📋 OpenXML Presentation Architecture
 
-A `.pptx` file is an OPC (Open Packaging Convention) ZIP archive containing structured XML documents and asset folders:
+A `.pptx` file is an Open Packaging Convention (OPC) ZIP package containing structured XML schemas:
 
-- `[Content_Types].xml` – Global manifest declaring content MIME types for every file part in the ZIP.
-- `_rels/.rels` – Root-level package relationship index.
-- `ppt/presentation.xml` – Root presentation settings and slide inventory (`sldIdLst`).
-- `ppt/slides/slideN.xml` – Main slide canvas storing shapes, lines, tables, text runs, and layout components.
-- `ppt/slides/_rels/slideN.xml.rels` – Relationship indexes mapping slide XML components to charts, layouts, and image assets.
+```text
+PPTX Archive Structure:
+├── [Content_Types].xml       # MIME type registry for all zip contents
+├── _rels/
+│   └── .rels                 # Package-level relationship mappings
+└── ppt/
+    ├── presentation.xml      # Global presentation slide order and layouts
+    ├── slides/
+    │   ├── slide1.xml        # DrawingML elements, text runs, and shapes
+    │   └── _rels/
+    │       └── slide1.xml.rels  # Resource mappings (images, charts, tables)
+    ├── media/                # Image and SVG database
+    └── embeddings/           # Embedded Excel books backing charts
+```
 
-### Preventing PowerPoint Table Repair Errors
+### Unifying Text Run Segmentations
+Under the hood, slide template text is represented as runs of text (`<a:r>`). PowerPoint's parser often breaks a single tag `{{name}}` into separate segments:
+```xml
+<!-- Split layout generated by PowerPoint -->
+<a:r><a:t>{{n</a:t></a:r>
+<a:r><a:t>ame}}</a:t></a:r>
+```
+PPTXForge parses the XML structure, identifies layout boundaries, merges text nodes back into a single element, and applies replacements while preserving font sizes, colors, and styling rules.
 
-PowerPoint slide tables utilize unique 32-bit identifiers inside `<a16:rowId>` nodes for collaborative edits. Duplicating rows using naive array copy operations results in overlapping IDs, triggering Microsoft PowerPoint's **"PowerPoint found a problem with content"** repair screen on open.
-`node-pptx-templater` intercepts all table operations (adding, cloning, inserting, or merging rows) and dynamically injects newly generated unique `rowId` hashes, ensuring a seamless, warning-free loading experience in:
-
-- Microsoft PowerPoint (Desktop, Mac, Online)
-- Google Slides
-- LibreOffice Impress
+### Preventing PPTX "Repair Presentation" Warnings
+Naively duplicating rows in slide tables can leave duplicate `rowId` values or break cell mappings, causing PowerPoint to crash or prompt a repair screen. PPTXForge automatically re-allocates unique `rowId` hashes and formats `gridSpan` / `rowSpan` coordinates in compliance with standard Office OpenXML (OOXML) regulations.
 
 ---
 
 ## 📊 Feature Comparison Matrix
 
-| Feature / Library                        |            `node-pptx-templater`            | `pptxgenjs` |       `pptx-template`        | `pptx-automizer` |      `officegen`      |
-| :--------------------------------------- | :-----------------------------------------: | :---------: | :--------------------------: | :--------------: | :-------------------: |
-| **Approach**                             |             **Template-based**              | Code-based  |        Template-based        |  Template-based  |      Code-based       |
-| **No PPTX Corruption / Repair Warnings** |      **Yes** (Automatic Metadata Sync)      |     Yes     | No (Fragile row duplication) |       Yes        | Yes (Limited layouts) |
-| **Text Run Fragmentation Resolution**    |          **Yes** (Dynamic merging)          |     N/A     |   No (Placeholder breaks)    |       Yes        |          N/A          |
-| **Chart Data Workbook Sync**             |       **Yes** (Direct excel caching)        |     Yes     |    No (Only raw XML text)    |       Yes        |          Yes          |
-| **Horizontal & Vertical Cell Merge**     | **Yes** (gridSpan, rowSpan, hMerge, vMerge) |     Yes     |              No              |        No        |          No           |
-| **Slide Duplication & Reordering**       |                   **Yes**                   |     No      |              No              |       Yes        |          No           |
-| **External Slide Imports**               |     **Yes** (With asset deduplication)      |     No      |              No              |       Yes        |          No           |
-| **Dependencies**                         |        **Zero Native Dependencies**         |    Zero     |             Zero             |       Zero       | Node-zip, xmlbuilder  |
+Compare PPTXForge with other popular PowerPoint automation libraries:
+
+| Feature / Metric | **node-pptx-templater** (PPTXForge) | **pptxgenjs** | **pptx-template** | **pptx-automizer** | **officegen** |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Automation Flow** | **Template-based** | Code-based | Template-based | Template-based | Code-based |
+| **No Office/Java Dependency** | **Yes** (Pure JS) | Yes | Yes | Yes | Yes |
+| **Bypass Corruption/Repair Alerts** | **Yes** (RowId sync) | Yes | No (Row duplicate breaks) | Yes | Yes |
+| **Heal Text Run Fragmentation** | **Yes** | N/A | No (Tags break) | Yes | N/A |
+| **Synchronized Excel Chart Updates** | **Yes** (Direct sync) | Yes | No (Text updates only) | Yes | Yes |
+| **Horizontal & Vertical Cell Merge** | **Yes** (gridSpan/rowSpan) | Yes | No | No | No |
+| **Z-Order Layer Reordering** | **Yes** (Front/Back) | No | No | Yes | No |
+| **External Slide Imports** | **Yes** (Deduplicated) | No | No | Yes | No |
 
 ---
 
-## 📚 API Reference
+## 📚 API Reference Guide
 
-### Slide Operations
+### Loading & Exposing presentation
 
-#### `duplicateSlide(slideIndex, atPosition)`
+#### `static async load(filePathOrBuffer)`
+Loads and extracts a presentation template from disk or memory.
+* **Arguments**: `string | Buffer`
+* **Returns**: `Promise<PPTXTemplater>`
 
-Duplicates a slide.
+#### `async saveToFile(outputPath)`
+Validates, re-packages, and saves the presentation to disk.
+* **Arguments**: `string`
+* **Returns**: `Promise<void>`
 
-```js
-ppt.duplicateSlide(1, 2) // Duplicate Slide 1 and insert it at position 2
-```
+#### `async toBuffer()`
+Generates the final presentation files as a zipped binary buffer.
+* **Returns**: `Promise<Buffer>`
+
+---
+
+### Slide Layout Actions
+
+#### `useSlide(slideIndex)`
+Fluent selector that targets a slide for subsequent actions (1-based index).
+* **Arguments**: `number`
+* **Returns**: `PPTXTemplater`
+
+#### `duplicateSlide(slideIndex, insertPosition)`
+Duplicates a slide and places it at the target position.
+* **Arguments**: `number` (source index), `number` (destination index)
+* **Returns**: `PPTXTemplater`
 
 #### `deleteSlide(slideIndex)`
-
-Deletes a slide from the deck.
-
-```js
-ppt.deleteSlide(3) // Delete Slide 3
-```
+Deletes a slide and removes its associated relationship linkages.
+* **Arguments**: `number`
+* **Returns**: `PPTXTemplater`
 
 #### `moveSlide(fromIndex, toIndex)`
-
-Moves a slide to a new position.
-
-```js
-ppt.moveSlide(1, 3) // Move Slide 1 to position 3
-```
+Reorders a slide to a new positions index.
+* **Arguments**: `number`, `number`
+* **Returns**: `PPTXTemplater`
 
 #### `importSlideFrom(sourcePresentation, sourceSlideIndex)`
-
-Deep-copies a slide from another loaded presentation, automatically remapping layouts, shapes, charts, and deduplicating media assets.
-
-```js
-const source = await PPTXTemplater.load('marketing_slides.pptx')
-await ppt.importSlideFrom(source, 2) // Import Slide 2 of marketing deck
-```
+Imports a slide from an external PowerPoint file, remapping media structures.
+* **Arguments**: `PPTXTemplater`, `number`
+* **Returns**: `Promise<PPTXTemplater>`
 
 ---
 
-### Table Manipulation
+### Text Manipulation
 
-#### `updateTable(tableId, data)`
+#### `replaceTextByTag(tag, replacement)`
+Replaces all occurrences of `{{tag}}` on the active slide.
+* **Arguments**: `string` (tag name without braces), `string` (replacement text)
+* **Returns**: `PPTXTemplater`
 
-Updates a table with rows data, merge rules, and cell styles.
-
-```js
-ppt.updateTable('revenue-table', [
-  ['Year', 'Revenue', 'Profit'],
-  ['2025', '120k', '40k'],
-  ['2026', '150k', { value: '60k', fill: '10b981', align: 'ctr' }],
-])
-```
-
-#### `mergeCells(options)`
-
-Merges a rectangular block of cells. Supports horizontal, vertical, and block merging, concatenating all text from the merged region into the top-left cell.
-
-```js
-ppt.mergeCells({
-  tableId: 'sales-table',
-  startRow: 1,
-  startCol: 1,
-  endRow: 2,
-  endCol: 2,
-})
-```
-
-#### `unmergeCells(options)`
-
-Splits a merged region back to its original individual cells, removing `gridSpan`, `rowSpan`, `hMerge`, and `vMerge` attributes.
-
-```js
-ppt.unmergeCells({
-  tableId: 'sales-table',
-  row: 1,
-  col: 1,
-})
-```
+#### `replaceMultiple(replacementsMap)`
+Performs bulk replacements on the active slide using a key-value map.
+* **Arguments**: `Object` (e.g., `{ company: 'Acme', date: '2026' }`)
+* **Returns**: `PPTXTemplater`
 
 ---
 
-### Chart Integration
+### Tables (DrawingML)
+
+#### `updateTable(tableId, rowData)`
+Updates a table with a two-dimensional grid array.
+* **Arguments**: `string` (table shape name/id), `Array<Array<string | Object>>`
+* **Cell Styles Options**:
+  ```javascript
+  {
+    value: 'Text content',
+    colSpan: 2,           // Merge columns horizontally
+    rowSpan: 3,           // Merge rows vertically
+    align: 'ctr' | 'l' | 'r',  // Text alignment
+    fontSize: 1400,       // Font size in hundredths of a point
+    fill: 'ff5500',       // Background hex color
+    bold: true
+  }
+  ```
+* **Returns**: `PPTXTemplater`
+
+#### `mergeCells({ tableId, startRow, startCol, endRow, endCol })`
+Merges a custom rectangular boundary of cells.
+* **Arguments**: `Object`
+* **Returns**: `PPTXTemplater`
+
+#### `unmergeCells({ tableId, row, col })`
+Splits a merged region back to its individual component cells.
+* **Arguments**: `Object`
+* **Returns**: `PPTXTemplater`
+
+---
+
+### Excel Chart Updates
 
 #### `updateChartData(chartId, data)`
-
-Overwrites chart categories and series values. Updates the embedded Excel spreadsheet to ensure the chart matches perfectly on refresh.
-
-```js
-ppt.updateChartData('sales-chart', {
-  categories: ['Q1', 'Q2', 'Q3', 'Q4'],
-  series: [{ name: 'Revenue', values: [100, 150, 180, 220] }],
-})
-```
+Overwrites chart categories and series points.
+* **Arguments**: `string` (chart object id), `Object`
+* **Format**:
+  ```javascript
+  {
+    categories: ['Category 1', 'Category 2'],
+    series: [
+      { name: 'Series 1', values: [10, 20] }
+    ]
+  }
+  ```
+* **Returns**: `PPTXTemplater`
 
 #### `updateChartTitle(chartId, title)`
-
-```js
-ppt.updateChartTitle('sales-chart', 'Revenue Growth (2026)')
-```
+Replaces the main header title text run of the chart.
+* **Arguments**: `string`, `string`
+* **Returns**: `PPTXTemplater`
 
 ---
 
-### Z-Order (Layer Management)
-
-Control the stacking order of shapes, images, charts, tables, groups, and connectors on any slide — just like PowerPoint's **Bring Forward / Send Backward** panel. The Z-order directly maps to the XML element order inside the slide's `<p:spTree>`, which is what PowerPoint reads when rendering.
-
-All operations accept either an **options object** with a `slide` key or can be chained after `useSlide()`:
-
-```js
-// Option A — explicit slide number
-ppt.bringForward({ slide: 2, objectId: 'logo' })
-
-// Option B — fluent chain
-ppt.useSlide(2).bringForward('logo')
-```
+### Stacking Z-Order & Layers
 
 #### `getObjectOrder(slideIndex)`
+Lists slide layout objects sorted from bottom-most (first in DOM) to top-most.
+* **Returns**: `Array<{ id: string, type: 'shape'|'image'|'chart'|'table'|'group'|'connector', zIndex: number }>`
 
-Returns a sorted array describing every drawing element on the slide, bottom-to-top.
+#### `bringToFront(objectId)` / `sendToBack(objectId)`
+Moves the target object to the absolute front or back of the rendering stack.
+* **Returns**: `PPTXTemplater`
 
-```js
-const layers = ppt.getObjectOrder(1)
-// → [{ id: 'Background', type: 'shape', zIndex: 1 }, ...]
+#### `bringForward(objectId)` / `sendBackward(objectId)`
+Shifts the target object up or down by one layer index.
+* **Returns**: `PPTXTemplater`
+
+#### `setZIndex(objectId, zIndex)`
+Moves the object to a specific 1-based stack index.
+* **Returns**: `PPTXTemplater`
+
+---
+
+## 🔒 Advanced XML Security
+
+PPTXForge uses a secure XML parser that defends your application servers against common XML vulnerabilities.
+
+### Built-in Protections
+1. **XML Bombs & Billion Laughs Mitigation**: Instantly rejects any XML payload containing `<!DOCTYPE>` or `<!ENTITY>` definitions, preventing parser lockups.
+2. **XXE Injection Defenses**: Completely blocks external entities referencing local files or external resources (e.g., `SYSTEM` or `PUBLIC`).
+3. **Decoupled Entity Expansion Limits**: Evaluates code points and standard characters (`&amp;`, `&lt;`, etc.) via a single-level parser, avoiding recursive parsing loops.
+
+### Custom Security & Parsing API
+Use the safe-parsing helpers to validate user-uploaded templates manually:
+```javascript
+const { validateXml, safeParseXml } = require('node-pptx-templater');
+
+const schema = validateXml(userInputXml);
+if (!schema.valid) {
+  console.error(`Invalid XML format: ${schema.error} on Line ${schema.line}`);
+}
 ```
-
-#### `bringForward(options)` / `sendBackward(options)`
-
-Move an object one layer up or down.
-
-```js
-ppt.bringForward({ slide: 1, objectId: 'logo' })
-ppt.sendBackward({ slide: 1, objectId: 'logo' })
-```
-
-#### `bringToFront(options)` / `sendToBack(options)`
-
-Move an object to the very top or very bottom of the stack.
-
-```js
-ppt.bringToFront({ slide: 1, objectId: 'logo' })
-ppt.sendToBack({ slide: 1, objectId: 'background' })
-```
-
-#### `setZIndex(options)`
-
-Place an object at an exact 1-based stacking position.
-
-```js
-ppt.setZIndex({ slide: 1, objectId: 'logo', zIndex: 3 })
-```
-
-#### `moveObjectBefore(options)` / `moveObjectAfter(options)`
-
-Position an object immediately below or above a specific target.
-
-```js
-ppt.moveObjectBefore({ slide: 1, objectId: 'overlay', targetId: 'chart' })
-ppt.moveObjectAfter({ slide: 1, objectId: 'label', targetId: 'chart' })
-```
-
-#### `reorderObjects(options)`
-
-Bulk-reorder the entire slide stack by specifying all object names in desired bottom-to-top order.
-
-```js
-ppt.reorderObjects({
-  slide: 1,
-  order: ['background', 'chart', 'logo', 'title'],
-})
-```
-
-#### `applyZOrder(slideIndex, configs)`
-
-Apply multiple stacking rules in a single call. Operations are executed sequentially.
-
-```js
-ppt.applyZOrder(1, [
-  { id: 'background', sendToBack: true },
-  { id: 'overlay', zIndex: 2 },
-  { id: 'logo', bringToFront: true },
-])
-```
-
-#### `swapObjects(slideIndex, objectId1, objectId2)`
-
-Exchange the stacking positions of two objects.
-
-```js
-ppt.swapObjects(1, 'logo', 'chart')
-```
-
-#### `sortObjects(slideIndex, compareFn)`
-
-Sort the layer stack using a custom comparator (receives `{ id, type, zIndex }` objects).
-
-```js
-// Alphabetical ascending by name
-ppt.sortObjects(1, (a, b) => a.id.localeCompare(b.id))
-```
-
-#### `getTopMostObject(slideIndex)` / `getBottomMostObject(slideIndex)`
-
-Retrieve metadata for the topmost or bottommost element.
-
-```js
-const top = ppt.getTopMostObject(1) // { id: 'logo', type: 'image', zIndex: 5 }
-const bottom = ppt.getBottomMostObject(1) // { id: 'background', type: 'shape', zIndex: 1 }
-```
-
-#### `normalizeZOrder(slideIndex)`
-
-Re-derives the Z-order directly from the current XML element order. Useful after manual XML edits or imports to reset the internal ordering state.
-
-```js
-ppt.normalizeZOrder(1)
-```
-
-**Supported element types:**
-
-| PowerPoint Type  | XML Tag                        | `type` Value     |
-| :--------------- | :----------------------------- | :--------------- |
-| Shape / Text Box | `p:sp`                         | `shape` / `text` |
-| Image            | `p:pic`                        | `image`          |
-| Chart            | `p:graphicFrame` + chart URI   | `chart`          |
-| Table            | `p:graphicFrame` + table URI   | `table`          |
-| SmartArt         | `p:graphicFrame` + diagram URI | `smartart`       |
-| Group            | `p:grpSp`                      | `group`          |
-| Connector        | `p:cxnSp`                      | `connector`      |
 
 ---
 
 ## ⚡ Performance Benchmarks
 
-Tested on a standard 50-slide enterprise presentation template:
+Below are benchmark results compiled on a standard Intel Core i7 system processing a 50-slide presentation template:
 
-| Operation                                 | Execution Duration |
-| :---------------------------------------- | :----------------- |
-| Load PPTX Template                        | ~110ms             |
-| Find & Replace 20 Text Placeholders       | ~2.5ms             |
-| XML Schema & Integrity Validation Check   | ~14ms              |
-| Dynamic Row Insertion & Merging (15 rows) | ~3ms               |
-| Save and Re-package to PPTX ZIP           | ~78ms              |
-
----
-
-## 🔒 XML Security & Safe Parsing Architecture
-
-`node-pptx-templater` implements a robust, multi-layered XML security mechanism to process presentations safely. It eliminates typical parser crashes and secures your system against malicious XML injections.
-
-### 🛡️ Core Protections
-
-- **Entity Expansion Limit Resolution**: The parser operates with entity processing deactivated internally, preventing Denial of Service (DoS) crashes on huge presentations.
-- **Billion Laughs & XML Bomb Prevention**: Explicitly rejects XML payloads containing `<!DOCTYPE>` or `<!ENTITY>` definitions, blocking recursive expansion attacks at the gate.
-- **XXE (XML External Entity Injection) Protection**: Disallows external references using `SYSTEM` or `PUBLIC` keywords, avoiding unauthorized filesystem read attacks.
-- **Double-Escaping Immunity**: Uses a custom unescaped tag/attribute processor during parsing to decode standard entities (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`) and numeric entities, ensuring they are not double-encoded on serialization.
-
-### ⚙️ Safe Parsing APIs
-
-If you are loading custom or untrusted XML components, you can use the built-in validation and recovery tools:
-
-```js
-const {
-  validateXml,
-  safeParseXml,
-  analyzeXmlFile,
-  reportXmlComplexity,
-} = require('node-pptx-templater')
-
-// 1. Validate XML security and well-formedness
-const validation = validateXml(brokenXmlString)
-if (!validation.valid) {
-  console.error(
-    `Vulnerability/Error: ${validation.error} at Line ${validation.line}, Col ${validation.column}`
-  )
-}
-
-// 2. Safely parse XML with recovery diagnostics
-try {
-  const obj = safeParseXml(brokenXmlString, 'ppt/slides/slide1.xml')
-} catch (err) {
-  console.log(err.diagnostic) // { file, line, column, error, recommendation }
-}
-
-// 3. Inspect entities and complexity
-const stats = analyzeXmlFile(xmlString)
-const complexity = reportXmlComplexity(xmlString)
-console.log(`Max nesting depth: ${complexity.maxDepth}`)
-```
+| Operation | Average Duration |
+| :--- | :--- |
+| Load Template | ~110 ms |
+| Scan & Replace 20 Text Tag Placeholders | ~2.5 ms |
+| Validate XML Schemas & Relationship Integrity | ~14 ms |
+| Table Row Cloning & Grid Merges (15 rows) | ~3 ms |
+| Z-Order Re-indexing & Packaging Output | ~78 ms |
 
 ---
 
-## ❓ FAQ & Troubleshooting
+## ❓ FAQ & Developer Troubleshooting
 
-### PowerPoint displays a "Repair" prompt when opening my generated file
+### Q: PowerPoint displays a "Repair Presentation" alert when opening generated files.
+* **Root Cause**: This is usually caused by:
+  1. A missing relationship entry inside `.rels` maps (e.g., a slide refers to a chart file that isn't declared).
+  2. Duplicate `<a16:rowId>` elements on a slide (caused by cloning rows raw without updating hashes).
+* **Fix**: Ensure you always use the built-in `saveToFile()` or `toBuffer()` methods, which automatically execute validation checks, repair relationship indexes, and sanitize content structures.
 
-This is commonly caused by:
-
-1. **Missing overridden content type**: A new slide or chart XML was added but not registered in `[Content_Types].xml`.
-2. **Duplicate row identifiers**: If table rows are duplicated without generating a new unique `rowId` under `<a16:rowId>`.
-3. **Invalid relationship mapping**: An asset (like an image or worksheet) is referenced in slide XML but is missing from the slide's `.rels` file.
-
-_Fix_: Ensure you always use the public `saveToFile()` or `toBuffer()` helper functions, which automatically execute structural verification passes and update relationship chains.
-
-### I get an "Entity expansion limit exceeded" error during presentation loading
-
-This error used to happen when processing templates containing many slides, shapes, or tables due to standard parser limitations. In `node-pptx-templater` v1.0.6, this is permanently resolved by parsing XML with entity resolution disabled and handling character entities safely in a non-recursive, single-level decoder.
-
-### My text placeholders are not replacing
-
-PowerPoint text editors segment formatting runs into separate XML elements. The text `{{title}}` may look normal in PowerPoint, but in XML it could be split into `<a:t>{{ti</a:t><a:t>tle}}</a:t>`.
-_Fix_: You can enable logger output to see split tags:
-
-```bash
-PPTX_LOG_LEVEL=debug node app.js
-```
-
-To fix this in PowerPoint, highlight the entire placeholder block, cut it, and paste it back as "Keep Text Only" to unify the XML text runs.
+### Q: A text placeholder is not replacing. How do I debug it?
+* **Root Cause**: PowerPoint might have split your placeholder into multiple runs (e.g., `{{` and `placeholder}}`).
+* **Fix**: 
+  1. Enable debug logging to locate the fragment: `PPTX_LOG_LEVEL=debug node app.js`.
+  2. In PowerPoint, select the placeholder text box, cut it, and paste it back using the **"Keep Text Only"** option. This unifies the run.
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please check out [CONTRIBUTING.md](./CONTRIBUTING.md) to get started.
+We welcome contributions from the community. Please read our [CONTRIBUTING.md](./CONTRIBUTING.md) to set up the development environment, format code, and submit Pull Requests.
 
 ```bash
 git clone https://github.com/jsuyog2/node-pptx-templater.git
@@ -457,4 +358,4 @@ npm test
 
 ## 📄 License
 
-Licensed under the MIT License. © [node-pptx-templater contributors](./LICENSE)
+Licensed under the MIT License. © node-pptx-templater contributors.

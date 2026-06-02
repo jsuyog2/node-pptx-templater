@@ -1,10 +1,10 @@
-/* Variables & Custom Themes */
+/* Base CSS Styles & Themes */
 :root {
-  --bg-primary: #0b0f19;
-  --bg-secondary: #131b2e;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --text-main: #f3f4f6;
-  --text-muted: #9ca3af;
+  --bg-primary: #080b11;
+  --bg-secondary: #0e1526;
+  --border-color: rgba(255, 255, 255, 0.05);
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
   --primary: #6366f1;
 }
 
@@ -17,37 +17,85 @@
   --primary: #4f46e5;
 }
 
-/* Glassmorphism sidebar & header */
-#sidebar {
-  background-color: rgba(19, 27, 46, 0.6);
-  backdrop-filter: blur(16px);
-}
-.light-theme #sidebar {
-  background-color: rgba(255, 255, 255, 0.6);
-}
-
-/* Layout transition styles */
 body {
   background-color: var(--bg-primary);
   color: var(--text-main);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Translucent Glass Card Effect */
+.glass-card {
+  background-color: rgba(14, 21, 38, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.light-theme .glass-card {
+  background-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(400px circle at var(--mouse-x, 0) var(--mouse-y, 0), rgba(99, 102, 241, 0.08), transparent 80%);
+  z-index: 0;
+  pointer-events: none;
+  transition: opacity 0.5s;
+  opacity: 0;
+  border-radius: inherit;
+}
+
+.glass-card:hover::before {
+  opacity: 1;
+}
+
+header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+aside {
+  border-right: 1px solid var(--border-color);
 }
 
 .nav-item.active {
-  color: var(--text-main) !important;
-  background-color: rgba(99, 102, 241, 0.15) !important;
+  background-color: rgba(99, 102, 241, 0.1);
+  color: #ffffff;
   border-left: 3px solid var(--primary);
-  font-weight: 500;
+  padding-left: 9px;
 }
 
-.doc-section {
-  display: none;
-}
-.doc-section.active-section {
-  display: block;
-  animation: fadeIn 0.3s ease-out;
+.light-theme .nav-item.active {
+  background-color: rgba(79, 70, 229, 0.08);
+  color: var(--primary);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Custom layout sizes */
+.text-xxs {
+  font-size: 8px;
+}
+.text-xs {
+  font-size: 11px;
+}
+.text-sm {
+  font-size: 13px;
 }

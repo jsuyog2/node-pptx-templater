@@ -1,28 +1,279 @@
-const fsExtra = require('fs-extra');
+const fs = require('fs-extra');
 const { resolve } = require('path');
+const path = require('path');
 
 const DOCS_DIR = resolve(__dirname, '../docs');
 const pkg = require('../package.json');
 const VERSION = pkg.version;
 
-const HTML_CONTENT = `<!DOCTYPE html>
+/**
+ * Dynamically crawls Node.js source files under src/ and extracts classes, 
+ * methods, descriptions, arguments, parameters, returns, and examples from JSDoc.
+ */
+function extractAPIDocs() {
+  const srcDir = resolve(__dirname, '../src');
+  
+  function walk(dir) {
+    let results = [];
+    const list = fs.readdirSync(dir);
+    list.forEach(file => {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+      if (stat && stat.isDirectory()) {
+        results = results.concat(walk(filePath));
+      } else if (file.endsWith('.js')) {
+        results.push(filePath);
+      }
+    });
+    return results;
+  }
+  
+  const files = walk(srcDir);
+  const apis = [];
+  
+  files.forEach(file => {
+    const relPath = path.relative(resolve(__dirname, '..'), file).replace(/\\/g, '/');
+    const content = fs.readFileSync(file, 'utf-8');
+    
+    // Find class name
+    const classMatch = content.match(/class\s+([a-zA-Z0-9_]+)/);
+    const className = classMatch ? classMatch[1] : path.basename(file, '.js');
+    
+    // Pattern to match JSDoc comments followed by method signature
+    const docPattern = /\/\*\*([\s\S]*?)\*\/\s*(?:async\s+)?([a-zA-Z0-9_#]+)\s*\(([^)]*)\)/g;
+    let match;
+    
+    while ((match = docPattern.exec(content)) !== null) {
+      const jsdoc = match[1];
+      const name = match[2];
+      const args = match[3];
+      
+      // Ignore private helper methods and constructor
+      if (name.startsWith('#') || name === 'constructor') {
+        continue;
+      }
+      
+      const lines = jsdoc.split('\n').map(l => l.replace(/^\s*\*\s?/, '').trim());
+      const descLines = [];
+      const params = [];
+      let returns = null;
+      const examples = [];
+      let inExample = false;
+      
+      for (let line of lines) {
+        if (line.startsWith('@param')) {
+          inExample = false;
+          const paramMatch = line.match(/@param\s+\{([^}]+)\}\s+([^\s-]+)(?:\s+-\s+(.*))?/);
+          if (paramMatch) {
+            params.push({
+              type: paramMatch[1],
+              name: paramMatch[2],
+              desc: paramMatch[3] || ''
+            });
+          }
+        } else if (line.startsWith('@returns')) {
+          inExample = false;
+          const returnMatch = line.match(/@returns\s+\{([^}]+)\}(?:\s+(.*))?/);
+          if (returnMatch) {
+            returns = {
+              type: returnMatch[1],
+              desc: returnMatch[2] || ''
+            };
+          }
+        } else if (line.startsWith('@example')) {
+          inExample = true;
+        } else if (line.startsWith('@class') || line.startsWith('@fileoverview') || line.startsWith('@description') || line.startsWith('@private') || line.startsWith('@internal')) {
+          inExample = false;
+        } else {
+          if (inExample) {
+            examples.push(line);
+          } else {
+            descLines.push(line);
+          }
+        }
+      }
+      
+      const description = descLines.filter(Boolean).join(' ');
+      const exampleCode = examples.filter(l => l !== '').join('\n');
+      
+      apis.push({
+        file: relPath,
+        className,
+        name,
+        args: args.trim(),
+        description,
+        params,
+        returns,
+        exampleCode
+      });
+    }
+  });
+  
+  return apis;
+}
+
+function renderSidebarAPIs(apis) {
+  const classes = {};
+  apis.forEach(api => {
+    if (!classes[api.className]) {
+      classes[api.className] = [];
+    }
+    classes[api.className].push(api);
+  });
+  
+  let html = '';
+  for (const className of Object.keys(classes)) {
+    html += `
+      <div class="space-y-1 mt-4">
+        <h3 class="text-xs uppercase text-gray-500 font-semibold tracking-wider px-3 flex items-center justify-between cursor-pointer hover:text-white transition-colors" onclick="toggleSidebarGroup('class-${className.toLowerCase()}')">
+          <span>${className} API</span>
+          <span class="text-[9px] transform transition-transform duration-200" id="arrow-class-${className.toLowerCase()}">▼</span>
+        </h3>
+        <ul id="sidebar-list-class-${className.toLowerCase()}" class="space-y-1 pl-2 transition-all duration-300">
+          <li><a href="#class-${className.toLowerCase()}" class="nav-item block px-3 py-1.5 text-xs text-gray-400 hover:text-white rounded-md transition-colors font-medium">Overview</a></li>
+          ${classes[className].map(m => `
+            <li><a href="#method-${className.toLowerCase()}-${m.name.toLowerCase()}" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">${m.name}()</a></li>
+          `).join('')}
+        </ul>
+      </div>
+    `;
+  }
+  
+  return html;
+}
+
+function renderContentAPIs(apis) {
+  const classes = {};
+  apis.forEach(api => {
+    if (!classes[api.className]) {
+      classes[api.className] = [];
+    }
+    classes[api.className].push(api);
+  });
+  
+  let html = '';
+  
+  for (const [className, methods] of Object.entries(classes)) {
+    html += `
+      <!-- Class ${className} Section -->
+      <section id="class-${className.toLowerCase()}" class="doc-section space-y-6 hidden">
+        <div class="flex items-center gap-3 border-b border-white/5 pb-4">
+          <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[10px] font-bold uppercase tracking-wider">class</span>
+          <h1 class="font-title text-3xl font-extrabold text-white">${className}</h1>
+        </div>
+        
+        <p class="text-sm text-gray-400">Located in: <code class="text-indigo-400 font-mono text-xs bg-indigo-500/5 px-2 py-1 rounded border border-indigo-500/10">${methods[0].file}</code></p>
+        
+        <div class="grid grid-cols-1 gap-6 mt-6">
+    `;
+    
+    methods.forEach(m => {
+      const signature = `${m.name}(${m.args})`;
+      
+      let paramsTable = '';
+      if (m.params.length > 0) {
+        paramsTable = `
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                ${m.params.map(p => `
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">${p.name}</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">${p.type}</td>
+                    <td class="px-4 py-2.5 text-gray-300">${p.desc}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+      
+      let returnsBlock = '';
+      if (m.returns) {
+        returnsBlock = `
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">${m.returns.type}</span>
+            <span class="text-gray-300">${m.returns.desc}</span>
+          </div>
+        `;
+      }
+      
+      let exampleBlock = '';
+      if (m.exampleCode) {
+        exampleBlock = `
+          <div class="mt-4">
+            <span class="text-xs font-semibold text-gray-500 block mb-1.5 font-title">USAGE EXAMPLE</span>
+            <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">${m.exampleCode}</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+          </div>
+        `;
+      }
+      
+      html += `
+        <!-- Method ${m.name} Card -->
+        <div id="method-${className.toLowerCase()}-${m.name.toLowerCase()}" class="glass-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">${m.name}</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              ${signature}
+            </div>
+          </div>
+          <p class="text-sm text-gray-300 leading-relaxed">${m.description || 'No description available.'}</p>
+          ${paramsTable}
+          ${returnsBlock}
+          ${exampleBlock}
+        </div>
+      `;
+    });
+    
+    html += `
+        </div>
+      </section>
+    `;
+  }
+  
+  return html;
+}
+
+async function main() {
+  const apis = extractAPIDocs();
+  const sidebarHtml = renderSidebarAPIs(apis);
+  const contentHtml = renderContentAPIs(apis);
+
+  const HTML_CONTENT = `<!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>node-pptx-templater — Low-Level OpenXML Engine Docs</title>
-  <meta name="description" content="High-performance, low-level PowerPoint OpenXML template engine for Node.js. Dynamically replace text, images, charts, and tables without PowerPoint Repair errors.">
   
-  <!-- Search Engine Meta Tags -->
-  <meta name="keywords" content="PowerPoint template, PPTX template engine, PowerPoint automation, PPTX generator, Node.js PowerPoint, OpenXML PowerPoint, merge cells, dynamic slides">
+  <!-- Primary SEO Meta Tags -->
+  <title>node-pptx-templater — Safe PowerPoint & OpenXML Template Engine</title>
+  <meta name="description" content="High-performance, zero-dependency Node.js library to update text, replace image shapes, cache Excel workbook data in charts, and merge table cells without PowerPoint Repairwarnings.">
+  <meta name="keywords" content="node pptx template, pptx templating library, powerpoint template engine, pptx editor nodejs, openxml powerpoint library, update powerpoint charts nodejs, powerpoint automation, pptx generator, pptx placeholder replacement, edit pptx without powerpoint, pptx chart update, pptx table update, openxml nodejs, powerpoint report generator, pptx cell merge, stack slide layers, duplicate slides, nodejs presentation automation">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/">
   
-  <!-- Open Graph / Twitter Card -->
+  <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="node-pptx-templater — Low-Level OpenXML PowerPoint Engine">
-  <meta property="og:description" content="PowerPoint template automation in Node.js with zero dependencies. Safe cell merging, Excel cache sync, and slide imports.">
+  <meta property="og:description" content="Automate presentations in Node.js with zero dependencies. Support cell merging, dynamic slides, Z-order layers, and Excel chart updating.">
   <meta property="og:url" content="https://jsuyog2.github.io/node-pptx-templater/">
+  <meta property="og:image" content="https://jsuyog2.github.io/node-pptx-templater/assets/brand-preview.png">
+  
+  <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="node-pptx-templater — Low-Level OpenXML PowerPoint Engine">
+  <meta name="twitter:description" content="Safe cell merging, slide cloning, Z-order layout adjustments, and Excel cache updates in pure JS.">
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -55,9 +306,14 @@ const HTML_CONTENT = `<!DOCTYPE html>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   
+  <!-- CSS Stylesheet -->
   <link rel="stylesheet" href="style.css">
 
-  <!-- Schema.org JSON-LD Structured Data -->
+  <!-- GSAP Animation Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+  <!-- Schema.org Structured Data -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -75,651 +331,407 @@ const HTML_CONTENT = `<!DOCTYPE html>
   }
   </script>
 </head>
-<body class="bg-[#0b0f19] text-gray-200 font-sans antialiased selection:bg-brand-500 selection:text-white transition-colors duration-200">
-  <!-- Top Navigation Header -->
-  <header class="fixed top-0 left-0 right-0 h-16 bg-[#131b2e]/80 backdrop-blur-md border-b border-gray-800 flex items-center justify-between px-6 z-50">
+<body class="bg-[#080b11] text-gray-200 font-sans antialiased selection:bg-brand-500 selection:text-white min-h-screen relative overflow-x-hidden">
+
+  <!-- Background Decorative Glowing Elements -->
+  <div class="glow-orb absolute w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-3xl -top-40 -left-40 pointer-events-none"></div>
+  <div class="glow-orb absolute w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-3xl bottom-20 -right-40 pointer-events-none"></div>
+
+  <!-- Header -->
+  <header class="fixed top-0 left-0 right-0 h-16 bg-[#0e1526]/85 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-6 z-50 shadow-lg">
     <div class="flex items-center gap-3">
-      <span class="text-2xl">📊</span>
-      <span class="font-title font-bold text-xl bg-gradient-to-r from-brand-500 to-purple-500 bg-clip-text text-transparent">node-pptx-templater</span>
-      <span class="bg-brand-500/10 text-brand-500 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-brand-500/30">v${VERSION}</span>
+      <!-- SVG Brand Icon -->
+      <svg class="w-8 h-8" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="15" y="35" width="45" height="45" rx="8" fill="url(#header-grad-1)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" />
+        <rect x="25" y="22" width="45" height="45" rx="8" fill="url(#header-grad-2)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" />
+        <rect x="35" y="10" width="45" height="45" rx="8" fill="rgba(14, 21, 38, 0.6)" stroke="#6366f1" stroke-width="2" />
+        <path d="M57 22 L45 35 L53 35 L43 48" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+        <defs>
+          <linearGradient id="header-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#6366f1" stop-opacity="0.8" />
+            <stop offset="100%" stop-color="#4f46e5" stop-opacity="0.3" />
+          </linearGradient>
+          <linearGradient id="header-grad-2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#d946ef" stop-opacity="0.8" />
+            <stop offset="100%" stop-color="#ec4899" stop-opacity="0.3" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <span class="font-title font-extrabold text-lg text-white tracking-wide">node-pptx-templater</span>
+      <span class="bg-brand-500/10 text-brand-400 text-[10px] px-2.5 py-0.5 rounded-full font-semibold border border-brand-500/20">v${VERSION}</span>
     </div>
     
-    <div class="flex items-center gap-4">
+    <div class="flex items-center gap-5">
       <div class="relative hidden md:block">
-        <input type="text" id="doc-search" placeholder="Search docs (Ctrl + K)..." autocomplete="off" class="w-80 px-4 py-1.5 bg-[#0b0f19] border border-gray-800 rounded-full text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+        <input type="text" id="doc-search" placeholder="Search API methods (Ctrl + K)..." autocomplete="off" class="w-80 px-4 py-1.5 bg-[#080b11]/80 border border-white/5 rounded-full text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all">
       </div>
       
-      <button id="theme-toggle" aria-label="Toggle Theme" class="text-xl p-1 hover:text-brand-500 transition-colors">
+      <button id="theme-toggle" aria-label="Toggle Theme" class="text-lg p-1.5 hover:text-brand-400 transition-colors bg-white/5 border border-white/5 rounded-full">
         <span class="toggle-icon">🌙</span>
       </button>
       
-      <a href="https://github.com/jsuyog2/node-pptx-templater" class="text-gray-400 hover:text-white transition-colors" target="_blank" rel="noopener">
-        <svg height="24" viewBox="0 0 16 16" width="24" fill="currentColor">
+      <a href="https://github.com/jsuyog2/node-pptx-templater" class="text-gray-400 hover:text-white transition-colors bg-white/5 border border-white/5 p-1.5 rounded-full" target="_blank" rel="noopener">
+        <svg class="w-5 h-5" viewBox="0 0 16 16" fill="currentColor">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
         </svg>
       </a>
     </div>
   </header>
 
-  <!-- Sidebar & Main Content Wrapper -->
+  <!-- Sidebar & Content Wrapper -->
   <div class="flex pt-16 min-h-screen">
-    <!-- Left Navigation Sidebar -->
-    <aside class="w-72 bg-[#131b2e] border-r border-gray-800 fixed top-16 bottom-0 left-0 overflow-y-auto px-6 py-8 hidden md:block" id="sidebar">
-      <nav class="space-y-8">
-        <div class="space-y-2">
-          <h3 class="text-xs uppercase text-gray-500 font-semibold tracking-wider">Getting Started</h3>
+    <!-- Navigation Sidebar -->
+    <aside class="w-72 bg-[#0e1526]/40 backdrop-blur-md border-r border-white/5 fixed top-16 bottom-0 left-0 overflow-y-auto px-5 py-6 hidden md:block z-40" id="sidebar">
+      <nav class="space-y-6">
+        <div class="space-y-1">
+          <h3 class="text-xs uppercase text-gray-500 font-semibold tracking-wider px-3">Getting Started</h3>
           <ul class="space-y-1">
-            <li><a href="#introduction" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors active">Introduction</a></li>
-            <li><a href="#installation" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Installation & Onboarding</a></li>
-            <li><a href="#quickstart" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Quick Start Guide</a></li>
-            <li><a href="#learningpaths" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Learning Paths</a></li>
+            <li><a href="#introduction" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium active">Introduction</a></li>
+            <li><a href="#installation" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Installation & Onboarding</a></li>
+            <li><a href="#quickstart" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Quick Start Guide</a></li>
+            <li><a href="#learningpaths" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Learning Paths</a></li>
           </ul>
         </div>
         
-        <div class="space-y-2">
-          <h3 class="text-xs uppercase text-gray-500 font-semibold tracking-wider">Core Features</h3>
+        <div class="space-y-1">
+          <h3 class="text-xs uppercase text-gray-500 font-semibold tracking-wider px-3">Core Concepts</h3>
           <ul class="space-y-1">
-            <li><a href="#text-replacement" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Text Tag Replacement</a></li>
-            <li><a href="#image-replacement" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Image Substitution</a></li>
-            <li><a href="#slide-management" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Slide Duplication & CRUD</a></li>
-            <li><a href="#slide-import" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Cross-Template Imports</a></li>
+            <li><a href="#code-sandbox" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Interactive Showcase</a></li>
+            <li><a href="#table-merging" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Table Cell Merging</a></li>
+            <li><a href="#chart-engine" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Excel Chart Update</a></li>
+            <li><a href="#zorder" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Z-Order &amp; Layers</a></li>
           </ul>
         </div>
 
-        <div class="space-y-2">
-          <h3 class="text-xs uppercase text-gray-500 font-semibold tracking-wider">Advanced Elements</h3>
-          <ul class="space-y-1">
-            <li><a href="#table-merging" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Table Cell Merging</a></li>
-            <li><a href="#chart-engine" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Interactive Chart Updates</a></li>
-            <li><a href="#navigation-links" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Action Hyperlinks</a></li>
-            <li><a href="#zorder" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Z-Order / Layer Control</a></li>
-          </ul>
+        <!-- Dynamic API References Sidebar List -->
+        <div class="space-y-1">
+          <h3 class="text-xs uppercase text-gray-400 font-bold tracking-wider px-3 border-t border-white/5 pt-4">API Reference</h3>
+          ${sidebarHtml}
         </div>
 
-        <div class="space-y-2">
-          <h3 class="text-xs uppercase text-gray-500 font-semibold tracking-wider">OpenXML Architecture</h3>
+        <div class="space-y-1 pt-4 border-t border-white/5">
+          <h3 class="text-xs uppercase text-gray-500 font-semibold tracking-wider px-3">OpenXML Internals</h3>
           <ul class="space-y-1">
-            <li><a href="#openxml-internals" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Packaging & XML Structure</a></li>
-            <li><a href="#manifest-managers" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Managers & Core Validation</a></li>
-            <li><a href="#troubleshooting" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Troubleshooting & FAQs</a></li>
+            <li><a href="#openxml-internals" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Presentation Packing</a></li>
+            <li><a href="#security-arch" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">XML Security</a></li>
+            <li><a href="#faq" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">FAQ &amp; Troubleshooting</a></li>
           </ul>
         </div>
       </nav>
     </aside>
 
     <!-- Main Content Area -->
-    <main class="md:ml-72 flex-1 px-6 md:px-12 py-10 max-w-5xl overflow-y-auto">
+    <main class="md:ml-72 flex-1 px-6 md:px-12 py-10 max-w-5xl overflow-y-auto relative z-10">
       
       <!-- Introduction Section -->
       <section id="introduction" class="doc-section space-y-6 active-section">
-        <h1 class="font-title text-4xl font-extrabold text-white">Introduction</h1>
-        <p class="text-lg text-gray-300">
-          Welcome to the documentation for <strong>node-pptx-templater</strong>—a low-level, zero-dependency, high-performance PowerPoint template engine built for Node.js. It modifies PPTX files by applying structured, schema-validated XML edits directly to the package, solving standard text fragmentation and table corruption errors once and for all.
-        </p>
-        
-        <div class="p-4 bg-brand-500/10 border-l-4 border-brand-500 rounded-r-xl">
-          <span class="font-semibold text-brand-500 block">⚡ Visual Design vs Code Automation</span>
-          With <code>node-pptx-templater</code>, you separate design from code. Create slide layouts, animations, transitions, and headers inside standard PowerPoint editors (Microsoft Office, Google Slides, or Keynote) and bind data fields using simple placeholders (<code>{{company}}</code>, <code>{{sales-table}}</code>).
+        <div class="space-y-4">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20 text-xs font-semibold">
+            <span>✨</span> Built for Pure Node.js & Serverless Runtimes
+          </div>
+          <h1 class="font-title text-5xl font-extrabold text-white tracking-tight leading-none bg-gradient-to-r from-white via-gray-100 to-indigo-400 bg-clip-text text-transparent">
+            node-pptx-templater
+          </h1>
+          <p class="text-lg text-gray-300 leading-relaxed max-w-2xl">
+            A low-level, high-performance PowerPoint template engine built for Node.js. Populate slides dynamically using visually designed PowerPoint files, bypassing PowerPoint corruption warnings with unique OpenXML integrity features.
+          </p>
         </div>
 
-        <h2 class="font-title text-2xl font-bold text-white mt-8">Key Advantages</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-          <div class="p-5 bg-[#131b2e] border border-gray-800 rounded-xl">
-            <h4 class="font-semibold text-white mb-2">🚀 Pure JavaScript & Zip Compression</h4>
-            <p class="text-sm text-gray-400">Zero dependencies on local installations of Microsoft Office, LibreOffice, or Java. Easily deploys to serverless runtimes (AWS Lambda, Vercel, Google Cloud Functions).</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-8">
+          <div class="glass-card p-5 bg-[#0e1526]/50 border border-white/5 rounded-2xl space-y-2">
+            <div class="text-2xl">⚡</div>
+            <h4 class="font-title font-bold text-white text-base">No Office Dependencies</h4>
+            <p class="text-xs text-gray-400">Pure JavaScript execution. Runs flawlessly on AWS Lambda, Vercel Edge, or Google Cloud serverless platforms.</p>
           </div>
-          <div class="p-5 bg-[#131b2e] border border-gray-800 rounded-xl">
-            <h4 class="font-semibold text-white mb-2">🔀 Run Fragment Resolution</h4>
-            <p class="text-sm text-gray-400">PowerPoint splits placeholders across separate XML tags (e.g. <code>{{c</code>, <code>ompany}}</code>). Our parser dynamically merges text runs to ensure 100% replacement success.</p>
+          <div class="glass-card p-5 bg-[#0e1526]/50 border border-white/5 rounded-2xl space-y-2">
+            <div class="text-2xl">🧩</div>
+            <h4 class="font-title font-bold text-white text-base">Fragment Resolution</h4>
+            <p class="text-xs text-gray-400">PowerPoint editor splits tags (e.g. <code>{{c</code>, <code>ompany}}</code>). The engine merges them back automatically for flawless replacements.</p>
           </div>
-          <div class="p-5 bg-[#131b2e] border border-gray-800 rounded-xl">
-            <h4 class="font-semibold text-white mb-2">📊 Caching Workbook Updater</h4>
-            <p class="text-sm text-gray-400">Updates underlying chart data Excel spreadsheets and synchronizes visual data cache matrices to avoid refresh alerts in PowerPoint Online.</p>
+          <div class="glass-card p-5 bg-[#0e1526]/50 border border-white/5 rounded-2xl space-y-2">
+            <div class="text-2xl">📊</div>
+            <h4 class="font-title font-bold text-white text-base">Excel Sync Caching</h4>
+            <p class="text-xs text-gray-400">Synchronizes slide chart coordinates and visual datasets inside the underlying Excel sheet, avoiding PowerPoint refresh alerts.</p>
           </div>
-          <div class="p-5 bg-[#131b2e] border border-gray-800 rounded-xl">
-            <h4 class="font-semibold text-white mb-2">🛡️ Table rowId Sanitizer</h4>
-            <p class="text-sm text-gray-400">Dynamically allocates unique 32-bit row identification hashes whenever a row is cloned or inserted, eliminating PowerPoint Repair prompts.</p>
+        </div>
+
+        <div class="p-5 bg-brand-500/10 border border-brand-500/20 rounded-2xl flex gap-4 items-start mt-6">
+          <span class="text-brand-400 text-xl">💡</span>
+          <div>
+            <h4 class="font-title font-bold text-brand-400 text-sm">Visual Design vs Code Automation</h4>
+            <p class="text-xs text-gray-300 mt-1 leading-relaxed">Stop compiling slide elements inside complex code blocks. Design slide decks visually in PowerPoint, Keynote, or Google Slides, set formats and alignments, insert placeholders like <code>{{name}}</code>, and let <strong>node-pptx-templater</strong> populate them dynamically.</p>
           </div>
         </div>
       </section>
 
-      <!-- Installation & Onboarding Section -->
-      <section id="installation" class="doc-section space-y-6">
+      <!-- Installation Section -->
+      <section id="installation" class="doc-section space-y-6 hidden">
         <h1 class="font-title text-4xl font-extrabold text-white">Installation & Onboarding</h1>
-        <p class="text-gray-300">Set up the library in less than 5 minutes. Learn how it integrates with your existing Node.js codebases.</p>
+        <p class="text-sm text-gray-300">Set up the library in less than 30 seconds using npm or yarn. Zero local configurations required.</p>
         
-        <h2 class="font-title text-2xl font-bold text-white mt-6">NPM Setup</h2>
-        <pre class="relative group"><code class="language-bash block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">npm install node-pptx-templater</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-        
-        <h2 class="font-title text-2xl font-bold text-white mt-6">Prerequisites</h2>
-        <ul class="list-disc pl-6 space-y-2 text-gray-400 text-sm">
-          <li><strong>Node.js Engine</strong>: >= 18.0.0 (Supports CommonJS out of the box).</li>
-          <li><strong>Module Support</strong>: Designed to run flawlessly across standard Node environments, Vercel edge routes, and AWS Lambdas.</li>
-        </ul>
+        <div class="space-y-4">
+          <h2 class="font-title text-xl font-bold text-white">NPM Install</h2>
+          <pre class="relative group"><code class="language-bash block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-sm">npm install node-pptx-templater</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+        </div>
+
+        <div class="space-y-4 pt-4">
+          <h2 class="font-title text-xl font-bold text-white">Prerequisites</h2>
+          <ul class="list-disc pl-6 space-y-2 text-xs text-gray-400">
+            <li><strong>Node.js Engine</strong>: Version <code>>= 18.0.0</code> (fully supports CommonJS standard require).</li>
+            <li><strong>Package Platforms</strong>: Compiles natively on Windows, macOS, Linux, and Edge runtimes.</li>
+          </ul>
+        </div>
       </section>
 
       <!-- Quick Start Section -->
-      <section id="quickstart" class="doc-section space-y-6">
+      <section id="quickstart" class="doc-section space-y-6 hidden">
         <h1 class="font-title text-4xl font-extrabold text-white">Quick Start Guide</h1>
-        <p class="text-gray-300">Generate your first presentation file in under 10 minutes by copying the following snippet.</p>
+        <p class="text-sm text-gray-300">Use this template rendering code snippet to load, populate, and export your first slide presentation.</p>
         
-        <pre class="relative group"><code class="language-javascript block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">const { PPTXTemplater } = require('node-pptx-templater');
+        <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const { PPTXTemplater } = require('node-pptx-templater');
 
-async function buildPresentation() {
-  // Load the design template
-  const ppt = await PPTXTemplater.load('marketing_template.pptx');
+async function main() {
+  // 1. Load the presentation template
+  const ppt = await PPTXTemplater.load('monthly_report_template.pptx');
   
-  // Replace text on slide 1
+  // 2. Select slide 1 and execute text replacement
   ppt.useSlide(1)
-     .replaceTextByTag('header', 'Acme Q2 Roadmap')
+     .replaceTextByTag('title', 'Quarterly Earnings Report')
      .replaceMultiple({
-       date: 'June 2026',
-       speaker: 'John Doe'
+       company: 'Acme Corporation',
+       year: '2026'
      });
 
-  // Export non-corrupted PPTX
-  await ppt.saveToFile('./output/q2_roadmap.pptx');
+  // 3. Save the presentation to disk
+  await ppt.saveToFile('./output/annual_earnings.pptx');
   console.log('Presentation generated successfully!');
 }
 
-buildPresentation();</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
+main().catch(err => console.error(err));</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
       </section>
 
       <!-- Learning Paths Section -->
-      <section id="learningpaths" class="doc-section space-y-6">
+      <section id="learningpaths" class="doc-section space-y-6 hidden">
         <h1 class="font-title text-4xl font-extrabold text-white">Learning Paths</h1>
-        <p class="text-gray-300">Choose a path tailored to your technical requirements and familiarity with OpenXML PowerPoint architectures.</p>
+        <p class="text-sm text-gray-300 font-light">Select a path tailored to your architectural expertise and PPTX templating requirements.</p>
         
         <!-- Tab Selectors -->
-        <div class="flex border-b border-gray-800 gap-4">
-          <button onclick="switchPath('beginner')" id="tab-beginner" class="path-tab px-4 py-2 border-b-2 border-brand-500 font-semibold text-white">Beginner Path</button>
-          <button onclick="switchPath('intermediate')" id="tab-intermediate" class="path-tab px-4 py-2 border-b-2 border-transparent text-gray-400 font-semibold hover:text-white">Intermediate Path</button>
-          <button onclick="switchPath('advanced')" id="tab-advanced" class="path-tab px-4 py-2 border-b-2 border-transparent text-gray-400 font-semibold hover:text-white">Advanced Path</button>
+        <div class="flex border-b border-white/5 gap-4">
+          <button onclick="switchPath('beginner')" id="tab-beginner" class="path-tab px-4 py-2 border-b-2 border-brand-500 font-semibold text-white transition-all">Beginner</button>
+          <button onclick="switchPath('intermediate')" id="tab-intermediate" class="path-tab px-4 py-2 border-b-2 border-transparent text-gray-400 font-semibold hover:text-white transition-all">Intermediate</button>
+          <button onclick="switchPath('advanced')" id="tab-advanced" class="path-tab px-4 py-2 border-b-2 border-transparent text-gray-400 font-semibold hover:text-white transition-all">Advanced</button>
         </div>
 
         <!-- Beginner Content -->
         <div id="path-content-beginner" class="path-content space-y-4">
-          <h3 class="text-lg font-bold text-white">Path 1: Beginner Level</h3>
-          <p class="text-sm text-gray-400">Focuses on template concepts, setting up placeholders in your presentation editor, and replacing basic text/image fields.</p>
-          <ul class="list-decimal pl-6 space-y-2 text-sm text-gray-400">
-            <li>What is a PPTX Template? (Just standard PPTX files with text tags like <code>{{name}}</code>).</li>
-            <li>How to format shapes and placeholders cleanly in PowerPoint.</li>
-            <li>Performing simple mail-merge replacement operations.</li>
+          <h3 class="text-lg font-bold text-white font-title">Path 1: Standard Replacements & Text Merges</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">Ideal for replacing simple placeholder strings and inserting logos or target photos. Learn how placeholders look, how to format text inside PowerPoint, and execute basic save actions.</p>
+          <ul class="list-disc pl-6 space-y-2 text-xs text-gray-400">
+            <li>Designing simple <code>{{tag}}</code> placeholders in your editor.</li>
+            <li>Replacing single tags and mapping values objects.</li>
+            <li>Substituting template images while keeping shapes coordinates.</li>
           </ul>
         </div>
 
         <!-- Intermediate Content -->
         <div id="path-content-intermediate" class="path-content hidden space-y-4">
-          <h3 class="text-lg font-bold text-white">Path 2: Intermediate Level</h3>
-          <p class="text-sm text-gray-400">Covers table structure modifications, chart workbook calculations, and duplicating templates dynamically.</p>
-          <ul class="list-decimal pl-6 space-y-2 text-sm text-gray-400">
-            <li>Handling slide duplicates to build reports from single layouts.</li>
-            <li>Adding, deleting, and updating slide table rows safely.</li>
-            <li>Replacing series and category lists inside existing charts.</li>
+          <h3 class="text-lg font-bold text-white font-title">Path 2: Presentation Duplication & Element Collections</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">For developers building reports containing multiple tables, maps, series charts, and cloned shapes. Learn how to duplicate slides and manage relationships safely.</p>
+          <ul class="list-disc pl-6 space-y-2 text-xs text-gray-400">
+            <li>Cloning, deleting, and reordering slides dynamically.</li>
+            <li>Updating chart databases categories and series points.</li>
+            <li>Cloning slide table rows with unique rowId metadata.</li>
           </ul>
         </div>
 
         <!-- Advanced Content -->
         <div id="path-content-advanced" class="path-content hidden space-y-4">
-          <h3 class="text-lg font-bold text-white">Path 3: Advanced Level</h3>
-          <p class="text-sm text-gray-400">For developers seeking to build complex presentation workflows, custom extensions, and understand OpenXML packaging rules.</p>
-          <ul class="list-decimal pl-6 space-y-2 text-sm text-gray-400">
-            <li>OpenXML elements, relationships (<code>.rels</code>), and content overrides.</li>
-            <li>Writing extensions to interact with slide geometry paths.</li>
-            <li>Optimizing execution speed and garbage collection when generating files.</li>
+          <h3 class="text-lg font-bold text-white font-title">Path 3: Stacking Layer Z-Order & Custom Slide Imports</h3>
+          <p class="text-xs text-gray-400 leading-relaxed">Optimize execution speeds, implement complex layer stack sorting, import slides from distinct templates, and audit content overrides package integrity.</p>
+          <ul class="list-disc pl-6 space-y-2 text-xs text-gray-400">
+            <li>Stacking shapes layers using <code>bringForward</code> and <code>sendToBack</code>.</li>
+            <li>Importing slides from distinct presentations with asset deduplication.</li>
+            <li>Checking relationship lists with structural validation tools.</li>
           </ul>
         </div>
       </section>
 
-      <!-- Text Replacement Section -->
-      <section id="text-replacement" class="doc-section space-y-6">
-        <h1 class="font-title text-4xl font-extrabold text-white">Text Tag Replacement</h1>
+      <!-- Interactive Code Sandbox Section -->
+      <section id="code-sandbox" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Interactive Showcase Sandbox</h1>
+        <p class="text-sm text-gray-300">Click a feature tab on the left to see the code snippet and a visual representation of how PowerPoint is modified in real-time.</p>
         
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">1. Beginner Explanation</span>
-          <p class="text-sm text-gray-400 mt-2">Replace simple text tags such as <code>{{title}}</code> or <code>{{date}}</code> with dynamic variables. The library keeps the original font, color, bold/italic, alignment, and size styles exactly as designed in PowerPoint.</p>
-        </div>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">2. Step-by-Step Guide</span>
-          <ol class="list-decimal pl-6 space-y-2 text-sm text-gray-400 mt-2">
-            <li>Draw a Text Box shape in PowerPoint or Google Slides.</li>
-            <li>Write your placeholder surrounded by braces (e.g. <code>{{client}}</code>).</li>
-            <li>Call <code>ppt.replaceText({ client: "John Doe" })</code>.</li>
-          </ol>
-        </div>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">3. Code Example</span>
-          <pre class="relative group"><code class="language-javascript block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">ppt.useSlide(1);
-ppt.replaceTextByTag('client', 'John Doe');
-
-// Replace multiple at once
-ppt.replaceMultiple({
-  'date': '2026-06-02',
-  'revenue': '$1.2M'
-});</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-        </div>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">4. Common Mistakes & Troubleshooting</span>
-          <p class="text-sm text-gray-400 mt-2">
-            <strong>Placeholder not replacing:</strong> PowerPoint often splits text runs behind the scenes due to spelling checks or manual typing pauses. In slide XML, this splits <code>{{client}}</code> into:
-            <code class="block bg-gray-950 p-2 my-2 text-xs text-red-400">&lt;a:t&gt;{{cl&lt;/a:t&gt;&lt;a:t&gt;ient}}&lt;/a:t&gt;</code>
-            <strong>How to resolve:</strong> Highlight the placeholder in PowerPoint, cut it, and paste it back as "Keep Text Only" to merge the XML tags. Alternatively, set <code>PPTX_LOG_LEVEL=debug</code> to identify fragmented runs.
-          </p>
-        </div>
-      </section>
-
-      <!-- Image Replacement Section -->
-      <section id="image-replacement" class="doc-section space-y-6">
-        <h1 class="font-title text-4xl font-extrabold text-white">Image Substitution</h1>
-        
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">1. Beginner Explanation</span>
-          <p class="text-sm text-gray-400 mt-2">Substitute picture shapes in your templates (e.g. placeholder logos or headshots) with dynamic image files. The library updates the underlying image data binary in the ZIP archive, keeping the exact dimensions, rotation, coordinates, and styling limits.</p>
-        </div>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">2. Code Example</span>
-          <pre class="relative group"><code class="language-javascript block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">// Find slide image shapes
-const images = ppt.getImages();
-console.log(images); 
-// Output: [ { id: 'Picture 1', name: 'logo' } ]
-
-// Substitute image binary
-await ppt.replaceImage('logo', 'path/to/new_logo.png');
-
-// Alternatively, insert a brand new image
-await ppt.addImage('path/to/badge.png', {
-  x: 1.5,       // Position X (inches)
-  y: 2.0,       // Position Y (inches)
-  width: 2.5,   // Width (inches)
-  height: 2.5   // Height (inches)
-});</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-        </div>
-      </section>
-
-      <!-- Slide Management Section -->
-      <section id="slide-management" class="doc-section space-y-6">
-        <h1 class="font-title text-4xl font-extrabold text-white">Slide Duplication & CRUD</h1>
-        <p class="text-gray-300">Assemble presentations dynamically by copying template layout slides and reordering them as needed.</p>
-        
-        <pre class="relative group"><code class="language-javascript block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">// Duplicate slide 1 to build a second slide at index 2
-ppt.duplicateSlide(1, 2);
-
-// Reorder slide 3 to the front of the presentation
-ppt.moveSlide(3, 1);
-
-// Delete temporary slide
-ppt.deleteSlide(4);</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-      </section>
-
-      <!-- Slide Import Section -->
-      <section id="slide-import" class="doc-section space-y-6">
-        <h1 class="font-title text-4xl font-extrabold text-white">Cross-Template Imports</h1>
-        <p class="text-gray-300">Deep-copy a slide from an external presentation template into your active target presentation.</p>
-        
-        <div class="p-4 bg-brand-500/10 border-l-4 border-brand-500 rounded-r-xl text-sm text-gray-300">
-          <strong>📦 Automated Media & Layout Remapping:</strong> Direct file copying corrupts slides because layouts, masters, images, and relationships are not linked in the destination namespace. <code>importSlideFrom</code> automatically resolves, copies, and maps these slide assets, deduplicating image files in the target archive to save disk space.
-        </div>
-
-        <pre class="relative group"><code class="language-javascript block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">const targetPresentation = await PPTXTemplater.load('corporate_base.pptx');
-const marketingSource = await PPTXTemplater.load('marketing_campaign.pptx');
-
-// Deep import slide 3 of marketing deck into the base presentation
-await targetPresentation.importSlideFrom(marketingSource, 3);
-
-await targetPresentation.saveToFile('merged_corporate_presentation.pptx');</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-      </section>
-
-      <!-- Table Merging Section -->
-      <section id="table-merging" class="doc-section space-y-6">
-        <h1 class="font-title text-4xl font-extrabold text-white">Table Cell Merging</h1>
-        
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">1. Beginner Explanation</span>
-          <p class="text-sm text-gray-400 mt-2">
-            In PowerPoint, merging cells requires managing strict table grids. 
-            The top-left cell is designated as the <strong>origin cell</strong> and holds <code>gridSpan</code> (columns spanned) and <code>rowSpan</code> (rows spanned) attributes.
-            The remaining cells in the merged region are **shadowed cells** and must contain the attributes <code>hMerge="1"</code> and <code>vMerge="1"</code>. 
-            Our Table engine manages these attributes automatically, moving merged text cleanly into the origin cell.
-          </p>
-        </div>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">2. Visual Example</span>
-          <div class="p-4 bg-[#131b2e] border border-gray-800 rounded-lg font-mono text-xs text-indigo-300 mt-2">
-            <pre>
-Before Merging:
-┌───────────┬───────────┐
-│ Row 1 C1  │ Row 1 C2  │
-├───────────┼───────────┤
-│ Row 2 C1  │ Row 2 C2  │
-└───────────┴───────────┘
-
-After Merging (Row 1-2, Col 1-2):
-┌───────────────────────┐
-│ Row 1 C1 \n Row 1 C2   │
-│ Row 2 C1 \n Row 2 C2   │ (Single Merged Cell)
-└───────────────────────┘
-            </pre>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-[#0e1526]/40 border border-white/5 rounded-2xl overflow-hidden p-6">
+          <!-- Sandbox Tabs -->
+          <div class="lg:col-span-3 flex lg:flex-col gap-2 border-b lg:border-b-0 lg:border-r border-white/5 pb-4 lg:pb-0 lg:pr-4">
+            <button onclick="switchSandbox('text')" id="sb-tab-text" class="sb-tab text-left px-4 py-2 rounded-xl text-xs font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20 w-full transition-all">📝 Text Tagging</button>
+            <button onclick="switchSandbox('charts')" id="sb-tab-charts" class="sb-tab text-left px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white w-full transition-all">📊 Excel Charts</button>
+            <button onclick="switchSandbox('tables')" id="sb-tab-tables" class="sb-tab text-left px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white w-full transition-all">📋 Table Merges</button>
+            <button onclick="switchSandbox('layers')" id="sb-tab-layers" class="sb-tab text-left px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white w-full transition-all">🥞 Stacking Layers</button>
+          </div>
+          
+          <!-- Sandbox Code Panel -->
+          <div class="lg:col-span-5 flex flex-col justify-between">
+            <span class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2 block font-title">Javascript Code</span>
+            <div class="bg-[#05070c] border border-white/5 rounded-xl p-4 font-mono text-[11px] text-indigo-300 overflow-x-auto flex-1 min-h-[180px]">
+              <pre id="sandbox-code-block">ppt.useSlide(1)
+   .replaceTextByTag('title', 'Q2 Report')
+   .replaceMultiple({
+     user: 'Acme Corp',
+     date: 'June 2026'
+   });</pre>
+            </div>
+          </div>
+          
+          <!-- Sandbox Preview Panel -->
+          <div class="lg:col-span-4 flex flex-col">
+            <span class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2 block font-title">Slide Preview Rendering</span>
+            <div class="bg-[#05070c] border border-white/5 rounded-xl p-4 flex-1 flex flex-col justify-center items-center min-h-[180px] font-mono text-[10px] relative overflow-hidden" id="sandbox-preview-box">
+              <div class="border border-white/10 rounded bg-[#0e1526] p-3 w-full text-center space-y-2">
+                <div class="font-bold text-white text-[12px] border-b border-white/5 pb-1">Q2 Report</div>
+                <div class="text-[9px] text-gray-400">Owner: Acme Corp</div>
+                <div class="text-[9px] text-brand-400">Date: June 2026</div>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">3. Code Example</span>
-          <pre class="relative group"><code class="language-javascript block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">// Populate dynamic table data
-ppt.updateTable('sales-table', [
-  ['Category', 'Actual', 'Growth', 'Rating'],
-  ['Engineering', '140k', '12%', { value: 'Good', align: 'ctr', fill: '10b981' }],
-  ['Marketing', '110k', '8%', { value: 'Review', align: 'ctr', fill: 'f59e0b' }]
-]);
-
-// Merge Row 1 Column 1 through Row 2 Column 2
-ppt.mergeCells({
+      <!-- Table Cell Merging Section -->
+      <section id="table-merging" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Table Cell Merging</h1>
+        <p class="text-sm text-gray-300">OpenXML PowerPoint tables require precise cell spans coordinate structures. The top-left cell acts as the **origin**, declaring \`gridSpan\` and \`rowSpan\`. The remaining shadowed cells must flag \`hMerge\` and \`vMerge\` to avoid breaking PowerPoint table layout models.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">API-based merging</h4>
+            <p class="text-xs text-gray-400">Call <code>mergeCells()</code> directly by supplying coordinates:</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">ppt.mergeCells({
   tableId: 'sales-table',
   startRow: 1,
   startCol: 1,
   endRow: 2,
   endCol: 2
-});
-
-// Unmerge cells back to normal
-ppt.unmergeCells({
-  tableId: 'sales-table',
-  row: 1,
-  col: 1
-});</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-        </div>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">4. Template-driven Cell Merging</span>
-          <p class="text-sm text-gray-400 mt-2">
-            You can configure merges inline inside the <code>updateTable</code> parameters by supplying rowSpan / colSpan objects or using a config array:
-          </p>
-          <pre class="relative group"><code class="language-javascript block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">ppt.updateTable('sales-table', {
-  rows: [
-    ['Header 1', 'Header 2', 'Header 3'],
-    ['Normal Cell', { value: 'Column Merge Cell', colSpan: 2 }],
-    ['Normal Cell', 'Normal Cell', { value: 'Row Merge Cell', rowSpan: 2 }]
-  ],
-  merge: [
-    { startRow: 0, startCol: 0, endRow: 0, endCol: 2 }
-  ]
-});</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Template-driven cell formatting</h4>
+            <p class="text-xs text-gray-400">Update table values and declare spans inline within cell data:</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">ppt.updateTable('sales-table', [
+  ['Header', 'Header', 'Header'],
+  ['Data', { value: 'Span 2 Cols', colSpan: 2 }],
+  ['Data', 'Data', { value: 'Span 2 Rows', rowSpan: 2 }]
+]);</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
         </div>
       </section>
 
       <!-- Chart Engine Section -->
-      <section id="chart-engine" class="doc-section space-y-6">
-        <h1 class="font-title text-4xl font-extrabold text-white">Interactive Chart Updates</h1>
+      <section id="chart-engine" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Excel Chart Update</h1>
+        <p class="text-sm text-gray-300">PowerPoint embeds an Excel worksheet (\`ppt/embeddings/\`) that controls chart datasets. Standard scripts only edit visual chart coordinates, corrupting calculations. <strong>node-pptx-templater</strong> compiles updates for both XML caches and spreadsheet rows.</p>
         
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">1. Beginner Explanation</span>
-          <p class="text-sm text-gray-400 mt-2">
-            PowerPoint charts are backed by an XML description and an embedded binary Excel sheet. 
-            If you only update the slide XML, PowerPoint will render a cached image until clicked. 
-            Our Chart Engine updates both the slide XML data points (<code>strCache</code>, <code>numCache</code>) and cell records in the Excel spreadsheet binary.
-            This ensures your charts refresh instantly without alerts.
-          </p>
-        </div>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">2. Code Example</span>
-          <pre class="relative group"><code class="language-javascript block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">ppt.updateChartData('revenue-chart', {
+        <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">ppt.updateChartData('sales-chart', {
   categories: ['Q1', 'Q2', 'Q3', 'Q4'],
   series: [
-    { name: 'Target Revenue', values: [100, 120, 140, 160] },
-    { name: 'Actual Revenue', values: [105, 118, 145, 172] }
+    { name: 'Target', values: [100, 120, 140, 160] },
+    { name: 'Revenue', values: [105, 118, 145, 172] }
   ]
-});</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-        </div>
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
       </section>
 
-      <!-- Action Hyperlinks Section -->
-      <section id="navigation-links" class="doc-section space-y-6">
-        <h1 class="font-title text-4xl font-extrabold text-white">Action Hyperlinks</h1>
-        <p class="text-gray-300">Set slide action jumps, URL links, or custom paths on shapes and text blocks in your deck.</p>
+      <!-- Z-Order Stacking Section -->
+      <section id="zorder" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Z-Order &amp; Stacking Layers</h1>
+        <p class="text-sm text-gray-300">Programmatically stack shapes, images, charts, and tables using layer indices. The engine translates commands (Bring Forward, Send to Back) directly into OpenXML element orders within slide \`&lt;p:spTree&gt;\` blocks.</p>
         
-        <pre class="relative group"><code class="language-javascript block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">// Make matching text link to the next slide
-ppt.addTextNavigationLink({
-  element: 'Proceed to summary',
-  action: 'next' // 'next', 'previous', 'first', 'last'
-});
+        <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">// See all slide elements layers in stacking order (bottom to top)
+const elements = ppt.getObjectOrder(1);
+console.log(elements);
 
-// Bind navigation target to a vector button shape
-ppt.addShapeNavigationLink({
-  shapeId: 'CloseButton',
-  action: 'last'
-});</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-      </section>
-
-      <!-- Z-Order (Layer Management) Section -->
-      <section id="zorder" class="doc-section space-y-6">
-        <h1 class="font-title text-4xl font-extrabold text-white">Z-Order / Layer Control</h1>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">1. Beginner Explanation</span>
-          <p class="text-sm text-gray-400 mt-2">
-            Every shape, image, chart, and table on a slide occupies a layer in the stacking order — exactly like Photoshop layers. PowerPoint shows this as the <strong>Arrange</strong> panel (Bring Forward, Send Backward, etc.). <code>node-pptx-templater</code> gives you full programmatic control over these layers by directly reordering child elements inside the OpenXML <code>&lt;p:spTree&gt;</code> tag. This means no repair dialogs, no lost animations, and no broken relationships.
-          </p>
-        </div>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">2. How It Works</span>
-          <p class="text-sm text-gray-400 mt-2">
-            The Z-order is determined by the order of XML child elements inside <code>&lt;p:spTree&gt;</code>. The <strong>first element</strong> is drawn first (bottom-most); the <strong>last element</strong> is drawn last (top-most). All Z-order operations parse the live slide XML, modify the element order array, and re-serialize the container — keeping all relationship IDs, animations, and group structures intact.
-          </p>
-        </div>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">3. Quick Start</span>
-          <pre class="relative group"><code class="language-javascript block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">const ppt = await PPTXTemplater.load('template.pptx');
-
-// See all layers in stacking order (bottom → top)
-const layers = ppt.getObjectOrder(1);
-console.log(layers);
-// → [
-//     { id: 'Background', type: 'shape', zIndex: 1 },
-//     { id: 'Chart 1',    type: 'chart', zIndex: 2 },
-//     { id: 'Logo',       type: 'image', zIndex: 3 },
-//   ]
-
-// Bring the logo to the very top
+// Bring the overlay logo shape to the front
 ppt.bringToFront({ slide: 1, objectId: 'Logo' });
 
-// Send the background shape to the very bottom
-ppt.sendToBack({ slide: 1, objectId: 'Background' });
-
-await ppt.saveToFile('./output/reordered.pptx');</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-        </div>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">4. All Z-Order APIs</span>
-          <div class="space-y-4 mt-2">
-
-            <div class="p-4 bg-[#131b2e] border border-gray-800 rounded-xl">
-              <h4 class="font-semibold text-white mb-1">Inspect Order</h4>
-              <pre class="relative group"><code class="language-javascript block p-3 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-xs">ppt.getObjectOrder(slideIndex)      // [{ id, type, zIndex }, ...]
-ppt.getTopMostObject(slideIndex)    // { id, type, zIndex }
-ppt.getBottomMostObject(slideIndex) // { id, type, zIndex }</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-            </div>
-
-            <div class="p-4 bg-[#131b2e] border border-gray-800 rounded-xl">
-              <h4 class="font-semibold text-white mb-1">Step Moves</h4>
-              <pre class="relative group"><code class="language-javascript block p-3 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-xs">ppt.bringForward({ slide: 1, objectId: 'Logo' });  // +1 layer
-ppt.sendBackward({ slide: 1, objectId: 'Logo' });  // -1 layer</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-            </div>
-
-            <div class="p-4 bg-[#131b2e] border border-gray-800 rounded-xl">
-              <h4 class="font-semibold text-white mb-1">Absolute Extremes</h4>
-              <pre class="relative group"><code class="language-javascript block p-3 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-xs">ppt.bringToFront({ slide: 1, objectId: 'Logo' });  // Top of stack
-ppt.sendToBack({ slide: 1, objectId: 'BG' });      // Bottom of stack</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-            </div>
-
-            <div class="p-4 bg-[#131b2e] border border-gray-800 rounded-xl">
-              <h4 class="font-semibold text-white mb-1">Exact Position</h4>
-              <pre class="relative group"><code class="language-javascript block p-3 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-xs">// Place Logo at zIndex 3 (1-based)
-ppt.setZIndex({ slide: 1, objectId: 'Logo', zIndex: 3 });
-
-// Insert before/after a specific element
-ppt.moveObjectBefore({ slide: 1, objectId: 'Overlay', targetId: 'Chart' });
-ppt.moveObjectAfter({ slide: 1, objectId: 'Label',   targetId: 'Chart' });</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-            </div>
-
-            <div class="p-4 bg-[#131b2e] border border-gray-800 rounded-xl">
-              <h4 class="font-semibold text-white mb-1">Bulk &amp; Advanced</h4>
-              <pre class="relative group"><code class="language-javascript block p-3 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-xs">// Bulk reorder (bottom → top)
-ppt.reorderObjects({ slide: 1, order: ['BG', 'Chart', 'Logo', 'Title'] });
-
-// Batch apply multiple rules
-ppt.applyZOrder(1, [
-  { id: 'BG',    sendToBack: true },
-  { id: 'Logo',  zIndex: 4 },
-  { id: 'Chart', bringForward: true },
-]);
-
-// Swap two objects
-ppt.swapObjects(1, 'Logo', 'Chart');
-
-// Sort by custom compare function
-ppt.sortObjects(1, (a, b) =&gt; a.id.localeCompare(b.id));
-
-// Normalize (re-sync from current XML state)
-ppt.normalizeZOrder(1);</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">5. Supported Element Types</span>
-          <div class="overflow-x-auto mt-2">
-            <table class="w-full text-sm text-gray-400 border border-gray-800 rounded-lg overflow-hidden">
-              <thead class="bg-[#131b2e] text-white">
-                <tr>
-                  <th class="px-4 py-3 text-left font-semibold">PowerPoint Type</th>
-                  <th class="px-4 py-3 text-left font-semibold">OpenXML Tag</th>
-                  <th class="px-4 py-3 text-left font-semibold"><code>type</code> Value</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-800">
-                <tr class="hover:bg-[#131b2e] transition-colors">
-                  <td class="px-4 py-3">Shape / Text Box</td>
-                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:sp&gt;</td>
-                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded">shape</span> / <span class="bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded">text</span></td>
-                </tr>
-                <tr class="hover:bg-[#131b2e] transition-colors">
-                  <td class="px-4 py-3">Image</td>
-                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:pic&gt;</td>
-                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded">image</span></td>
-                </tr>
-                <tr class="hover:bg-[#131b2e] transition-colors">
-                  <td class="px-4 py-3">Chart</td>
-                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:graphicFrame&gt; + chart URI</td>
-                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-orange-500/10 text-orange-400 px-1.5 py-0.5 rounded">chart</span></td>
-                </tr>
-                <tr class="hover:bg-[#131b2e] transition-colors">
-                  <td class="px-4 py-3">Table</td>
-                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:graphicFrame&gt; + table URI</td>
-                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded">table</span></td>
-                </tr>
-                <tr class="hover:bg-[#131b2e] transition-colors">
-                  <td class="px-4 py-3">SmartArt</td>
-                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:graphicFrame&gt; + diagram URI</td>
-                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-pink-500/10 text-pink-400 px-1.5 py-0.5 rounded">smartart</span></td>
-                </tr>
-                <tr class="hover:bg-[#131b2e] transition-colors">
-                  <td class="px-4 py-3">Group</td>
-                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:grpSp&gt;</td>
-                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-yellow-500/10 text-yellow-400 px-1.5 py-0.5 rounded">group</span></td>
-                </tr>
-                <tr class="hover:bg-[#131b2e] transition-colors">
-                  <td class="px-4 py-3">Connector</td>
-                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:cxnSp&gt;</td>
-                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-gray-500/10 text-gray-400 px-1.5 py-0.5 rounded">connector</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="p-4 bg-emerald-500/10 border-l-4 border-emerald-500 rounded-r-xl">
-          <span class="font-semibold text-emerald-400 block">✅ OpenXML Compatibility</span>
-          <p class="text-sm text-gray-300 mt-1">All Z-order operations preserve relationship IDs (<code>r:embed</code>), animations (in-slide XML), group structures (<code>p:grpSp</code> nesting), chart references, image binaries, and theme styling. Generated files open in Microsoft PowerPoint without repair prompts.</p>
-        </div>
+// Send the background template banner shape to the bottom
+ppt.sendToBack({ slide: 1, objectId: 'Background' });</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
       </section>
+
+      <!-- Pre-rendered JSDoc API Content -->
+      ${contentHtml}
 
       <!-- Packaging & XML Structure Section -->
-      <section id="openxml-internals" class="doc-section space-y-6">
+      <section id="openxml-internals" class="doc-section space-y-6 hidden">
         <h1 class="font-title text-4xl font-extrabold text-white">Packaging & XML Structure</h1>
-        <p class="text-gray-300">A detailed lookup of standard OPC PPTX directories and where components are located.</p>
+        <p class="text-sm text-gray-300">The PowerPoint document model is a zipped Open Packaging Convention (OPC) directory containing structured XML files. Below is the file mapping list for typical slide templates:</p>
         
-        <div class="architecture-diagram p-4 bg-[#131b2e] border border-gray-800 rounded-lg font-mono text-xs text-indigo-300">
-          <pre>
-PPTX Archive structure:
-├── [Content_Types].xml (MIME type override registry)
+        <pre class="block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">
+PPTX File Layout:
+├── [Content_Types].xml (Document Override MIME types)
 ├── _rels/
-│   └── .rels (Root relations maps)
+│   └── .rels (Root presentation layouts relationship catalog)
 ├── ppt/
-│   ├── presentation.xml (Slide inventory records)
-│   ├── _rels/
-│   │   └── presentation.xml.rels (Global assets layout links)
+│   ├── presentation.xml (Slide listing, Masters catalog)
 │   ├── slides/
-│   │   ├── slide1.xml (Slide 1 canvas elements)
+│   │   ├── slide1.xml (Elements, shapes, texts runs)
 │   │   └── _rels/
-│   │       └── slide1.xml.rels (Slide-level assets references)
-│   ├── slideLayouts/ (Slide theme layout components)
-│   ├── slideMasters/ (Slide presentation master masters)
-│   ├── media/ (Embedded image assets: PNG, JPEG, SVG)
-│   └── embeddings/ (Chart worksheets: Excel documents)
-          </pre>
-        </div>
+│   │       └── slide1.xml.rels (Slide-level resource assets map)
+│   ├── media/ (Images assets database: PNG, JPEG, SVG)
+│   └── embeddings/ (Excel workbooks backing PowerPoint charts)
+        </pre>
       </section>
 
-      <!-- Managers & Core Validation Section -->
-      <section id="manifest-managers" class="doc-section space-y-6">
-        <h1 class="font-title text-4xl font-extrabold text-white">Managers & Validation</h1>
-        <p class="text-gray-300">How the templating engine protects presentation validity using internal validation managers.</p>
+      <!-- XML Security Section -->
+      <section id="security-arch" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">XML Security Architecture</h1>
+        <p class="text-sm text-gray-300">To protect your application servers against malicious vectors inside user-supplied templates, the library implements robust, multi-layered XML parsing checks.</p>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-          <div class="p-5 bg-[#131b2e] border border-gray-800 rounded-xl">
-            <h4 class="font-semibold text-white mb-2">🛡️ Integrity Validation Engine</h4>
-            <p class="text-sm text-gray-400">Verifies XML structure, checks table grids, and remaps assets relationship keys before writing output directories.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">🛡️ Attack Protections</h4>
+            <ul class="list-disc pl-6 space-y-1.5 text-xs text-gray-400">
+              <li><strong>Billion Laughs & XML Bomb Prevention</strong>: Automatically rejects XML contain <code>&lt;!DOCTYPE&gt;</code> or <code>&lt;!ENTITY&gt;</code> tags.</li>
+              <li><strong>XXE (XML External Entity) Protection</strong>: Rejects external system/public links to block local file disclosure vectors.</li>
+              <li><strong>Oversized Entity Limits</strong>: Imposes hard limits (max 50,000 standard entity instances) to avoid parsing timeouts.</li>
+            </ul>
           </div>
-          <div class="p-5 bg-[#131b2e] border border-gray-800 rounded-xl">
-            <h4 class="font-semibold text-white mb-2">📁 ContentTypesManager</h4>
-            <p class="text-sm text-gray-400">Maintains <code>[Content_Types].xml</code> Override nodes, making sure new assets have valid XML mime headers.</p>
-          </div>
-          <div class="p-5 bg-[#131b2e] border border-gray-800 rounded-xl">
-            <h4 class="font-semibold text-white mb-2">🔗 RelationshipManager</h4>
-            <p class="text-sm text-gray-400">Manages relative slide links and re-maps relationship indexes (<code>.rels</code> files) dynamically.</p>
-          </div>
-          <div class="p-5 bg-[#131b2e] border border-gray-800 rounded-xl">
-            <h4 class="font-semibold text-white mb-2">📝 SlideManager</h4>
-            <p class="text-sm text-gray-400">Caches slide markup buffers for fast reads/writes, updating the master slides catalog.</p>
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">⚙️ Custom Validation API</h4>
+            <p class="text-xs text-gray-400">Exposes validation and recovery utilities directly to your code:</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-[11px] leading-tight">const { validateXml, safeParseXml } = require('node-pptx-templater');
+
+const status = validateXml(userXml);
+if (!status.valid) {
+  console.log('Error details:', status.error);
+}</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
           </div>
         </div>
       </section>
 
-      <!-- Troubleshooting Section -->
-      <section id="troubleshooting" class="doc-section space-y-6">
-        <h1 class="font-title text-4xl font-extrabold text-white">Troubleshooting & FAQs</h1>
+      <!-- FAQ & Troubleshooting Section -->
+      <section id="faq" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">FAQ &amp; Troubleshooting</h1>
         
         <div class="space-y-4">
-          <div class="p-5 bg-[#131b2e] border border-gray-800 rounded-xl">
-            <h4 class="font-semibold text-white mb-2">Q: Why does Microsoft PowerPoint display "Repair content" on open?</h4>
-            <p class="text-sm text-gray-400">
-              This typically happens if slide assets relationship indexes (e.g. mapping of a chart or image) are missing, duplicate rowIds exist, or new XML content is missing from <code>[Content_Types].xml</code>. 
-              Always use the library's built-in <code>saveToFile()</code> or <code>toBuffer()</code> methods, which run validation passes and automatically resolve these issues.
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Q: PowerPoint triggers a "Repair Presentation" alert. How do I fix it?</h4>
+            <p class="text-xs text-gray-400 leading-relaxed">
+              This happens if relationships are mismatched (pointing to non-existent assets), or if new slide/chart parts are not registered in the override list. 
+              Always use the library's built-in <code>saveToFile()</code> or <code>toBuffer()</code> methods, which automatically execute structural check passes, remap IDs, and sanitize Content Overrides.
+            </p>
+          </div>
+          
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Q: Some of my text placeholders inside shapes are not replacing. Why?</h4>
+            <p class="text-xs text-gray-400 leading-relaxed">
+              PowerPoint editors frequently segment tag characters into separate XML nodes behind the scenes (e.g. <code>{{title}}</code> splits into <code>&lt;a:t&gt;{{ti&lt;/a:t&gt;&lt;a:t&gt;tle}}&lt;/a:t&gt;</code>).
+              To unify the nodes, highlight the placeholder in PowerPoint, cut it, and paste it back using "Keep Text Only" (this formats it into a single clean XML run).
             </p>
           </div>
 
-          <div class="p-5 bg-[#131b2e] border border-gray-800 rounded-xl">
-            <h4 class="font-semibold text-white mb-2">Q: My text placeholders are not getting replaced. What's wrong?</h4>
-            <p class="text-sm text-gray-400">
-              PowerPoint often splits run nodes (e.g. <code>{{name}}</code> is split in slide XML into separate tags like <code>{{na</code> and <code>me}}</code>). 
-              To fix this, cut the placeholder text in PowerPoint, and paste it back using "Keep Text Only" to merge the XML runs.
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Q: How does the library resolve "Entity expansion limit exceeded" errors?</h4>
+            <p class="text-xs text-gray-400 leading-relaxed">
+              We disable internal XML entity expansion in the parser and decode standard character entities (\`&amp;\`, \`&lt;\`, etc.) and decimal/hex code points using an optimized, single-level JavaScript decoder. This bypasses limits while blocking XML entity expansion attacks entirely.
             </p>
           </div>
         </div>
@@ -728,18 +740,18 @@ PPTX Archive structure:
     </main>
   </div>
 
+  <!-- JavaScript App Logic -->
   <script src="app.js"></script>
 </body>
-</html>
-`;
+</html>`;
 
-const CSS_CONTENT = `/* Variables & Custom Themes */
+  const CSS_CONTENT = `/* Base CSS Styles & Themes */
 :root {
-  --bg-primary: #0b0f19;
-  --bg-secondary: #131b2e;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --text-main: #f3f4f6;
-  --text-muted: #9ca3af;
+  --bg-primary: #080b11;
+  --bg-secondary: #0e1526;
+  --border-color: rgba(255, 255, 255, 0.05);
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
   --primary: #6366f1;
 }
 
@@ -752,58 +764,114 @@ const CSS_CONTENT = `/* Variables & Custom Themes */
   --primary: #4f46e5;
 }
 
-/* Glassmorphism sidebar & header */
-#sidebar {
-  background-color: rgba(19, 27, 46, 0.6);
-  backdrop-filter: blur(16px);
-}
-.light-theme #sidebar {
-  background-color: rgba(255, 255, 255, 0.6);
-}
-
-/* Layout transition styles */
 body {
   background-color: var(--bg-primary);
   color: var(--text-main);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Translucent Glass Card Effect */
+.glass-card {
+  background-color: rgba(14, 21, 38, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.light-theme .glass-card {
+  background-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(400px circle at var(--mouse-x, 0) var(--mouse-y, 0), rgba(99, 102, 241, 0.08), transparent 80%);
+  z-index: 0;
+  pointer-events: none;
+  transition: opacity 0.5s;
+  opacity: 0;
+  border-radius: inherit;
+}
+
+.glass-card:hover::before {
+  opacity: 1;
+}
+
+header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+aside {
+  border-right: 1px solid var(--border-color);
 }
 
 .nav-item.active {
-  color: var(--text-main) !important;
-  background-color: rgba(99, 102, 241, 0.15) !important;
+  background-color: rgba(99, 102, 241, 0.1);
+  color: #ffffff;
   border-left: 3px solid var(--primary);
-  font-weight: 500;
+  padding-left: 9px;
 }
 
-.doc-section {
-  display: none;
-}
-.doc-section.active-section {
-  display: block;
-  animation: fadeIn 0.3s ease-out;
+.light-theme .nav-item.active {
+  background-color: rgba(79, 70, 229, 0.08);
+  color: var(--primary);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Custom layout sizes */
+.text-xxs {
+  font-size: 8px;
+}
+.text-xs {
+  font-size: 11px;
+}
+.text-sm {
+  font-size: 13px;
 }
 `;
 
-const JS_CONTENT = `document.addEventListener('DOMContentLoaded', () => {
-  // Navigation Router
+  const JS_CONTENT = `// Documentation Engine Client Logic
+document.addEventListener('DOMContentLoaded', () => {
   const navItems = document.querySelectorAll('.nav-item');
-  const sections = document.querySelectorAll('.doc-section');
-
-  function showSection(targetId) {
-    let cleanId = targetId.replace('#', '');
-    sections.forEach(s => s.classList.remove('active-section'));
-    navItems.forEach(n => n.classList.remove('active'));
-
+  const sections = document.querySelectorAll('.doc-section, .class-docs-section');
+  
+  // Show/Hide page sections based on URL hashes
+  function showSection(hash) {
+    const cleanId = hash.replace('#', '');
+    
+    sections.forEach(sec => sec.classList.add('hidden'));
+    navItems.forEach(item => item.classList.remove('active'));
+    
     const targetSection = document.getElementById(cleanId);
     if (targetSection) {
-      targetSection.classList.add('active-section');
+      targetSection.classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // GSAP Liquid Glass Reveal Animation
+      gsap.fromTo(targetSection, 
+        { opacity: 0, y: 15 },
+        { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }
+      );
     }
-
+    
     const activeLink = document.querySelector(\`a[href="#\${cleanId}"]\`);
     if (activeLink) {
       activeLink.classList.add('active');
@@ -826,9 +894,27 @@ const JS_CONTENT = `document.addEventListener('DOMContentLoaded', () => {
 
   if (window.location.hash) {
     showSection(window.location.hash);
+  } else {
+    showSection('#introduction');
   }
 
-  // Theme Toggler
+  // Liquid Glass Glow Cursor Tracker
+  document.addEventListener('mousemove', e => {
+    document.querySelectorAll('.glass-card, .method-card').forEach(card => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      card.style.setProperty('--mouse-x', \`\${x}px\`);
+      card.style.setProperty('--mouse-y', \`\${y}px\`);
+    });
+  });
+
+  // GSAP Entrance Load Animations
+  gsap.from("header", { opacity: 0, y: -20, duration: 0.6, ease: "power3.out" });
+  gsap.from("aside", { opacity: 0, x: -30, duration: 0.6, ease: "power3.out", delay: 0.1 });
+  gsap.from(".glow-orb", { opacity: 0, scale: 0.8, duration: 1.5, ease: "power2.out" });
+
+  // Light/Dark Theme Switcher
   const themeToggle = document.getElementById('theme-toggle');
   const body = document.body;
   const savedTheme = localStorage.getItem('theme');
@@ -836,34 +922,35 @@ const JS_CONTENT = `document.addEventListener('DOMContentLoaded', () => {
   if (savedTheme === 'light') {
     body.classList.remove('dark-theme');
     body.classList.add('light-theme', 'bg-white', 'text-slate-800');
-    body.classList.remove('bg-[#0b0f19]', 'text-gray-200');
+    body.classList.remove('bg-[#080b11]', 'text-gray-200');
     themeToggle.querySelector('.toggle-icon').textContent = '☀️';
   }
 
   themeToggle.addEventListener('click', () => {
     if (body.classList.contains('light-theme')) {
       body.classList.remove('light-theme', 'bg-white', 'text-slate-800');
-      body.classList.add('bg-[#0b0f19]', 'text-gray-200');
+      body.classList.add('bg-[#080b11]', 'text-gray-200');
       themeToggle.querySelector('.toggle-icon').textContent = '🌙';
       localStorage.setItem('theme', 'dark');
     } else {
       body.classList.add('light-theme', 'bg-white', 'text-slate-800');
-      body.classList.remove('bg-[#0b0f19]', 'text-gray-200');
+      body.classList.remove('bg-[#080b11]', 'text-gray-200');
       themeToggle.querySelector('.toggle-icon').textContent = '☀️';
       localStorage.setItem('theme', 'light');
     }
   });
 
-  // Client Search Indexer
+  // Client Sidebar Navigation Filter Search
   const searchInput = document.getElementById('doc-search');
   searchInput.addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase().trim();
     if (!query) {
-      navItems.forEach(item => item.parentElement.style.display = 'block');
+      document.querySelectorAll('.nav-item').forEach(item => item.parentElement.style.display = 'block');
+      document.querySelectorAll('.class-sidebar-group').forEach(group => group.style.display = 'block');
       return;
     }
 
-    navItems.forEach(item => {
+    document.querySelectorAll('.nav-item').forEach(item => {
       const text = item.textContent.toLowerCase();
       const parent = item.parentElement;
       if (text.includes(query)) {
@@ -881,7 +968,7 @@ const JS_CONTENT = `document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Clipboard Copier
+  // Clipboard Text Copier
   const copyButtons = document.querySelectorAll('.copy-btn');
   copyButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -898,30 +985,59 @@ const JS_CONTENT = `document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Learning Path selector
-window.switchPath = function(pathName) {
-  document.querySelectorAll('.path-content').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('.path-tab').forEach(el => {
-    el.classList.remove('border-brand-500', 'text-white');
-    el.classList.add('border-transparent', 'text-gray-400');
+// Interactive Sandbox tab switcher
+window.switchSandbox = function(tabName) {
+  const codeBlock = document.getElementById('sandbox-code-block');
+  const previewBox = document.getElementById('sandbox-preview-box');
+  
+  document.querySelectorAll('.sb-tab').forEach(el => {
+    el.classList.remove('bg-brand-500/10', 'text-brand-400', 'border', 'border-brand-500/20');
+    el.classList.add('text-gray-400', 'hover:text-white');
   });
+  
+  const selectedTab = document.getElementById('sb-tab-' + tabName);
+  selectedTab.classList.add('bg-brand-500/10', 'text-brand-400', 'border', 'border-brand-500/20');
+  selectedTab.classList.remove('text-gray-400', 'hover:text-white');
+  
+  if (tabName === 'text') {
+    codeBlock.textContent = \`ppt.useSlide(1)\\n   .replaceTextByTag('title', 'Q2 Report')\\n   .replaceMultiple({\\n     user: 'Acme Corp',\\n     date: 'June 2026'\\n   });\`;
+    previewBox.innerHTML = \`<div class="border border-white/10 rounded bg-[#0e1526] p-3 w-full text-center space-y-2">\\n      <div class="font-bold text-white text-[12px] border-b border-white/5 pb-1">Q2 Report</div>\\n      <div class="text-[9px] text-gray-400">Owner: Acme Corp</div>\\n      <div class="text-[9px] text-brand-400">Date: June 2026</div>\\n    </div>\`;
+  } else if (tabName === 'charts') {
+    codeBlock.textContent = \`ppt.useSlide(2)\\n   .updateChartData('sales-chart', {\\n     categories: ['Q1', 'Q2', 'Q3'],\\n     series: [\\n       { name: 'Target', values: [80, 100, 120] },\\n       { name: 'Actual', values: [95, 115, 130] }\\n     ]\\n   });\`;
+    previewBox.innerHTML = \`<div class="w-full flex items-end justify-around h-32 px-4 border-b border-white/10">\\n      <div class="flex flex-col items-center">\\n        <div class="w-4 bg-brand-500/20 h-16 rounded-t"></div>\\n        <div class="w-4 bg-brand-500 h-20 rounded-t -mt-2"></div>\\n        <span class="text-[8px] text-gray-500 mt-1">Q1</span>\\n      </div>\\n      <div class="flex flex-col items-center">\\n        <div class="w-4 bg-brand-500/20 h-20 rounded-t"></div>\\n        <div class="w-4 bg-brand-500 h-24 rounded-t -mt-2"></div>\\n        <span class="text-[8px] text-gray-500 mt-1">Q2</span>\\n      </div>\\n      <div class="flex flex-col items-center">\\n        <div class="w-4 bg-brand-500/20 h-24 rounded-t"></div>\\n        <div class="w-4 bg-brand-500 h-28 rounded-t -mt-2"></div>\\n        <span class="text-[8px] text-gray-500 mt-1">Q3</span>\\n      </div>\\n    </div>\\n    <div class="text-[8px] text-gray-400 mt-2 flex gap-3"><span class="flex items-center gap-1"><span class="w-2 h-2 bg-brand-500/20 rounded"></span>Target</span><span class="flex items-center gap-1"><span class="w-2 h-2 bg-brand-500 rounded"></span>Actual</span></div>\`;
+  } else if (tabName === 'tables') {
+    codeBlock.textContent = \`ppt.useSlide(3)\\n   .updateTable('sales-table', [\\n     ['Category', { value: 'Global Performance', colSpan: 2 }],\\n     ['North Region', '120k', 'Growth: 8%'],\\n     ['South Region', '150k', 'Growth: 12%']\\n   ])\\n   .mergeCells('sales-table', 1, 1, 2, 2);\`;
+    previewBox.innerHTML = \`<div class="w-full border border-white/10 rounded-xl overflow-hidden text-[9px] bg-[#0e1526]">\\n      <div class="bg-white/5 p-2 font-bold border-b border-white/10 text-center">Global Performance</div>\\n      <div class="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10 text-center">\\n        <div class="p-2 text-gray-400">North Region</div>\\n        <div class="p-2 col-span-2 text-brand-400 font-bold">120k / Growth: 8%</div>\\n      </div>\\n      <div class="grid grid-cols-3 divide-x divide-white/10 text-center">\\n        <div class="p-2 text-gray-400">South Region</div>\\n        <div class="p-2 col-span-2 text-brand-400 font-bold">150k / Growth: 12%</div>\\n      </div>\\n    </div>\`;
+  } else if (tabName === 'layers') {
+    codeBlock.textContent = \`ppt.useSlide(4)\\n   .bringToFront('OverlayLogo')\\n   .sendToBack('BackgroundShade');\`;
+    previewBox.innerHTML = \`<div class="relative w-full h-32 border border-white/10 rounded-xl bg-[#0e1526] overflow-hidden">\\n      <div class="absolute inset-0 bg-brand-500/5 flex items-center justify-center text-[10px] text-gray-500">BackgroundShade (zIndex: 1)</div>\\n      <div class="absolute top-6 left-6 w-32 h-16 border border-white/10 bg-slate-900 flex items-center justify-center rounded shadow-lg text-[9px]">Text Container (zIndex: 2)</div>\\n      <div class="absolute top-10 right-6 w-20 h-16 border border-brand-500/30 bg-brand-500/10 flex items-center justify-center rounded shadow-2xl text-[9px] text-brand-400 font-bold">OverlayLogo (zIndex: 3)</div>\\n    </div>\`;
+  }
 
-  const content = document.getElementById('path-content-' + pathName);
-  if (content) content.classList.remove('hidden');
+  // Sandbox reveal sweep GSAP
+  gsap.fromTo([codeBlock, previewBox], 
+    { opacity: 0.7, scale: 0.98 },
+    { opacity: 1, scale: 1, duration: 0.3, ease: "power2.out" }
+  );
+}
 
-  const tab = document.getElementById('tab-' + pathName);
-  if (tab) {
-    tab.classList.add('border-brand-500', 'text-white');
-    tab.classList.remove('border-transparent', 'text-gray-400');
+// Sidebar sub-navigation toggle
+window.toggleSidebarGroup = function(groupId) {
+  const list = document.getElementById('sidebar-list-' + groupId);
+  const arrow = document.getElementById('arrow-' + groupId);
+  if (list && list.classList.contains('hidden')) {
+    list.classList.remove('hidden');
+    arrow.style.transform = 'rotate(0deg)';
+  } else if (list) {
+    list.classList.add('hidden');
+    arrow.style.transform = 'rotate(-90deg)';
   }
 }
 `;
 
-async function main() {
-  await fsExtra.ensureDir(DOCS_DIR);
-  await fsExtra.writeFile(resolve(DOCS_DIR, 'index.html'), HTML_CONTENT);
-  await fsExtra.writeFile(resolve(DOCS_DIR, 'style.css'), CSS_CONTENT);
-  await fsExtra.writeFile(resolve(DOCS_DIR, 'app.js'), JS_CONTENT);
+  await fs.ensureDir(DOCS_DIR);
+  await fs.writeFile(resolve(DOCS_DIR, 'index.html'), HTML_CONTENT);
+  await fs.writeFile(resolve(DOCS_DIR, 'style.css'), CSS_CONTENT);
+  await fs.writeFile(resolve(DOCS_DIR, 'app.js'), JS_CONTENT);
   
   // SEO Sitemap.xml
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
@@ -933,13 +1049,13 @@ async function main() {
     <priority>1.0</priority>
   </url>
 </urlset>`;
-  await fsExtra.writeFile(resolve(DOCS_DIR, 'sitemap.xml'), sitemap.trim());
+  await fs.writeFile(resolve(DOCS_DIR, 'sitemap.xml'), sitemap.trim());
 
   // SEO Robots.txt
   const robots = `User-agent: *
 Allow: /
 Sitemap: https://jsuyog2.github.io/node-pptx-templater/sitemap.xml`;
-  await fsExtra.writeFile(resolve(DOCS_DIR, 'robots.txt'), robots.trim());
+  await fs.writeFile(resolve(DOCS_DIR, 'robots.txt'), robots.trim());
 
   console.log('Successfully built GitHub Pages documentation with sitemap and robots.txt under docs/');
 }
