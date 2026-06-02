@@ -777,13 +777,13 @@ async function main() {
     <priority>1.0</priority>
   </url>
 </urlset>`;
-  await fsExtra.writeFile(resolve(DOCS_DIR, 'sitemap.xml'), sitemap);
+  await fsExtra.writeFile(resolve(DOCS_DIR, 'sitemap.xml'), sitemap.trim());
 
   // SEO Robots.txt
   const robots = `User-agent: *
 Allow: /
 Sitemap: https://jsuyog2.github.io/node-pptx-templater/sitemap.xml`;
-  await fsExtra.writeFile(resolve(DOCS_DIR, 'robots.txt'), robots);
+  await fsExtra.writeFile(resolve(DOCS_DIR, 'robots.txt'), robots.trim());
 
   console.log('Successfully built GitHub Pages documentation with sitemap and robots.txt under docs/');
 }
