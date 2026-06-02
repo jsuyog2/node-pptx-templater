@@ -31,7 +31,7 @@ jobs:
         run: node scripts/generate-docs.js
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/site
+          path: docs
 
   deploy-docs:
     needs: build-docs
