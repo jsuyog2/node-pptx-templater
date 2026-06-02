@@ -65,7 +65,8 @@ class ZOrderManager {
           let id = null
           if (tag === 'p:sp') id = item?.['p:nvSpPr']?.['p:cNvPr']?.['@_id']
           else if (tag === 'p:pic') id = item?.['p:nvPicPr']?.['p:cNvPr']?.['@_id']
-          else if (tag === 'p:graphicFrame') id = item?.['p:nvGraphicFramePr']?.['p:cNvPr']?.['@_id']
+          else if (tag === 'p:graphicFrame')
+            id = item?.['p:nvGraphicFramePr']?.['p:cNvPr']?.['@_id']
           else if (tag === 'p:grpSp') id = item?.['p:nvGrpSpPr']?.['p:cNvPr']?.['@_id']
           else if (tag === 'p:cxnSp') id = item?.['p:nvCxnSpPr']?.['p:cNvPr']?.['@_id']
 

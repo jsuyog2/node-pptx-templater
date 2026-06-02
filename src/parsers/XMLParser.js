@@ -252,9 +252,7 @@ class XMLParser {
           const orderedRootNode = orderedObj.find(n => {
             const keys = Object.keys(n)
             return (
-              keys.includes('p:sld') ||
-              keys.includes('p:sldLayout') ||
-              keys.includes('p:sldMaster')
+              keys.includes('p:sld') || keys.includes('p:sldLayout') || keys.includes('p:sldMaster')
             )
           })
           const containerMap = buildZOrderMap(orderedRootNode)

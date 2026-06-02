@@ -1562,9 +1562,7 @@ class PPTXTemplater {
     let slideIndex, objectId
     if (typeof optionsOrId === 'object' && optionsOrId !== null) {
       slideIndex =
-        optionsOrId.slide !== undefined
-          ? optionsOrId.slide
-          : this.#getTargetSlideIndices()[0] || 1
+        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
       objectId = optionsOrId.objectId
     } else {
       slideIndex = this.#getTargetSlideIndices()[0] || 1
@@ -1582,9 +1580,7 @@ class PPTXTemplater {
     let slideIndex, objectId
     if (typeof optionsOrId === 'object' && optionsOrId !== null) {
       slideIndex =
-        optionsOrId.slide !== undefined
-          ? optionsOrId.slide
-          : this.#getTargetSlideIndices()[0] || 1
+        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
       objectId = optionsOrId.objectId
     } else {
       slideIndex = this.#getTargetSlideIndices()[0] || 1
@@ -1602,9 +1598,7 @@ class PPTXTemplater {
     let slideIndex, objectId
     if (typeof optionsOrId === 'object' && optionsOrId !== null) {
       slideIndex =
-        optionsOrId.slide !== undefined
-          ? optionsOrId.slide
-          : this.#getTargetSlideIndices()[0] || 1
+        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
       objectId = optionsOrId.objectId
     } else {
       slideIndex = this.#getTargetSlideIndices()[0] || 1
@@ -1622,9 +1616,7 @@ class PPTXTemplater {
     let slideIndex, objectId
     if (typeof optionsOrId === 'object' && optionsOrId !== null) {
       slideIndex =
-        optionsOrId.slide !== undefined
-          ? optionsOrId.slide
-          : this.#getTargetSlideIndices()[0] || 1
+        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
       objectId = optionsOrId.objectId
     } else {
       slideIndex = this.#getTargetSlideIndices()[0] || 1
@@ -1646,9 +1638,7 @@ class PPTXTemplater {
       optionsOrId.zIndex !== undefined
     ) {
       slideIndex =
-        optionsOrId.slide !== undefined
-          ? optionsOrId.slide
-          : this.#getTargetSlideIndices()[0] || 1
+        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
       objectId = optionsOrId.objectId
       targetZIndex = optionsOrId.zIndex
     } else {
@@ -1672,9 +1662,7 @@ class PPTXTemplater {
       optionsOrId.targetId !== undefined
     ) {
       slideIndex =
-        optionsOrId.slide !== undefined
-          ? optionsOrId.slide
-          : this.#getTargetSlideIndices()[0] || 1
+        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
       objectId = optionsOrId.objectId
       target = optionsOrId.targetId
     } else {
@@ -1698,9 +1686,7 @@ class PPTXTemplater {
       optionsOrId.targetId !== undefined
     ) {
       slideIndex =
-        optionsOrId.slide !== undefined
-          ? optionsOrId.slide
-          : this.#getTargetSlideIndices()[0] || 1
+        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
       objectId = optionsOrId.objectId
       target = optionsOrId.targetId
     } else {
@@ -1741,8 +1727,7 @@ class PPTXTemplater {
    */
   getObjectOrder(slideIndex) {
     this.#assertLoaded()
-    const targetIdx =
-      slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
+    const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
     return this.#zOrderManager.getObjectOrder(targetIdx, this.#slideManager)
   }
 
@@ -1768,8 +1753,7 @@ class PPTXTemplater {
    */
   getTopMostObject(slideIndex) {
     this.#assertLoaded()
-    const targetIdx =
-      slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
+    const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
     return this.#zOrderManager.getTopMostObject(targetIdx, this.#slideManager)
   }
 
@@ -1778,8 +1762,7 @@ class PPTXTemplater {
    */
   getBottomMostObject(slideIndex) {
     this.#assertLoaded()
-    const targetIdx =
-      slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
+    const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
     return this.#zOrderManager.getBottomMostObject(targetIdx, this.#slideManager)
   }
 
@@ -1824,8 +1807,7 @@ class PPTXTemplater {
    */
   normalizeZOrder(slideIndex) {
     this.#assertLoaded()
-    const targetIdx =
-      slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
+    const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
     this.#zOrderManager.normalizeZOrder(targetIdx, this.#slideManager)
     return this
   }
