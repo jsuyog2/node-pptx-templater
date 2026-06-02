@@ -1,6 +1,7 @@
 const fs = require('fs-extra');
 const { resolve } = require('path');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const DOCS_DIR = resolve(__dirname, '../docs');
 const pkg = require('../package.json');
@@ -758,7 +759,589 @@ function generateSearchIndex(apis) {
   return index;
 }
 
+function getLastModifiedDate(filePath) {
+  try {
+    const dateStr = execSync(`git log -1 --format=%cs -- "${filePath}"`, {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).trim();
+    if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return dateStr;
+    }
+  } catch (e) {
+    // Ignore and fallback
+  }
+  
+  try {
+    const stats = fs.statSync(filePath);
+    return stats.mtime.toISOString().split('T')[0];
+  } catch (e) {
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
+function convertMarkdownToHtml(mdText) {
+  return mdText
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^\* (.*$)/gim, '<li>$1</li>')
+    .replace(/^- (.*$)/gim, '<li>$1</li>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\n\n/g, '<p></p>')
+    .replace(/<li>(.*)<\/li>/g, '<ul><li>$1</li></ul>')
+    .replace(/<\/ul>\s*<ul>/g, '');
+}
+
+function renderChangelogContent() {
+  try {
+    const changelogPath = resolve(__dirname, '../CHANGELOG.md');
+    const content = fs.readFileSync(changelogPath, 'utf-8');
+    return convertMarkdownToHtml(content);
+  } catch (e) {
+    return '<h3>Changelog</h3><p>Changelog data is currently unavailable.</p>';
+  }
+}
+
+function getInstallationContent() {
+  return `
+    <h2>NPM Package Installation</h2>
+    <p>Install the library directly into your project using npm:</p>
+    <pre><code class="language-bash">npm install node-pptx-templater</code></pre>
+    <h2>Prerequisites</h2>
+    <p>Ensure your environment meets the minimum requirements:</p>
+    <ul>
+      <li>Node.js version 18.x or higher</li>
+      <li>npm version 8.x or higher</li>
+      <li>Compatible with TypeScript, CommonJS, and ES modules</li>
+      <li>Zero native binaries or Microsoft Office dependencies</li>
+    </ul>
+  `;
+}
+
+function getQuickStartContent() {
+  return `
+    <h2>Basic Placeholder Replacement Example</h2>
+    <p>Below is a quick demonstration of loading a PowerPoint presentation, updating placeholders, and saving the output:</p>
+    <pre><code class="language-javascript">const { PPTXTemplater } = require('node-pptx-templater');
+
 async function main() {
+  const ppt = await PPTXTemplater.load('monthly_report_template.pptx');
+  
+  // Replace text placeholders on the first slide
+  ppt.useSlide(1).replaceTextByTag('name', 'John Doe');
+  
+  // Save output presentation
+  await ppt.saveToFile('output.pptx');
+}
+
+main().catch(console.error);</code></pre>
+  `;
+}
+
+function getGettingStartedContent() {
+  return `
+    <h2>Visual Design vs Code Automation</h2>
+    <p>Stop compiling slide elements inside complex code blocks. Design slide decks visually in PowerPoint, Keynote, or Google Slides, set formats and alignments, insert placeholders like <code>{{name}}</code>, and let <strong>node-pptx-templater</strong> populate them dynamically.</p>
+  `;
+}
+
+function getFaqContent() {
+  return `
+    <h2>PowerPoint Repair Presentation alerts</h2>
+    <p>When template placeholders are split in the XML structure (due to editor formatting), standard search-replace engines break slide layout files. node-pptx-templater resolves this by dynamically merging fragmented runs prior to processing, avoiding corrupt layouts.</p>
+    <h2>XML Entity Expansion limit exceeded</h2>
+    <p>This library parses XML using a secure, custom tokenization model designed to avoid entity expansions and XML bomb attacks (Billion Laughs) while maintaining high speed and low memory usage.</p>
+  `;
+}
+
+function getRoadmapContent() {
+  return `
+    <h2>Upcoming Capabilities</h2>
+    <ul>
+      <li><strong>Q3 2026:</strong> Dynamic shape insertion and custom drawing layouts.</li>
+      <li><strong>Q4 2026:</strong> Multi-threaded execution pipelines for serverless processing.</li>
+      <li><strong>2027:</strong> Headless export of modified PPTX slide decks to PDF without LibreOffice.</li>
+    </ul>
+  `;
+}
+
+function getMethodBodyContent(m) {
+  let paramsRows = '';
+  if (m.params && m.params.length > 0) {
+    paramsRows = `
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${m.params.map(p => `
+            <tr>
+              <td><strong>${escapeHtml(p.name)}</strong></td>
+              <td><code>${escapeHtml(p.type)}</code></td>
+              <td>${escapeHtml(p.desc)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+  
+  let returnsBlock = '';
+  if (m.returns) {
+    returnsBlock = `
+      <h3>Returns</h3>
+      <p><code>${escapeHtml(m.returns.type)}</code> — ${escapeHtml(m.returns.desc)}</p>
+    `;
+  }
+  
+  let examplesBlock = '';
+  if (m.exampleCode) {
+    examplesBlock = `
+      <h3>Code Example</h3>
+      <pre><code>${escapeHtml(m.exampleCode)}</code></pre>
+    `;
+  }
+
+  return `
+    <p><strong>Description:</strong> ${escapeHtml(m.description)}</p>
+    <p><strong>Class:</strong> ${escapeHtml(m.className)} | <strong>File:</strong> <code>${escapeHtml(m.file)}</code></p>
+    ${paramsRows}
+    ${returnsBlock}
+    <h3>OpenXML Impact</h3>
+    <p>${escapeHtml(m.xmlImpact || 'Modifies underlying OpenXML nodes.')}</p>
+    <h3>Edge Cases & Error Handling</h3>
+    <p><strong>Edge Cases:</strong> ${escapeHtml(m.edgeCases || 'Verify inputs.')}</p>
+    <p><strong>Errors:</strong> ${escapeHtml(m.errorHandling || 'Handle exceptions.')}</p>
+    ${examplesBlock}
+  `;
+}
+
+function getCategoryBodyContent(catId, catInfo, apis) {
+  const catApis = apis.filter(m => m.category === catId);
+  return `
+    <p>${escapeHtml(catInfo.desc)}</p>
+    <h2>Included API Methods</h2>
+    <ul>
+      ${catApis.map(m => `
+        <li>
+          <a href="../../api/${m.name}/"><strong>${escapeHtml(m.name)}</strong></a> — ${escapeHtml(m.description)}
+        </li>
+      `).join('')}
+    </ul>
+  `;
+}
+
+function buildStaticPageHtml(title, description, canonicalUrl, redirectHash, relativeBackDepth, bodyContent) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title)}</title>
+  <meta name="description" content="${escapeHtml(description)}">
+  <link rel="canonical" href="${canonicalUrl}">
+  <link rel="stylesheet" href="${relativeBackDepth}style.css">
+  <script>
+    // Immediate SEO redirect to main single-page application at correct anchor
+    window.location.replace("${relativeBackDepth}index.html#${redirectHash}");
+  </script>
+</head>
+<body class="bg-[#080b11] text-gray-200 font-sans p-8">
+  <div class="max-w-3xl mx-auto space-y-6">
+    <div class="border-b border-white/5 pb-4">
+      <a href="${relativeBackDepth}index.html" class="text-indigo-400 hover:underline">&larr; Back to Documentation</a>
+      <h1 class="text-4xl font-extrabold text-white mt-2">${escapeHtml(title)}</h1>
+    </div>
+    
+    <div class="prose prose-invert max-w-none">
+      ${bodyContent}
+    </div>
+    
+    <div class="text-xs text-gray-500 border-t border-white/5 pt-4 mt-8">
+      This page is an SEO-optimized landing page for search engines. JavaScript-enabled browsers will automatically transition to the main interface.
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function generateSitemapXml(urls) {
+  const elements = urls.map(u => `  <url>
+    <loc>${u.url}</loc>
+    <lastmod>${u.lastmod}</lastmod>
+    <changefreq>${u.changefreq}</changefreq>
+    <priority>${u.priority.toFixed(1)}</priority>
+  </url>`).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${elements}
+</urlset>`;
+}
+
+function generateSitemapIndexXml(sitemaps) {
+  const today = new Date().toISOString().split('T')[0];
+  const elements = sitemaps.map(s => `  <sitemap>
+    <loc>${s}</loc>
+    <lastmod>${today}</lastmod>
+  </sitemap>`).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${elements}
+</sitemapindex>`;
+}
+
+async function validateSitemap(routes, examplesUrls, foundImages, baseVUrl) {
+  console.log('--- Starting Sitemap Validation Audit ---');
+  const errors = [];
+  const warnings = [];
+  
+  const allUrls = [...routes, ...examplesUrls];
+  
+  // 1. Check for Duplicate URLs
+  const urlSet = new Set();
+  for (const r of allUrls) {
+    if (urlSet.has(r.url)) {
+      errors.push({ type: 'DUPLICATE_URL', url: r.url, message: `Duplicate sitemap location entry found: ${r.url}` });
+    }
+    urlSet.add(r.url);
+  }
+  
+  // 2. Verify File Existence (No 404s in Sitemap)
+  for (const r of routes) {
+    const fileExists = await fs.pathExists(r.fsPath);
+    if (!fileExists) {
+      errors.push({ type: 'MISSING_FILE', url: r.url, fsPath: r.fsPath, message: `Sitemap URL references a non-existent file on disk: ${r.fsPath}` });
+    }
+  }
+  
+  // 3. Verify Canonical Tag Matches URL Exactly (Canonical URL Validation)
+  for (const r of routes) {
+    const fileExists = await fs.pathExists(r.fsPath);
+    if (fileExists) {
+      const htmlContent = await fs.readFile(r.fsPath, 'utf-8');
+      
+      const canonicalMatch = htmlContent.match(/<link\s+[^>]*rel=["']canonical["']\s+[^>]*href=["']([^"']+)["'][^>]*>/i) ||
+                             htmlContent.match(/<link\s+[^>]*href=["']([^"']+)["']\s+[^>]*rel=["']canonical["'][^>]*>/i);
+      
+      if (!canonicalMatch) {
+        errors.push({ type: 'MISSING_CANONICAL', url: r.url, fsPath: r.fsPath, message: `Canonical link tag is missing in file: ${r.fsPath}` });
+      } else {
+        const canonicalUrl = canonicalMatch[1];
+        if (canonicalUrl !== r.url) {
+          errors.push({
+            type: 'CANONICAL_MISMATCH',
+            url: r.url,
+            fsPath: r.fsPath,
+            message: `Canonical link tag mismatch. Found: ${canonicalUrl}, Expected: ${r.url}`
+          });
+        }
+      }
+      
+      // 4. Crawl / Check for broken internal links inside generated pages
+      const hrefRegex = /href=["']([^"']+)["']/gi;
+      let hrefMatch;
+      while ((hrefMatch = hrefRegex.exec(htmlContent)) !== null) {
+        const link = hrefMatch[1];
+        if (link.startsWith('http') || link.startsWith('#') || link.startsWith('mailto:')) {
+          continue;
+        }
+        
+        const resolvedLinkPath = resolve(path.dirname(r.fsPath), link);
+        let checkPath = resolvedLinkPath;
+        if (checkPath.endsWith('/') || (!path.extname(checkPath) && !checkPath.endsWith('index.html'))) {
+          checkPath = checkPath.endsWith('/') ? checkPath + 'index.html' : checkPath + '/index.html';
+        }
+        
+        const linkedFileExists = await fs.pathExists(checkPath);
+        if (!linkedFileExists) {
+          errors.push({
+            type: 'BROKEN_LINK',
+            url: r.url,
+            fsPath: r.fsPath,
+            link,
+            resolvedPath: checkPath,
+            message: `Broken internal link found: "${link}" (resolves to non-existent file: ${checkPath})`
+          });
+        }
+      }
+    }
+  }
+
+  // 5. Verify Priority Range
+  for (const r of allUrls) {
+    if (r.priority < 0.0 || r.priority > 1.0 || isNaN(r.priority)) {
+      errors.push({ type: 'INVALID_PRIORITY', url: r.url, priority: r.priority, message: `Invalid priority range value: ${r.priority}` });
+    }
+  }
+
+  console.log(`Validation Audit Summary: ${errors.length} errors, ${warnings.length} warnings.`);
+  
+  const report = {
+    timestamp: new Date().toISOString(),
+    baseUrl: baseVUrl,
+    totalUrls: allUrls.length,
+    totalImages: foundImages.size,
+    status: errors.length === 0 ? 'PASSED' : 'FAILED',
+    errors,
+    warnings
+  };
+  
+  await fs.writeFile(resolve(DOCS_DIR, 'sitemap-report.json'), JSON.stringify(report, null, 2));
+  console.log('Sitemap audit report successfully written to docs/sitemap-report.json');
+  
+  if (errors.length > 0) {
+    console.error('Sitemap Validation Errors Found:');
+    errors.forEach(e => console.error(`  - [${e.type}] ${e.message}`));
+  }
+}
+
+async function generateSeoSitemapsAndPages(apis, htmlContent) {
+  const BASE_URL = process.env.DOCS_BASE_URL || 'https://jsuyog2.github.io/node-pptx-templater/';
+  const normalizedBaseUrl = BASE_URL.endsWith('/') ? BASE_URL : BASE_URL + '/';
+  
+  const routes = [];
+  
+  async function registerRoute({ v, pathUrl, fileRelPath, title, desc, changefreq, priority, sourceFile, type, bodyHtml }) {
+    const vPrefix = v ? v + '/' : '';
+    const fullPathUrl = normalizedBaseUrl + vPrefix + pathUrl;
+    const fsRelPath = vPrefix + fileRelPath;
+    const absoluteFsPath = resolve(DOCS_DIR, fsRelPath);
+    
+    const lastmod = getLastModifiedDate(sourceFile);
+    
+    routes.push({
+      url: fullPathUrl,
+      fsPath: absoluteFsPath,
+      relativePath: fsRelPath,
+      title,
+      description: desc,
+      changefreq,
+      priority,
+      lastmod,
+      type
+    });
+    
+    if (fileRelPath !== 'index.html') {
+      const parentDir = path.dirname(absoluteFsPath);
+      await fs.ensureDir(parentDir);
+      
+      const relativeBackDepth = (v ? '../' : '') + '../'.repeat(fileRelPath.split('/').length - 1);
+      const redirectHash = type === 'api' ? `method-${pathUrl.split('/').filter(Boolean).pop()}` :
+                           type === 'category' ? `api-${pathUrl.split('/').filter(Boolean).pop()}` :
+                           pathUrl.split('/').filter(Boolean).pop() || 'introduction';
+      
+      const redirectHtml = buildStaticPageHtml(title, desc, fullPathUrl, redirectHash, relativeBackDepth, bodyHtml);
+      await fs.writeFile(absoluteFsPath, redirectHtml);
+    }
+  }
+
+  let changelogMd = '';
+  try {
+    changelogMd = await fs.readFile(resolve(__dirname, '../CHANGELOG.md'), 'utf-8');
+  } catch (e) {
+    changelogMd = '# Changelog\n\nNo changelog file found.';
+  }
+  const changelogHtml = convertMarkdownToHtml(changelogMd);
+
+  const corePages = [
+    { id: 'installation', title: 'Installation & Onboarding - node-pptx-templater', desc: 'How to install and set up node-pptx-templater in Node.js applications.', content: getInstallationContent(), hash: 'installation' },
+    { id: 'quickstart', title: 'Quick Start Guide - node-pptx-templater', desc: 'Quick start guide to replace placeholders, update tables, and process presentations.', content: getQuickStartContent(), hash: 'quickstart' },
+    { id: 'getting-started', title: 'Getting Started - node-pptx-templater', desc: 'Core concepts and onboarding with node-pptx-templater.', content: getGettingStartedContent(), hash: 'introduction' },
+    { id: 'faq', title: 'Frequently Asked Questions & Troubleshooting - node-pptx-templater', desc: 'Solutions for Repair Presentation alerts, unreplaced placeholders, and XML Entity expansion limit errors.', content: getFaqContent(), hash: 'faq' },
+    { id: 'roadmap', title: 'Project Roadmap - node-pptx-templater', desc: 'Future development plans for shapes rendering, multi-threading, and PDF conversion.', content: getRoadmapContent(), hash: 'roadmap' },
+    { id: 'changelog', title: 'Changelog & Releases - node-pptx-templater', desc: 'Release history and updates list for node-pptx-templater.', content: changelogHtml, hash: 'changelog' }
+  ];
+
+  const versions = ['', 'latest', `v${VERSION.split('.')[0]}`];
+  
+  for (const v of versions) {
+    const lastmodHome = getLastModifiedDate(resolve(__dirname, '../README.md'));
+    const vPrefix = v ? v + '/' : '';
+    
+    routes.push({
+      url: normalizedBaseUrl + vPrefix,
+      fsPath: resolve(DOCS_DIR, vPrefix + 'index.html'),
+      relativePath: vPrefix + 'index.html',
+      title: 'node-pptx-templater — Safe PowerPoint & OpenXML Template Engine',
+      description: 'High-performance, zero-dependency Node.js library to update text, replace image shapes, cache Excel workbook data in charts, and merge table cells without PowerPoint Repair warnings.',
+      changefreq: 'daily',
+      priority: 1.0,
+      lastmod: lastmodHome,
+      type: 'core'
+    });
+    
+    if (v) {
+      await fs.ensureDir(resolve(DOCS_DIR, vPrefix));
+      const adjustedHtml = htmlContent
+        .replace(/href="style.css"/g, 'href="../style.css"')
+        .replace(/src="app.js"/g, 'src="../app.js"')
+        .replace(/href="sitemap.xml"/g, 'href="../sitemap.xml"')
+        .replace(/https:\/\/jsuyog2.github.io\/node-pptx-templater\//g, normalizedBaseUrl + vPrefix);
+      await fs.writeFile(resolve(DOCS_DIR, vPrefix + 'index.html'), adjustedHtml);
+    }
+    
+    for (const page of corePages) {
+      await registerRoute({
+        v,
+        pathUrl: page.id + '/',
+        fileRelPath: page.id + '/index.html',
+        title: page.title,
+        desc: page.desc,
+        changefreq: page.id === 'changelog' ? 'monthly' : 'weekly',
+        priority: 1.0,
+        sourceFile: page.id === 'changelog' ? resolve(__dirname, '../CHANGELOG.md') : resolve(__dirname, '../README.md'),
+        type: 'core',
+        bodyHtml: page.content
+      });
+    }
+    
+    for (const catId of Object.keys(API_CATEGORIES)) {
+      const catInfo = API_CATEGORIES[catId];
+      await registerRoute({
+        v,
+        pathUrl: `docs/${catId}/`,
+        fileRelPath: `docs/${catId}/index.html`,
+        title: `${catInfo.title} Reference - node-pptx-templater`,
+        desc: catInfo.desc,
+        changefreq: 'weekly',
+        priority: 0.9,
+        sourceFile: resolve(__dirname, '../src/core/PPTXTemplater.js'),
+        type: 'category',
+        bodyHtml: getCategoryBodyContent(catId, catInfo, apis)
+      });
+    }
+    
+    for (const m of apis) {
+      await registerRoute({
+        v,
+        pathUrl: `api/${m.name}/`,
+        fileRelPath: `api/${m.name}/index.html`,
+        title: `${m.name}() API Method - node-pptx-templater`,
+        desc: m.description,
+        changefreq: 'weekly',
+        priority: 0.9,
+        sourceFile: resolve(__dirname, '../' + m.file),
+        type: 'api',
+        bodyHtml: getMethodBodyContent(m)
+      });
+    }
+  }
+
+  const docsUrls = routes.filter(r => r.type === 'core' || r.type === 'category');
+  const sitemapDocsXml = generateSitemapXml(docsUrls);
+  await fs.writeFile(resolve(DOCS_DIR, 'sitemap-docs.xml'), sitemapDocsXml);
+  
+  const apiUrls = routes.filter(r => r.type === 'api');
+  const sitemapApiXml = generateSitemapXml(apiUrls);
+  await fs.writeFile(resolve(DOCS_DIR, 'sitemap-api.xml'), sitemapApiXml);
+  
+  const examplesUrls = [];
+  const lastmodReadme = getLastModifiedDate(resolve(__dirname, '../README.md'));
+  for (const v of versions) {
+    const vPrefix = v ? v + '/' : '';
+    examplesUrls.push({
+      url: normalizedBaseUrl + vPrefix + 'code-sandbox/',
+      lastmod: lastmodReadme,
+      changefreq: 'weekly',
+      priority: 0.8
+    });
+    await fs.ensureDir(resolve(DOCS_DIR, vPrefix + 'code-sandbox'));
+    const sandboxRedirectHtml = buildStaticPageHtml(
+      'Interactive Showcase Sandbox - node-pptx-templater',
+      'Experiment with PowerPoint template tags, chart updates, and stacking layers in real time.',
+      normalizedBaseUrl + vPrefix + 'code-sandbox/',
+      'code-sandbox',
+      v ? '../../../' : '../../',
+      `<h2>Interactive Showcase Sandbox</h2><p>Learn how to test PowerPoint text tagging, table merges, Excel chart synchronizations, and layer stack ordering directly in the interactive sandbox showcase.</p>`
+    );
+    await fs.writeFile(resolve(DOCS_DIR, vPrefix + 'code-sandbox/index.html'), sandboxRedirectHtml);
+  }
+  const sitemapExamplesXml = generateSitemapXml(examplesUrls);
+  await fs.writeFile(resolve(DOCS_DIR, 'sitemap-examples.xml'), sitemapExamplesXml);
+
+  const imageUrls = [];
+  const imgRegex = /<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi;
+  let imgMatch;
+  const foundImages = new Set();
+  while ((imgMatch = imgRegex.exec(htmlContent)) !== null) {
+    foundImages.add(imgMatch[1]);
+  }
+  foundImages.add('assets/brand-preview.png');
+  
+  const imageElementsXml = [];
+  for (const imgUrl of foundImages) {
+    const absoluteImgUrl = imgUrl.startsWith('http') ? imgUrl : normalizedBaseUrl + imgUrl;
+    const imgTitle = path.basename(imgUrl, path.extname(imgUrl))
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase());
+      
+    imageElementsXml.push(`    <image:image>
+      <image:loc>${absoluteImgUrl}</image:loc>
+      <image:title>${escapeHtml(imgTitle)}</image:title>
+    </image:image>`);
+  }
+  
+  const sitemapImagesXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>${normalizedBaseUrl}</loc>
+${imageElementsXml.join('\n')}
+  </url>
+</urlset>`;
+  await fs.writeFile(resolve(DOCS_DIR, 'sitemap-images.xml'), sitemapImagesXml);
+
+  const totalUrlsCount = routes.length + examplesUrls.length;
+  console.log(`Total generated URLs for sitemap indexing: ${totalUrlsCount}`);
+  
+  let sitemapXmlContent = '';
+  if (totalUrlsCount > 500) {
+    console.log(`URL count exceeds 500 (${totalUrlsCount}). Generating sitemap-index.xml as sitemap.xml.`);
+    sitemapXmlContent = generateSitemapIndexXml([
+      normalizedBaseUrl + 'sitemap-docs.xml',
+      normalizedBaseUrl + 'sitemap-api.xml',
+      normalizedBaseUrl + 'sitemap-examples.xml',
+      normalizedBaseUrl + 'sitemap-images.xml'
+    ]);
+  } else {
+    const allUrls = [...routes, ...examplesUrls];
+    sitemapXmlContent = generateSitemapXml(allUrls);
+    
+    const indexContent = generateSitemapIndexXml([
+      normalizedBaseUrl + 'sitemap-docs.xml',
+      normalizedBaseUrl + 'sitemap-api.xml',
+      normalizedBaseUrl + 'sitemap-examples.xml',
+      normalizedBaseUrl + 'sitemap-images.xml'
+    ]);
+    await fs.writeFile(resolve(DOCS_DIR, 'sitemap-index.xml'), indexContent);
+  }
+  
+  await fs.writeFile(resolve(DOCS_DIR, 'sitemap.xml'), sitemapXmlContent);
+  
+  const robotsTxt = `User-agent: *
+Allow: /
+Sitemap: ${normalizedBaseUrl}sitemap.xml`;
+  await fs.writeFile(resolve(DOCS_DIR, 'robots.txt'), robotsTxt);
+
+  await validateSitemap(routes, examplesUrls, foundImages, normalizedBaseUrl);
+}
+
+async function main() {
+  const BASE_URL = process.env.DOCS_BASE_URL || 'https://jsuyog2.github.io/node-pptx-templater/';
+  const normalizedBaseUrl = BASE_URL.endsWith('/') ? BASE_URL : BASE_URL + '/';
+
   const apis = extractAPIDocs();
   validateAPIBuild(apis);
   await syncReadme(apis);
@@ -777,14 +1360,14 @@ async function main() {
   <title>node-pptx-templater — Safe PowerPoint & OpenXML Template Engine</title>
   <meta name="description" content="High-performance, zero-dependency Node.js library to update text, replace image shapes, cache Excel workbook data in charts, and merge table cells without PowerPoint Repair warnings.">
   <meta name="keywords" content="node pptx template, pptx templating library, powerpoint template engine, pptx editor nodejs, openxml powerpoint library, update powerpoint charts nodejs, powerpoint automation, pptx generator, pptx placeholder replacement, edit pptx without powerpoint, pptx chart update, pptx table update, openxml nodejs, powerpoint report generator, pptx cell merge, stack slide layers, duplicate slides, nodejs presentation automation">
-  <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/">
+  <link rel="canonical" href="${normalizedBaseUrl}">
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="node-pptx-templater — Low-Level OpenXML PowerPoint Engine">
   <meta property="og:description" content="Automate presentations in Node.js with zero dependencies. Support cell merging, dynamic slides, Z-order layers, and Excel chart updating.">
-  <meta property="og:url" content="https://jsuyog2.github.io/node-pptx-templater/">
-  <meta property="og:image" content="https://jsuyog2.github.io/node-pptx-templater/assets/brand-preview.png">
+  <meta property="og:url" content="${normalizedBaseUrl}">
+  <meta property="og:image" content="${normalizedBaseUrl}assets/brand-preview.png">
   
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
@@ -937,6 +1520,7 @@ async function main() {
             <li><a href="#security-arch" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">XML Security</a></li>
             <li><a href="#faq" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">FAQ &amp; Troubleshooting</a></li>
             <li><a href="#roadmap" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Project Roadmap</a></li>
+            <li><a href="#changelog" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Changelog &amp; Releases</a></li>
           </ul>
         </div>
       </nav>
@@ -1277,6 +1861,15 @@ if (!status.valid) {
             <h4 class="font-title font-bold text-brand-400 text-sm">📦 2027: PDF Conversion</h4>
             <p class="text-xs text-gray-400">Direct headless export of modified PPTX slide decks to PDF without requiring external LibreOffice or PowerPoint processes.</p>
           </div>
+        </div>
+      </section>
+
+      <!-- Changelog Section -->
+      <section id="changelog" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Changelog &amp; Releases</h1>
+        <p class="text-sm text-gray-300">Detailed release notes and updates for node-pptx-templater:</p>
+        <div class="glass-card p-6 rounded-2xl border border-white/5 space-y-4 max-h-[600px] overflow-y-auto font-sans text-sm text-gray-300 leading-relaxed">
+          ${renderChangelogContent()}
         </div>
       </section>
 
@@ -1844,25 +2437,10 @@ window.toggleSidebarGroup = function(groupId) {
   await fs.writeFile(resolve(DOCS_DIR, 'style.css'), CSS_CONTENT);
   await fs.writeFile(resolve(DOCS_DIR, 'app.js'), JS_CONTENT);
   
-  // SEO Sitemap.xml
-  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://jsuyog2.github.io/node-pptx-templater/</loc>
-    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>1.0</priority>
-  </url>
-</urlset>`;
-  await fs.writeFile(resolve(DOCS_DIR, 'sitemap.xml'), sitemap.trim());
+  // SEO Sitemaps & Dynamic Clean URL Pages Generation
+  await generateSeoSitemapsAndPages(apis, HTML_CONTENT);
 
-  // SEO Robots.txt
-  const robots = `User-agent: *
-Allow: /
-Sitemap: https://jsuyog2.github.io/node-pptx-templater/sitemap.xml`;
-  await fs.writeFile(resolve(DOCS_DIR, 'robots.txt'), robots.trim());
-
-  console.log('Successfully built GitHub Pages documentation with sitemap and robots.txt under docs/');
+  console.log('Successfully built GitHub Pages documentation with sitemaps, robots.txt, redirects, and verification under docs/');
 }
 
 main().catch(err => {

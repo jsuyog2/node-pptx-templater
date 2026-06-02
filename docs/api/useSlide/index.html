@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>useSlide() API Method - node-pptx-templater</title>
+  <meta name="description" content="Selects one or more slides to work on. All subsequent operations (replaceText, updateChart, etc.) apply to these slides. If not called, operations apply to ALL slides.">
+  <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/api/useSlide/">
+  <link rel="stylesheet" href="../../style.css">
+  <script>
+    // Immediate SEO redirect to main single-page application at correct anchor
+    window.location.replace("../../index.html#method-useSlide");
+  </script>
+</head>
+<body class="bg-[#080b11] text-gray-200 font-sans p-8">
+  <div class="max-w-3xl mx-auto space-y-6">
+    <div class="border-b border-white/5 pb-4">
+      <a href="../../index.html" class="text-indigo-400 hover:underline">&larr; Back to Documentation</a>
+      <h1 class="text-4xl font-extrabold text-white mt-2">useSlide() API Method - node-pptx-templater</h1>
+    </div>
+    
+    <div class="prose prose-invert max-w-none">
+      
+    <p><strong>Description:</strong> Selects one or more slides to work on. All subsequent operations (replaceText, updateChart, etc.) apply to these slides. If not called, operations apply to ALL slides.</p>
+    <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>slideRefs</strong></td>
+              <td><code>...number|string</code></td>
+              <td>Slide numbers (1-based), IDs, or tags.</td>
+            </tr>
+          
+        </tbody>
+      </table>
+    
+    
+      <h3>Returns</h3>
+      <p><code>PPTXTemplater</code> — this (chainable)</p>
+    
+    <h3>OpenXML Impact</h3>
+    <p>Modifies underlying OpenXML nodes to reflect updates on slide serialization.</p>
+    <h3>Edge Cases & Error Handling</h3>
+    <p><strong>Edge Cases:</strong> No critical edge cases documented. Verify argument boundaries.</p>
+    <p><strong>Errors:</strong> Wrap inside try/catch blocks to process execution errors.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>ppt.useSlide(1);           // Select slide 1
+ppt.useSlide(1, 3, 5);    // Select slides 1, 3, and 5
+ppt.useSlide(&#039;intro&#039;);     // Select by custom tag</code></pre>
+    
+  
+    </div>
+    
+    <div class="text-xs text-gray-500 border-t border-white/5 pt-4 mt-8">
+      This page is an SEO-optimized landing page for search engines. JavaScript-enabled browsers will automatically transition to the main interface.
+    </div>
+  </div>
+</body>
+</html>

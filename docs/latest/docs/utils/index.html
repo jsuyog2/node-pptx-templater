@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Utilities &amp; Validation Reference - node-pptx-templater</title>
+  <meta name="description" content="Load files, inspect XML elements, validation checks, and repair ZIP packages.">
+  <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/latest/docs/utils/">
+  <link rel="stylesheet" href="../../../style.css">
+  <script>
+    // Immediate SEO redirect to main single-page application at correct anchor
+    window.location.replace("../../../index.html#api-utils");
+  </script>
+</head>
+<body class="bg-[#080b11] text-gray-200 font-sans p-8">
+  <div class="max-w-3xl mx-auto space-y-6">
+    <div class="border-b border-white/5 pb-4">
+      <a href="../../../index.html" class="text-indigo-400 hover:underline">&larr; Back to Documentation</a>
+      <h1 class="text-4xl font-extrabold text-white mt-2">Utilities &amp; Validation Reference - node-pptx-templater</h1>
+    </div>
+    
+    <div class="prose prose-invert max-w-none">
+      
+    <p>Load files, inspect XML elements, validation checks, and repair ZIP packages.</p>
+    <h2>Included API Methods</h2>
+    <ul>
+      
+        <li>
+          <a href="../../api/const/"><strong>const</strong></a> — This is the primary public API. It coordinates all sub-managers (ZipManager, SlideManager, ChartManager, etc.) and exposes a fluent, chainable interface for template manipulation. OpenXML PPTX Structure: ├── [Content_Types].xml      — lists all parts and their MIME types ├── _rels/.rels              — root relationships (points to presentation) ├── ppt/ │   ├── presentation.xml     — slide order, slide masters references │   ├── _rels/presentation.xml.rels │   ├── slides/ │   │   ├── slide1.xml       — individual slide content │   │   └── _rels/slide1.xml.rels │   ├── slideLayouts/        — layout templates (title, content, etc.) │   ├── slideMasters/        — master slide designs │   ├── theme/               — color/font themes │   ├── charts/              — embedded chart XML │   └── media/               — embedded images/videos └── docProps/ ├── core.xml             — author, title, etc. └── app.xml              — application metadata
+        </li>
+      
+        <li>
+          <a href="../../api/class/"><strong>class</strong></a> — 
+        </li>
+      
+        <li>
+          <a href="../../api/static/"><strong>static</strong></a> — Loads a PPTX template from a file path or buffer. @static @throws {PPTXError} If the file cannot be read or is not a valid PPTX.
+        </li>
+      
+        <li>
+          <a href="../../api/getInfo/"><strong>getInfo</strong></a> — Returns presentation metadata (title, author, slide count, etc.)
+        </li>
+      
+        <li>
+          <a href="../../api/validate/"><strong>validate</strong></a> — Validates the XML structure of the current PPTX. Reports issues with relationship IDs, missing parts, etc.
+        </li>
+      
+        <li>
+          <a href="../../api/repair/"><strong>repair</strong></a> — Repairs corrupted OpenXML structure, relationships, and content types. Removes orphan relationships, rebuilds slide references, and fixes missing entries.
+        </li>
+      
+        <li>
+          <a href="../../api/debugRelationships/"><strong>debugRelationships</strong></a> — Logs all relationships across the presentation to the console for debugging.
+        </li>
+      
+        <li>
+          <a href="../../api/inspectSlide/"><strong>inspectSlide</strong></a> — Inspects a specific slide&#039;s structure and relationships.
+        </li>
+      
+        <li>
+          <a href="../../api/inspectXML/"><strong>inspectXML</strong></a> — Inspects and logs the raw XML of any file in the ZIP.
+        </li>
+      
+        <li>
+          <a href="../../api/inspectChart/"><strong>inspectChart</strong></a> — Inspects a specific chart&#039;s metadata and structure.
+        </li>
+      
+        <li>
+          <a href="../../api/inspectChartXML/"><strong>inspectChartXML</strong></a> — Inspects and logs the raw XML of a chart file.
+        </li>
+      
+        <li>
+          <a href="../../api/debugChartRelationships/"><strong>debugChartRelationships</strong></a> — Logs all chart relationships.
+        </li>
+      
+        <li>
+          <a href="../../api/saveToFile/"><strong>saveToFile</strong></a> — Saves the modified PPTX to a file on disk.
+        </li>
+      
+        <li>
+          <a href="../../api/toBuffer/"><strong>toBuffer</strong></a> — Returns the PPTX content as a Node.js Buffer.
+        </li>
+      
+        <li>
+          <a href="../../api/toStream/"><strong>toStream</strong></a> — Returns the PPTX content as a readable Node.js Stream.
+        </li>
+      
+        <li>
+          <a href="../../api/slideCount/"><strong>slideCount</strong></a> — Returns the total number of slides in the loaded presentation. @type {number}
+        </li>
+      
+        <li>
+          <a href="../../api/function/"><strong>function</strong></a> — OpenXML relationship IDs follow the format rId1, rId2, rId3, ... They must be unique within each .rels file. These utilities generate collision-free IDs when adding new relationships. / /** Generates the next available relationship ID given an array of existing IDs. Always uses the format &quot;rId{N}&quot; where N is the next integer after the max.
+        </li>
+      
+        <li>
+          <a href="../../api/validatePresentation/"><strong>validatePresentation</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/validateSlide/"><strong>validateSlide</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/validateTable/"><strong>validateTable</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/validateRelationships/"><strong>validateRelationships</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/zipManager/"><strong>zipManager</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/xmlParser/"><strong>xmlParser</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/contentTypesManager/"><strong>contentTypesManager</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/relationshipManager/"><strong>relationshipManager</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/slideManager/"><strong>slideManager</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/chartManager/"><strong>chartManager</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/tableManager/"><strong>tableManager</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/shapeManager/"><strong>shapeManager</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/imageManager/"><strong>imageManager</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/textManager/"><strong>textManager</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/hyperlinkManager/"><strong>hyperlinkManager</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/mediaManager/"><strong>mediaManager</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/load/"><strong>load</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+        <li>
+          <a href="../../api/create/"><strong>create</strong></a> — Delegates core actions to slide element sub-managers.
+        </li>
+      
+    </ul>
+  
+    </div>
+    
+    <div class="text-xs text-gray-500 border-t border-white/5 pt-4 mt-8">
+      This page is an SEO-optimized landing page for search engines. JavaScript-enabled browsers will automatically transition to the main interface.
+    </div>
+  </div>
+</body>
+</html>
