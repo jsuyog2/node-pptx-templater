@@ -97,7 +97,7 @@ class TableManager {
     const generatedMerges = []
 
     for (let i = 0; i < rowsData.length; i++) {
-      const template = i === 0 ? headerTemplate : (trs[i] || dataTemplate)
+      const template = i === 0 ? headerTemplate : trs[i] || dataTemplate
       const newRow = this.#xmlParser.deepClone(template)
       this.#updateRowId(newRow)
 

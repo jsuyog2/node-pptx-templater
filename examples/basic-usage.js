@@ -93,10 +93,9 @@ async function main() {
     ppt.mergeCells('Table', 1, 0, 1, 1)
     ppt.mergeCells('Table', 2, 0, 2, 1)
 
-
     ppt.updateTable('Table2', [
-      ['Name', "", 'Role', 'Dept'],
-      ['Alice', "", 'Engineer', 'Platform'],
+      ['Name', '', 'Role', 'Dept'],
+      ['Alice', '', 'Engineer', 'Platform'],
       ['Bob', { value: 'Alice', align: 'ctr' }, 'Designer', 'Product'],
     ])
 
