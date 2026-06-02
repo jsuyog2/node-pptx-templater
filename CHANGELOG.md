@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-06-02
+
+### Added
+- **Z-Order (Layer Management) System**: Full stacking control for all slide drawing objects — shapes, images, charts, tables, groups, connectors, and SmartArt. Directly manipulates the OpenXML `<p:spTree>` element order, matching PowerPoint's native Bring Forward / Send Backward behavior exactly. New APIs:
+  - `getObjectOrder(slideIndex)` — Returns ordered metadata (id, type, zIndex) for every element on a slide, bottom-to-top.
+  - `bringForward(options)` — Moves an object one layer up in the stack.
+  - `sendBackward(options)` — Moves an object one layer down.
+  - `bringToFront(options)` — Moves an object to the very top of the stack.
+  - `sendToBack(options)` — Moves an object to the very bottom of the stack.
+  - `setZIndex(options)` — Places an object at an exact 1-based stacking position.
+  - `moveObjectBefore(options)` — Positions an object immediately below a named target.
+  - `moveObjectAfter(options)` — Positions an object immediately above a named target.
+  - `reorderObjects(options)` — Full bulk reorder of the slide stack from a given array.
+  - `applyZOrder(slideIndex, configs)` — Applies multiple stacking rules sequentially in one call.
+  - `swapObjects(slideIndex, id1, id2)` — Exchanges two objects' positions.
+  - `sortObjects(slideIndex, compareFn)` — Sorts the stack using a custom comparator.
+  - `getTopMostObject(slideIndex)` / `getBottomMostObject(slideIndex)` — Inspection helpers.
+  - `normalizeZOrder(slideIndex)` — Re-derives and resets internal Z-order state from the current XML.
+- **Z_ORDER_SYMBOL Export**: The `Z_ORDER_SYMBOL` is now exported from `src/index.js` for advanced integrations.
+- **ZOrderManager**: New dedicated manager class (`src/managers/ZOrderManager.js`) encapsulating all layer logic.
+
+### Fixed
+- **`PPTXTemplater.create()` synchronous readiness**: Added `preloadAll()` call to `#initializeBlank()`. Previously, the blank PPTX template's pre-existing slides were registered but their XML was not cached, causing all synchronous operations (including ZOrderManager) to throw `"Slide N XML not pre-loaded"`.
+
+### Changed
+- **`XMLParser` hybrid parsing**: Added a secondary `preserveOrder: true` fast-xml-parser pass that runs during `parse()` whenever a slide `<p:spTree>` is detected. Extracts DOM element order and attaches it via `Z_ORDER_SYMBOL` to each container. The `build()` method uses a new `serializeContainer()` recursive function to serialize containers in Z_ORDER_SYMBOL order, injecting the result back into the output XML.
+- **`ValidationEngine`**: `validate()` now audits the shape tree for duplicate shape IDs, reporting them as errors.
+
+### Tests
+- Added 12 new integration tests in `tests/integration/ZOrder.test.js` covering all Z-order operations.
+- Total test count increased from 96 → 108 (all passing).
+
 ## [1.0.3] - 2026-06-02
 
 ### Added
@@ -58,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Private class fields (`#field`) for encapsulation
 - Modular architecture following SOLID principles
 
+[1.0.4]: https://github.com/jsuyog2/node-pptx-templater/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/jsuyog2/node-pptx-templater/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/jsuyog2/node-pptx-templater/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/jsuyog2/node-pptx-templater/compare/v1.0.0...v1.0.1

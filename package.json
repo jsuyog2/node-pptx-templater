@@ -1,6 +1,6 @@
 {
   "name": "node-pptx-templater",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "High-performance, low-level PowerPoint (PPTX) OpenXML template engine for Node.js. Dynamically replace text, insert images, update charts (with Excel workbook data caching), and merge table cells without PowerPoint corruption or Repair Mode prompts.",
   "main": "./src/index.js",
   "type": "commonjs",

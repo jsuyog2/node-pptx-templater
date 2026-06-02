@@ -211,6 +211,113 @@ ppt.updateChartTitle('sales-chart', 'Revenue Growth (2026)');
 
 ---
 
+### Z-Order (Layer Management)
+
+Control the stacking order of shapes, images, charts, tables, groups, and connectors on any slide — just like PowerPoint's **Bring Forward / Send Backward** panel. The Z-order directly maps to the XML element order inside the slide's `<p:spTree>`, which is what PowerPoint reads when rendering.
+
+All operations accept either an **options object** with a `slide` key or can be chained after `useSlide()`:
+
+```js
+// Option A — explicit slide number
+ppt.bringForward({ slide: 2, objectId: 'logo' });
+
+// Option B — fluent chain
+ppt.useSlide(2).bringForward('logo');
+```
+
+#### `getObjectOrder(slideIndex)`
+Returns a sorted array describing every drawing element on the slide, bottom-to-top.
+```js
+const layers = ppt.getObjectOrder(1);
+// → [{ id: 'Background', type: 'shape', zIndex: 1 }, ...]
+```
+
+#### `bringForward(options)` / `sendBackward(options)`
+Move an object one layer up or down.
+```js
+ppt.bringForward({ slide: 1, objectId: 'logo' });
+ppt.sendBackward({ slide: 1, objectId: 'logo' });
+```
+
+#### `bringToFront(options)` / `sendToBack(options)`
+Move an object to the very top or very bottom of the stack.
+```js
+ppt.bringToFront({ slide: 1, objectId: 'logo' });
+ppt.sendToBack({ slide: 1, objectId: 'background' });
+```
+
+#### `setZIndex(options)`
+Place an object at an exact 1-based stacking position.
+```js
+ppt.setZIndex({ slide: 1, objectId: 'logo', zIndex: 3 });
+```
+
+#### `moveObjectBefore(options)` / `moveObjectAfter(options)`
+Position an object immediately below or above a specific target.
+```js
+ppt.moveObjectBefore({ slide: 1, objectId: 'overlay', targetId: 'chart' });
+ppt.moveObjectAfter({ slide: 1, objectId: 'label', targetId: 'chart' });
+```
+
+#### `reorderObjects(options)`
+Bulk-reorder the entire slide stack by specifying all object names in desired bottom-to-top order.
+```js
+ppt.reorderObjects({
+  slide: 1,
+  order: ['background', 'chart', 'logo', 'title']
+});
+```
+
+#### `applyZOrder(slideIndex, configs)`
+Apply multiple stacking rules in a single call. Operations are executed sequentially.
+```js
+ppt.applyZOrder(1, [
+  { id: 'background', sendToBack: true },
+  { id: 'overlay', zIndex: 2 },
+  { id: 'logo', bringToFront: true },
+]);
+```
+
+#### `swapObjects(slideIndex, objectId1, objectId2)`
+Exchange the stacking positions of two objects.
+```js
+ppt.swapObjects(1, 'logo', 'chart');
+```
+
+#### `sortObjects(slideIndex, compareFn)`
+Sort the layer stack using a custom comparator (receives `{ id, type, zIndex }` objects).
+```js
+// Alphabetical ascending by name
+ppt.sortObjects(1, (a, b) => a.id.localeCompare(b.id));
+```
+
+#### `getTopMostObject(slideIndex)` / `getBottomMostObject(slideIndex)`
+Retrieve metadata for the topmost or bottommost element.
+```js
+const top = ppt.getTopMostObject(1);   // { id: 'logo', type: 'image', zIndex: 5 }
+const bottom = ppt.getBottomMostObject(1); // { id: 'background', type: 'shape', zIndex: 1 }
+```
+
+#### `normalizeZOrder(slideIndex)`
+Re-derives the Z-order directly from the current XML element order. Useful after manual XML edits or imports to reset the internal ordering state.
+```js
+ppt.normalizeZOrder(1);
+```
+
+**Supported element types:**
+
+| PowerPoint Type | XML Tag | `type` Value |
+|:---|:---|:---|
+| Shape / Text Box | `p:sp` | `shape` / `text` |
+| Image | `p:pic` | `image` |
+| Chart | `p:graphicFrame` + chart URI | `chart` |
+| Table | `p:graphicFrame` + table URI | `table` |
+| SmartArt | `p:graphicFrame` + diagram URI | `smartart` |
+| Group | `p:grpSp` | `group` |
+| Connector | `p:cxnSp` | `connector` |
+
+---
+
 ## ⚡ Performance Benchmarks
 
 Tested on a standard 50-slide enterprise presentation template:

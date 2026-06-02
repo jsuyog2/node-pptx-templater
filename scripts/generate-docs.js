@@ -70,7 +70,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
       "price": "0",
       "priceCurrency": "USD"
     },
-    "featureList": "PowerPoint text placeholder replacement, slide duplication, image insertion, Excel data workbook synchronization, DrawingML table cell merging, slide reordering, external slide importing",
+    "featureList": "PowerPoint text placeholder replacement, slide duplication, image insertion, Excel data workbook synchronization, DrawingML table cell merging, slide reordering, external slide importing, Z-order layer management, Bring Forward, Send Backward, Bring to Front, Send to Back",
     "downloadUrl": "https://www.npmjs.com/package/node-pptx-templater"
   }
   </script>
@@ -132,6 +132,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
             <li><a href="#table-merging" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Table Cell Merging</a></li>
             <li><a href="#chart-engine" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Interactive Chart Updates</a></li>
             <li><a href="#navigation-links" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Action Hyperlinks</a></li>
+            <li><a href="#zorder" class="nav-item block px-3 py-2 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Z-Order / Layer Control</a></li>
           </ul>
         </div>
 
@@ -492,6 +493,161 @@ ppt.addShapeNavigationLink({
   shapeId: 'CloseButton',
   action: 'last'
 });</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
+      </section>
+
+      <!-- Z-Order (Layer Management) Section -->
+      <section id="zorder" class="doc-section space-y-6">
+        <h1 class="font-title text-4xl font-extrabold text-white">Z-Order / Layer Control</h1>
+
+        <div>
+          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">1. Beginner Explanation</span>
+          <p class="text-sm text-gray-400 mt-2">
+            Every shape, image, chart, and table on a slide occupies a layer in the stacking order — exactly like Photoshop layers. PowerPoint shows this as the <strong>Arrange</strong> panel (Bring Forward, Send Backward, etc.). <code>node-pptx-templater</code> gives you full programmatic control over these layers by directly reordering child elements inside the OpenXML <code>&lt;p:spTree&gt;</code> tag. This means no repair dialogs, no lost animations, and no broken relationships.
+          </p>
+        </div>
+
+        <div>
+          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">2. How It Works</span>
+          <p class="text-sm text-gray-400 mt-2">
+            The Z-order is determined by the order of XML child elements inside <code>&lt;p:spTree&gt;</code>. The <strong>first element</strong> is drawn first (bottom-most); the <strong>last element</strong> is drawn last (top-most). All Z-order operations parse the live slide XML, modify the element order array, and re-serialize the container — keeping all relationship IDs, animations, and group structures intact.
+          </p>
+        </div>
+
+        <div>
+          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">3. Quick Start</span>
+          <pre class="relative group"><code class="language-javascript block p-4 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-sm">const ppt = await PPTXTemplater.load('template.pptx');
+
+// See all layers in stacking order (bottom → top)
+const layers = ppt.getObjectOrder(1);
+console.log(layers);
+// → [
+//     { id: 'Background', type: 'shape', zIndex: 1 },
+//     { id: 'Chart 1',    type: 'chart', zIndex: 2 },
+//     { id: 'Logo',       type: 'image', zIndex: 3 },
+//   ]
+
+// Bring the logo to the very top
+ppt.bringToFront({ slide: 1, objectId: 'Logo' });
+
+// Send the background shape to the very bottom
+ppt.sendToBack({ slide: 1, objectId: 'Background' });
+
+await ppt.saveToFile('./output/reordered.pptx');</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
+        </div>
+
+        <div>
+          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">4. All Z-Order APIs</span>
+          <div class="space-y-4 mt-2">
+
+            <div class="p-4 bg-[#131b2e] border border-gray-800 rounded-xl">
+              <h4 class="font-semibold text-white mb-1">Inspect Order</h4>
+              <pre class="relative group"><code class="language-javascript block p-3 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-xs">ppt.getObjectOrder(slideIndex)      // [{ id, type, zIndex }, ...]
+ppt.getTopMostObject(slideIndex)    // { id, type, zIndex }
+ppt.getBottomMostObject(slideIndex) // { id, type, zIndex }</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
+            </div>
+
+            <div class="p-4 bg-[#131b2e] border border-gray-800 rounded-xl">
+              <h4 class="font-semibold text-white mb-1">Step Moves</h4>
+              <pre class="relative group"><code class="language-javascript block p-3 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-xs">ppt.bringForward({ slide: 1, objectId: 'Logo' });  // +1 layer
+ppt.sendBackward({ slide: 1, objectId: 'Logo' });  // -1 layer</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
+            </div>
+
+            <div class="p-4 bg-[#131b2e] border border-gray-800 rounded-xl">
+              <h4 class="font-semibold text-white mb-1">Absolute Extremes</h4>
+              <pre class="relative group"><code class="language-javascript block p-3 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-xs">ppt.bringToFront({ slide: 1, objectId: 'Logo' });  // Top of stack
+ppt.sendToBack({ slide: 1, objectId: 'BG' });      // Bottom of stack</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
+            </div>
+
+            <div class="p-4 bg-[#131b2e] border border-gray-800 rounded-xl">
+              <h4 class="font-semibold text-white mb-1">Exact Position</h4>
+              <pre class="relative group"><code class="language-javascript block p-3 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-xs">// Place Logo at zIndex 3 (1-based)
+ppt.setZIndex({ slide: 1, objectId: 'Logo', zIndex: 3 });
+
+// Insert before/after a specific element
+ppt.moveObjectBefore({ slide: 1, objectId: 'Overlay', targetId: 'Chart' });
+ppt.moveObjectAfter({ slide: 1, objectId: 'Label',   targetId: 'Chart' });</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
+            </div>
+
+            <div class="p-4 bg-[#131b2e] border border-gray-800 rounded-xl">
+              <h4 class="font-semibold text-white mb-1">Bulk &amp; Advanced</h4>
+              <pre class="relative group"><code class="language-javascript block p-3 bg-[#090c15] border border-gray-800 rounded-lg text-indigo-300 font-mono text-xs">// Bulk reorder (bottom → top)
+ppt.reorderObjects({ slide: 1, order: ['BG', 'Chart', 'Logo', 'Title'] });
+
+// Batch apply multiple rules
+ppt.applyZOrder(1, [
+  { id: 'BG',    sendToBack: true },
+  { id: 'Logo',  zIndex: 4 },
+  { id: 'Chart', bringForward: true },
+]);
+
+// Swap two objects
+ppt.swapObjects(1, 'Logo', 'Chart');
+
+// Sort by custom compare function
+ppt.sortObjects(1, (a, b) =&gt; a.id.localeCompare(b.id));
+
+// Normalize (re-sync from current XML state)
+ppt.normalizeZOrder(1);</code><button class="copy-btn absolute top-3 right-3 text-xs bg-gray-800 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors">Copy</button></pre>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded font-semibold border border-indigo-500/30">5. Supported Element Types</span>
+          <div class="overflow-x-auto mt-2">
+            <table class="w-full text-sm text-gray-400 border border-gray-800 rounded-lg overflow-hidden">
+              <thead class="bg-[#131b2e] text-white">
+                <tr>
+                  <th class="px-4 py-3 text-left font-semibold">PowerPoint Type</th>
+                  <th class="px-4 py-3 text-left font-semibold">OpenXML Tag</th>
+                  <th class="px-4 py-3 text-left font-semibold"><code>type</code> Value</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-800">
+                <tr class="hover:bg-[#131b2e] transition-colors">
+                  <td class="px-4 py-3">Shape / Text Box</td>
+                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:sp&gt;</td>
+                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded">shape</span> / <span class="bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded">text</span></td>
+                </tr>
+                <tr class="hover:bg-[#131b2e] transition-colors">
+                  <td class="px-4 py-3">Image</td>
+                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:pic&gt;</td>
+                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded">image</span></td>
+                </tr>
+                <tr class="hover:bg-[#131b2e] transition-colors">
+                  <td class="px-4 py-3">Chart</td>
+                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:graphicFrame&gt; + chart URI</td>
+                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-orange-500/10 text-orange-400 px-1.5 py-0.5 rounded">chart</span></td>
+                </tr>
+                <tr class="hover:bg-[#131b2e] transition-colors">
+                  <td class="px-4 py-3">Table</td>
+                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:graphicFrame&gt; + table URI</td>
+                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded">table</span></td>
+                </tr>
+                <tr class="hover:bg-[#131b2e] transition-colors">
+                  <td class="px-4 py-3">SmartArt</td>
+                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:graphicFrame&gt; + diagram URI</td>
+                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-pink-500/10 text-pink-400 px-1.5 py-0.5 rounded">smartart</span></td>
+                </tr>
+                <tr class="hover:bg-[#131b2e] transition-colors">
+                  <td class="px-4 py-3">Group</td>
+                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:grpSp&gt;</td>
+                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-yellow-500/10 text-yellow-400 px-1.5 py-0.5 rounded">group</span></td>
+                </tr>
+                <tr class="hover:bg-[#131b2e] transition-colors">
+                  <td class="px-4 py-3">Connector</td>
+                  <td class="px-4 py-3 font-mono text-indigo-300 text-xs">&lt;p:cxnSp&gt;</td>
+                  <td class="px-4 py-3 font-mono text-xs"><span class="bg-gray-500/10 text-gray-400 px-1.5 py-0.5 rounded">connector</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="p-4 bg-emerald-500/10 border-l-4 border-emerald-500 rounded-r-xl">
+          <span class="font-semibold text-emerald-400 block">✅ OpenXML Compatibility</span>
+          <p class="text-sm text-gray-300 mt-1">All Z-order operations preserve relationship IDs (<code>r:embed</code>), animations (in-slide XML), group structures (<code>p:grpSp</code> nesting), chart references, image binaries, and theme styling. Generated files open in Microsoft PowerPoint without repair prompts.</p>
+        </div>
       </section>
 
       <!-- Packaging & XML Structure Section -->

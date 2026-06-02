@@ -23,6 +23,107 @@
 const { XMLParser: FastXMLParser, XMLBuilder } = require('fast-xml-parser')
 const { PPTXError } = require('../utils/errors.js')
 
+const Z_ORDER_SYMBOL = Symbol('zOrder')
+
+const drawingTags = new Set(['p:sp', 'p:pic', 'p:graphicFrame', 'p:grpSp', 'p:cxnSp'])
+
+function findcNvPr(node) {
+  const tagName = Object.keys(node).find(k => k !== ':@')
+  if (!tagName) return null
+  const children = node[tagName]
+  if (!Array.isArray(children)) return null
+
+  const nvPrNode = children.find(child => {
+    const k = Object.keys(child).find(key => key !== ':@')
+    return (
+      k &&
+      (k === 'p:nvSpPr' ||
+        k === 'p:nvPicPr' ||
+        k === 'p:nvGraphicFramePr' ||
+        k === 'p:nvGrpSpPr' ||
+        k === 'p:nvCxnSpPr')
+    )
+  })
+
+  if (nvPrNode) {
+    const nvPrTagName = Object.keys(nvPrNode).find(k => k !== ':@')
+    const nvPrChildren = nvPrNode[nvPrTagName]
+    if (Array.isArray(nvPrChildren)) {
+      const cNvPrNode = nvPrChildren.find(child => Object.keys(child).includes('p:cNvPr'))
+      if (cNvPrNode) {
+        return cNvPrNode[':@']
+      }
+    }
+  }
+  return null
+}
+
+function buildZOrderMap(orderedNode, containerMap = new Map()) {
+  if (!orderedNode) return containerMap
+  const tagName = Object.keys(orderedNode).find(k => k !== ':@')
+  if (!tagName) return containerMap
+  const children = orderedNode[tagName]
+  if (!Array.isArray(children)) return containerMap
+
+  if (tagName === 'p:spTree') {
+    const order = []
+    for (const child of children) {
+      const childTagName = Object.keys(child).find(k => k !== ':@')
+      if (drawingTags.has(childTagName)) {
+        const attrs = findcNvPr(child)
+        if (attrs && attrs['@_id']) {
+          order.push(String(attrs['@_id']))
+        }
+        buildZOrderMap(child, containerMap)
+      }
+    }
+    containerMap.set('root', order)
+  } else if (tagName === 'p:grpSp') {
+    const attrs = findcNvPr(orderedNode)
+    const grpId = attrs ? String(attrs['@_id']) : null
+    const order = []
+    for (const child of children) {
+      const childTagName = Object.keys(child).find(k => k !== ':@')
+      if (drawingTags.has(childTagName)) {
+        const attrs = findcNvPr(child)
+        if (attrs && attrs['@_id']) {
+          order.push(String(attrs['@_id']))
+        }
+        buildZOrderMap(child, containerMap)
+      }
+    }
+    if (grpId) {
+      containerMap.set(grpId, order)
+    }
+  } else {
+    for (const child of children) {
+      buildZOrderMap(child, containerMap)
+    }
+  }
+
+  return containerMap
+}
+
+function attachZOrder(normalContainer, containerId, containerMap) {
+  if (!normalContainer) return
+
+  const order = containerMap.get(containerId)
+  if (order) {
+    normalContainer[Z_ORDER_SYMBOL] = order
+  }
+
+  let grpSps = normalContainer['p:grpSp'] || []
+  if (!Array.isArray(grpSps)) grpSps = [grpSps]
+
+  for (const grpSp of grpSps) {
+    const cNvPr = grpSp?.['p:nvGrpSpPr']?.['p:cNvPr']
+    const grpId = cNvPr ? String(cNvPr['@_id']) : null
+    if (grpId) {
+      attachZOrder(grpSp, grpId, containerMap)
+    }
+  }
+}
+
 /**
  * Parser configuration for fast-xml-parser.
  * These settings ensure lossless round-trip XML parsing.
@@ -101,9 +202,22 @@ class XMLParser {
    */
   #builder
 
+  /**
+   * @private
+   * @type {FastXMLParser}
+   */
+  #orderedParser
+
   constructor() {
     this.#parser = new FastXMLParser(PARSER_OPTIONS)
     this.#builder = new XMLBuilder(BUILDER_OPTIONS)
+    this.#orderedParser = new FastXMLParser({
+      ignoreAttributes: false,
+      preserveOrder: true,
+      attributeNamePrefix: '@_',
+      parseAttributeValue: false,
+      parseTagValue: false,
+    })
   }
 
   /**
@@ -124,7 +238,33 @@ class XMLParser {
     }
 
     try {
-      return this.#parser.parse(xmlString)
+      const normalObj = this.#parser.parse(xmlString)
+
+      // Automatically inspect for spTree to build and attach Z-order
+      const spTree =
+        normalObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+        normalObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+        normalObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+
+      if (spTree) {
+        try {
+          const orderedObj = this.#orderedParser.parse(xmlString)
+          const orderedRootNode = orderedObj.find(n => {
+            const keys = Object.keys(n)
+            return (
+              keys.includes('p:sld') ||
+              keys.includes('p:sldLayout') ||
+              keys.includes('p:sldMaster')
+            )
+          })
+          const containerMap = buildZOrderMap(orderedRootNode)
+          attachZOrder(spTree, 'root', containerMap)
+        } catch (err) {
+          // Fallback gracefully if ordered parsing fails
+        }
+      }
+
+      return normalObj
     } catch (err) {
       throw new PPTXError(`XML parse error${context ? ` in ${context}` : ''}: ${err.message}`, err)
     }
@@ -142,11 +282,99 @@ class XMLParser {
    */
   build(obj, xmlDeclaration = '') {
     try {
-      const xml = this.#builder.build(obj)
+      const spTreeObj =
+        obj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+        obj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+        obj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+
+      let xml = this.#builder.build(obj)
+
+      if (spTreeObj) {
+        const correctSpTreeXml = this.serializeContainer(spTreeObj, 'p:spTree')
+        if (xml.includes('<p:spTree/>')) {
+          xml = xml.replace('<p:spTree/>', correctSpTreeXml)
+        } else {
+          xml = xml.replace(/<p:spTree>[\s\S]*<\/p:spTree>/, correctSpTreeXml)
+        }
+      }
+
       return xmlDeclaration ? `${xmlDeclaration}\n${xml}` : xml
     } catch (err) {
       throw new PPTXError(`XML build error: ${err.message}`, err)
     }
+  }
+
+  /**
+   * Helper to serialize drawing containers (p:spTree, p:grpSp) recursively in Z-order.
+   */
+  serializeContainer(container, containerTagName) {
+    const zOrder = container[Z_ORDER_SYMBOL] || []
+
+    let headerXml = ''
+    if (container['p:nvGrpSpPr']) {
+      headerXml += this.#builder.build({ 'p:nvGrpSpPr': container['p:nvGrpSpPr'] })
+    }
+    if (container['p:grpSpPr']) {
+      headerXml += this.#builder.build({ 'p:grpSpPr': container['p:grpSpPr'] })
+    }
+
+    // Gather drawing children
+    const drawingElements = new Map()
+    for (const tag of ['p:sp', 'p:pic', 'p:graphicFrame', 'p:grpSp', 'p:cxnSp']) {
+      let items = container[tag] || []
+      if (!Array.isArray(items)) items = [items]
+      for (const item of items) {
+        let id = null
+        if (tag === 'p:sp') id = item?.['p:nvSpPr']?.['p:cNvPr']?.['@_id']
+        else if (tag === 'p:pic') id = item?.['p:nvPicPr']?.['p:cNvPr']?.['@_id']
+        else if (tag === 'p:graphicFrame') id = item?.['p:nvGraphicFramePr']?.['p:cNvPr']?.['@_id']
+        else if (tag === 'p:grpSp') id = item?.['p:nvGrpSpPr']?.['p:cNvPr']?.['@_id']
+        else if (tag === 'p:cxnSp') id = item?.['p:nvCxnSpPr']?.['p:cNvPr']?.['@_id']
+
+        if (id !== undefined && id !== null) {
+          drawingElements.set(String(id), { tag, obj: item })
+        }
+      }
+    }
+
+    // Append items not in the explicit Z-order list
+    const fullZOrder = [...zOrder]
+    for (const id of drawingElements.keys()) {
+      if (!fullZOrder.includes(id)) {
+        fullZOrder.push(id)
+      }
+    }
+
+    // Build children in Z-order
+    let childrenXml = ''
+    for (const id of fullZOrder) {
+      const el = drawingElements.get(id)
+      if (!el) continue
+
+      if (el.tag === 'p:grpSp') {
+        childrenXml += this.serializeContainer(el.obj, 'p:grpSp')
+      } else {
+        childrenXml += this.#builder.build({ [el.tag]: el.obj })
+      }
+    }
+
+    // Container attributes
+    let attrsStr = ''
+    const attrs = {}
+    for (const k in container) {
+      if (k.startsWith('@_')) {
+        attrs[k] = container[k]
+      }
+    }
+    if (Object.keys(attrs).length > 0) {
+      const attrXml = this.#builder.build({ [containerTagName]: { ...attrs } })
+      const match = attrXml.match(/<[^>]+>/)
+      if (match) {
+        attrsStr = match[0].slice(containerTagName.length + 1, -1)
+      }
+    }
+
+    return `<${containerTagName}${attrsStr}>${headerXml}${childrenXml}</${containerTagName}>`
   }
 
   /**
@@ -289,4 +517,5 @@ class XMLParser {
 
 module.exports = {
   XMLParser,
+  Z_ORDER_SYMBOL,
 }

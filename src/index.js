@@ -26,7 +26,7 @@
 
 const { PPTXTemplater } = require('./core/PPTXTemplater.js')
 const { ZipManager } = require('./managers/ZipManager.js')
-const { XMLParser } = require('./parsers/XMLParser.js')
+const { XMLParser, Z_ORDER_SYMBOL } = require('./parsers/XMLParser.js')
 const { SlideManager } = require('./managers/SlideManager.js')
 const { ChartManager } = require('./managers/ChartManager.js')
 const { TableManager } = require('./managers/TableManager.js')
@@ -55,6 +55,7 @@ module.exports = {
   PPTXTemplater,
   ZipManager,
   XMLParser,
+  Z_ORDER_SYMBOL,
   SlideManager,
   ChartManager,
   TableManager,

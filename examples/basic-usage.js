@@ -65,6 +65,8 @@ async function main() {
       ],
     })
 
+    ppt.applyZOrder(1, [{ id: 'Shape', zIndex: 2 }])
+
     ppt.removeSlide(2)
 
     ppt.useSlide(2)

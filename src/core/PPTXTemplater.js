@@ -36,6 +36,7 @@ const { RelationshipManager } = require('../managers/RelationshipManager.js')
 const { ShapeManager } = require('../managers/ShapeManager.js')
 const { ImageManager } = require('../managers/ImageManager.js')
 const { TextManager } = require('../managers/TextManager.js')
+const { ZOrderManager } = require('../managers/ZOrderManager.js')
 const { ValidationEngine } = require('./ValidationEngine.js')
 const { OutputWriter } = require('./OutputWriter.js')
 const { TemplateEngine } = require('./TemplateEngine.js')
@@ -123,6 +124,12 @@ class PPTXTemplater {
 
   /**
    * @private
+   * @type {ZOrderManager}
+   */
+  #zOrderManager
+
+  /**
+   * @private
    * @type {RelationshipManager}
    */
   #relationshipManager
@@ -169,6 +176,7 @@ class PPTXTemplater {
     this.#imageManager = new ImageManager(this.#xmlParser)
     this.#textManager = new TextManager(this.#xmlParser)
     this.#templateEngine = new TemplateEngine(this.#xmlParser)
+    this.#zOrderManager = new ZOrderManager(this.#xmlParser)
     this.#outputWriter = new OutputWriter(this.#zipManager, this.#contentTypesManager)
   }
 
@@ -253,6 +261,8 @@ class PPTXTemplater {
     await this.#contentTypesManager.initialize(this.#zipManager)
     await this.#relationshipManager.initialize(this.#zipManager)
     await this.#slideManager.initialize(this.#zipManager)
+    // Pre-load all slide XML so synchronous operations work on the blank template's existing slides
+    await this.#slideManager.preloadAll()
     await this.#chartManager.initialize(this.#zipManager)
     await this.#mediaManager.initialize(this.#zipManager)
     this.#loaded = true
@@ -1540,6 +1550,284 @@ class PPTXTemplater {
   }
   get mediaManager() {
     return this.#mediaManager
+  }
+
+  // Z-Order / Layer Management APIs
+
+  /**
+   * Moves slide element one layer forward.
+   */
+  bringForward(optionsOrId) {
+    this.#assertLoaded()
+    let slideIndex, objectId
+    if (typeof optionsOrId === 'object' && optionsOrId !== null) {
+      slideIndex =
+        optionsOrId.slide !== undefined
+          ? optionsOrId.slide
+          : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.objectId
+    } else {
+      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId
+    }
+    this.#zOrderManager.bringForward(slideIndex, objectId, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Moves slide element one layer backward.
+   */
+  sendBackward(optionsOrId) {
+    this.#assertLoaded()
+    let slideIndex, objectId
+    if (typeof optionsOrId === 'object' && optionsOrId !== null) {
+      slideIndex =
+        optionsOrId.slide !== undefined
+          ? optionsOrId.slide
+          : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.objectId
+    } else {
+      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId
+    }
+    this.#zOrderManager.sendBackward(slideIndex, objectId, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Moves slide element above all other objects.
+   */
+  bringToFront(optionsOrId) {
+    this.#assertLoaded()
+    let slideIndex, objectId
+    if (typeof optionsOrId === 'object' && optionsOrId !== null) {
+      slideIndex =
+        optionsOrId.slide !== undefined
+          ? optionsOrId.slide
+          : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.objectId
+    } else {
+      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId
+    }
+    this.#zOrderManager.bringToFront(slideIndex, objectId, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Moves slide element behind all other objects.
+   */
+  sendToBack(optionsOrId) {
+    this.#assertLoaded()
+    let slideIndex, objectId
+    if (typeof optionsOrId === 'object' && optionsOrId !== null) {
+      slideIndex =
+        optionsOrId.slide !== undefined
+          ? optionsOrId.slide
+          : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.objectId
+    } else {
+      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId
+    }
+    this.#zOrderManager.sendToBack(slideIndex, objectId, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Moves slide element to the specific 1-based stacking position.
+   */
+  setZIndex(optionsOrId, zIndex) {
+    this.#assertLoaded()
+    let slideIndex, objectId, targetZIndex
+    if (
+      typeof optionsOrId === 'object' &&
+      optionsOrId !== null &&
+      optionsOrId.zIndex !== undefined
+    ) {
+      slideIndex =
+        optionsOrId.slide !== undefined
+          ? optionsOrId.slide
+          : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.objectId
+      targetZIndex = optionsOrId.zIndex
+    } else {
+      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId
+      targetZIndex = zIndex
+    }
+    this.#zOrderManager.setZIndex(slideIndex, objectId, targetZIndex, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Moves slide element directly before (below) a target element.
+   */
+  moveObjectBefore(optionsOrId, targetId) {
+    this.#assertLoaded()
+    let slideIndex, objectId, target
+    if (
+      typeof optionsOrId === 'object' &&
+      optionsOrId !== null &&
+      optionsOrId.targetId !== undefined
+    ) {
+      slideIndex =
+        optionsOrId.slide !== undefined
+          ? optionsOrId.slide
+          : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.objectId
+      target = optionsOrId.targetId
+    } else {
+      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId
+      target = targetId
+    }
+    this.#zOrderManager.moveObjectBefore(slideIndex, objectId, target, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Moves slide element directly after (above) a target element.
+   */
+  moveObjectAfter(optionsOrId, targetId) {
+    this.#assertLoaded()
+    let slideIndex, objectId, target
+    if (
+      typeof optionsOrId === 'object' &&
+      optionsOrId !== null &&
+      optionsOrId.targetId !== undefined
+    ) {
+      slideIndex =
+        optionsOrId.slide !== undefined
+          ? optionsOrId.slide
+          : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.objectId
+      target = optionsOrId.targetId
+    } else {
+      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId
+      target = targetId
+    }
+    this.#zOrderManager.moveObjectAfter(slideIndex, objectId, target, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Reorders slide objects exactly as specified in the array.
+   */
+  reorderObjects(optionsOrOrder) {
+    this.#assertLoaded()
+    let slideIndex, order
+    if (
+      typeof optionsOrOrder === 'object' &&
+      optionsOrOrder !== null &&
+      Array.isArray(optionsOrOrder.order)
+    ) {
+      slideIndex =
+        optionsOrOrder.slide !== undefined
+          ? optionsOrOrder.slide
+          : this.#getTargetSlideIndices()[0] || 1
+      order = optionsOrOrder.order
+    } else {
+      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      order = optionsOrOrder
+    }
+    this.#zOrderManager.reorderObjects(slideIndex, order, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Gets the ordered metadata of all objects on the slide.
+   */
+  getObjectOrder(slideIndex) {
+    this.#assertLoaded()
+    const targetIdx =
+      slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
+    return this.#zOrderManager.getObjectOrder(targetIdx, this.#slideManager)
+  }
+
+  /**
+   * Applies bulk template configurations for slide elements stacking layers.
+   */
+  applyZOrder(slideOrConfigs, configsOption) {
+    this.#assertLoaded()
+    let slideIndex, configs
+    if (Array.isArray(slideOrConfigs)) {
+      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      configs = slideOrConfigs
+    } else {
+      slideIndex = slideOrConfigs
+      configs = configsOption
+    }
+    this.#zOrderManager.applyZOrder(slideIndex, configs, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Retrieves the info of the top-most object on the slide.
+   */
+  getTopMostObject(slideIndex) {
+    this.#assertLoaded()
+    const targetIdx =
+      slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
+    return this.#zOrderManager.getTopMostObject(targetIdx, this.#slideManager)
+  }
+
+  /**
+   * Retrieves the info of the bottom-most object on the slide.
+   */
+  getBottomMostObject(slideIndex) {
+    this.#assertLoaded()
+    const targetIdx =
+      slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
+    return this.#zOrderManager.getBottomMostObject(targetIdx, this.#slideManager)
+  }
+
+  /**
+   * Swaps stacking positions of two slide objects.
+   */
+  swapObjects(slideIndexOrId1, id1OrId2, id2) {
+    this.#assertLoaded()
+    let slideIndex, objectId1, objectId2
+    if (id2 !== undefined) {
+      slideIndex = slideIndexOrId1
+      objectId1 = id1OrId2
+      objectId2 = id2
+    } else {
+      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      objectId1 = slideIndexOrId1
+      objectId2 = id1OrId2
+    }
+    this.#zOrderManager.swapObjects(slideIndex, objectId1, objectId2, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Sorts stacking order using a custom comparison function.
+   */
+  sortObjects(slideIndexOrCompareFn, compareFnOption) {
+    this.#assertLoaded()
+    let slideIndex, compareFn
+    if (typeof slideIndexOrCompareFn === 'function') {
+      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      compareFn = slideIndexOrCompareFn
+    } else {
+      slideIndex = slideIndexOrCompareFn
+      compareFn = compareFnOption
+    }
+    this.#zOrderManager.sortObjects(slideIndex, compareFn, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Cleans up and normalizes stacking order consistency.
+   */
+  normalizeZOrder(slideIndex) {
+    this.#assertLoaded()
+    const targetIdx =
+      slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
+    this.#zOrderManager.normalizeZOrder(targetIdx, this.#slideManager)
+    return this
   }
 }
 

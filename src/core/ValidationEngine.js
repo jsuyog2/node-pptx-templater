@@ -105,6 +105,11 @@ class ValidationEngine {
           )
         }
       }
+
+      // Verify Z-order and duplicate IDs
+      const zOrderResult = this.validateObjectOrder(ppt, slideIndex)
+      errors.push(...zOrderResult.errors)
+      warnings.push(...zOrderResult.warnings)
     } catch (err) {
       errors.push(`Slide ${slideIndex} validation error: ${err.message}`)
     }
@@ -233,6 +238,78 @@ class ValidationEngine {
           errors.push(`Relationship ${rel.id} points to non-existent file: ${resolved}`)
         }
       }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    }
+  }
+
+  /**
+   * Audits the shape tree structure for duplicate drawing element IDs.
+   */
+  static validateObjectOrder(ppt, slideIndex) {
+    const errors = []
+    const warnings = []
+
+    try {
+      const slideXml = ppt.slideManager.getSlideXml(slideIndex)
+      const slideObj = ppt.xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+      const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+
+      if (!spTree) {
+        errors.push(`Slide ${slideIndex} shape tree not found`)
+        return { valid: false, errors, warnings }
+      }
+
+      const idToTags = new Map()
+
+      const checkIdsRecursive = container => {
+        if (!container) return
+
+        for (const tag of ['p:sp', 'p:pic', 'p:graphicFrame', 'p:grpSp', 'p:cxnSp']) {
+          let items = container[tag] || []
+          if (!Array.isArray(items)) items = [items]
+          for (const item of items) {
+            let id = null
+            let name = null
+            if (tag === 'p:sp') {
+              id = item?.['p:nvSpPr']?.['p:cNvPr']?.['@_id']
+              name = item?.['p:nvSpPr']?.['p:cNvPr']?.['@_name']
+            } else if (tag === 'p:pic') {
+              id = item?.['p:nvPicPr']?.['p:cNvPr']?.['@_id']
+              name = item?.['p:nvPicPr']?.['p:cNvPr']?.['@_name']
+            } else if (tag === 'p:graphicFrame') {
+              id = item?.['p:nvGraphicFramePr']?.['p:cNvPr']?.['@_id']
+              name = item?.['p:nvGraphicFramePr']?.['p:cNvPr']?.['@_name']
+            } else if (tag === 'p:grpSp') {
+              id = item?.['p:nvGrpSpPr']?.['p:cNvPr']?.['@_id']
+              name = item?.['p:nvGrpSpPr']?.['p:cNvPr']?.['@_name']
+              checkIdsRecursive(item)
+            } else if (tag === 'p:cxnSp') {
+              id = item?.['p:nvCxnSpPr']?.['p:cNvPr']?.['@_id']
+              name = item?.['p:nvCxnSpPr']?.['p:cNvPr']?.['@_name']
+            }
+
+            if (id !== undefined && id !== null) {
+              const strId = String(id)
+              if (idToTags.has(strId)) {
+                errors.push(
+                  `Duplicate drawing object ID "${strId}" found in slide ${slideIndex} (name: "${name}")`
+                )
+              } else {
+                idToTags.set(strId, tag)
+              }
+            }
+          }
+        }
+      }
+
+      checkIdsRecursive(spTree)
+    } catch (err) {
+      errors.push(`Slide ${slideIndex} shape tree validation error: ${err.message}`)
     }
 
     return {
