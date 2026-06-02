@@ -152,142 +152,1100 @@ Compare PPTXForge with other popular PowerPoint automation libraries:
 | **Z-Order Layer Reordering** | **Yes** (Front/Back) | No | No | Yes | No |
 | **External Slide Imports** | **Yes** (Deduplicated) | No | No | Yes | No |
 
+<!-- API_REFERENCE_START -->
+
+### Tables API
+
+#### `updateTable(tableId, rows)`
+Replaces table rows with new data in the selected slide(s). Preserves borders, merged cells, fonts, colors, and alignment from the template.
+
+* **Arguments**:
+  * `tableId` (`string`): Table name or shape ID.
+  * `rows` (`string[][]`): 2D array of cell values (row × col).
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).updateTable('summary-table', [
+  ['Item', 'Value'],
+  ['Widgets', '1,200'],
+  ['Gadgets', '850']
+]);
+```
+
+#### `addTableRow(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).addTableRow('data-table', ['John Doe', 'Sales Manager', '$120k']);
+```
+
+#### `removeTableRow(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).removeTableRow('data-table', 2);
+```
+
+#### `insertTableRow(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).insertTableRow(());
+```
+
+#### `cloneTableRow(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).cloneTableRow(());
+```
+
+#### `updateCell(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).updateCell(());
+```
+
+#### `mergeCells(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).mergeCells('metrics-table', 1, 1, 2, 2);
+```
+
+#### `unmergeCells(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).unmergeCells('metrics-table', 1, 1, 2, 2);
+```
+
+#### `getMergedCells(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).getMergedCells(());
+```
+
+#### `validateMergeRegion(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).validateMergeRegion(());
+```
+
+#### `isMergedCell(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).isMergedCell(());
+```
+
+#### `getMergeParent(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).getMergeParent(());
+```
+
+#### `getMergeRegion(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).getMergeRegion(());
+```
+
+#### `splitMergedRegion(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).splitMergedRegion(());
+```
+
+#### `cloneMergedRegion(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).cloneMergedRegion(());
+```
+
+#### `autoFitTable(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).autoFitTable(());
+```
+
+#### `resizeTable(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).resizeTable(());
+```
+
+#### `getTables(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).getTables(());
+```
+
 ---
 
-## 📚 API Reference Guide
+### Charts API
 
-### Loading & Exposing presentation
+#### `updateChart(chartId, data)`
+Updates chart data in the selected slide(s). Finds charts by their name/ID and updates categories, series, and values. Preserves original chart styles, themes, and formatting.
 
-#### `static async load(filePathOrBuffer)`
-Loads and extracts a presentation template from disk or memory.
-* **Arguments**: `string | Buffer`
-* **Returns**: `Promise<PPTXTemplater>`
+* **Arguments**:
+  * `chartId` (`string`): Chart name or relationship ID.
+  * `data` (`ChartData`): New chart data.
+  * `data.categories` (`string[]`): Category labels (X-axis).
+  * `data.series` (`SeriesData[]`): Data series array.
+  * `data.series[].name` (`string`): Series name.
+  * `data.series[].values` (`number[]`): Data values.
+* **Returns**: `PPTXTemplater` - this (chainable)
 
-#### `async saveToFile(outputPath)`
-Validates, re-packages, and saves the presentation to disk.
-* **Arguments**: `string`
-* **Returns**: `Promise<void>`
+```javascript
+ppt.useSlide(1).updateChart(chartId, data);
+```
 
-#### `async toBuffer()`
-Generates the final presentation files as a zipped binary buffer.
-* **Returns**: `Promise<Buffer>`
+#### `validateCharts()`
+Validates all charts in the presentation to ensure they are not corrupted. Checks XML, caches, and embedded workbook references.
 
----
+* **Returns**: `Promise<Object>` - Validation results for charts.
 
-### Slide Layout Actions
+```javascript
+ppt.useSlide(1).validateCharts();
+```
 
-#### `useSlide(slideIndex)`
-Fluent selector that targets a slide for subsequent actions (1-based index).
-* **Arguments**: `number`
-* **Returns**: `PPTXTemplater`
+#### `repairCharts()`
+Repairs common chart corruption issues such as broken caches, missing embedded workbooks, or orphan nodes.
 
-#### `duplicateSlide(slideIndex, insertPosition)`
-Duplicates a slide and places it at the target position.
-* **Arguments**: `number` (source index), `number` (destination index)
-* **Returns**: `PPTXTemplater`
+* **Returns**: `Promise<PPTXTemplater>` - this
 
-#### `deleteSlide(slideIndex)`
-Deletes a slide and removes its associated relationship linkages.
-* **Arguments**: `number`
-* **Returns**: `PPTXTemplater`
+```javascript
+ppt.useSlide(1).repairCharts();
+```
 
-#### `moveSlide(fromIndex, toIndex)`
-Reorders a slide to a new positions index.
-* **Arguments**: `number`, `number`
-* **Returns**: `PPTXTemplater`
+#### `updateChartData(())`
+Delegates core actions to slide element sub-managers.
 
-#### `importSlideFrom(sourcePresentation, sourceSlideIndex)`
-Imports a slide from an external PowerPoint file, remapping media structures.
-* **Arguments**: `PPTXTemplater`, `number`
-* **Returns**: `Promise<PPTXTemplater>`
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
 
----
+```javascript
+ppt.useSlide(1).updateChartData('sales-chart', {
+  categories: ['Q1', 'Q2'],
+  series: [{ name: 'Actual', values: [100, 150] }]
+});
+```
 
-### Text Manipulation
+#### `replaceChartSeries(())`
+Delegates core actions to slide element sub-managers.
 
-#### `replaceTextByTag(tag, replacement)`
-Replaces all occurrences of `{{tag}}` on the active slide.
-* **Arguments**: `string` (tag name without braces), `string` (replacement text)
-* **Returns**: `PPTXTemplater`
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
 
-#### `replaceMultiple(replacementsMap)`
-Performs bulk replacements on the active slide using a key-value map.
-* **Arguments**: `Object` (e.g., `{ company: 'Acme', date: '2026' }`)
-* **Returns**: `PPTXTemplater`
+```javascript
+ppt.useSlide(1).replaceChartSeries(());
+```
 
----
+#### `updateChartTitle(())`
+Delegates core actions to slide element sub-managers.
 
-### Tables (DrawingML)
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
 
-#### `updateTable(tableId, rowData)`
-Updates a table with a two-dimensional grid array.
-* **Arguments**: `string` (table shape name/id), `Array<Array<string | Object>>`
-* **Cell Styles Options**:
-  ```javascript
-  {
-    value: 'Text content',
-    colSpan: 2,           // Merge columns horizontally
-    rowSpan: 3,           // Merge rows vertically
-    align: 'ctr' | 'l' | 'r',  // Text alignment
-    fontSize: 1400,       // Font size in hundredths of a point
-    fill: 'ff5500',       // Background hex color
-    bold: true
-  }
-  ```
-* **Returns**: `PPTXTemplater`
+```javascript
+ppt.useSlide(1).updateChartTitle('sales-chart', 'Quarterly Metrics Overview');
+```
 
-#### `mergeCells({ tableId, startRow, startCol, endRow, endCol })`
-Merges a custom rectangular boundary of cells.
-* **Arguments**: `Object`
-* **Returns**: `PPTXTemplater`
+#### `updateChartCategories(())`
+Delegates core actions to slide element sub-managers.
 
-#### `unmergeCells({ tableId, row, col })`
-Splits a merged region back to its individual component cells.
-* **Arguments**: `Object`
-* **Returns**: `PPTXTemplater`
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).updateChartCategories(());
+```
+
+#### `getCharts(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).getCharts(());
+```
 
 ---
 
-### Excel Chart Updates
+### Slides API
 
-#### `updateChartData(chartId, data)`
-Overwrites chart categories and series points.
-* **Arguments**: `string` (chart object id), `Object`
-* **Format**:
-  ```javascript
-  {
-    categories: ['Category 1', 'Category 2'],
-    series: [
-      { name: 'Series 1', values: [10, 20] }
-    ]
-  }
-  ```
-* **Returns**: `PPTXTemplater`
+#### `useSlide(...slideRefs)`
+Selects one or more slides to work on. All subsequent operations (replaceText, updateChart, etc.) apply to these slides. If not called, operations apply to ALL slides.
 
-#### `updateChartTitle(chartId, title)`
-Replaces the main header title text run of the chart.
-* **Arguments**: `string`, `string`
-* **Returns**: `PPTXTemplater`
+* **Arguments**:
+  * `slideRefs` (`...number|string`): Slide numbers (1-based), IDs, or tags.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).useSlide(...slideRefs);
+```
+
+#### `useAllSlides()`
+Selects all slides.
+
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).useAllSlides();
+```
+
+#### `addSlide(options = {})`
+Adds a new slide to the presentation. Automatically generates required XML and relationship entries.
+
+* **Arguments**:
+  * `options` (`NewSlideOptions`): Slide definition.
+  * `[options.title]` (`string`): Slide title text.
+  * `[options.layout]` (`string`): Layout name to use (default: 'blank').
+  * `[options.elements]` (`SlideElement[]`): Elements to add to the slide.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).addSlide(options = {});
+```
+
+#### `cloneSlide(sourceSlideNumber, atPosition)`
+Clones an existing slide and appends it to the end (or at a position).
+
+* **Arguments**:
+  * `sourceSlideNumber` (`number`): 1-based source slide number.
+  * `[atPosition]` (`number`): Optional position to insert (1-based). Default: append.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).cloneSlide(sourceSlideNumber, atPosition);
+```
+
+#### `removeSlide(slideNumber)`
+Removes a slide from the presentation.
+
+* **Arguments**:
+  * `slideNumber` (`number`): 1-based slide number to remove.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).removeSlide(slideNumber);
+```
+
+#### `reorderSlides(order)`
+Reorders slides in the presentation.
+
+* **Arguments**:
+  * `order` (`number[]`): Array of 1-based slide numbers in desired order.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).reorderSlides(order);
+```
+
+#### `tagSlide(slideNumber, tag)`
+Tags a slide with a custom string identifier for later selection.
+
+* **Arguments**:
+  * `slideNumber` (`number`): 1-based slide number.
+  * `tag` (`string`): Custom tag string.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).tagSlide(slideNumber, tag);
+```
+
+#### `exportSlides(...slideNumbers)`
+Exports selected slides to a new standalone PPTX engine. Useful for creating "slide decks" from a master template.
+
+* **Arguments**:
+  * `slideNumbers` (`...number`): 1-based slide numbers to export.
+* **Returns**: `Promise<PPTXTemplater>` - New engine with only the selected slides.
+
+```javascript
+ppt.useSlide(1).exportSlides(...slideNumbers);
+```
+
+#### `importSlideFrom(sourceEngine, slideRef)`
+Imports a single slide from another PPTXTemplater instance into this presentation. Preserves all slide layouts, charts, relationships, and embedded media.
+
+* **Arguments**:
+  * `sourceEngine` (`PPTXTemplater`): Source PPTXTemplater instance.
+  * `slideRef` (`number|string`): Slide index (1-based), ID, or custom tag.
+* **Returns**: `Promise<PPTXTemplater>` - this (chainable)
+
+```javascript
+const source = await PPTXTemplater.load('template2.pptx');
+await ppt.importSlideFrom(source, 1);
+```
+
+#### `importSlides(slideIndices)`
+Imports selected slides from the current template, discarding the rest. The remaining slides are reordered to match the provided array. Preserves all layouts, themes, relationships, and embedded media.
+
+* **Arguments**:
+  * `slideIndices` (`number[]`): Array of 1-based slide indices to keep.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).importSlides(slideIndices);
+```
+
+#### `duplicateSlide(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.duplicateSlide(1, 2);
+```
+
+#### `deleteSlide(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).deleteSlide(());
+```
+
+#### `moveSlide(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).moveSlide(());
+```
+
+#### `insertSlide(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).insertSlide(());
+```
+
+#### `getSlides(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).getSlides(());
+```
 
 ---
 
-### Stacking Z-Order & Layers
+### Text API
+
+#### `replaceText(replacements)`
+Replaces template placeholders (e.g., {{key}}) with values in the selected slides. Works inside text boxes, titles, grouped shapes, tables, and shapes.
+
+* **Arguments**:
+  * `replacements` (`Object.<string, string>`): Map of placeholder → replacement value.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).replaceText(replacements);
+```
+
+#### `addHyperlink(options)`
+Adds or replaces a hyperlink on a text run or shape.
+
+* **Arguments**:
+  * `options` (`HyperlinkOptions`): Hyperlink configuration.
+  * `options.text` (`string`): Text to find and make clickable.
+  * `options.url` (`string`): Target URL.
+  * `[options.tooltip]` (`string`): Optional tooltip.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).addHyperlink(options);
+```
+
+#### `addSlideLink(options)`
+Adds an inter-slide hyperlink to a specific text element.
+
+* **Arguments**:
+  * `options` (`Object`): Link configuration.
+  * `options.sourceSlide` (`number`): Source slide number (1-based).
+  * `options.targetSlide` (`number`): Destination slide number (1-based).
+  * `options.element` (`string`): Text element to make clickable.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).addSlideLink(options);
+```
+
+#### `addImageLink(options)`
+Adds an inter-slide hyperlink to an image.
+
+* **Arguments**:
+  * `options` (`Object`): 
+  * `options.slide` (`number`): Source slide number.
+  * `options.imageId` (`string`): Image name/id to make clickable.
+  * `options.targetSlide` (`number`): Destination slide number.
+* **Returns**: `PPTXTemplater` - this
+
+```javascript
+ppt.useSlide(1).addImageLink(options);
+```
+
+#### `addShapeLink(options)`
+Adds an inter-slide hyperlink to a shape.
+
+* **Arguments**:
+  * `options` (`Object`): 
+  * `options.slide` (`number`): Source slide number.
+  * `options.shapeId` (`string`): Shape name/id to make clickable.
+  * `options.targetSlide` (`number`): Destination slide number.
+* **Returns**: `PPTXTemplater` - this
+
+```javascript
+ppt.useSlide(1).addShapeLink(options);
+```
+
+#### `addTextNavigationLink(options)`
+Adds a special navigation link (next, previous, first, last slide) to a text element.
+
+* **Arguments**:
+  * `options` (`Object`): 
+  * `options.slide` (`number`): Source slide number (1-based).
+  * `options.element` (`string`): Text element to make clickable.
+  * `options.action` (`'next'|'previous'|'first'|'last'`): Navigation action type.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).addTextNavigationLink(options);
+```
+
+#### `addShapeNavigationLink(options)`
+Adds a special navigation link (next, previous, first, last slide) to a shape or image.
+
+* **Arguments**:
+  * `options` (`Object`): 
+  * `options.slide` (`number`): Source slide number (1-based).
+  * `options.shapeId` (`string`): Shape name/id to make clickable.
+  * `options.action` (`'next'|'previous'|'first'|'last'`): Navigation action type.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).addShapeNavigationLink(options);
+```
+
+#### `replaceTextByTag(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).replaceTextByTag('company', 'Acme Corp');
+```
+
+#### `replaceMultiple(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).replaceMultiple(());
+```
+
+#### `findText(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).findText(());
+```
+
+#### `getTextElements(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).getTextElements(());
+```
+
+---
+
+### Images API
+
+#### `replaceImage(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+await ppt.useSlide(1).replaceImage('logo-img', './new-logo.png');
+```
+
+#### `addImage(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).addImage(());
+```
+
+#### `removeImage(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).removeImage(());
+```
+
+#### `getImages(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).getImages(());
+```
+
+---
+
+### Shapes API
+
+#### `updateShapeText(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).updateShapeText(());
+```
+
+#### `cloneShape(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).cloneShape('card-bg', 'card-bg-2');
+```
+
+#### `deleteShape(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).deleteShape(());
+```
+
+#### `getShapes(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).getShapes(());
+```
+
+---
+
+### Layer Stacking (Z-Order)
+
+#### `bringForward(optionsOrId)`
+Moves slide element one layer forward.
+
+
+```javascript
+ppt.useSlide(1).bringForward(optionsOrId);
+```
+
+#### `sendBackward(optionsOrId)`
+Moves slide element one layer backward.
+
+
+```javascript
+ppt.useSlide(1).sendBackward(optionsOrId);
+```
+
+#### `bringToFront(optionsOrId)`
+Moves slide element above all other objects.
+
+
+```javascript
+ppt.useSlide(1).bringToFront('OverlayLogo');
+```
+
+#### `sendToBack(optionsOrId)`
+Moves slide element behind all other objects.
+
+
+```javascript
+ppt.useSlide(1).sendToBack(optionsOrId);
+```
+
+#### `setZIndex(optionsOrId, zIndex)`
+Moves slide element to the specific 1-based stacking position.
+
+
+```javascript
+ppt.useSlide(1).setZIndex(optionsOrId, zIndex);
+```
+
+#### `moveObjectBefore(optionsOrId, targetId)`
+Moves slide element directly before (below) a target element.
+
+
+```javascript
+ppt.useSlide(1).moveObjectBefore(optionsOrId, targetId);
+```
+
+#### `moveObjectAfter(optionsOrId, targetId)`
+Moves slide element directly after (above) a target element.
+
+
+```javascript
+ppt.useSlide(1).moveObjectAfter(optionsOrId, targetId);
+```
+
+#### `reorderObjects(optionsOrOrder)`
+Reorders slide objects exactly as specified in the array.
+
+
+```javascript
+ppt.useSlide(1).reorderObjects(optionsOrOrder);
+```
 
 #### `getObjectOrder(slideIndex)`
-Lists slide layout objects sorted from bottom-most (first in DOM) to top-most.
-* **Returns**: `Array<{ id: string, type: 'shape'|'image'|'chart'|'table'|'group'|'connector', zIndex: number }>`
+Gets the ordered metadata of all objects on the slide.
 
-#### `bringToFront(objectId)` / `sendToBack(objectId)`
-Moves the target object to the absolute front or back of the rendering stack.
-* **Returns**: `PPTXTemplater`
 
-#### `bringForward(objectId)` / `sendBackward(objectId)`
-Shifts the target object up or down by one layer index.
-* **Returns**: `PPTXTemplater`
+```javascript
+ppt.useSlide(1).getObjectOrder(slideIndex);
+```
 
-#### `setZIndex(objectId, zIndex)`
-Moves the object to a specific 1-based stack index.
-* **Returns**: `PPTXTemplater`
+#### `applyZOrder(slideOrConfigs, configsOption)`
+Applies bulk template configurations for slide elements stacking layers.
+
+
+```javascript
+ppt.useSlide(1).applyZOrder(slideOrConfigs, configsOption);
+```
+
+#### `getTopMostObject(slideIndex)`
+Retrieves the info of the top-most object on the slide.
+
+
+```javascript
+ppt.useSlide(1).getTopMostObject(slideIndex);
+```
+
+#### `getBottomMostObject(slideIndex)`
+Retrieves the info of the bottom-most object on the slide.
+
+
+```javascript
+ppt.useSlide(1).getBottomMostObject(slideIndex);
+```
+
+#### `swapObjects(slideIndexOrId1, id1OrId2, id2)`
+Swaps stacking positions of two slide objects.
+
+
+```javascript
+ppt.useSlide(1).swapObjects(slideIndexOrId1, id1OrId2, id2);
+```
+
+#### `sortObjects(slideIndexOrCompareFn, compareFnOption)`
+Sorts stacking order using a custom comparison function.
+
+
+```javascript
+ppt.useSlide(1).sortObjects(slideIndexOrCompareFn, compareFnOption);
+```
+
+#### `normalizeZOrder(slideIndex)`
+Cleans up and normalizes stacking order consistency.
+
+
+```javascript
+ppt.useSlide(1).normalizeZOrder(slideIndex);
+```
+
+---
+
+### Utilities & Validation
+
+#### `const()`
+This is the primary public API. It coordinates all sub-managers (ZipManager, SlideManager, ChartManager, etc.) and exposes a fluent, chainable interface for template manipulation. OpenXML PPTX Structure: ├── [Content_Types].xml      — lists all parts and their MIME types ├── _rels/.rels              — root relationships (points to presentation) ├── ppt/ │   ├── presentation.xml     — slide order, slide masters references │   ├── _rels/presentation.xml.rels │   ├── slides/ │   │   ├── slide1.xml       — individual slide content │   │   └── _rels/slide1.xml.rels │   ├── slideLayouts/        — layout templates (title, content, etc.) │   ├── slideMasters/        — master slide designs │   ├── theme/               — color/font themes │   ├── charts/              — embedded chart XML │   └── media/               — embedded images/videos └── docProps/ ├── core.xml             — author, title, etc. └── app.xml              — application metadata
+
+
+```javascript
+ppt.useSlide(1).const();
+```
+
+#### `class()`
+
+
+
+```javascript
+ppt.useSlide(1).class();
+```
+
+#### `static()`
+Loads a PPTX template from a file path or buffer. @static @throws {PPTXError} If the file cannot be read or is not a valid PPTX.
+
+* **Arguments**:
+  * `source` (`string|Buffer`): Path to PPTX file or Buffer containing PPTX data.
+* **Returns**: `Promise<PPTXTemplater>` - Initialized engine instance.
+
+```javascript
+ppt.useSlide(1).static();
+```
+
+#### `getInfo()`
+Returns presentation metadata (title, author, slide count, etc.)
+
+* **Returns**: `PresentationInfo` - Metadata object.
+
+```javascript
+ppt.useSlide(1).getInfo();
+```
+
+#### `validate()`
+Validates the XML structure of the current PPTX. Reports issues with relationship IDs, missing parts, etc.
+
+* **Returns**: `ValidationResult` - Object with `valid`, `errors`, and `warnings` arrays.
+
+```javascript
+ppt.useSlide(1).validate();
+```
+
+#### `repair()`
+Repairs corrupted OpenXML structure, relationships, and content types. Removes orphan relationships, rebuilds slide references, and fixes missing entries.
+
+* **Returns**: `Promise<PPTXTemplater>` - this (chainable)
+
+```javascript
+ppt.useSlide(1).repair();
+```
+
+#### `debugRelationships()`
+Logs all relationships across the presentation to the console for debugging.
+
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).debugRelationships();
+```
+
+#### `inspectSlide(slideIndex)`
+Inspects a specific slide's structure and relationships.
+
+* **Arguments**:
+  * `slideIndex` (`number`): 1-based slide index.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).inspectSlide(slideIndex);
+```
+
+#### `inspectXML(xmlPath)`
+Inspects and logs the raw XML of any file in the ZIP.
+
+* **Arguments**:
+  * `xmlPath` (`string`): Path inside the ZIP (e.g., 'ppt/slides/slide1.xml')
+* **Returns**: `Promise<PPTXTemplater>` - this (chainable)
+
+```javascript
+ppt.useSlide(1).inspectXML(xmlPath);
+```
+
+#### `inspectChart(chartId)`
+Inspects a specific chart's metadata and structure.
+
+* **Arguments**:
+  * `chartId` (`string`): 
+
+```javascript
+ppt.useSlide(1).inspectChart(chartId);
+```
+
+#### `inspectChartXML(chartFileName)`
+Inspects and logs the raw XML of a chart file.
+
+* **Arguments**:
+  * `chartFileName` (`string`): 
+
+```javascript
+ppt.useSlide(1).inspectChartXML(chartFileName);
+```
+
+#### `debugChartRelationships()`
+Logs all chart relationships.
+
+
+```javascript
+ppt.useSlide(1).debugChartRelationships();
+```
+
+#### `saveToFile(filePath, options = {})`
+Saves the modified PPTX to a file on disk.
+
+* **Arguments**:
+  * `filePath` (`string`): Output file path.
+  * `[options]` (`Object`): Save options.
+  * `[options.strict=false]` (`boolean`): Throw error on validation failure.
+* **Returns**: `Promise<void>` - 
+
+```javascript
+ppt.useSlide(1).saveToFile(filePath, options = {});
+```
+
+#### `toBuffer()`
+Returns the PPTX content as a Node.js Buffer.
+
+* **Returns**: `Promise<Buffer>` - 
+
+```javascript
+ppt.useSlide(1).toBuffer();
+```
+
+#### `toStream()`
+Returns the PPTX content as a readable Node.js Stream.
+
+* **Returns**: `Promise<NodeJS.ReadableStream>` - 
+
+```javascript
+ppt.useSlide(1).toStream();
+```
+
+#### `slideCount()`
+Returns the total number of slides in the loaded presentation. @type {number}
+
+
+```javascript
+ppt.useSlide(1).slideCount();
+```
+
+#### `function()`
+OpenXML relationship IDs follow the format rId1, rId2, rId3, ... They must be unique within each .rels file. These utilities generate collision-free IDs when adding new relationships. / /** Generates the next available relationship ID given an array of existing IDs. Always uses the format "rId{N}" where N is the next integer after the max.
+
+* **Arguments**:
+  * `existingIds` (`string[]`): Array of existing rId strings (e.g., ['rId1', 'rId2']).
+* **Returns**: `string` - New relationship ID (e.g., 'rId3').
+
+```javascript
+ppt.useSlide(1).function();
+```
+
+#### `validatePresentation(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).validatePresentation(());
+```
+
+#### `validateSlide(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).validateSlide(());
+```
+
+#### `validateTable(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).validateTable(());
+```
+
+#### `validateRelationships(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).validateRelationships(());
+```
+
+#### `zipManager(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).zipManager(());
+```
+
+#### `xmlParser(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).xmlParser(());
+```
+
+#### `contentTypesManager(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).contentTypesManager(());
+```
+
+#### `relationshipManager(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).relationshipManager(());
+```
+
+#### `slideManager(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).slideManager(());
+```
+
+#### `chartManager(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).chartManager(());
+```
+
+#### `tableManager(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).tableManager(());
+```
+
+#### `shapeManager(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).shapeManager(());
+```
+
+#### `imageManager(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).imageManager(());
+```
+
+#### `textManager(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).textManager(());
+```
+
+#### `hyperlinkManager(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).hyperlinkManager(());
+```
+
+#### `mediaManager(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).mediaManager(());
+```
+
+#### `load(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+const ppt = await PPTXTemplater.load('./my_template.pptx');
+```
+
+#### `create(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).create(());
+```
+
+---
+
+<!-- API_REFERENCE_END -->
 
 ---
 
