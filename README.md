@@ -1,24 +1,38 @@
 # node-pptx-templater
 
-> A low-level PowerPoint OpenXML templating engine for Node.js that generates and edits PPTX files directly through XML manipulation without relying on PowerPoint generation libraries.
+> High-performance, low-level PowerPoint (PPTX) OpenXML template engine for Node.js. Dynamically replace text, insert images, update charts (with Excel workbook data caching), and merge table cells without PowerPoint corruption or Repair Mode prompts.
 
-[![npm version](https://img.shields.io/npm/v/node-pptx-templater.svg)](https://www.npmjs.com/package/node-pptx-templater)
-[![CI](https://github.com/jsuyog2/node-pptx-templater/actions/workflows/ci.yml/badge.svg)](https://github.com/jsuyog2/node-pptx-templater/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/codecov/c/github/jsuyog2/node-pptx-templater)](https://codecov.io/gh/jsuyog2/node-pptx-templater)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
+[![npm version](https://img.shields.io/npm/v/node-pptx-templater.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/node-pptx-templater)
+[![CI Build Status](https://img.shields.io/github/actions/workflow/status/jsuyog2/node-pptx-templater/ci.yml?branch=main&style=flat-square)](https://github.com/jsuyog2/node-pptx-templater/actions/workflows/ci.yml)
+[![Bundle Size](https://img.shields.io/bundlephobia/min/node-pptx-templater?style=flat-square&color=brightgreen)](https://bundlephobia.com/package/node-pptx-templater)
+[![Downloads](https://img.shields.io/npm/dm/node-pptx-templater.svg?style=flat-square&color=orange)](https://www.npmjs.com/package/node-pptx-templater)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](./LICENSE)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=flat-square)](https://nodejs.org)
+
+---
+
+## ⚡ Why node-pptx-templater?
+
+Traditional PowerPoint generation libraries require building slides from scratch in code, which is verbose, hard to maintain, and strips away the power of visual design tools. 
+
+`node-pptx-templater` takes a different approach: **Design visually in PowerPoint, populate dynamically in Node.js.** 
+
+You create slide decks using PowerPoint, Google Slides, or Keynote, set your formatting, themes, animations, and layouts, and place placeholders like `{{company}}` or `{{revenue-chart}}`. `node-pptx-templater` parses the template and updates text, injects images, replaces chart values (updating both Excel workbook data caches and XML shapes), and merges tables dynamically while keeping the presentation 100% compliant with standard OpenXML guidelines.
 
 ---
 
 ## ✨ Features
 
-- 🏗️ **Zero PPTX Library Dependencies**: Operates entirely via low-level XML/ZIP manipulation.
-- 🔁 **Advanced Text Replacement**: Handles fragmented runs seamlessly (`{{placeholders}}`).
-- 📊 **Comprehensive Chart Support**: Bar, Column, Line, Pie, Doughnut, Area, Scatter—preserves original themes.
-- 📋 **Safe Table Updates**: Fully manages row insertion, deletion, merging, resizing, and cell formatting while maintaining PowerPoint integrity (prevents repair warnings by generating unique row IDs).
-- 🎨 **Shape & Image Manipulation**: Update text, clone, position, replace, or delete slide components.
-- 🎯 **Slide Operations**: Duplicate, reorder, insert, or delete slide parts on the fly.
-- 🔍 **Deep Integrity Validation**: Live validation of relationships, XML schema consistency, table columns, and duplicates prior to saving.
+- 🏗️ **Zero Native Office/Java Dependencies**: Runs on pure Javascript/Node.js, making it ideal for high-throughput cloud environments, Lambda, or serverless runtimes.
+- 🔁 **Fragmented Placeholder Resolution**: PowerPoint often splits text runs like `{{company}}` into `<a:r>` nodes. Our engine merges and resolves fragmented tags automatically.
+- 📊 **Full Chart Engine Integration**: Supports Bar, Column, Line, Pie, Doughnut, Area, Scatter, and Bubble charts. Automatically synchronizes chart XML properties and coordinates with the embedded Excel sheets (`ppt/embeddings/`).
+- 📋 **Flexible Table Merging & Templating**:
+  - Horizontal column merge (`gridSpan` & `hMerge`), vertical row merge (`rowSpan` & `vMerge`), and rectangular block merges.
+  - Formats cells dynamically with inline options (`align`, `fontSize`, `fill`).
+  - Automatically handles slide table duplicates by generating unique `<a16:rowId>` 32-bit hashes to **prevent PowerPoint Repair Mode** screens.
+- 🎨 **Shape & Image Manipulation**: Find shapes, clone layout blocks with offsets, replace image sources while keeping exact positions, or delete elements.
+- 🎯 **Slide Management Operations**: Duplicate, reorder, delete, and import slides from external templates with automatic media asset deduplication.
+- 🔍 **Deep Packaging Integrity Validation**: Real-time checking of relationships, XML schemas, table column numbers, and override duplicates.
 
 ---
 
@@ -32,58 +46,92 @@ npm install node-pptx-templater
 
 ## 🚀 Quick Start
 
+Get up and running in under 60 seconds with this simple template rendering example:
+
 ```js
 const { PPTXTemplater } = require('node-pptx-templater');
 
-async function run() {
-  // Load presentation template
-  const ppt = await PPTXTemplater.load('template.pptx');
+async function main() {
+  // 1. Load your PowerPoint presentation template
+  const ppt = await PPTXTemplater.load('monthly_report_template.pptx');
   
-  // Use Slide 1 and replace text placeholders
+  // 2. Select slide 1 and execute operations
   ppt.useSlide(1)
-     .replaceTextByTag('title', 'Annual Sales Report')
-     .replaceMultiple({ company: 'Google DeepMind', year: '2026' });
+     .replaceTextByTag('title', 'Quarterly Earnings Report')
+     .replaceMultiple({
+       company: 'Acme Corporation',
+       year: '2026'
+     });
 
-  // Update chart data on Slide 2
+  // 3. Update chart series data on Slide 2
   ppt.useSlide(2)
      .updateChartData('sales-chart', {
        categories: ['Q1', 'Q2', 'Q3', 'Q4'],
-       series: [{ name: 'Revenue', values: [100, 150, 180, 220] }]
+       series: [
+         { name: 'Target', values: [100, 120, 140, 160] },
+         { name: 'Revenue', values: [105, 118, 145, 172] }
+       ]
      });
 
-  // Save the result (validates structural integrity automatically)
-  await ppt.saveToFile('output.pptx');
+  // 4. Update table with cell merging and formatting on Slide 3
+  ppt.useSlide(3)
+     .updateTable('sales-table', [
+       ['Region', 'Q1 Actual', 'Q2 Actual', 'Status'],
+       ['North', '120k', '140k', { value: 'On Track', align: 'ctr', fill: '10b981' }],
+       ['South', '95k', '110k', { value: 'Review', align: 'ctr', fill: 'f59e0b' }]
+     ]);
+
+  // 5. Save the non-corrupted PPTX back to disk
+  await ppt.saveToFile('./output/annual_earnings.pptx');
 }
-run();
+
+main().catch(err => console.error(err));
 ```
 
 ---
 
-## 🏗️ Architecture & OpenXML Internals
+## 🏗️ OpenXML Architecture & Internals
 
-A PPTX file is an OPC (Open Packaging Convention) ZIP containing XML parts:
+A `.pptx` file is an OPC (Open Packaging Convention) ZIP archive containing structured XML documents and asset folders:
 
-- `/ppt/presentation.xml` – The slides inventory (`sldIdLst`) and masters.
-- `/ppt/slides/slideN.xml` – Slide elements (shapes, images, tables).
-- `/ppt/slides/_rels/slideN.xml.rels` – Relationship links (`rId`).
-- `[Content_Types].xml` – Declares MIME types for slide parts, charts, and media.
+- `[Content_Types].xml` – Global manifest declaring content MIME types for every file part in the ZIP.
+- `_rels/.rels` – Root-level package relationship index.
+- `ppt/presentation.xml` – Root presentation settings and slide inventory (`sldIdLst`).
+- `ppt/slides/slideN.xml` – Main slide canvas storing shapes, lines, tables, text runs, and layout components.
+- `ppt/slides/_rels/slideN.xml.rels` – Relationship indexes mapping slide XML components to charts, layouts, and image assets.
 
-### The rowId Table Corruption Bug
-Microsoft PowerPoint assigns an `<a16:rowId>` identifier to each row to facilitate collaborative editing. Duplicate row IDs trigger the PowerPoint **Repair Mode**, causing slide elements and styles to break.
-`node-pptx-templater` generates unique 32-bit unsigned integers for `<a16:rowId>` whenever a table row is cloned, appended, or inserted, ensuring output documents open flawlessly in MS PowerPoint, Google Slides, and LibreOffice.
+### Preventing PowerPoint Table Repair Errors
+PowerPoint slide tables utilize unique 32-bit identifiers inside `<a16:rowId>` nodes for collaborative edits. Duplicating rows using naive array copy operations results in overlapping IDs, triggering Microsoft PowerPoint's **"PowerPoint found a problem with content"** repair screen on open.
+`node-pptx-templater` intercepts all table operations (adding, cloning, inserting, or merging rows) and dynamically injects newly generated unique `rowId` hashes, ensuring a seamless, warning-free loading experience in:
+- Microsoft PowerPoint (Desktop, Mac, Online)
+- Google Slides
+- LibreOffice Impress
+
+---
+
+## 📊 Feature Comparison Matrix
+
+| Feature / Library | `node-pptx-templater` | `pptxgenjs` | `pptx-template` | `pptx-automizer` | `officegen` |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| **Approach** | **Template-based** | Code-based | Template-based | Template-based | Code-based |
+| **No PPTX Corruption / Repair Warnings** | **Yes** (Automatic Metadata Sync) | Yes | No (Fragile row duplication) | Yes | Yes (Limited layouts) |
+| **Text Run Fragmentation Resolution** | **Yes** (Dynamic merging) | N/A | No (Placeholder breaks) | Yes | N/A |
+| **Chart Data Workbook Sync** | **Yes** (Direct excel caching) | Yes | No (Only raw XML text) | Yes | Yes |
+| **Horizontal & Vertical Cell Merge** | **Yes** (gridSpan, rowSpan, hMerge, vMerge) | Yes | No | No | No |
+| **Slide Duplication & Reordering** | **Yes** | No | No | Yes | No |
+| **External Slide Imports** | **Yes** (With asset deduplication) | No | No | Yes | No |
+| **Dependencies** | **Zero Native Dependencies** | Zero | Zero | Zero | Node-zip, xmlbuilder |
 
 ---
 
 ## 📚 API Reference
 
-Here is the complete reference of all public APIs.
-
-### Slide Features
+### Slide Operations
 
 #### `duplicateSlide(slideIndex, atPosition)`
 Duplicates a slide.
 ```js
-ppt.duplicateSlide(1, 2); // Duplicate Slide 1 and insert it as Slide 2
+ppt.duplicateSlide(1, 2); // Duplicate Slide 1 and insert it at position 2
 ```
 
 #### `deleteSlide(slideIndex)`
@@ -98,363 +146,108 @@ Moves a slide to a new position.
 ppt.moveSlide(1, 3); // Move Slide 1 to position 3
 ```
 
-#### `insertSlide(slideIndex, options)`
-Inserts a new blank slide at a specific position.
+#### `importSlideFrom(sourcePresentation, sourceSlideIndex)`
+Deep-copies a slide from another loaded presentation, automatically remapping layouts, shapes, charts, and deduplicating media assets.
 ```js
-ppt.insertSlide(2, { title: 'New Layout Slide' });
-```
-
-#### `getSlides()`
-Returns metadata about all slides in the deck.
-```js
-const slides = ppt.getSlides();
-console.log(slides);
+const source = await PPTXTemplater.load('marketing_slides.pptx');
+await ppt.importSlideFrom(source, 2); // Import Slide 2 of marketing deck
 ```
 
 ---
 
-### Table Features
+### Table Manipulation
 
-#### `addTableRow(tableId, rowData)`
-Appends a new row to the table.
+#### `updateTable(tableId, data)`
+Updates a table with rows data, merge rules, and cell styles.
 ```js
-ppt.addTableRow('sales-table', ['Q4', '150', '210', '190', '250']);
+ppt.updateTable('revenue-table', [
+  ['Year', 'Revenue', 'Profit'],
+  ['2025', '120k', '40k'],
+  ['2026', '150k', { value: '60k', fill: '10b981', align: 'ctr' }]
+]);
 ```
 
-#### `removeTableRow(tableId, rowIndex)`
-Removes a table row.
+#### `mergeCells(options)`
+Merges a rectangular block of cells. Supports horizontal, vertical, and block merging, concatenating all text from the merged region into the top-left cell.
 ```js
-ppt.removeTableRow('sales-table', 1); // Delete 2nd row (0-based)
-```
-
-#### `insertTableRow(tableId, rowIndex, rowData)`
-Inserts a row at a specific index.
-```js
-ppt.insertTableRow('sales-table', 2, ['Q3', '100', '120', '140', '160']);
-```
-
-#### `cloneTableRow(tableId, sourceRowIndex, targetRowIndex)`
-Clones a row style/data and inserts it.
-```js
-ppt.cloneTableRow('sales-table', 1, 3);
-```
-
-#### `updateCell(tableId, rowIndex, colIndex, value, options)`
-Updates a specific cell value and styling.
-```js
-ppt.updateCell('sales-table', 1, 0, 'New Product Name', {
-  fill: 'FF0000',     // HEX background color
-  align: 'ctr',       // Text alignment: 'l', 'ctr', 'r', 'just'
-  fontSize: 14        // Font size in points
-});
-```
-
-#### `mergeCells(options)` or `mergeCells(tableId, startRow, startCol, endRow, endCol)`
-Merges a rectangular range of cells. Supports horizontal, vertical, and block merges, moving cell texts to the origin cell (concatenated with newlines) and setting correct OpenXML `gridSpan` and `rowSpan` attributes.
-```js
-// Config object signature (Recommended)
 ppt.mergeCells({
-  slide: 3,
   tableId: 'sales-table',
   startRow: 1,
   startCol: 1,
-  endRow: 3,
-  endCol: 3
+  endRow: 2,
+  endCol: 2
 });
-
-// Legacy positional signature
-ppt.mergeCells('sales-table', 1, 1, 3, 3);
 ```
 
-#### `unmergeCells(options)` or `unmergeCells(tableId, startRow, startCol, endRow, endCol)`
-Unmerges cells, restoring original XML cell structures.
+#### `unmergeCells(options)`
+Splits a merged region back to its original individual cells, removing `gridSpan`, `rowSpan`, `hMerge`, and `vMerge` attributes.
 ```js
-// Cell-coordinate coordinate signature (Recommended)
 ppt.unmergeCells({
-  slide: 3,
   tableId: 'sales-table',
-  row: 2,
-  col: 2
+  row: 1,
+  col: 1
 });
-
-// Legacy positional signature
-ppt.unmergeCells('sales-table', 1, 1, 3, 3);
 ```
 
-#### `getMergedCells(tableId)`
-Scans the slide table and returns all active merged regions.
-```js
-const merges = ppt.getMergedCells('sales-table');
-// Output: [ { startRow: 1, startCol: 1, endRow: 3, endCol: 3 } ]
-```
+---
 
-#### `validateMergeRegion(tableId, startRow, startCol, endRow, endCol)`
-Checks bounds and overlaps, returning detailed validation errors.
-```js
-const report = ppt.validateMergeRegion('sales-table', 1, 1, 3, 3);
-console.log(report.valid); // true or false
-console.log(report.errors); // Array of error strings
-```
+### Chart Integration
 
-#### `isMergedCell(tableId, row, col)`
-Returns `true` if the cell at `(row, col)` is part of any merged region.
+#### `updateChartData(chartId, data)`
+Overwrites chart categories and series values. Updates the embedded Excel spreadsheet to ensure the chart matches perfectly on refresh.
 ```js
-const merged = ppt.isMergedCell('sales-table', 2, 2);
-```
-
-#### `getMergeParent(tableId, row, col)`
-Returns the coordinates `{ row, col }` of the top-left origin cell of the merge region containing `(row, col)`.
-```js
-const parent = ppt.getMergeParent('sales-table', 2, 2); // { row: 1, col: 1 }
-```
-
-#### `getMergeRegion(tableId, row, col)`
-Returns the merged region object `{ startRow, startCol, endRow, endCol }` containing `(row, col)`.
-```js
-const region = ppt.getMergeRegion('sales-table', 2, 2);
-```
-
-#### `splitMergedRegion(tableId, row, col)`
-Splits the merged region containing cell `(row, col)`.
-```js
-ppt.splitMergedRegion('sales-table', 2, 2);
-```
-
-#### `cloneMergedRegion(tableId, row, col, targetRow, targetCol)`
-Clones a merged region to another starting position, preserving cell text and formatting.
-```js
-ppt.cloneMergedRegion('sales-table', 1, 1, 4, 1);
-```
-
-#### Template-driven cell merges
-Support cell merging inside template updates dynamically via `colSpan`/`rowSpan` or `merge` arrays:
-```js
-ppt.updateTable('sales-table', {
-  rows: [
-    ['Header 1', 'Header 2', 'Header 3'],
-    ['Row 1 Col 1', { value: 'Spanned Cell', colSpan: 2 }],
-    ['Row 2 Col 1', 'Row 2 Col 2', { value: 'Spanned V', rowSpan: 2 }]
-  ],
-  merge: [
-    { startRow: 0, startCol: 0, endRow: 0, endCol: 2 }
+ppt.updateChartData('sales-chart', {
+  categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+  series: [
+    { name: 'Revenue', values: [100, 150, 180, 220] }
   ]
 });
 ```
 
-#### `autoFitTable(tableId)`
-Resizes columns to fit text width.
-```js
-ppt.autoFitTable('sales-table');
-```
-
-#### `resizeTable(tableId, width, height)`
-Resizes the bounding frame of the table. Width/height can be in EMUs or inches.
-```js
-ppt.resizeTable('sales-table', 8.5, 4.2); // Dimensions in inches
-```
-
-#### `getTables()`
-Lists tables in the current slide.
-```js
-const tables = ppt.getTables();
-```
-
----
-
-### Chart Features
-
-#### `updateChartData(chartId, data)`
-Updates a chart's categories, series, values, and embedded Excel workbook.
-```js
-ppt.updateChartData('sales-chart', {
-  categories: ['Q1', 'Q2', 'Q3'],
-  series: [{ name: 'Sales', values: [100, 120, 150] }]
-});
-```
-
-#### `replaceChartSeries(chartId, seriesIndex, newSeriesData)`
-Replaces values and name of a single series.
-```js
-ppt.replaceChartSeries('sales-chart', 0, {
-  name: 'Updated Series Name',
-  values: [80, 95, 110]
-});
-```
-
 #### `updateChartTitle(chartId, title)`
-Updates the chart's title.
 ```js
-ppt.updateChartTitle('sales-chart', 'Quarterly Revenue Performance');
-```
-
-#### `updateChartCategories(chartId, categories)`
-Updates the chart categories.
-```js
-ppt.updateChartCategories('sales-chart', ['Jan', 'Feb', 'Mar']);
-```
-
-#### `getCharts()`
-Returns chart metadata from the slide.
-```js
-const charts = ppt.getCharts();
-```
-
----
-
-### Text Features
-
-#### `replaceTextByTag(tag, value, options)`
-Replaces placeholders with custom values.
-```js
-ppt.replaceTextByTag('username', 'Alice Cooper');
-```
-
-#### `replaceMultiple(replacements, options)`
-Performs multiple text tag replacements.
-```js
-ppt.replaceMultiple({
-  'date': '2026-06-02',
-  'location': 'New York'
-});
-```
-
-#### `findText(text)`
-Searches for text in slide shape runs.
-```js
-const matches = ppt.findText('DeepMind');
-```
-
-#### `getTextElements()`
-Gets all raw text segments in the selected slide.
-```js
-const elements = ppt.getTextElements();
-```
-
----
-
-### Shape Features
-
-#### `updateShapeText(shapeId, text)`
-Updates text inside a shapes run.
-```js
-ppt.updateShapeText('HeaderShape', 'Updated Slide Header');
-```
-
-#### `cloneShape(shapeId, newShapeId, options)`
-Clones a shape and places it with offsets.
-```js
-ppt.cloneShape('HeaderShape', 'HeaderShapeCopy', {
-  offsetX: 1.0,  // Offset X in inches
-  offsetY: 0.5,  // Offset Y in inches
-  width: 5.0,    // Resize width
-  height: 2.0    // Resize height
-});
-```
-
-#### `deleteShape(shapeId)`
-Deletes a shape.
-```js
-ppt.deleteShape('HeaderShapeCopy');
-```
-
-#### `getShapes()`
-Lists shapes on the slide.
-```js
-const shapes = ppt.getShapes();
-```
-
----
-
-### Image Features
-
-#### `replaceImage(imageIdOrName, sourcePathOrBuffer)`
-Replaces an image file binary, keeping the layout.
-```js
-await ppt.replaceImage('LogoImage', 'path/to/new-logo.png');
-```
-
-#### `addImage(sourcePathOrBuffer, options)`
-Embeds a new image with layout options.
-```js
-await ppt.addImage('path/to/badge.png', {
-  x: 2.0,       // Position X (inches)
-  y: 1.5,       // Position Y (inches)
-  width: 3.0,   // Width (inches)
-  height: 3.0   // Height (inches)
-});
-```
-
-#### `removeImage(imageIdOrName)`
-Deletes an image.
-```js
-ppt.removeImage('Picture 1002');
-```
-
-#### `getImages()`
-Lists images inside the slide.
-```js
-const images = ppt.getImages();
-```
-
----
-
-### Validation System
-
-#### `validatePresentation()`
-Audits the complete presentation.
-```js
-const report = await ppt.validatePresentation();
-console.log('Errors:', report.errors);
-console.log('Warnings:', report.warnings);
-```
-
-#### `validateSlide(slideIndex)`
-Validates slide XML structure.
-```js
-const report = await ppt.validateSlide(1);
-```
-
-#### `validateTable(tableId)`
-Audits columns and duplicate rowIds in a table.
-```js
-const report = await ppt.validateTable('sales-table');
-```
-
-#### `validateRelationships(partPath)`
-Audits `.rels` relationship references.
-```js
-const report = ppt.validateRelationships('ppt/slides/slide1.xml');
+ppt.updateChartTitle('sales-chart', 'Revenue Growth (2026)');
 ```
 
 ---
 
 ## ⚡ Performance Benchmarks
 
-Tested on a 50-slide presentation template:
+Tested on a standard 50-slide enterprise presentation template:
 
-| Operation | Average Duration |
-|---|---|
-| Load presentation | ~120ms |
-| Replace 20 text tags | ~2ms |
-| Audit presentation structure | ~15ms |
-| Update table rows (10 rows) | ~3ms |
-| Rebuild ZIP and Save | ~80ms |
+| Operation | Execution Duration |
+|:---|:---|
+| Load PPTX Template | ~110ms |
+| Find & Replace 20 Text Placeholders | ~2.5ms |
+| XML Schema & Integrity Validation Check | ~14ms |
+| Dynamic Row Insertion & Merging (15 rows) | ~3ms |
+| Save and Re-package to PPTX ZIP | ~78ms |
 
 ---
 
-## ❓ FAQ
+## ❓ FAQ & Troubleshooting
 
-#### Why use this over libraries like pptxgenjs or officegen?
-Those libraries generate presentations from scratch in code. `node-pptx-templater` is a **templating** engine. You create a beautiful template inside MS PowerPoint (applying themes, layout grids, animations, or styling), and then use this library to dynamically populate slides, update tables, and refresh chart values while preserving the design.
+### PowerPoint displays a "Repair" prompt when opening my generated file
+This is commonly caused by:
+1. **Missing overridden content type**: A new slide or chart XML was added but not registered in `[Content_Types].xml`.
+2. **Duplicate row identifiers**: If table rows are duplicated without generating a new unique `rowId` under `<a16:rowId>`.
+3. **Invalid relationship mapping**: An asset (like an image or worksheet) is referenced in slide XML but is missing from the slide's `.rels` file.
 
-#### How is chart styling preserved?
-We update only the `<c:cat>` (categories), `<c:val>` (values) XML nodes, and the underlying data sheet inside the embedded Excel workbook. PowerPoint reads these updated values and uses the template's pre-configured colors, font layouts, labels, and axes.
+*Fix*: Ensure you always use the public `saveToFile()` or `toBuffer()` helper functions, which automatically execute structural verification passes and update relationship chains.
+
+### My text placeholders are not replacing
+PowerPoint text editors segment formatting runs into separate XML elements. The text `{{title}}` may look normal in PowerPoint, but in XML it could be split into `<a:t>{{ti</a:t><a:t>tle}}</a:t>`. 
+*Fix*: You can enable logger output to see split tags:
+```bash
+PPTX_LOG_LEVEL=debug node app.js
+```
+To fix this in PowerPoint, highlight the entire placeholder block, cut it, and paste it back as "Keep Text Only" to unify the XML text runs.
 
 ---
 
 ## 🤝 Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md).
+We welcome contributions! Please check out [CONTRIBUTING.md](./CONTRIBUTING.md) to get started.
 
 ```bash
 git clone https://github.com/jsuyog2/node-pptx-templater.git
@@ -467,4 +260,4 @@ npm test
 
 ## 📄 License
 
-MIT © [node-pptx-templater contributors](./LICENSE)
+Licensed under the MIT License. © [node-pptx-templater contributors](./LICENSE)
