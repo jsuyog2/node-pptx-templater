@@ -20,11 +20,8 @@
  *  mc: — Markup Compatibility
  */
 
-const { XMLParser: FastXMLParser, XMLBuilder } = require('fast-xml-parser');
-const { createLogger } = require('../utils/logger.js');
-const { PPTXError } = require('../utils/errors.js');
-
-const logger = createLogger('XMLParser');
+const { XMLParser: FastXMLParser, XMLBuilder } = require('fast-xml-parser')
+const { PPTXError } = require('../utils/errors.js')
 
 /**
  * Parser configuration for fast-xml-parser.
@@ -67,10 +64,10 @@ const PARSER_OPTIONS = {
       'Default',
       'p14:sldId',
       'p14:section',
-    ];
-    return alwaysArrayPaths.some(path => jpath.endsWith(path) || name === path.split('.').pop());
+    ]
+    return alwaysArrayPaths.some(path => jpath.endsWith(path) || name === path.split('.').pop())
   },
-};
+}
 
 /**
  * Builder configuration for XMLBuilder.
@@ -85,7 +82,7 @@ const BUILDER_OPTIONS = {
   suppressEmptyNode: false,
   format: false, // No extra whitespace — PPTX is sensitive to whitespace in some cases
   processEntities: true,
-};
+}
 
 /**
  * @class XMLParser
@@ -96,17 +93,17 @@ class XMLParser {
    * @private
    * @type {FastXMLParser}
    */
-  #parser;
+  #parser
 
   /**
    * @private
    * @type {XMLBuilder}
    */
-  #builder;
+  #builder
 
   constructor() {
-    this.#parser = new FastXMLParser(PARSER_OPTIONS);
-    this.#builder = new XMLBuilder(BUILDER_OPTIONS);
+    this.#parser = new FastXMLParser(PARSER_OPTIONS)
+    this.#builder = new XMLBuilder(BUILDER_OPTIONS)
   }
 
   /**
@@ -123,13 +120,13 @@ class XMLParser {
    */
   parse(xmlString, context = '') {
     if (!xmlString || typeof xmlString !== 'string') {
-      throw new PPTXError(`Invalid XML input${context ? ` (${context})` : ''}`);
+      throw new PPTXError(`Invalid XML input${context ? ` (${context})` : ''}`)
     }
 
     try {
-      return this.#parser.parse(xmlString);
+      return this.#parser.parse(xmlString)
     } catch (err) {
-      throw new PPTXError(`XML parse error${context ? ` in ${context}` : ''}: ${err.message}`, err);
+      throw new PPTXError(`XML parse error${context ? ` in ${context}` : ''}: ${err.message}`, err)
     }
   }
 
@@ -145,10 +142,10 @@ class XMLParser {
    */
   build(obj, xmlDeclaration = '') {
     try {
-      const xml = this.#builder.build(obj);
-      return xmlDeclaration ? `${xmlDeclaration}\n${xml}` : xml;
+      const xml = this.#builder.build(obj)
+      return xmlDeclaration ? `${xmlDeclaration}\n${xml}` : xml
     } catch (err) {
-      throw new PPTXError(`XML build error: ${err.message}`, err);
+      throw new PPTXError(`XML build error: ${err.message}`, err)
     }
   }
 
@@ -159,8 +156,8 @@ class XMLParser {
    * @returns {string} Declaration line or empty string.
    */
   extractDeclaration(xmlString) {
-    const match = xmlString.match(/^<\?xml[^>]+\?>/);
-    return match ? match[0] : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    const match = xmlString.match(/^<\?xml[^>]+\?>/)
+    return match ? match[0] : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
   }
 
   /**
@@ -171,7 +168,7 @@ class XMLParser {
    * @returns {Object} Deep clone.
    */
   deepClone(obj) {
-    return JSON.parse(JSON.stringify(obj));
+    return JSON.parse(JSON.stringify(obj))
   }
 
   /**
@@ -186,25 +183,25 @@ class XMLParser {
    * const runs = parser.findAll(slideObj, 'p:cSld.p:spTree.p:sp.p:txBody.a:p.a:r');
    */
   findAll(obj, path) {
-    const keys = path.split('.');
-    let current = [obj];
+    const keys = path.split('.')
+    let current = [obj]
 
     for (const key of keys) {
-      const next = [];
+      const next = []
       for (const node of current) {
         if (node && typeof node === 'object') {
-          const val = node[key];
+          const val = node[key]
           if (Array.isArray(val)) {
-            next.push(...val);
+            next.push(...val)
           } else if (val !== undefined) {
-            next.push(val);
+            next.push(val)
           }
         }
       }
-      current = next;
+      current = next
     }
 
-    return current;
+    return current
   }
 
   /**
@@ -215,7 +212,7 @@ class XMLParser {
    * @returns {*} First matching node or undefined.
    */
   getNode(obj, path) {
-    return this.findAll(obj, path)[0];
+    return this.findAll(obj, path)[0]
   }
 
   /**
@@ -227,18 +224,18 @@ class XMLParser {
    * @param {*} value - Value to set.
    */
   setNode(obj, path, value) {
-    const keys = path.split('.');
-    let current = obj;
+    const keys = path.split('.')
+    let current = obj
 
     for (let i = 0; i < keys.length - 1; i++) {
-      const key = keys[i];
+      const key = keys[i]
       if (!current[key] || typeof current[key] !== 'object') {
-        current[key] = {};
+        current[key] = {}
       }
-      current = Array.isArray(current[key]) ? current[key][0] : current[key];
+      current = Array.isArray(current[key]) ? current[key][0] : current[key]
     }
 
-    current[keys[keys.length - 1]] = value;
+    current[keys[keys.length - 1]] = value
   }
 
   /**
@@ -252,9 +249,9 @@ class XMLParser {
    * @returns {string} Modified XML string.
    */
   replaceInXml(xmlString, search, replace, all = true) {
-    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const flags = all ? 'g' : '';
-    return xmlString.replace(new RegExp(escaped, flags), replace);
+    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const flags = all ? 'g' : ''
+    return xmlString.replace(new RegExp(escaped, flags), replace)
   }
 
   /**
@@ -265,13 +262,13 @@ class XMLParser {
    * @returns {string[]} Array of text strings found in the slide.
    */
   extractTextContent(xmlString) {
-    const texts = [];
-    const textPattern = /<a:t>([^<]*)<\/a:t>/g;
-    let match;
+    const texts = []
+    const textPattern = /<a:t>([^<]*)<\/a:t>/g
+    let match
     while ((match = textPattern.exec(xmlString)) !== null) {
-      if (match[1].trim()) texts.push(match[1]);
+      if (match[1].trim()) texts.push(match[1])
     }
-    return texts;
+    return texts
   }
 
   /**
@@ -282,14 +279,14 @@ class XMLParser {
    */
   validate(xmlString) {
     try {
-      this.parse(xmlString);
-      return { valid: true, error: null };
+      this.parse(xmlString)
+      return { valid: true, error: null }
     } catch (err) {
-      return { valid: false, error: err.message };
+      return { valid: false, error: err.message }
     }
   }
 }
 
 module.exports = {
-  XMLParser
-};
+  XMLParser,
+}

@@ -19,15 +19,15 @@
  * generateRelationshipId([])                 // → 'rId1'
  */
 function generateRelationshipId(existingIds) {
-  if (!existingIds || existingIds.length === 0) return 'rId1';
+  if (!existingIds || existingIds.length === 0) return 'rId1'
 
   const maxNum = existingIds.reduce((max, id) => {
-    const match = /^rId(\d+)$/.exec(id);
-    if (!match) return max;
-    return Math.max(max, parseInt(match[1], 10));
-  }, 0);
+    const match = /^rId(\d+)$/.exec(id)
+    if (!match) return max
+    return Math.max(max, parseInt(match[1], 10))
+  }, 0)
 
-  return `rId${maxNum + 1}`;
+  return `rId${maxNum + 1}`
 }
 
 /**
@@ -41,8 +41,8 @@ function generateRelationshipId(existingIds) {
  * parseRelationshipId('foo')   // → -1
  */
 function parseRelationshipId(rId) {
-  const match = /^rId(\d+)$/.exec(rId);
-  return match ? parseInt(match[1], 10) : -1;
+  const match = /^rId(\d+)$/.exec(rId)
+  return match ? parseInt(match[1], 10) : -1
 }
 
 /**
@@ -52,7 +52,7 @@ function parseRelationshipId(rId) {
  * @returns {boolean}
  */
 function isValidRelationshipId(str) {
-  return /^rId\d+$/.test(str);
+  return /^rId\d+$/.test(str)
 }
 
 /**
@@ -67,30 +67,29 @@ function isValidRelationshipId(str) {
  * remapRelationshipIds(xml, new Map([['rId1', 'rId5'], ['rId2', 'rId6']]));
  */
 function remapRelationshipIds(xml, idMap) {
-  let updated = xml;
+  let updated = xml
 
   // Sort by length descending to avoid partial replacements (e.g., rId1 replacing part of rId10)
-  const sortedEntries = Array.from(idMap.entries())
-    .sort(([a], [b]) => b.length - a.length);
+  const sortedEntries = Array.from(idMap.entries()).sort(([a], [b]) => b.length - a.length)
 
   for (const [oldId, newId] of sortedEntries) {
     // Replace rId references in attribute values: r:id="rId1", r:embed="rId1"
-    const pattern = new RegExp(`(r:[a-zA-Z]+=")${oldId}(")|rId="${oldId}(")`, 'g');
+    const pattern = new RegExp(`(r:[a-zA-Z]+=")${oldId}(")|rId="${oldId}(")`, 'g')
     updated = updated.replace(pattern, (match, pre, post) => {
-      if (pre) return `${pre}${newId}${post}`;
-      return match.replace(oldId, newId);
-    });
+      if (pre) return `${pre}${newId}${post}`
+      return match.replace(oldId, newId)
+    })
 
     // Simple global replace as fallback
-    updated = updated.split(`"${oldId}"`).join(`"${newId}"`);
+    updated = updated.split(`"${oldId}"`).join(`"${newId}"`)
   }
 
-  return updated;
+  return updated
 }
 
 module.exports = {
   generateRelationshipId,
   parseRelationshipId,
   isValidRelationshipId,
-  remapRelationshipIds
-};
+  remapRelationshipIds,
+}

@@ -38,9 +38,6 @@
  *   </p:sp>
  */
 
-const { generateUniqueId } = require('../utils/idUtils.js');
-const { PPTXError } = require('../utils/errors.js');
-
 /**
  * OpenXML namespace declarations used in slide XML.
  */
@@ -48,7 +45,7 @@ const SLIDE_NAMESPACES = [
   'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"',
   'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"',
   'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"',
-].join(' ');
+].join(' ')
 
 /**
  * EMU conversion constants.
@@ -60,7 +57,7 @@ const EMU = {
   SLIDE_WIDTH: 9144000,
   /** Slide height (7.5 inches = 6858000 EMU for 4:3, 5143500 for 16:9) */
   SLIDE_HEIGHT: 5143500,
-};
+}
 
 /**
  * Builds the XML for a new slide.
@@ -69,29 +66,26 @@ const EMU = {
  * @param {number} slideIndex - 1-based slide index (for unique IDs).
  * @returns {string} Complete slide XML string.
  */
-function buildNewSlideXml(options, slideIndex) {
-  const { title = '', elements = [], layout = 'blank', _rawXml } = options;
+function buildNewSlideXml(options, _slideIndex) {
+  const { title = '', elements = [], _layout = 'blank', _rawXml } = options
 
   // If raw XML is provided, use it directly (for clone/export operations)
-  if (_rawXml) return _rawXml;
+  if (_rawXml) return _rawXml
 
-  const shapes = [];
-  let shapeIdCounter = 1;
+  const shapes = []
+  let shapeIdCounter = 1
 
   // Add title shape if title is provided
   if (title) {
-    shapes.push(buildTitleShape(title, shapeIdCounter++));
+    shapes.push(buildTitleShape(title, shapeIdCounter++))
   }
 
   // Add element shapes
   for (const element of elements) {
-    shapes.push(buildElementShape(element, shapeIdCounter++));
+    shapes.push(buildElementShape(element, shapeIdCounter++))
   }
 
-  const spTreeContent = [
-    buildGroupShapeProps(),
-    ...shapes,
-  ].join('\n    ');
+  const spTreeContent = [buildGroupShapeProps(), ...shapes].join('\n    ')
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sld ${SLIDE_NAMESPACES} show="1">
@@ -103,7 +97,7 @@ function buildNewSlideXml(options, slideIndex) {
   <p:clrMapOvr>
     <a:masterClrMapping/>
   </p:clrMapOvr>
-</p:sld>`;
+</p:sld>`
 }
 
 /**
@@ -123,7 +117,7 @@ function buildGroupShapeProps() {
         <a:chOff x="0" y="0"/>
         <a:chExt cx="0" cy="0"/>
       </a:xfrm>
-    </p:grpSpPr>`;
+    </p:grpSpPr>`
 }
 
 /**
@@ -151,7 +145,7 @@ function buildTitleShape(title, shapeId) {
           </a:r>
         </a:p>
       </p:txBody>
-    </p:sp>`;
+    </p:sp>`
 }
 
 /**
@@ -164,13 +158,13 @@ function buildTitleShape(title, shapeId) {
 function buildElementShape(element, shapeId) {
   switch (element.type) {
     case 'text':
-      return buildTextShape(element, shapeId);
+      return buildTextShape(element, shapeId)
     case 'image':
-      return buildImagePlaceholder(element, shapeId);
+      return buildImagePlaceholder(element, shapeId)
     case 'shape':
-      return buildBasicShape(element, shapeId);
+      return buildBasicShape(element, shapeId)
     default:
-      return buildTextShape({ ...element, value: element.value || '' }, shapeId);
+      return buildTextShape({ ...element, value: element.value || '' }, shapeId)
   }
 }
 
@@ -192,10 +186,10 @@ function buildTextShape(element, shapeId) {
     bold = false,
     italic = false,
     name = `TextBox ${shapeId}`,
-  } = element;
+  } = element
 
-  const boldAttr = bold ? ' b="1"' : '';
-  const italicAttr = italic ? ' i="1"' : '';
+  const boldAttr = bold ? ' b="1"' : ''
+  const italicAttr = italic ? ' i="1"' : ''
 
   return `<p:sp>
       <p:nvSpPr>
@@ -223,7 +217,7 @@ function buildTextShape(element, shapeId) {
           </a:r>
         </a:p>
       </p:txBody>
-    </p:sp>`;
+    </p:sp>`
 }
 
 /**
@@ -242,7 +236,7 @@ function buildImagePlaceholder(element, shapeId) {
     width = 3 * EMU.INCH,
     height = 2 * EMU.INCH,
     name = `Image ${shapeId}`,
-  } = element;
+  } = element
 
   return `<p:pic>
       <p:nvPicPr>
@@ -261,7 +255,7 @@ function buildImagePlaceholder(element, shapeId) {
         </a:xfrm>
         <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
       </p:spPr>
-    </p:pic>`;
+    </p:pic>`
 }
 
 /**
@@ -280,7 +274,7 @@ function buildBasicShape(element, shapeId) {
     height = EMU.INCH,
     fillColor = 'FFFFFF',
     name = `Shape ${shapeId}`,
-  } = element;
+  } = element
 
   return `<p:sp>
       <p:nvSpPr>
@@ -296,7 +290,7 @@ function buildBasicShape(element, shapeId) {
         <a:prstGeom prst="${shape}"><a:avLst/></a:prstGeom>
         <a:solidFill><a:srgbClr val="${fillColor}"/></a:solidFill>
       </p:spPr>
-    </p:sp>`;
+    </p:sp>`
 }
 
 /**
@@ -310,10 +304,10 @@ function escapeXml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+    .replace(/'/g, '&apos;')
 }
 
 module.exports = {
   buildNewSlideXml,
-  EMU
-};
+  EMU,
+}

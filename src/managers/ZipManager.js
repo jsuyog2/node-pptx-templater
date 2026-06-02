@@ -13,13 +13,13 @@
  * raw file content within the ZIP.
  */
 
-const JSZip = require('jszip');
-const fsExtra = require('fs-extra');
-const { createLogger } = require('../utils/logger.js');
-const { PPTXError } = require('../utils/errors.js');
-const { BLANK_PPTX_BASE64 } = require('../templates/blankPptx.js');
+const JSZip = require('jszip')
+const fsExtra = require('fs-extra')
+const { createLogger } = require('../utils/logger.js')
+const { PPTXError } = require('../utils/errors.js')
+const { BLANK_PPTX_BASE64 } = require('../templates/blankPptx.js')
 
-const logger = createLogger('ZipManager');
+const logger = createLogger('ZipManager')
 
 /**
  * @class ZipManager
@@ -32,25 +32,25 @@ class ZipManager {
    * @private
    * @type {JSZip}
    */
-  #zip = null;
+  #zip = null
 
   /**
    * @private
    * @type {Map<string, string>} Cache of decoded XML strings for fast repeated access.
    */
-  #xmlCache = new Map();
+  #xmlCache = new Map()
 
   /**
    * @private
    * @type {Map<string, string>} Dirty (modified) files that need to be re-written.
    */
-  #dirtyFiles = new Map();
+  #dirtyFiles = new Map()
 
   /**
    * @private
    * @type {Map<string, string>} Core properties (dc:title, dc:creator, etc.)
    */
-  #coreProperties = new Map();
+  #coreProperties = new Map()
 
   /**
    * Loads a PPTX file from a path or Buffer.
@@ -61,22 +61,24 @@ class ZipManager {
    */
   async load(source) {
     try {
-      let data;
+      let data
       if (typeof source === 'string') {
-        logger.debug(`Reading file: ${source}`);
-        data = await fsExtra.readFile(source);
+        logger.debug(`Reading file: ${source}`)
+        data = await fsExtra.readFile(source)
       } else if (Buffer.isBuffer(source) || source instanceof Uint8Array) {
-        data = source;
+        data = source
       } else {
-        throw new PPTXError(`Invalid source type: ${typeof source}. Expected string path or Buffer.`);
+        throw new PPTXError(
+          `Invalid source type: ${typeof source}. Expected string path or Buffer.`
+        )
       }
 
-      this.#zip = await JSZip.loadAsync(data);
-      await this.#loadCoreProperties();
-      logger.debug(`ZIP loaded successfully. Files: ${Object.keys(this.#zip.files).length}`);
+      this.#zip = await JSZip.loadAsync(data)
+      await this.#loadCoreProperties()
+      logger.debug(`ZIP loaded successfully. Files: ${Object.keys(this.#zip.files).length}`)
     } catch (err) {
-      if (err instanceof PPTXError) throw err;
-      throw new PPTXError(`Failed to load PPTX: ${err.message}`, err);
+      if (err instanceof PPTXError) throw err
+      throw new PPTXError(`Failed to load PPTX: ${err.message}`, err)
     }
   }
 
@@ -85,10 +87,10 @@ class ZipManager {
    * @returns {Promise<void>}
    */
   async createBlank() {
-    const buffer = Buffer.from(BLANK_PPTX_BASE64, 'base64');
-    this.#zip = await JSZip.loadAsync(buffer);
-    await this.#loadCoreProperties();
-    logger.debug('Created blank PPTX structure');
+    const buffer = Buffer.from(BLANK_PPTX_BASE64, 'base64')
+    this.#zip = await JSZip.loadAsync(buffer)
+    await this.#loadCoreProperties()
+    logger.debug('Created blank PPTX structure')
   }
 
   /**
@@ -99,27 +101,27 @@ class ZipManager {
    */
   async readFile(zipPath) {
     // Normalize path separators
-    const normalPath = zipPath.replace(/\\/g, '/');
+    const normalPath = zipPath.replace(/\\/g, '/')
 
     // Return cached version if available and not dirty
     if (this.#xmlCache.has(normalPath) && !this.#dirtyFiles.has(normalPath)) {
-      return this.#xmlCache.get(normalPath);
+      return this.#xmlCache.get(normalPath)
     }
 
     // Check dirty files (pending writes)
     if (this.#dirtyFiles.has(normalPath)) {
-      return this.#dirtyFiles.get(normalPath);
+      return this.#dirtyFiles.get(normalPath)
     }
 
-    const file = this.#zip.file(normalPath);
+    const file = this.#zip.file(normalPath)
     if (!file) {
-      logger.debug(`File not found in ZIP: ${normalPath}`);
-      return null;
+      logger.debug(`File not found in ZIP: ${normalPath}`)
+      return null
     }
 
-    const content = await file.async('text');
-    this.#xmlCache.set(normalPath, content);
-    return content;
+    const content = await file.async('text')
+    this.#xmlCache.set(normalPath, content)
+    return content
   }
 
   /**
@@ -129,10 +131,10 @@ class ZipManager {
    * @returns {Promise<Uint8Array|null>} Binary content or null if not found.
    */
   async readBinaryFile(zipPath) {
-    const normalPath = zipPath.replace(/\\/g, '/');
-    const file = this.#zip.file(normalPath);
-    if (!file) return null;
-    return file.async('uint8array');
+    const normalPath = zipPath.replace(/\\/g, '/')
+    const file = this.#zip.file(normalPath)
+    if (!file) return null
+    return file.async('uint8array')
   }
 
   /**
@@ -143,12 +145,12 @@ class ZipManager {
    * @param {string} content - UTF-8 string content.
    */
   writeFile(zipPath, content) {
-    const normalPath = zipPath.replace(/\\/g, '/');
-    this.#dirtyFiles.set(normalPath, content);
-    this.#xmlCache.set(normalPath, content);
+    const normalPath = zipPath.replace(/\\/g, '/')
+    this.#dirtyFiles.set(normalPath, content)
+    this.#xmlCache.set(normalPath, content)
     // Also write to the underlying JSZip object
-    this.#zip.file(normalPath, content);
-    logger.debug(`Queued write: ${normalPath}`);
+    this.#zip.file(normalPath, content)
+    logger.debug(`Queued write: ${normalPath}`)
   }
 
   /**
@@ -158,23 +160,23 @@ class ZipManager {
    * @param {Buffer|Uint8Array} data - Binary data.
    */
   writeBinaryFile(zipPath, data) {
-    const normalPath = zipPath.replace(/\\/g, '/');
-    this.#zip.file(normalPath, data);
-    logger.debug(`Queued binary write: ${normalPath}`);
+    const normalPath = zipPath.replace(/\\/g, '/')
+    this.#zip.file(normalPath, data)
+    logger.debug(`Queued binary write: ${normalPath}`)
   }
 
   /**
    * @private
    * @type {Promise[]}
    */
-  #pendingPromises = [];
+  #pendingPromises = []
 
   /**
    * Adds a promise to the pending queue to be awaited before saving.
    * @param {Promise} promise
    */
   addPendingPromise(promise) {
-    this.#pendingPromises.push(promise);
+    this.#pendingPromises.push(promise)
   }
 
   /**
@@ -183,8 +185,8 @@ class ZipManager {
    */
   async waitForPendingWrites() {
     if (this.#pendingPromises.length > 0) {
-      await Promise.all(this.#pendingPromises);
-      this.#pendingPromises = [];
+      await Promise.all(this.#pendingPromises)
+      this.#pendingPromises = []
     }
   }
 
@@ -194,10 +196,10 @@ class ZipManager {
    * @param {string} zipPath - Path to remove.
    */
   removeFile(zipPath) {
-    const normalPath = zipPath.replace(/\\/g, '/');
-    this.#zip.remove(normalPath);
-    this.#xmlCache.delete(normalPath);
-    this.#dirtyFiles.delete(normalPath);
+    const normalPath = zipPath.replace(/\\/g, '/')
+    this.#zip.remove(normalPath)
+    this.#xmlCache.delete(normalPath)
+    this.#dirtyFiles.delete(normalPath)
   }
 
   /**
@@ -207,8 +209,8 @@ class ZipManager {
    * @returns {boolean}
    */
   hasFile(zipPath) {
-    const normalPath = zipPath.replace(/\\/g, '/');
-    return this.#zip.file(normalPath) !== null;
+    const normalPath = zipPath.replace(/\\/g, '/')
+    return this.#zip.file(normalPath) !== null
   }
 
   /**
@@ -218,9 +220,7 @@ class ZipManager {
    * @returns {string[]} Array of matching file paths.
    */
   listFiles(prefix = '') {
-    return Object.keys(this.#zip.files).filter(
-      f => !this.#zip.files[f].dir && f.startsWith(prefix)
-    );
+    return Object.keys(this.#zip.files).filter(f => !this.#zip.files[f].dir && f.startsWith(prefix))
   }
 
   /**
@@ -234,7 +234,7 @@ class ZipManager {
       type: 'nodebuffer',
       compression: 'DEFLATE',
       compressionOptions: { level: 6 },
-    });
+    })
   }
 
   /**
@@ -248,7 +248,7 @@ class ZipManager {
       compression: 'DEFLATE',
       compressionOptions: { level: 6 },
       streamFiles: true,
-    });
+    })
   }
 
   /**
@@ -258,7 +258,7 @@ class ZipManager {
    * @returns {string|undefined}
    */
   getCoreProperty(key) {
-    return this.#coreProperties.get(key);
+    return this.#coreProperties.get(key)
   }
 
   /**
@@ -269,7 +269,7 @@ class ZipManager {
    * @param {string} value - Property value.
    */
   setCoreProperty(key, value) {
-    this.#coreProperties.set(key, value);
+    this.#coreProperties.set(key, value)
   }
 
   /**
@@ -277,14 +277,14 @@ class ZipManager {
    * @private
    */
   async #loadCoreProperties() {
-    const coreXml = await this.readFile('docProps/core.xml');
-    if (!coreXml) return;
+    const coreXml = await this.readFile('docProps/core.xml')
+    if (!coreXml) return
 
     // Simple regex extraction for core properties (lightweight vs full parse)
-    const propPattern = /<(dc:[a-zA-Z]+|dcterms:[a-zA-Z]+)[^>]*>([^<]*)<\/\1>/g;
-    let match;
+    const propPattern = /<(dc:[a-zA-Z]+|dcterms:[a-zA-Z]+)[^>]*>([^<]*)<\/\1>/g
+    let match
     while ((match = propPattern.exec(coreXml)) !== null) {
-      this.#coreProperties.set(match[1], match[2]);
+      this.#coreProperties.set(match[1], match[2])
     }
   }
 
@@ -293,8 +293,8 @@ class ZipManager {
    * @returns {JSZip}
    */
   get rawZip() {
-    return this.#zip;
+    return this.#zip
   }
 }
 
-module.exports = { ZipManager };
+module.exports = { ZipManager }

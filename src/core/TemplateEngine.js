@@ -26,15 +26,15 @@
  * This "text normalization" approach correctly handles fragmented placeholders.
  */
 
-const { createLogger } = require('../utils/logger.js');
+const { createLogger } = require('../utils/logger.js')
 
-const logger = createLogger('TemplateEngine');
+const logger = createLogger('TemplateEngine')
 
 /**
  * Default placeholder pattern: {{key}}
  * Can be overridden per-call.
  */
-const DEFAULT_PLACEHOLDER_PATTERN = /\{\{([^{}]+)\}\}/g;
+const DEFAULT_PLACEHOLDER_PATTERN = /\{\{([^{}]+)\}\}/g
 
 /**
  * @class TemplateEngine
@@ -44,13 +44,13 @@ const DEFAULT_PLACEHOLDER_PATTERN = /\{\{([^{}]+)\}\}/g;
  */
 class TemplateEngine {
   /** @private @type {XMLParser} */
-  #xmlParser;
+  #xmlParser
 
   /**
    * @param {XMLParser} xmlParser
    */
   constructor(xmlParser) {
-    this.#xmlParser = xmlParser;
+    this.#xmlParser = xmlParser
   }
 
   /**
@@ -68,28 +68,28 @@ class TemplateEngine {
    *   '{{date}}': '2026-01-01'
    * });
    */
-  replaceTextInXml(slideXml, replacements, pattern = DEFAULT_PLACEHOLDER_PATTERN) {
+  replaceTextInXml(slideXml, replacements) {
     if (!replacements || Object.keys(replacements).length === 0) {
-      return slideXml;
+      return slideXml
     }
 
-    logger.debug(`Replacing ${Object.keys(replacements).length} placeholder(s)`);
+    logger.debug(`Replacing ${Object.keys(replacements).length} placeholder(s)`)
 
     // Step 1: Process paragraph by paragraph to handle fragmented runs
-    let updated = this.#processParagraphs(slideXml, replacements);
+    let updated = this.#processParagraphs(slideXml, replacements)
 
     // Step 2: Simple direct replacement for any remaining unfragmented placeholders
     for (const [placeholder, value] of Object.entries(replacements)) {
-      const escaped = this.#escapeXml(String(value));
-      const placeholderEscaped = this.#escapeXml(placeholder);
+      const escaped = this.#escapeXml(String(value))
+      const placeholderEscaped = this.#escapeXml(placeholder)
 
       // Replace the XML-escaped form (e.g., {{name}} as {{name}})
-      updated = updated.split(placeholderEscaped).join(escaped);
+      updated = updated.split(placeholderEscaped).join(escaped)
       // Replace the plain form (in case it's not escaped in the XML)
-      updated = updated.split(placeholder).join(escaped);
+      updated = updated.split(placeholder).join(escaped)
     }
 
-    return updated;
+    return updated
   }
 
   /**
@@ -103,30 +103,28 @@ class TemplateEngine {
    */
   #processParagraphs(slideXml, replacements) {
     // Find all <a:p>...</a:p> paragraphs
-    let updated = slideXml;
-    let offset = 0;
+    let updated = slideXml
+    let offset = 0
 
-    const paragraphPattern = /<a:p>([\s\S]*?)<\/a:p>/g;
-    let match;
+    const paragraphPattern = /<a:p>([\s\S]*?)<\/a:p>/g
+    let match
 
     while ((match = paragraphPattern.exec(slideXml)) !== null) {
-      const paragraphXml = match[0];
-      const processedParagraph = this.#processParagraph(paragraphXml, replacements);
+      const paragraphXml = match[0]
+      const processedParagraph = this.#processParagraph(paragraphXml, replacements)
 
       if (processedParagraph !== paragraphXml) {
-        // Replace in the updated string (adjust for offset changes)
-        const start = updated.indexOf(paragraphXml, match.index + offset - (match.index));
-
         // More reliable: replace from the beginning of the current search area
-        updated = updated.substring(0, match.index + offset) +
+        updated =
+          updated.substring(0, match.index + offset) +
           processedParagraph +
-          updated.substring(match.index + offset + paragraphXml.length);
+          updated.substring(match.index + offset + paragraphXml.length)
 
-        offset += processedParagraph.length - paragraphXml.length;
+        offset += processedParagraph.length - paragraphXml.length
       }
     }
 
-    return updated;
+    return updated
   }
 
   /**
@@ -139,32 +137,32 @@ class TemplateEngine {
    */
   #processParagraph(paragraphXml, replacements) {
     // Extract all text runs from this paragraph
-    const runs = this.#extractRuns(paragraphXml);
+    const runs = this.#extractRuns(paragraphXml)
 
-    if (runs.length === 0) return paragraphXml;
+    if (runs.length === 0) return paragraphXml
 
     // Combine text from all runs
-    const combinedText = runs.map(r => r.text).join('');
+    const combinedText = runs.map(r => r.text).join('')
 
     // Check if any placeholder appears in the combined text
-    let hasPlaceholder = false;
+    let hasPlaceholder = false
     for (const placeholder of Object.keys(replacements)) {
       if (combinedText.includes(placeholder)) {
-        hasPlaceholder = true;
-        break;
+        hasPlaceholder = true
+        break
       }
     }
 
-    if (!hasPlaceholder) return paragraphXml;
+    if (!hasPlaceholder) return paragraphXml
 
     // Perform replacement on combined text
-    let replacedText = combinedText;
+    let replacedText = combinedText
     for (const [placeholder, value] of Object.entries(replacements)) {
-      replacedText = replacedText.split(placeholder).join(String(value));
+      replacedText = replacedText.split(placeholder).join(String(value))
     }
 
     // Rebuild the paragraph: merge all runs into a single run using first run's format
-    return this.#mergeRunsWithText(paragraphXml, runs, replacedText);
+    return this.#mergeRunsWithText(paragraphXml, runs, replacedText)
   }
 
   /**
@@ -176,25 +174,25 @@ class TemplateEngine {
    * @returns {Array<{xml: string, text: string, start: number, end: number}>}
    */
   #extractRuns(paragraphXml) {
-    const runs = [];
-    const runPattern = /(<a:r(?:\s[^>]*)?>)([\s\S]*?)(<\/a:r>)/g;
-    let match;
+    const runs = []
+    const runPattern = /(<a:r(?:\s[^>]*)?>)([\s\S]*?)(<\/a:r>)/g
+    let match
 
     while ((match = runPattern.exec(paragraphXml)) !== null) {
-      const runXml = match[0];
+      const runXml = match[0]
       // Extract text from <a:t>...</a:t> within this run
-      const tMatch = /<a:t>([\s\S]*?)<\/a:t>/.exec(runXml);
-      const text = tMatch ? this.#unescapeXml(tMatch[1]) : '';
+      const tMatch = /<a:t>([\s\S]*?)<\/a:t>/.exec(runXml)
+      const text = tMatch ? this.#unescapeXml(tMatch[1]) : ''
 
       runs.push({
         xml: runXml,
         text,
         start: match.index,
         end: match.index + runXml.length,
-      });
+      })
     }
 
-    return runs;
+    return runs
   }
 
   /**
@@ -208,25 +206,23 @@ class TemplateEngine {
    * @returns {string} Updated paragraph XML.
    */
   #mergeRunsWithText(paragraphXml, runs, newText) {
-    if (runs.length === 0) return paragraphXml;
+    if (runs.length === 0) return paragraphXml
 
     // Use the first run as the format template
-    const firstRun = runs[0];
+    const firstRun = runs[0]
 
     // Build the replacement run: first run's format + new text
-    const mergedRunXml = this.#setRunText(firstRun.xml, this.#escapeXml(newText));
+    const mergedRunXml = this.#setRunText(firstRun.xml, this.#escapeXml(newText))
 
     // Build new paragraph:
     // Keep everything before first run, insert merged run, remove the rest,
     // keep everything after last run
-    const firstRunStart = firstRun.start;
-    const lastRunEnd = runs[runs.length - 1].end;
+    const firstRunStart = firstRun.start
+    const lastRunEnd = runs[runs.length - 1].end
 
     return (
-      paragraphXml.substring(0, firstRunStart) +
-      mergedRunXml +
-      paragraphXml.substring(lastRunEnd)
-    );
+      paragraphXml.substring(0, firstRunStart) + mergedRunXml + paragraphXml.substring(lastRunEnd)
+    )
   }
 
   /**
@@ -238,12 +234,12 @@ class TemplateEngine {
    * @returns {string} Updated run XML.
    */
   #setRunText(runXml, text) {
-    const tPattern = /(<a:t>)([\s\S]*?)(<\/a:t>)/;
+    const tPattern = /(<a:t>)([\s\S]*?)(<\/a:t>)/
     if (tPattern.test(runXml)) {
-      return runXml.replace(tPattern, `$1${text}$3`);
+      return runXml.replace(tPattern, `$1${text}$3`)
     }
     // If no <a:t>, add one before </a:r>
-    return runXml.replace('</a:r>', `<a:t>${text}</a:t></a:r>`);
+    return runXml.replace('</a:r>', `<a:t>${text}</a:t></a:r>`)
   }
 
   /**
@@ -254,7 +250,7 @@ class TemplateEngine {
    * @returns {boolean}
    */
   containsPlaceholders(text, replacements) {
-    return Object.keys(replacements).some(p => text.includes(p));
+    return Object.keys(replacements).some(p => text.includes(p))
   }
 
   /**
@@ -269,24 +265,24 @@ class TemplateEngine {
    * // → ['{{title}}', '{{date}}', '{{company}}']
    */
   extractPlaceholders(xml, pattern = DEFAULT_PLACEHOLDER_PATTERN) {
-    const placeholders = new Set();
-    const textPattern = /<a:t>([\s\S]*?)<\/a:t>/g;
-    let match;
+    const placeholders = new Set()
+    const textPattern = /<a:t>([\s\S]*?)<\/a:t>/g
+    let match
 
     // Extract text content first, then find placeholders
-    const allText = [];
+    const allText = []
     while ((match = textPattern.exec(xml)) !== null) {
-      allText.push(match[1]);
+      allText.push(match[1])
     }
 
-    const combined = allText.join('');
-    const plPattern = new RegExp(pattern.source, 'g');
-    let plMatch;
+    const combined = allText.join('')
+    const plPattern = new RegExp(pattern.source, 'g')
+    let plMatch
     while ((plMatch = plPattern.exec(combined)) !== null) {
-      placeholders.add(plMatch[0]);
+      placeholders.add(plMatch[0])
     }
 
-    return Array.from(placeholders);
+    return Array.from(placeholders)
   }
 
   /**
@@ -301,7 +297,7 @@ class TemplateEngine {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
+      .replace(/'/g, '&apos;')
   }
 
   /**
@@ -316,8 +312,8 @@ class TemplateEngine {
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
-      .replace(/&apos;/g, "'");
+      .replace(/&apos;/g, "'")
   }
 }
 
-module.exports = { TemplateEngine };
+module.exports = { TemplateEngine }

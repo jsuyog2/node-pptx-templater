@@ -5,9 +5,9 @@
  * attempt automatic repairs for common PPTX corruption issues.
  */
 
-const { XMLParser } = require('../parsers/XMLParser.js');
+const { XMLParser } = require('../parsers/XMLParser.js')
 
-const parser = new XMLParser();
+const parser = new XMLParser()
 
 /**
  * Validates that an XML string is well-formed.
@@ -20,7 +20,7 @@ const parser = new XMLParser();
  * if (!valid) console.error('XML error:', error);
  */
 function validateXML(xmlString) {
-  return parser.validate(xmlString);
+  return parser.validate(xmlString)
 }
 
 /**
@@ -39,39 +39,39 @@ function validateXML(xmlString) {
  * if (repaired) console.log('Repaired:', changes);
  */
 function repairXML(xmlString) {
-  const changes = [];
-  let xml = xmlString;
+  const changes = []
+  let xml = xmlString
 
   // Fix 1: Remove invalid XML control characters
-  const before = xml;
-  xml = xml.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
-  if (xml !== before) changes.push('Removed invalid control characters');
+  const before = xml
+  xml = xml.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+  if (xml !== before) changes.push('Removed invalid control characters')
 
   // Fix 2: Fix unescaped ampersands in text content (not in entities)
   // Match & not followed by valid entity patterns
-  const fixedAmp = xml.replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;');
+  const fixedAmp = xml.replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;')
   if (fixedAmp !== xml) {
-    xml = fixedAmp;
-    changes.push('Escaped unescaped ampersands');
+    xml = fixedAmp
+    changes.push('Escaped unescaped ampersands')
   }
 
   // Fix 3: Replace null bytes
   if (xml.includes('\x00')) {
-    xml = xml.replace(/\x00/g, '');
-    changes.push('Removed null bytes');
+    xml = xml.replace(/\x00/g, '')
+    changes.push('Removed null bytes')
   }
 
   // Fix 4: Ensure XML declaration is present
   if (!xml.trimStart().startsWith('<?xml')) {
-    xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + xml;
-    changes.push('Added missing XML declaration');
+    xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + xml
+    changes.push('Added missing XML declaration')
   }
 
   return {
     xml,
     repaired: changes.length > 0,
     changes,
-  };
+  }
 }
 
 /**
@@ -82,7 +82,7 @@ function repairXML(xmlString) {
  * @returns {boolean}
  */
 function xmlContainsElement(xmlString, elementName) {
-  return xmlString.includes(`<${elementName}`) || xmlString.includes(`<${elementName}>`);
+  return xmlString.includes(`<${elementName}`) || xmlString.includes(`<${elementName}>`)
 }
 
 /**
@@ -93,8 +93,8 @@ function xmlContainsElement(xmlString, elementName) {
  * @returns {number}
  */
 function countElements(xmlString, elementName) {
-  const pattern = new RegExp(`<${elementName}[\\s>/]`, 'g');
-  return (xmlString.match(pattern) || []).length;
+  const pattern = new RegExp(`<${elementName}[\\s>/]`, 'g')
+  return (xmlString.match(pattern) || []).length
 }
 
 /**
@@ -105,13 +105,13 @@ function countElements(xmlString, elementName) {
  * @returns {string[]} Array of attribute values found.
  */
 function extractAttributeValues(xmlString, attrName) {
-  const pattern = new RegExp(`${attrName.replace(':', '\\:')}="([^"]*)"`, 'g');
-  const values = [];
-  let match;
+  const pattern = new RegExp(`${attrName.replace(':', '\\:')}="([^"]*)"`, 'g')
+  const values = []
+  let match
   while ((match = pattern.exec(xmlString)) !== null) {
-    values.push(match[1]);
+    values.push(match[1])
   }
-  return values;
+  return values
 }
 
 module.exports = {
@@ -119,5 +119,5 @@ module.exports = {
   repairXML,
   xmlContainsElement,
   countElements,
-  extractAttributeValues
-};
+  extractAttributeValues,
+}

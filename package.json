@@ -1,6 +1,6 @@
 {
   "name": "node-pptx-templater",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Low-level PowerPoint OpenXML template engine for Node.js — generate and edit PPTX files directly through XML manipulation without relying on PowerPoint generation libraries.",
   "main": "./src/index.js",
   "type": "commonjs",

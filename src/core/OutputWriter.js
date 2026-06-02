@@ -8,15 +8,13 @@
  *  4. Write to file, buffer, or stream
  */
 
-const fsExtra = require('fs-extra');
-const { writeFile, ensureDir } = fsExtra;
-const path = require('path');
-const { XMLParser } = require('../parsers/XMLParser.js');
-const { createLogger } = require('../utils/logger.js');
-const { PPTXError } = require('../utils/errors.js');
-const { Readable } = require('stream');
-
-const logger = createLogger('OutputWriter');
+const fsExtra = require('fs-extra')
+const { writeFile, ensureDir } = fsExtra
+const path = require('path')
+const { XMLParser } = require('../parsers/XMLParser.js')
+const { createLogger } = require('../utils/logger.js')
+const { PPTXError } = require('../utils/errors.js')
+const logger = createLogger('OutputWriter')
 
 /**
  * @class OutputWriter
@@ -24,17 +22,17 @@ const logger = createLogger('OutputWriter');
  */
 class OutputWriter {
   /** @private @type {ZipManager} */
-  #zipManager;
+  #zipManager
   /** @private @type {ContentTypesManager} */
-  #contentTypesManager;
+  #contentTypesManager
 
   /**
    * @param {ZipManager} zipManager
    * @param {ContentTypesManager} contentTypesManager
    */
   constructor(zipManager, contentTypesManager) {
-    this.#zipManager = zipManager;
-    this.#contentTypesManager = contentTypesManager;
+    this.#zipManager = zipManager
+    this.#contentTypesManager = contentTypesManager
   }
 
   /**
@@ -48,14 +46,14 @@ class OutputWriter {
    */
   async saveToFile(filePath, slideManager, zipManager) {
     try {
-      const buffer = await this.toBuffer(slideManager, zipManager);
-      const dir = path.dirname(filePath);
-      await ensureDir(dir);
-      await writeFile(filePath, buffer);
-      logger.info(`Saved to ${filePath} (${(buffer.length / 1024).toFixed(1)} KB)`);
+      const buffer = await this.toBuffer(slideManager, zipManager)
+      const dir = path.dirname(filePath)
+      await ensureDir(dir)
+      await writeFile(filePath, buffer)
+      logger.info(`Saved to ${filePath} (${(buffer.length / 1024).toFixed(1)} KB)`)
     } catch (err) {
-      if (err instanceof PPTXError) throw err;
-      throw new PPTXError(`Failed to save file to ${filePath}: ${err.message}`, err);
+      if (err instanceof PPTXError) throw err
+      throw new PPTXError(`Failed to save file to ${filePath}: ${err.message}`, err)
     }
   }
 
@@ -68,17 +66,17 @@ class OutputWriter {
    */
   async toBuffer(slideManager, zipManager) {
     // Ensure all slides are flushed to the ZIP
-    await this.#flushAllSlides(slideManager, zipManager);
+    await this.#flushAllSlides(slideManager, zipManager)
 
     // Flush Content Types safely
-    this.#contentTypesManager.flush(zipManager);
+    this.#contentTypesManager.flush(zipManager)
 
     // Wait for any queued asynchronous writes (like content types, media hashing)
-    await zipManager.waitForPendingWrites();
+    await zipManager.waitForPendingWrites()
 
-    const buffer = await zipManager.toBuffer();
-    logger.debug(`Generated buffer: ${(buffer.length / 1024).toFixed(1)} KB`);
-    return buffer;
+    const buffer = await zipManager.toBuffer()
+    logger.debug(`Generated buffer: ${(buffer.length / 1024).toFixed(1)} KB`)
+    return buffer
   }
 
   /**
@@ -89,14 +87,14 @@ class OutputWriter {
    * @returns {Promise<Readable>}
    */
   async toStream(slideManager, zipManager) {
-    await this.#flushAllSlides(slideManager, zipManager);
+    await this.#flushAllSlides(slideManager, zipManager)
 
     // Flush Content Types safely
-    this.#contentTypesManager.flush(zipManager);
+    this.#contentTypesManager.flush(zipManager)
 
-    await zipManager.waitForPendingWrites();
-    const nodeStream = await zipManager.toStream();
-    return nodeStream;
+    await zipManager.waitForPendingWrites()
+    const nodeStream = await zipManager.toStream()
+    return nodeStream
   }
 
   /**
@@ -111,73 +109,76 @@ class OutputWriter {
   async #flushAllSlides(slideManager, zipManager) {
     // SlideManager already writes to zipManager via setSlideXml,
     // so this is mostly a no-op with a validation step.
-    const info = slideManager.getAllSlideInfo();
+    const info = slideManager.getAllSlideInfo()
 
     for (const slide of info) {
       if (!zipManager.hasFile(slide.zipPath)) {
-        logger.warn(`Slide file missing in ZIP: ${slide.zipPath}`);
+        logger.warn(`Slide file missing in ZIP: ${slide.zipPath}`)
       }
     }
 
     // Update the slide count and titles in docProps/app.xml to prevent repair mode issues
     if (zipManager.hasFile('docProps/app.xml')) {
       zipManager.addPendingPromise(
-        zipManager.rawZip.file('docProps/app.xml').async('text').then(content => {
-          const parser = new XMLParser();
-          const appObj = parser.parse(content, 'app.xml');
-          const properties = appObj.Properties;
+        zipManager.rawZip
+          .file('docProps/app.xml')
+          .async('text')
+          .then(content => {
+            const parser = new XMLParser()
+            const appObj = parser.parse(content, 'app.xml')
+            const properties = appObj.Properties
 
-          if (properties) {
-            // 1. Update Slides count
-            properties.Slides = info.length;
+            if (properties) {
+              // 1. Update Slides count
+              properties.Slides = info.length
 
-            // 2. Find old slide titles count and update HeadingPairs
-            let oldSlideTitlesCount = 0;
-            const variants = properties.HeadingPairs?.['vt:vector']?.['vt:variant'];
-            if (Array.isArray(variants)) {
-              for (let i = 0; i < variants.length; i++) {
-                if (variants[i]['vt:lpstr'] === 'Slide Titles') {
-                  const countVar = variants[i + 1];
-                  if (countVar) {
-                    oldSlideTitlesCount = parseInt(countVar['vt:i4'], 10) || 0;
-                    countVar['vt:i4'] = info.length;
+              // 2. Find old slide titles count and update HeadingPairs
+              let oldSlideTitlesCount = 0
+              const variants = properties.HeadingPairs?.['vt:vector']?.['vt:variant']
+              if (Array.isArray(variants)) {
+                for (let i = 0; i < variants.length; i++) {
+                  if (variants[i]['vt:lpstr'] === 'Slide Titles') {
+                    const countVar = variants[i + 1]
+                    if (countVar) {
+                      oldSlideTitlesCount = parseInt(countVar['vt:i4'], 10) || 0
+                      countVar['vt:i4'] = info.length
+                    }
+                    break
                   }
-                  break;
                 }
               }
-            }
 
-            // 3. Update TitlesOfParts
-            const titlesVector = properties.TitlesOfParts?.['vt:vector'];
-            if (titlesVector) {
-              let lpstrs = titlesVector['vt:lpstr'];
-              if (lpstrs) {
-                if (!Array.isArray(lpstrs)) lpstrs = [lpstrs];
+              // 3. Update TitlesOfParts
+              const titlesVector = properties.TitlesOfParts?.['vt:vector']
+              if (titlesVector) {
+                let lpstrs = titlesVector['vt:lpstr']
+                if (lpstrs) {
+                  if (!Array.isArray(lpstrs)) lpstrs = [lpstrs]
 
-                // Remove the old slide titles (which are at the end)
-                if (oldSlideTitlesCount > 0 && lpstrs.length >= oldSlideTitlesCount) {
-                  lpstrs = lpstrs.slice(0, lpstrs.length - oldSlideTitlesCount);
+                  // Remove the old slide titles (which are at the end)
+                  if (oldSlideTitlesCount > 0 && lpstrs.length >= oldSlideTitlesCount) {
+                    lpstrs = lpstrs.slice(0, lpstrs.length - oldSlideTitlesCount)
+                  }
+
+                  // Append new slide titles
+                  const newSlideTitles = info.map(slide => slide.title || `Slide ${slide.index}`)
+                  lpstrs.push(...newSlideTitles)
+
+                  titlesVector['vt:lpstr'] = lpstrs
+                  titlesVector['@_size'] = String(lpstrs.length)
                 }
-
-                // Append new slide titles
-                const newSlideTitles = info.map(slide => slide.title || `Slide ${slide.index}`);
-                lpstrs.push(...newSlideTitles);
-
-                titlesVector['vt:lpstr'] = lpstrs;
-                titlesVector['@_size'] = String(lpstrs.length);
               }
-            }
 
-            const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-            const updatedXml = parser.build(appObj, declaration);
-            zipManager.writeFile('docProps/app.xml', updatedXml);
-          }
-        })
-      );
+              const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+              const updatedXml = parser.build(appObj, declaration)
+              zipManager.writeFile('docProps/app.xml', updatedXml)
+            }
+          })
+      )
     }
 
-    logger.debug(`Flushed ${info.length} slide(s) to ZIP`);
+    logger.debug(`Flushed ${info.length} slide(s) to ZIP`)
   }
 }
 
-module.exports = { OutputWriter };
+module.exports = { OutputWriter }

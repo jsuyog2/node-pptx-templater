@@ -36,31 +36,12 @@
  *   Audio: MP3, WAV, M4A
  */
 
-const { createHash } = require('crypto');
-const { createLogger } = require('../utils/logger.js');
-const { PPTXError } = require('../utils/errors.js');
-const { REL_TYPES } = require('./RelationshipManager.js');
-const fsExtra = require('fs-extra');
+const { createHash } = require('crypto')
+const { createLogger } = require('../utils/logger.js')
+const { PPTXError } = require('../utils/errors.js')
+const fsExtra = require('fs-extra')
 
-const logger = createLogger('MediaManager');
-
-/**
- * MIME type to extension mapping for media files.
- */
-const MEDIA_TYPES = {
-  'image/png': 'png',
-  'image/jpeg': 'jpeg',
-  'image/jpg': 'jpg',
-  'image/gif': 'gif',
-  'image/svg+xml': 'svg',
-  'image/tiff': 'tiff',
-  'image/bmp': 'bmp',
-  'image/x-wmf': 'wmf',
-  'image/x-emf': 'emf',
-  'image/webp': 'webp',
-  'video/mp4': 'mp4',
-  'audio/mpeg': 'mp3',
-};
+const logger = createLogger('MediaManager')
 
 /**
  * Extension to MIME type mapping.
@@ -78,7 +59,7 @@ const EXT_TO_MIME = {
   webp: 'image/webp',
   mp4: 'video/mp4',
   mp3: 'audio/mpeg',
-};
+}
 
 /**
  * @class MediaManager
@@ -86,34 +67,34 @@ const EXT_TO_MIME = {
  */
 class MediaManager {
   /** @private @type {ContentTypesManager} */
-  #contentTypesManager;
+  #contentTypesManager
   /** @private @type {ZipManager} */
-  #zipManager;
+  #zipManager
 
   /**
    * @param {ContentTypesManager} contentTypesManager
    */
   constructor(contentTypesManager) {
-    this.#contentTypesManager = contentTypesManager;
+    this.#contentTypesManager = contentTypesManager
   }
 
   /**
    * Content hash → existing media ZIP path for deduplication.
    * @private @type {Map<string, string>}
    */
-  #mediaHashIndex = new Map();
+  #mediaHashIndex = new Map()
 
   /**
    * All known media files.
    * @private @type {Map<string, MediaInfo>}
    */
-  #mediaRegistry = new Map();
+  #mediaRegistry = new Map()
 
   /**
    * Counter for generating unique media file names.
    * @private @type {number}
    */
-  #nextMediaId = 1;
+  #nextMediaId = 1
 
   /**
    * Initializes by scanning existing media files in the PPTX.
@@ -122,33 +103,33 @@ class MediaManager {
    * @returns {Promise<void>}
    */
   async initialize(zipManager) {
-    this.#zipManager = zipManager;
-    const mediaFiles = zipManager.listFiles('ppt/media/');
+    this.#zipManager = zipManager
+    const mediaFiles = zipManager.listFiles('ppt/media/')
 
     // Index all existing media files by content hash for deduplication
     await Promise.all(
       mediaFiles.map(async mediaPath => {
-        const data = await zipManager.readBinaryFile(mediaPath);
+        const data = await zipManager.readBinaryFile(mediaPath)
         if (data) {
-          const hash = this.#hashBytes(data);
-          const ext = mediaPath.split('.').pop().toLowerCase();
-          const mimeType = EXT_TO_MIME[ext] || 'application/octet-stream';
+          const hash = this.#hashBytes(data)
+          const ext = mediaPath.split('.').pop().toLowerCase()
+          const mimeType = EXT_TO_MIME[ext] || 'application/octet-stream'
 
-          const mediaInfo = { zipPath: mediaPath, hash, mimeType, size: data.length };
-          this.#mediaHashIndex.set(hash, mediaPath);
-          this.#mediaRegistry.set(mediaPath, mediaInfo);
+          const mediaInfo = { zipPath: mediaPath, hash, mimeType, size: data.length }
+          this.#mediaHashIndex.set(hash, mediaPath)
+          this.#mediaRegistry.set(mediaPath, mediaInfo)
 
           // Track the highest media ID to avoid collisions
-          const numMatch = /\d+/.exec(mediaPath.split('/').pop());
+          const numMatch = /\d+/.exec(mediaPath.split('/').pop())
           if (numMatch) {
-            const num = parseInt(numMatch[0], 10);
-            if (num >= this.#nextMediaId) this.#nextMediaId = num + 1;
+            const num = parseInt(numMatch[0], 10)
+            if (num >= this.#nextMediaId) this.#nextMediaId = num + 1
           }
         }
       })
-    );
+    )
 
-    logger.debug(`Indexed ${this.#mediaRegistry.size} media file(s)`);
+    logger.debug(`Indexed ${this.#mediaRegistry.size} media file(s)`)
   }
 
   /**
@@ -156,7 +137,7 @@ class MediaManager {
    * @returns {number}
    */
   get mediaCount() {
-    return this.#mediaRegistry.size;
+    return this.#mediaRegistry.size
   }
 
   /**
@@ -169,44 +150,44 @@ class MediaManager {
    * @returns {Promise<string>} ZIP path of the embedded image (e.g., 'ppt/media/image5.png').
    */
   async embedImage(source, mimeType) {
-    let data;
-    let ext;
+    let data
+    let ext
 
     if (typeof source === 'string') {
       // Load from file path
-      data = await fsExtra.readFile(source);
-      ext = source.split('.').pop().toLowerCase();
-      mimeType = mimeType || EXT_TO_MIME[ext] || 'image/png';
+      data = await fsExtra.readFile(source)
+      ext = source.split('.').pop().toLowerCase()
+      mimeType = mimeType || EXT_TO_MIME[ext] || 'image/png'
     } else if (Buffer.isBuffer(source) || source instanceof Uint8Array) {
-      data = source;
+      data = source
       // Detect format from magic bytes
-      ext = this.#detectExtension(data);
-      mimeType = mimeType || EXT_TO_MIME[ext] || 'image/png';
+      ext = this.#detectExtension(data)
+      mimeType = mimeType || EXT_TO_MIME[ext] || 'image/png'
     } else {
-      throw new PPTXError('embedImage: source must be a file path string or Buffer');
+      throw new PPTXError('embedImage: source must be a file path string or Buffer')
     }
 
     // Check for duplicate (content-addressable dedup)
-    const hash = this.#hashBytes(data);
+    const hash = this.#hashBytes(data)
     if (this.#mediaHashIndex.has(hash)) {
-      const existingPath = this.#mediaHashIndex.get(hash);
-      logger.debug(`Reusing existing media: ${existingPath} (hash: ${hash.substring(0, 8)}...)`);
-      return existingPath;
+      const existingPath = this.#mediaHashIndex.get(hash)
+      logger.debug(`Reusing existing media: ${existingPath} (hash: ${hash.substring(0, 8)}...)`)
+      return existingPath
     }
 
     // Create a new media file
-    const mediaId = this.#nextMediaId++;
-    const zipPath = `ppt/media/image${mediaId}.${ext}`;
+    const mediaId = this.#nextMediaId++
+    const zipPath = `ppt/media/image${mediaId}.${ext}`
 
-    this.#zipManager.writeBinaryFile(zipPath, data);
-    this.#mediaHashIndex.set(hash, zipPath);
-    this.#mediaRegistry.set(zipPath, { zipPath, hash, mimeType, size: data.length });
+    this.#zipManager.writeBinaryFile(zipPath, data)
+    this.#mediaHashIndex.set(hash, zipPath)
+    this.#mediaRegistry.set(zipPath, { zipPath, hash, mimeType, size: data.length })
 
     // Register content type
-    this.#registerContentType(ext, mimeType);
+    this.#registerContentType(ext, mimeType)
 
-    logger.debug(`Embedded new media: ${zipPath} (${data.length} bytes)`);
-    return zipPath;
+    logger.debug(`Embedded new media: ${zipPath} (${data.length} bytes)`)
+    return zipPath
   }
 
   /**
@@ -223,7 +204,7 @@ class MediaManager {
    * @returns {string} XML snippet for the image.
    */
   buildImageXml(rId, opts) {
-    const { x = 0, y = 0, width = 2743200, height = 1828800, name = 'image', shapeId = 1 } = opts;
+    const { x = 0, y = 0, width = 2743200, height = 1828800, name = 'image', shapeId = 1 } = opts
 
     return `<p:pic>
   <p:nvPicPr>
@@ -244,7 +225,7 @@ class MediaManager {
     </a:xfrm>
     <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
   </p:spPr>
-</p:pic>`;
+</p:pic>`
   }
 
   /**
@@ -254,7 +235,7 @@ class MediaManager {
    * @returns {MediaInfo|undefined}
    */
   getMediaInfo(zipPath) {
-    return this.#mediaRegistry.get(zipPath);
+    return this.#mediaRegistry.get(zipPath)
   }
 
   /**
@@ -262,7 +243,7 @@ class MediaManager {
    * @returns {MediaInfo[]}
    */
   getAllMedia() {
-    return Array.from(this.#mediaRegistry.values());
+    return Array.from(this.#mediaRegistry.values())
   }
 
   /**
@@ -274,7 +255,7 @@ class MediaManager {
    * @returns {string} Hex digest.
    */
   #hashBytes(data) {
-    return createHash('sha1').update(data).digest('hex');
+    return createHash('sha1').update(data).digest('hex')
   }
 
   /**
@@ -285,25 +266,25 @@ class MediaManager {
    * @returns {string} File extension.
    */
   #detectExtension(data) {
-    const sig = data.slice(0, 8);
+    const sig = data.slice(0, 8)
 
     // PNG: 89 50 4E 47 0D 0A 1A 0A
-    if (sig[0] === 0x89 && sig[1] === 0x50) return 'png';
+    if (sig[0] === 0x89 && sig[1] === 0x50) return 'png'
     // JPEG: FF D8 FF
-    if (sig[0] === 0xFF && sig[1] === 0xD8) return 'jpg';
+    if (sig[0] === 0xff && sig[1] === 0xd8) return 'jpg'
     // GIF: 47 49 46
-    if (sig[0] === 0x47 && sig[1] === 0x49) return 'gif';
+    if (sig[0] === 0x47 && sig[1] === 0x49) return 'gif'
     // WEBP: 52 49 46 46 ... 57 45 42 50
-    if (sig[0] === 0x52 && sig[1] === 0x49 && sig[8] === 0x57) return 'webp';
+    if (sig[0] === 0x52 && sig[1] === 0x49 && sig[8] === 0x57) return 'webp'
     // BMP: 42 4D
-    if (sig[0] === 0x42 && sig[1] === 0x4D) return 'bmp';
+    if (sig[0] === 0x42 && sig[1] === 0x4d) return 'bmp'
 
-    return 'png'; // Default fallback
+    return 'png' // Default fallback
   }
 
   #registerContentType(ext, mimeType) {
-    this.#contentTypesManager.addDefault(ext, mimeType);
+    this.#contentTypesManager.addDefault(ext, mimeType)
   }
 }
 
-module.exports = { MediaManager };
+module.exports = { MediaManager }

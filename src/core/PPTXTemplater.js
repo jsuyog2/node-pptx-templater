@@ -24,21 +24,25 @@
  *     └── app.xml              — application metadata
  */
 
-const { ZipManager } = require('../managers/ZipManager.js');
-const { XMLParser } = require('../parsers/XMLParser.js');
-const { ContentTypesManager } = require('../managers/ContentTypesManager.js');
-const { SlideManager } = require('../managers/SlideManager.js');
-const { ChartManager } = require('../managers/ChartManager.js');
-const { TableManager } = require('../managers/TableManager.js');
-const { HyperlinkManager } = require('../managers/HyperlinkManager.js');
-const { MediaManager } = require('../managers/MediaManager.js');
-const { RelationshipManager } = require('../managers/RelationshipManager.js');
-const { OutputWriter } = require('./OutputWriter.js');
-const { TemplateEngine } = require('./TemplateEngine.js');
-const { createLogger } = require('../utils/logger.js');
-const { PPTXError } = require('../utils/errors.js');
+const { ZipManager } = require('../managers/ZipManager.js')
+const { XMLParser } = require('../parsers/XMLParser.js')
+const { ContentTypesManager } = require('../managers/ContentTypesManager.js')
+const { SlideManager } = require('../managers/SlideManager.js')
+const { ChartManager } = require('../managers/ChartManager.js')
+const { TableManager } = require('../managers/TableManager.js')
+const { HyperlinkManager } = require('../managers/HyperlinkManager.js')
+const { MediaManager } = require('../managers/MediaManager.js')
+const { RelationshipManager } = require('../managers/RelationshipManager.js')
+const { ShapeManager } = require('../managers/ShapeManager.js')
+const { ImageManager } = require('../managers/ImageManager.js')
+const { TextManager } = require('../managers/TextManager.js')
+const { ValidationEngine } = require('./ValidationEngine.js')
+const { OutputWriter } = require('./OutputWriter.js')
+const { TemplateEngine } = require('./TemplateEngine.js')
+const { createLogger } = require('../utils/logger.js')
+const { PPTXError } = require('../utils/errors.js')
 
-const logger = createLogger('PPTXTemplater');
+const logger = createLogger('PPTXTemplater')
 
 /**
  * @class PPTXTemplater
@@ -55,92 +59,117 @@ class PPTXTemplater {
    * @private
    * @type {ZipManager}
    */
-  #zipManager;
+  #zipManager
 
   /**
    * @private
    * @type {XMLParser}
    */
-  #xmlParser;
+  #xmlParser
 
   /**
    * @private
    * @type {ContentTypesManager}
    */
-  #contentTypesManager;
+  #contentTypesManager
 
   /**
    * @private
    * @type {SlideManager}
    */
-  #slideManager;
+  #slideManager
 
   /**
    * @private
    * @type {ChartManager}
    */
-  #chartManager;
+  #chartManager
 
   /**
    * @private
    * @type {TableManager}
    */
-  #tableManager;
+  #tableManager
 
   /**
    * @private
    * @type {HyperlinkManager}
    */
-  #hyperlinkManager;
+  #hyperlinkManager
 
   /**
    * @private
    * @type {MediaManager}
    */
-  #mediaManager;
+  #mediaManager
+
+  /**
+   * @private
+   * @type {ShapeManager}
+   */
+  #shapeManager
+
+  /**
+   * @private
+   * @type {ImageManager}
+   */
+  #imageManager
+
+  /**
+   * @private
+   * @type {TextManager}
+   */
+  #textManager
 
   /**
    * @private
    * @type {RelationshipManager}
    */
-  #relationshipManager;
+  #relationshipManager
 
   /**
    * @private
    * @type {OutputWriter}
    */
-  #outputWriter;
+  #outputWriter
 
   /**
    * @private
    * @type {TemplateEngine}
    */
-  #templateEngine;
+  #templateEngine
 
   /**
    * @private
    * @type {number[]} - Currently selected slide indices (1-based)
    */
-  #selectedSlides = [];
+  #selectedSlides = []
 
   /**
    * @private
    * @type {boolean}
    */
-  #loaded = false;
+  #loaded = false
 
   constructor() {
-    this.#xmlParser = new XMLParser();
-    this.#zipManager = new ZipManager();
-    this.#contentTypesManager = new ContentTypesManager(this.#xmlParser);
-    this.#relationshipManager = new RelationshipManager(this.#xmlParser);
-    this.#slideManager = new SlideManager(this.#xmlParser, this.#relationshipManager, this.#contentTypesManager);
-    this.#chartManager = new ChartManager(this.#xmlParser, this.#contentTypesManager);
-    this.#tableManager = new TableManager(this.#xmlParser);
-    this.#hyperlinkManager = new HyperlinkManager(this.#xmlParser, this.#relationshipManager);
-    this.#mediaManager = new MediaManager(this.#contentTypesManager);
-    this.#templateEngine = new TemplateEngine(this.#xmlParser);
-    this.#outputWriter = new OutputWriter(this.#zipManager, this.#contentTypesManager);
+    this.#xmlParser = new XMLParser()
+    this.#zipManager = new ZipManager()
+    this.#contentTypesManager = new ContentTypesManager(this.#xmlParser)
+    this.#relationshipManager = new RelationshipManager(this.#xmlParser)
+    this.#slideManager = new SlideManager(
+      this.#xmlParser,
+      this.#relationshipManager,
+      this.#contentTypesManager
+    )
+    this.#chartManager = new ChartManager(this.#xmlParser, this.#contentTypesManager)
+    this.#tableManager = new TableManager(this.#xmlParser)
+    this.#hyperlinkManager = new HyperlinkManager(this.#xmlParser, this.#relationshipManager)
+    this.#mediaManager = new MediaManager(this.#contentTypesManager)
+    this.#shapeManager = new ShapeManager(this.#xmlParser)
+    this.#imageManager = new ImageManager(this.#xmlParser)
+    this.#textManager = new TextManager(this.#xmlParser)
+    this.#templateEngine = new TemplateEngine(this.#xmlParser)
+    this.#outputWriter = new OutputWriter(this.#zipManager, this.#contentTypesManager)
   }
 
   /**
@@ -160,9 +189,9 @@ class PPTXTemplater {
    * const ppt = await PPTXTemplater.load(buffer);
    */
   static async load(source) {
-    const engine = new PPTXTemplater();
-    await engine.#initialize(source);
-    return engine;
+    const engine = new PPTXTemplater()
+    await engine.#initialize(source)
+    return engine
   }
 
   /**
@@ -177,9 +206,9 @@ class PPTXTemplater {
    * await ppt.saveToFile('./new.pptx');
    */
   static async create() {
-    const engine = new PPTXTemplater();
-    await engine.#initializeBlank();
-    return engine;
+    const engine = new PPTXTemplater()
+    await engine.#initializeBlank()
+    return engine
   }
 
   /**
@@ -188,31 +217,31 @@ class PPTXTemplater {
    * @param {string|Buffer} source
    */
   async #initialize(source) {
-    logger.debug(`Loading PPTX from ${typeof source === 'string' ? source : 'buffer'}`);
+    logger.debug(`Loading PPTX from ${typeof source === 'string' ? source : 'buffer'}`)
 
     // Load and extract the ZIP archive (PPTX is just a ZIP)
-    await this.#zipManager.load(source);
+    await this.#zipManager.load(source)
 
     // Initialize content types manager first!
-    await this.#contentTypesManager.initialize(this.#zipManager);
+    await this.#contentTypesManager.initialize(this.#zipManager)
 
     // Parse the core presentation relationships and structure
-    await this.#relationshipManager.initialize(this.#zipManager);
+    await this.#relationshipManager.initialize(this.#zipManager)
 
     // Load all slide references from presentation.xml
-    await this.#slideManager.initialize(this.#zipManager);
+    await this.#slideManager.initialize(this.#zipManager)
 
     // Pre-load all slide XML into cache to allow synchronous operations like replaceText()
-    await this.#slideManager.preloadAll();
+    await this.#slideManager.preloadAll()
 
     // Initialize chart manager with zip context
-    await this.#chartManager.initialize(this.#zipManager);
+    await this.#chartManager.initialize(this.#zipManager)
 
     // Deduplicate and index media files
-    await this.#mediaManager.initialize(this.#zipManager);
+    await this.#mediaManager.initialize(this.#zipManager)
 
-    this.#loaded = true;
-    logger.debug(`Loaded ${this.#slideManager.slideCount} slides successfully`);
+    this.#loaded = true
+    logger.debug(`Loaded ${this.#slideManager.slideCount} slides successfully`)
   }
 
   /**
@@ -220,13 +249,13 @@ class PPTXTemplater {
    * @private
    */
   async #initializeBlank() {
-    await this.#zipManager.createBlank();
-    await this.#contentTypesManager.initialize(this.#zipManager);
-    await this.#relationshipManager.initialize(this.#zipManager);
-    await this.#slideManager.initialize(this.#zipManager);
-    await this.#chartManager.initialize(this.#zipManager);
-    await this.#mediaManager.initialize(this.#zipManager);
-    this.#loaded = true;
+    await this.#zipManager.createBlank()
+    await this.#contentTypesManager.initialize(this.#zipManager)
+    await this.#relationshipManager.initialize(this.#zipManager)
+    await this.#slideManager.initialize(this.#zipManager)
+    await this.#chartManager.initialize(this.#zipManager)
+    await this.#mediaManager.initialize(this.#zipManager)
+    this.#loaded = true
   }
 
   /**
@@ -235,7 +264,7 @@ class PPTXTemplater {
    */
   #assertLoaded() {
     if (!this.#loaded) {
-      throw new PPTXError('Engine not initialized. Call PPTXTemplater.load() first.');
+      throw new PPTXError('Engine not initialized. Call PPTXTemplater.load() first.')
     }
   }
 
@@ -253,10 +282,10 @@ class PPTXTemplater {
    * ppt.useSlide('intro');     // Select by custom tag
    */
   useSlide(...slideRefs) {
-    this.#assertLoaded();
-    this.#selectedSlides = slideRefs;
-    logger.debug(`Selected slides: ${slideRefs.join(', ')}`);
-    return this;
+    this.#assertLoaded()
+    this.#selectedSlides = slideRefs
+    logger.debug(`Selected slides: ${slideRefs.join(', ')}`)
+    return this
   }
 
   /**
@@ -264,9 +293,9 @@ class PPTXTemplater {
    * @returns {PPTXTemplater} this (chainable)
    */
   useAllSlides() {
-    this.#assertLoaded();
-    this.#selectedSlides = [];
-    return this;
+    this.#assertLoaded()
+    this.#selectedSlides = []
+    return this
   }
 
   /**
@@ -277,13 +306,13 @@ class PPTXTemplater {
    */
   #getTargetSlideIndices() {
     if (this.#selectedSlides.length === 0) {
-      return this.#slideManager.getAllSlideIndices();
+      return this.#slideManager.getAllSlideIndices()
     }
     return this.#selectedSlides.flatMap(ref => {
-      if (typeof ref === 'number') return [ref];
+      if (typeof ref === 'number') return [ref]
       // Resolve by tag or ID
-      return this.#slideManager.resolveSlideRef(ref);
-    });
+      return this.#slideManager.resolveSlideRef(ref)
+    })
   }
 
   /**
@@ -301,17 +330,19 @@ class PPTXTemplater {
    * });
    */
   replaceText(replacements) {
-    this.#assertLoaded();
-    const targetIndices = this.#getTargetSlideIndices();
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
 
     for (const slideIndex of targetIndices) {
-      const slideXml = this.#slideManager.getSlideXml(slideIndex);
-      const updated = this.#templateEngine.replaceTextInXml(slideXml, replacements);
-      this.#slideManager.setSlideXml(slideIndex, updated);
+      const slideXml = this.#slideManager.getSlideXml(slideIndex)
+      const updated = this.#templateEngine.replaceTextInXml(slideXml, replacements)
+      this.#slideManager.setSlideXml(slideIndex, updated)
     }
 
-    logger.debug(`Replaced ${Object.keys(replacements).length} placeholder(s) in ${targetIndices.length} slide(s)`);
-    return this;
+    logger.debug(
+      `Replaced ${Object.keys(replacements).length} placeholder(s) in ${targetIndices.length} slide(s)`
+    )
+    return this
   }
 
   /**
@@ -334,8 +365,8 @@ class PPTXTemplater {
    * });
    */
   updateChart(chartId, data) {
-    this.#assertLoaded();
-    const targetIndices = this.#getTargetSlideIndices();
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
 
     for (const slideIndex of targetIndices) {
       this.#chartManager.updateChart(
@@ -344,11 +375,11 @@ class PPTXTemplater {
         data,
         this.#slideManager,
         this.#relationshipManager
-      );
+      )
     }
 
-    logger.debug(`Updated chart "${chartId}" in ${targetIndices.length} slide(s)`);
-    return this;
+    logger.debug(`Updated chart "${chartId}" in ${targetIndices.length} slide(s)`)
+    return this
   }
 
   /**
@@ -367,15 +398,15 @@ class PPTXTemplater {
    * ]);
    */
   updateTable(tableId, rows) {
-    this.#assertLoaded();
-    const targetIndices = this.#getTargetSlideIndices();
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
 
     for (const slideIndex of targetIndices) {
-      this.#tableManager.updateTable(slideIndex, tableId, rows, this.#slideManager);
+      this.#tableManager.updateTable(slideIndex, tableId, rows, this.#slideManager)
     }
 
-    logger.debug(`Updated table "${tableId}" in ${targetIndices.length} slide(s)`);
-    return this;
+    logger.debug(`Updated table "${tableId}" in ${targetIndices.length} slide(s)`)
+    return this
   }
 
   /**
@@ -391,8 +422,8 @@ class PPTXTemplater {
    * ppt.addHyperlink({ text: 'Open Website', url: 'https://example.com' });
    */
   addHyperlink(options) {
-    this.#assertLoaded();
-    const targetIndices = this.#getTargetSlideIndices();
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
 
     for (const slideIndex of targetIndices) {
       this.#hyperlinkManager.addExternalHyperlink(
@@ -400,10 +431,10 @@ class PPTXTemplater {
         options,
         this.#slideManager,
         this.#relationshipManager
-      );
+      )
     }
 
-    return this;
+    return this
   }
 
   /**
@@ -416,8 +447,8 @@ class PPTXTemplater {
    * @returns {PPTXTemplater} this (chainable)
    */
   addSlideLink(options) {
-    this.#assertLoaded();
-    const { sourceSlide, targetSlide, element } = options;
+    this.#assertLoaded()
+    const { sourceSlide, targetSlide, element } = options
 
     // Fallback: If no element text is provided, link the slide number (legacy behavior)
     if (!element) {
@@ -426,7 +457,7 @@ class PPTXTemplater {
         targetSlide,
         this.#slideManager,
         this.#relationshipManager
-      );
+      )
     } else {
       // Add a slide hyperlink on specific text
       this.#hyperlinkManager.addTextSlideLink(
@@ -435,9 +466,9 @@ class PPTXTemplater {
         targetSlide,
         this.#slideManager,
         this.#relationshipManager
-      );
+      )
     }
-    return this;
+    return this
   }
 
   /**
@@ -450,15 +481,15 @@ class PPTXTemplater {
    * @returns {PPTXTemplater} this
    */
   addImageLink(options) {
-    this.#assertLoaded();
+    this.#assertLoaded()
     this.#hyperlinkManager.addShapeSlideLink(
       options.slide,
       options.imageId,
       options.targetSlide,
       this.#slideManager,
       this.#relationshipManager
-    );
-    return this;
+    )
+    return this
   }
 
   /**
@@ -471,15 +502,15 @@ class PPTXTemplater {
    * @returns {PPTXTemplater} this
    */
   addShapeLink(options) {
-    this.#assertLoaded();
+    this.#assertLoaded()
     this.#hyperlinkManager.addShapeSlideLink(
       options.slide,
       options.shapeId,
       options.targetSlide,
       this.#slideManager,
       this.#relationshipManager
-    );
-    return this;
+    )
+    return this
   }
 
   /**
@@ -492,10 +523,10 @@ class PPTXTemplater {
    * @returns {PPTXTemplater} this (chainable)
    */
   addTextNavigationLink(options) {
-    this.#assertLoaded();
-    const { slide, element, action } = options;
-    this.#hyperlinkManager.addTextNavigationLink(slide, element, action, this.#slideManager);
-    return this;
+    this.#assertLoaded()
+    const { slide, element, action } = options
+    this.#hyperlinkManager.addTextNavigationLink(slide, element, action, this.#slideManager)
+    return this
   }
 
   /**
@@ -508,10 +539,10 @@ class PPTXTemplater {
    * @returns {PPTXTemplater} this (chainable)
    */
   addShapeNavigationLink(options) {
-    this.#assertLoaded();
-    const { slide, shapeId, action } = options;
-    this.#hyperlinkManager.addShapeNavigationLink(slide, shapeId, action, this.#slideManager);
-    return this;
+    this.#assertLoaded()
+    const { slide, shapeId, action } = options
+    this.#hyperlinkManager.addShapeNavigationLink(slide, shapeId, action, this.#slideManager)
+    return this
   }
 
   /**
@@ -534,10 +565,10 @@ class PPTXTemplater {
    * });
    */
   addSlide(options = {}) {
-    this.#assertLoaded();
-    this.#slideManager.addNewSlide(options, this.#relationshipManager, this.#mediaManager);
-    logger.debug(`Added new slide: "${options.title || 'Untitled'}"`);
-    return this;
+    this.#assertLoaded()
+    this.#slideManager.addNewSlide(options, this.#relationshipManager, this.#mediaManager)
+    logger.debug(`Added new slide: "${options.title || 'Untitled'}"`)
+    return this
   }
 
   /**
@@ -548,9 +579,9 @@ class PPTXTemplater {
    * @returns {PPTXTemplater} this (chainable)
    */
   cloneSlide(sourceSlideNumber, atPosition) {
-    this.#assertLoaded();
-    this.#slideManager.cloneSlide(sourceSlideNumber, atPosition, this.#relationshipManager);
-    return this;
+    this.#assertLoaded()
+    this.#slideManager.cloneSlide(sourceSlideNumber, atPosition, this.#relationshipManager)
+    return this
   }
 
   /**
@@ -560,9 +591,9 @@ class PPTXTemplater {
    * @returns {PPTXTemplater} this (chainable)
    */
   removeSlide(slideNumber) {
-    this.#assertLoaded();
-    this.#slideManager.removeSlide(slideNumber);
-    return this;
+    this.#assertLoaded()
+    this.#slideManager.removeSlide(slideNumber)
+    return this
   }
 
   /**
@@ -575,9 +606,9 @@ class PPTXTemplater {
    * ppt.reorderSlides([3, 1, 2]); // Move slide 3 to position 1
    */
   reorderSlides(order) {
-    this.#assertLoaded();
-    this.#slideManager.reorderSlides(order);
-    return this;
+    this.#assertLoaded()
+    this.#slideManager.reorderSlides(order)
+    return this
   }
 
   /**
@@ -592,9 +623,9 @@ class PPTXTemplater {
    * ppt.useSlide('intro').replaceText({ '{{title}}': 'Hello' });
    */
   tagSlide(slideNumber, tag) {
-    this.#assertLoaded();
-    this.#slideManager.tagSlide(slideNumber, tag);
-    return this;
+    this.#assertLoaded()
+    this.#slideManager.tagSlide(slideNumber, tag)
+    return this
   }
 
   /**
@@ -609,8 +640,8 @@ class PPTXTemplater {
    * await subset.saveToFile('./subset.pptx');
    */
   async exportSlides(...slideNumbers) {
-    this.#assertLoaded();
-    return this.#slideManager.exportSlides(slideNumbers, this);
+    this.#assertLoaded()
+    return this.#slideManager.exportSlides(slideNumbers, this)
   }
 
   /**
@@ -622,9 +653,9 @@ class PPTXTemplater {
    * @returns {Promise<PPTXTemplater>} this (chainable)
    */
   async importSlideFrom(sourceEngine, slideRef) {
-    this.#assertLoaded();
-    await this.#slideManager.importSlide(sourceEngine, slideRef, this.#mediaManager);
-    return this;
+    this.#assertLoaded()
+    await this.#slideManager.importSlide(sourceEngine, slideRef, this.#mediaManager)
+    return this
   }
 
   /**
@@ -639,32 +670,34 @@ class PPTXTemplater {
    * ppt.importSlides([1, 3, 5]);
    */
   importSlides(slideIndices) {
-    this.#assertLoaded();
-    const slidesToKeep = slideIndices.map(i => this.#slideManager.getSlideInfo(i).slideId);
+    this.#assertLoaded()
+    const slidesToKeep = slideIndices.map(i => this.#slideManager.getSlideInfo(i).slideId)
 
     // Remove unneeded slides from highest to lowest index to avoid shifting issues
-    const allIndices = this.#slideManager.getAllSlideIndices();
+    const allIndices = this.#slideManager.getAllSlideIndices()
     for (let i = allIndices.length; i >= 1; i--) {
-      const info = this.#slideManager.getSlideInfo(i);
+      const info = this.#slideManager.getSlideInfo(i)
       if (!slidesToKeep.includes(info.slideId)) {
-        this.#slideManager.removeSlide(i);
+        this.#slideManager.removeSlide(i)
       }
     }
 
     // Calculate new target order based on the requested slideIndices
-    const currentOrder = this.#slideManager.getAllSlideIndices().map(i => this.#slideManager.getSlideInfo(i).slideId);
+    const currentOrder = this.#slideManager
+      .getAllSlideIndices()
+      .map(i => this.#slideManager.getSlideInfo(i).slideId)
 
     const newOrder = slidesToKeep.map(id => {
-      return currentOrder.indexOf(id) + 1;
-    });
+      return currentOrder.indexOf(id) + 1
+    })
 
     // Only reorder if needed
     if (newOrder.join(',') !== currentOrder.map((_, i) => i + 1).join(',')) {
-      this.#slideManager.reorderSlides(newOrder);
+      this.#slideManager.reorderSlides(newOrder)
     }
 
-    logger.debug(`Imported ${slideIndices.length} slide(s).`);
-    return this;
+    logger.debug(`Imported ${slideIndices.length} slide(s).`)
+    return this
   }
 
   /**
@@ -673,7 +706,7 @@ class PPTXTemplater {
    * @returns {PresentationInfo} Metadata object.
    */
   getInfo() {
-    this.#assertLoaded();
+    this.#assertLoaded()
     return {
       slideCount: this.#slideManager.slideCount,
       title: this.#zipManager.getCoreProperty('dc:title') || '',
@@ -682,7 +715,7 @@ class PPTXTemplater {
       modified: this.#zipManager.getCoreProperty('dcterms:modified') || '',
       slides: this.#slideManager.getAllSlideInfo(),
       mediaCount: this.#mediaManager.mediaCount,
-    };
+    }
   }
 
   /**
@@ -692,8 +725,8 @@ class PPTXTemplater {
    * @returns {ValidationResult} Object with `valid`, `errors`, and `warnings` arrays.
    */
   validate() {
-    this.#assertLoaded();
-    return this.#slideManager.validateStructure(this.#relationshipManager, this.#zipManager);
+    this.#assertLoaded()
+    return this.#slideManager.validateStructure(this.#relationshipManager, this.#zipManager)
   }
 
   /**
@@ -703,16 +736,16 @@ class PPTXTemplater {
    * @returns {Promise<PPTXTemplater>} this (chainable)
    */
   async repair() {
-    this.#assertLoaded();
+    this.#assertLoaded()
 
     // 1. Rebuild presentation.xml slide mappings
-    this.#slideManager.rebuildPresentationSlideOrder();
+    this.#slideManager.rebuildPresentationSlideOrder()
 
     // 2. Remove orphan relationships
-    this.#relationshipManager.removeOrphanRelationships(this.#zipManager);
+    this.#relationshipManager.removeOrphanRelationships(this.#zipManager)
 
-    logger.info('PPTX repair complete.');
-    return this;
+    logger.info('PPTX repair complete.')
+    return this
   }
 
   /**
@@ -720,15 +753,17 @@ class PPTXTemplater {
    * @returns {PPTXTemplater} this (chainable)
    */
   debugRelationships() {
-    this.#assertLoaded();
-    const files = this.#zipManager.listFiles('').filter(f => f.endsWith('.rels'));
-    console.log('=== Relationship Graph ===');
+    this.#assertLoaded()
+    const files = this.#zipManager.listFiles('').filter(f => f.endsWith('.rels'))
+    console.log('=== Relationship Graph ===')
     for (const file of files) {
-      console.log(`\n${file}:`);
-      const rels = this.#relationshipManager.getRelationships(file.replace('_rels/', '').replace('.rels', ''));
-      rels.forEach(r => console.log(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`));
+      console.log(`\n${file}:`)
+      const rels = this.#relationshipManager.getRelationships(
+        file.replace('_rels/', '').replace('.rels', '')
+      )
+      rels.forEach(r => console.log(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`))
     }
-    return this;
+    return this
   }
 
   /**
@@ -737,21 +772,21 @@ class PPTXTemplater {
    * @returns {PPTXTemplater} this (chainable)
    */
   inspectSlide(slideIndex) {
-    this.#assertLoaded();
-    const info = this.#slideManager.getSlideInfo(slideIndex);
-    const xml = this.#slideManager.getSlideXml(slideIndex);
-    const rels = this.#relationshipManager.getRelationships(info.zipPath);
+    this.#assertLoaded()
+    const info = this.#slideManager.getSlideInfo(slideIndex)
+    const xml = this.#slideManager.getSlideXml(slideIndex)
+    const rels = this.#relationshipManager.getRelationships(info.zipPath)
 
-    console.log(`=== Slide ${slideIndex} Inspection ===`);
-    console.log(`Path: ${info.zipPath}`);
-    console.log(`ID: ${info.slideId}`);
-    console.log(`rId: ${info.relationshipId}`);
-    console.log(`Title: ${info.title}`);
-    console.log(`XML Size: ${xml.length} characters`);
-    console.log(`Relationships (${rels.length}):`);
-    rels.forEach(r => console.log(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`));
+    console.log(`=== Slide ${slideIndex} Inspection ===`)
+    console.log(`Path: ${info.zipPath}`)
+    console.log(`ID: ${info.slideId}`)
+    console.log(`rId: ${info.relationshipId}`)
+    console.log(`Title: ${info.title}`)
+    console.log(`XML Size: ${xml.length} characters`)
+    console.log(`Relationships (${rels.length}):`)
+    rels.forEach(r => console.log(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`))
 
-    return this;
+    return this
   }
 
   /**
@@ -760,15 +795,15 @@ class PPTXTemplater {
    * @returns {Promise<PPTXTemplater>} this (chainable)
    */
   async inspectXML(xmlPath) {
-    this.#assertLoaded();
-    const xml = await this.#zipManager.readFile(xmlPath);
-    console.log(`=== XML Inspection: ${xmlPath} ===`);
+    this.#assertLoaded()
+    const xml = await this.#zipManager.readFile(xmlPath)
+    console.log(`=== XML Inspection: ${xmlPath} ===`)
     if (!xml) {
-      console.log('(File not found or empty)');
+      console.log('(File not found or empty)')
     } else {
-      console.log(xml.substring(0, 1500) + (xml.length > 1500 ? '...\n[Truncated]' : ''));
+      console.log(xml.substring(0, 1500) + (xml.length > 1500 ? '...\n[Truncated]' : ''))
     }
-    return this;
+    return this
   }
 
   /**
@@ -778,26 +813,29 @@ class PPTXTemplater {
    * @returns {Promise<Object>} Validation results for charts.
    */
   async validateCharts() {
-    this.#assertLoaded();
-    const issues = { valid: true, errors: [], warnings: [] };
+    this.#assertLoaded()
+    const issues = { valid: true, errors: [], warnings: [] }
 
     // We lazy require ChartRelationshipManager so we don't circularly depend if not needed
-    const { ChartRelationshipManager } = require('../managers/charts/ChartRelationshipManager.js');
+    const { ChartRelationshipManager } = require('../managers/charts/ChartRelationshipManager.js')
 
-    const chartFiles = this.#zipManager.listFiles('ppt/charts/')
-      .filter(f => {
-        const name = f.split('/').pop();
-        return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels');
-      });
+    const chartFiles = this.#zipManager.listFiles('ppt/charts/').filter(f => {
+      const name = f.split('/').pop()
+      return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels')
+    })
 
     for (const chartPath of chartFiles) {
-      const relIssues = ChartRelationshipManager.validateChartRelationships(this.#relationshipManager, this.#zipManager, chartPath);
-      issues.errors.push(...relIssues.errors);
-      issues.warnings.push(...relIssues.warnings);
+      const relIssues = ChartRelationshipManager.validateChartRelationships(
+        this.#relationshipManager,
+        this.#zipManager,
+        chartPath
+      )
+      issues.errors.push(...relIssues.errors)
+      issues.warnings.push(...relIssues.warnings)
     }
 
-    if (issues.errors.length > 0) issues.valid = false;
-    return issues;
+    if (issues.errors.length > 0) issues.valid = false
+    return issues
   }
 
   /**
@@ -807,34 +845,40 @@ class PPTXTemplater {
    * @returns {Promise<PPTXTemplater>} this
    */
   async repairCharts() {
-    this.#assertLoaded();
-    logger.info('Repairing charts...');
+    this.#assertLoaded()
+    logger.info('Repairing charts...')
 
     // Check all charts for missing embedded workbooks
-    const chartFiles = this.#zipManager.listFiles('ppt/charts/')
-      .filter(f => {
-        const name = f.split('/').pop();
-        return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels');
-      });
+    const chartFiles = this.#zipManager.listFiles('ppt/charts/').filter(f => {
+      const name = f.split('/').pop()
+      return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels')
+    })
     for (const chartPath of chartFiles) {
-      const rels = this.#relationshipManager.getRelationshipsByType(chartPath, 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/package');
+      const rels = this.#relationshipManager.getRelationshipsByType(
+        chartPath,
+        'http://schemas.openxmlformats.org/officeDocument/2006/relationships/package'
+      )
       for (const rel of rels) {
-        const xlsxPath = this.#relationshipManager.resolveTarget(chartPath, rel.target);
+        const xlsxPath = this.#relationshipManager.resolveTarget(chartPath, rel.target)
         if (!this.#zipManager.hasFile(xlsxPath)) {
-          logger.warn(`Chart ${chartPath} has broken workbook reference ${rel.id}, removing to prevent repair mode.`);
-          this.#relationshipManager.removeRelationship(chartPath, rel.id);
+          logger.warn(
+            `Chart ${chartPath} has broken workbook reference ${rel.id}, removing to prevent repair mode.`
+          )
+          this.#relationshipManager.removeRelationship(chartPath, rel.id)
 
           // Also strip c:externalData from chart XML to prevent PowerPoint looking for it
-          const xml = await this.#zipManager.readFile(chartPath);
+          const xml = await this.#zipManager.readFile(chartPath)
           if (xml) {
-            const updated = xml.replace(/<c:externalData[^>]*r:id="[^"]*"[^>]*>/, '').replace(/<\/c:externalData>/, '');
-            this.#zipManager.writeFile(chartPath, updated);
+            const updated = xml
+              .replace(/<c:externalData[^>]*r:id="[^"]*"[^>]*>/, '')
+              .replace(/<\/c:externalData>/, '')
+            this.#zipManager.writeFile(chartPath, updated)
           }
         }
       }
     }
 
-    return this;
+    return this
   }
 
   /**
@@ -843,25 +887,31 @@ class PPTXTemplater {
    * @param {string} chartId
    */
   inspectChart(chartId) {
-    this.#assertLoaded();
-    console.log(`=== Chart Inspection: ${chartId} ===`);
+    this.#assertLoaded()
+    console.log(`=== Chart Inspection: ${chartId} ===`)
     // Find chart across all slides to get info
-    let found = false;
+    let found = false
     for (const i of this.#slideManager.getAllSlideIndices()) {
       try {
-        const info = this.#chartManager.getChartsInSlide(i, this.#slideManager, this.#relationshipManager);
-        const chart = info.find(c => c.zipPath.toLowerCase().includes(chartId.toLowerCase()) || c.rId === chartId);
+        const info = this.#chartManager.getChartsInSlide(
+          i,
+          this.#slideManager,
+          this.#relationshipManager
+        )
+        const chart = info.find(
+          c => c.zipPath.toLowerCase().includes(chartId.toLowerCase()) || c.rId === chartId
+        )
         if (chart) {
-          console.log(`Found on Slide ${i}`);
-          console.log(`ZIP Path: ${chart.zipPath}`);
-          console.log(`Relationship ID: ${chart.rId}`);
-          found = true;
-          break;
+          console.log(`Found on Slide ${i}`)
+          console.log(`ZIP Path: ${chart.zipPath}`)
+          console.log(`Relationship ID: ${chart.rId}`)
+          found = true
+          break
         }
       } catch (e) {}
     }
-    if (!found) console.log('Chart not found.');
-    return this;
+    if (!found) console.log('Chart not found.')
+    return this
   }
 
   /**
@@ -870,74 +920,580 @@ class PPTXTemplater {
    * @param {string} chartFileName
    */
   async inspectChartXML(chartFileName) {
-    const fullPath = chartFileName.includes('/') ? chartFileName : `ppt/charts/${chartFileName}`;
-    await this.inspectXML(fullPath);
-    return this;
+    const fullPath = chartFileName.includes('/') ? chartFileName : `ppt/charts/${chartFileName}`
+    await this.inspectXML(fullPath)
+    return this
   }
 
   /**
    * Logs all chart relationships.
    */
   debugChartRelationships() {
-    this.#assertLoaded();
-    console.log('=== Chart Relationships ===');
-    const chartFiles = this.#zipManager.listFiles('ppt/charts/')
-      .filter(f => {
-        const name = f.split('/').pop();
-        return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels');
-      });
+    this.#assertLoaded()
+    console.log('=== Chart Relationships ===')
+    const chartFiles = this.#zipManager.listFiles('ppt/charts/').filter(f => {
+      const name = f.split('/').pop()
+      return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels')
+    })
     for (const chartPath of chartFiles) {
-      console.log(`\n${chartPath}:`);
-      const rels = this.#relationshipManager.getRelationships(chartPath);
-      rels.forEach(r => console.log(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`));
+      console.log(`\n${chartPath}:`)
+      const rels = this.#relationshipManager.getRelationships(chartPath)
+      rels.forEach(r => console.log(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`))
     }
-    return this;
+    return this
   }
 
   /**
    * Saves the modified PPTX to a file on disk.
    *
-   * @param {string} filePath - Output file path (e.g., './output/report.pptx').
+   * @param {string} filePath - Output file path.
+   * @param {Object} [options] - Save options.
+   * @param {boolean} [options.strict=false] - Throw error on validation failure.
    * @returns {Promise<void>}
-   *
-   * @example
-   * await ppt.saveToFile('./output/report.pptx');
    */
-  async saveToFile(filePath) {
-    this.#assertLoaded();
-    await this.#outputWriter.saveToFile(filePath, this.#slideManager, this.#zipManager);
-    logger.info(`Saved PPTX to ${filePath}`);
+  async saveToFile(filePath, options = {}) {
+    this.#assertLoaded()
+    const result = await this.validatePresentation()
+    if (!result.valid) {
+      if (options.strict) {
+        throw new PPTXError(`Validation failed before save: ${result.errors.join(', ')}`)
+      } else {
+        logger.warn(
+          `Validation issues found before save:\n${result.errors.map(e => `  • ${e}`).join('\n')}`
+        )
+      }
+    }
+    await this.#outputWriter.saveToFile(filePath, this.#slideManager, this.#zipManager)
+    logger.info(`Saved PPTX to ${filePath}`)
   }
 
   /**
    * Returns the PPTX content as a Node.js Buffer.
-   * Useful for HTTP responses, email attachments, etc.
    *
-   * @returns {Promise<Buffer>} Buffer containing PPTX binary data.
-   *
-   * @example
-   * const buffer = await ppt.toBuffer();
-   * res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
-   * res.send(buffer);
+   * @returns {Promise<Buffer>}
    */
   async toBuffer() {
-    this.#assertLoaded();
-    return this.#outputWriter.toBuffer(this.#slideManager, this.#zipManager);
+    this.#assertLoaded()
+    return this.#outputWriter.toBuffer(this.#slideManager, this.#zipManager)
   }
 
   /**
    * Returns the PPTX content as a readable Node.js Stream.
-   * Ideal for streaming large presentations to HTTP responses.
    *
-   * @returns {Promise<NodeJS.ReadableStream>} Readable stream of PPTX data.
-   *
-   * @example
-   * const stream = await ppt.toStream();
-   * stream.pipe(res);
+   * @returns {Promise<NodeJS.ReadableStream>}
    */
   async toStream() {
-    this.#assertLoaded();
-    return this.#outputWriter.toStream(this.#slideManager, this.#zipManager);
+    this.#assertLoaded()
+    return this.#outputWriter.toStream(this.#slideManager, this.#zipManager)
+  }
+
+  // === Slide Features ===
+  duplicateSlide(slideIndex, atPosition) {
+    this.#assertLoaded()
+    this.#slideManager.duplicateSlide(slideIndex, atPosition, this.#relationshipManager)
+    return this
+  }
+
+  deleteSlide(slideIndex) {
+    this.#assertLoaded()
+    this.#slideManager.removeSlide(slideIndex)
+    return this
+  }
+
+  moveSlide(fromIndex, toIndex) {
+    this.#assertLoaded()
+    this.#slideManager.moveSlide(fromIndex, toIndex)
+    return this
+  }
+
+  insertSlide(slideIndex, options = {}) {
+    this.#assertLoaded()
+    this.#slideManager.insertSlide(
+      slideIndex,
+      options,
+      this.#relationshipManager,
+      this.#mediaManager
+    )
+    return this
+  }
+
+  getSlides() {
+    this.#assertLoaded()
+    return this.#slideManager.getSlides()
+  }
+
+  // === Table Features ===
+  addTableRow(tableId, rowData) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#tableManager.addTableRow(idx, tableId, rowData, this.#slideManager)
+    }
+    return this
+  }
+
+  removeTableRow(tableId, rowIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#tableManager.removeTableRow(idx, tableId, rowIndex, this.#slideManager)
+    }
+    return this
+  }
+
+  insertTableRow(tableId, rowIndex, rowData) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#tableManager.insertTableRow(idx, tableId, rowIndex, rowData, this.#slideManager)
+    }
+    return this
+  }
+
+  cloneTableRow(tableId, sourceRowIndex, targetRowIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#tableManager.cloneTableRow(
+        idx,
+        tableId,
+        sourceRowIndex,
+        targetRowIndex,
+        this.#slideManager
+      )
+    }
+    return this
+  }
+
+  updateCell(tableId, rowIndex, colIndex, value, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#tableManager.updateCell(
+        idx,
+        tableId,
+        rowIndex,
+        colIndex,
+        value,
+        options,
+        this.#slideManager
+      )
+    }
+    return this
+  }
+
+  mergeCells(tableIdOrOptions, startRow, startCol, endRow, endCol) {
+    this.#assertLoaded()
+    let tableId = tableIdOrOptions
+    let sRow = startRow
+    let sCol = startCol
+    let eRow = endRow
+    let eCol = endCol
+    let targetIndices = this.#getTargetSlideIndices()
+
+    if (tableIdOrOptions && typeof tableIdOrOptions === 'object') {
+      const opt = tableIdOrOptions
+      tableId = opt.tableId
+      sRow = opt.startRow
+      sCol = opt.startCol
+      eRow = opt.endRow
+      eCol = opt.endCol
+      if (opt.slide !== undefined) {
+        targetIndices = [opt.slide]
+      }
+    }
+
+    for (const idx of targetIndices) {
+      this.#tableManager.mergeCells(idx, tableId, sRow, sCol, eRow, eCol, this.#slideManager)
+    }
+    return this
+  }
+
+  unmergeCells(tableIdOrOptions, startRow, startCol, endRow, endCol) {
+    this.#assertLoaded()
+    let tableId = tableIdOrOptions
+    let sRow = startRow
+    let sCol = startCol
+    let eRow = endRow
+    let eCol = endCol
+    let targetIndices = this.#getTargetSlideIndices()
+    let isCellCoord = false
+    let cellRow, cellCol
+
+    if (tableIdOrOptions && typeof tableIdOrOptions === 'object') {
+      const opt = tableIdOrOptions
+      tableId = opt.tableId
+      sRow = opt.startRow
+      sCol = opt.startCol
+      eRow = opt.endRow
+      eCol = opt.endCol
+      if (opt.slide !== undefined) {
+        targetIndices = [opt.slide]
+      }
+      if (opt.row !== undefined && opt.col !== undefined) {
+        isCellCoord = true
+        cellRow = opt.row
+        cellCol = opt.col
+      }
+    }
+
+    for (const idx of targetIndices) {
+      if (isCellCoord) {
+        this.#tableManager.unmergeCells(idx, tableId, cellRow, cellCol, this.#slideManager)
+      } else {
+        this.#tableManager.unmergeCells(idx, tableId, sRow, sCol, eRow, eCol, this.#slideManager)
+      }
+    }
+    return this
+  }
+
+  getMergedCells(tableId) {
+    this.#assertLoaded()
+    const slideIndex = this.#getTargetSlideIndices()[0] || 1
+    return this.#tableManager.getMergedCells(slideIndex, tableId || 'first', this.#slideManager)
+  }
+
+  validateMergeRegion(tableId, startRow, startCol, endRow, endCol) {
+    this.#assertLoaded()
+    const slideIndex = this.#getTargetSlideIndices()[0] || 1
+    return this.#tableManager.validateMergeRegion(
+      slideIndex,
+      tableId || 'first',
+      startRow,
+      startCol,
+      endRow,
+      endCol,
+      this.#slideManager
+    )
+  }
+
+  isMergedCell(tableId, row, col) {
+    this.#assertLoaded()
+    const slideIndex = this.#getTargetSlideIndices()[0] || 1
+    return this.#tableManager.isMergedCell(
+      slideIndex,
+      tableId || 'first',
+      row,
+      col,
+      this.#slideManager
+    )
+  }
+
+  getMergeParent(tableId, row, col) {
+    this.#assertLoaded()
+    const slideIndex = this.#getTargetSlideIndices()[0] || 1
+    return this.#tableManager.getMergeParent(
+      slideIndex,
+      tableId || 'first',
+      row,
+      col,
+      this.#slideManager
+    )
+  }
+
+  getMergeRegion(tableId, row, col) {
+    this.#assertLoaded()
+    const slideIndex = this.#getTargetSlideIndices()[0] || 1
+    return this.#tableManager.getMergeRegion(
+      slideIndex,
+      tableId || 'first',
+      row,
+      col,
+      this.#slideManager
+    )
+  }
+
+  splitMergedRegion(tableId, row, col) {
+    this.#assertLoaded()
+    const slideIndex = this.#getTargetSlideIndices()[0] || 1
+    this.#tableManager.splitMergedRegion(
+      slideIndex,
+      tableId || 'first',
+      row,
+      col,
+      this.#slideManager
+    )
+    return this
+  }
+
+  cloneMergedRegion(tableId, row, col, targetRow, targetCol) {
+    this.#assertLoaded()
+    const slideIndex = this.#getTargetSlideIndices()[0] || 1
+    this.#tableManager.cloneMergedRegion(
+      slideIndex,
+      tableId || 'first',
+      row,
+      col,
+      targetRow,
+      targetCol,
+      this.#slideManager
+    )
+    return this
+  }
+
+  autoFitTable(tableId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#tableManager.autoFitTable(idx, tableId, this.#slideManager)
+    }
+    return this
+  }
+
+  resizeTable(tableId, width, height) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#tableManager.resizeTable(idx, tableId, width, height, this.#slideManager)
+    }
+    return this
+  }
+
+  getTables() {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const tables = []
+    for (const idx of targetIndices) {
+      tables.push(...this.#tableManager.inspectTables(idx, this.#slideManager))
+    }
+    return tables
+  }
+
+  // === Chart Features ===
+  updateChartData(chartId, data) {
+    return this.updateChart(chartId, data)
+  }
+
+  replaceChartSeries(chartId, seriesIndex, newSeriesData) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#chartManager.replaceChartSeries(
+        idx,
+        chartId,
+        seriesIndex,
+        newSeriesData,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+    }
+    return this
+  }
+
+  updateChartTitle(chartId, title) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#chartManager.updateChartTitle(
+        idx,
+        chartId,
+        title,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+    }
+    return this
+  }
+
+  updateChartCategories(chartId, categories) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#chartManager.updateChartCategories(
+        idx,
+        chartId,
+        categories,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+    }
+    return this
+  }
+
+  getCharts() {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const charts = []
+    for (const idx of targetIndices) {
+      charts.push(
+        ...this.#chartManager.getChartsInSlide(idx, this.#slideManager, this.#relationshipManager)
+      )
+    }
+    return charts
+  }
+
+  // === Text Features ===
+  replaceTextByTag(tag, value, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.replaceTextByTag(
+        idx,
+        tag,
+        value,
+        options,
+        this.#slideManager,
+        this.#templateEngine
+      )
+    }
+    return this
+  }
+
+  replaceMultiple(replacements, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.replaceMultiple(
+        idx,
+        replacements,
+        options,
+        this.#slideManager,
+        this.#templateEngine
+      )
+    }
+    return this
+  }
+
+  findText(text) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const matches = []
+    for (const idx of targetIndices) {
+      matches.push(...this.#textManager.findText(idx, text, this.#slideManager))
+    }
+    return matches
+  }
+
+  getTextElements() {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const elements = []
+    for (const idx of targetIndices) {
+      elements.push(...this.#textManager.getTextElements(idx, this.#slideManager))
+    }
+    return elements
+  }
+
+  // === Shape Features ===
+  updateShapeText(shapeId, text) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#shapeManager.updateShapeText(idx, shapeId, text, this.#slideManager)
+    }
+    return this
+  }
+
+  cloneShape(shapeId, newShapeId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#shapeManager.cloneShape(idx, shapeId, newShapeId, options, this.#slideManager)
+    }
+    return this
+  }
+
+  deleteShape(shapeId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#shapeManager.deleteShape(idx, shapeId, this.#slideManager)
+    }
+    return this
+  }
+
+  getShapes() {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const shapes = []
+    for (const idx of targetIndices) {
+      shapes.push(...this.#shapeManager.getShapes(idx, this.#slideManager))
+    }
+    return shapes
+  }
+
+  // === Image Features ===
+  async replaceImage(imageIdOrName, sourcePathOrBuffer) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      await this.#imageManager.replaceImage(
+        idx,
+        imageIdOrName,
+        sourcePathOrBuffer,
+        this.#slideManager,
+        this.#mediaManager,
+        this.#relationshipManager
+      )
+    }
+    return this
+  }
+
+  async addImage(sourcePathOrBuffer, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      await this.#imageManager.addImage(
+        idx,
+        sourcePathOrBuffer,
+        options,
+        this.#slideManager,
+        this.#mediaManager,
+        this.#relationshipManager
+      )
+    }
+    return this
+  }
+
+  removeImage(imageIdOrName) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#imageManager.removeImage(
+        idx,
+        imageIdOrName,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+    }
+    return this
+  }
+
+  getImages() {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const images = []
+    for (const idx of targetIndices) {
+      images.push(
+        ...this.#imageManager.getImages(idx, this.#slideManager, this.#relationshipManager)
+      )
+    }
+    return images
+  }
+
+  // === Validation Features ===
+  async validatePresentation() {
+    this.#assertLoaded()
+    return await ValidationEngine.validatePresentation(this)
+  }
+
+  async validateSlide(slideIndex) {
+    this.#assertLoaded()
+    return await ValidationEngine.validateSlide(this, slideIndex)
+  }
+
+  async validateTable(tableId) {
+    this.#assertLoaded()
+    return await ValidationEngine.validateTable(
+      this,
+      this.#getTargetSlideIndices()[0] || 1,
+      tableId
+    )
+  }
+
+  validateRelationships(partPath) {
+    this.#assertLoaded()
+    return ValidationEngine.validateRelationships(this, partPath)
   }
 
   /**
@@ -945,19 +1501,46 @@ class PPTXTemplater {
    * @type {number}
    */
   get slideCount() {
-    return this.#slideManager.slideCount;
+    return this.#slideManager.slideCount
   }
 
   // --- Public Getters for Internal Managers ---
-  get zipManager() { return this.#zipManager; }
-  get xmlParser() { return this.#xmlParser; }
-  get contentTypesManager() { return this.#contentTypesManager; }
-  get relationshipManager() { return this.#relationshipManager; }
-  get slideManager() { return this.#slideManager; }
-  get chartManager() { return this.#chartManager; }
-  get tableManager() { return this.#tableManager; }
-  get hyperlinkManager() { return this.#hyperlinkManager; }
-  get mediaManager() { return this.#mediaManager; }
+  get zipManager() {
+    return this.#zipManager
+  }
+  get xmlParser() {
+    return this.#xmlParser
+  }
+  get contentTypesManager() {
+    return this.#contentTypesManager
+  }
+  get relationshipManager() {
+    return this.#relationshipManager
+  }
+  get slideManager() {
+    return this.#slideManager
+  }
+  get chartManager() {
+    return this.#chartManager
+  }
+  get tableManager() {
+    return this.#tableManager
+  }
+  get shapeManager() {
+    return this.#shapeManager
+  }
+  get imageManager() {
+    return this.#imageManager
+  }
+  get textManager() {
+    return this.#textManager
+  }
+  get hyperlinkManager() {
+    return this.#hyperlinkManager
+  }
+  get mediaManager() {
+    return this.#mediaManager
+  }
 }
 
-module.exports = { PPTXTemplater };
+module.exports = { PPTXTemplater }

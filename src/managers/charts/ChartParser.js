@@ -1,7 +1,3 @@
-const { createLogger } = require('../../utils/logger.js');
-
-const logger = createLogger('ChartParser');
-
 class ChartParser {
   /**
    * Finds a chart's relationship ID and type in a slide's XML based on shape name/id.
@@ -15,14 +11,14 @@ class ChartParser {
     const shapeNamePattern = new RegExp(
       `<p:cNvPr[^>]*name="${chartId}"[^>]*>(?:.*?)<c:chart[^>]*r:id="(rId\\d+)"`,
       's'
-    );
-    const rIdMatch = shapeNamePattern.exec(slideXml);
+    )
+    const rIdMatch = shapeNamePattern.exec(slideXml)
     if (rIdMatch) {
-      return { rId: rIdMatch[1] };
+      return { rId: rIdMatch[1] }
     }
 
     // Strategy 2: Find all chart graphicFrames and we will match later in manager
-    return null;
+    return null
   }
 
   /**
@@ -33,13 +29,13 @@ class ChartParser {
    */
   static parseChartData(xml) {
     // This could be used for validation and extracting current chart cache
-    const ptCountMatch = xml.match(/<c:ptCount val="(\d+)"\/>/);
-    const pointCount = ptCountMatch ? parseInt(ptCountMatch[1], 10) : 0;
+    const ptCountMatch = xml.match(/<c:ptCount val="(\d+)"\/>/)
+    const pointCount = ptCountMatch ? parseInt(ptCountMatch[1], 10) : 0
 
     return {
-      pointCount
-    };
+      pointCount,
+    }
   }
 }
 
-module.exports = { ChartParser };
+module.exports = { ChartParser }

@@ -7,38 +7,36 @@
  * To run: node examples/chart-update.js
  */
 
-import { PPTXTemplater } from '../src/index.js';
-import { existsSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+const { PPTXTemplater } = require('../src/index.js')
+const { existsSync } = require('fs')
+const { resolve } = require('path')
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const TEMPLATE = resolve(__dirname, '../templates/charts-template.pptx');
-const OUTPUT = resolve(__dirname, './output/chart-output.pptx');
+const TEMPLATE = resolve(__dirname, '../templates/sample.pptx')
+const OUTPUT = resolve(__dirname, './output/chart-output.pptx')
 
 async function main() {
   if (!existsSync(TEMPLATE)) {
-    console.log('📊 Chart Update API Demo (no template file needed)\n');
-    showChartApiExample();
-    return;
+    console.log('📊 Chart Update API Demo (no template file needed)\n')
+    showChartApiExample()
+    return
   }
 
-  const ppt = await PPTXTemplater.load(TEMPLATE);
-  console.log(`Loaded template with ${ppt.slideCount} slides`);
+  const ppt = await PPTXTemplater.load(TEMPLATE)
+  console.log(`Loaded template with ${ppt.slideCount} slides`)
 
-  // ── Slide 1: Bar chart ─────────────────────────────────────────────
-  ppt.useSlide(1).updateChart('revenue-bar', {
+  // ── Slide 1: Bar/Column chart ─────────────────────────────────────────────
+  ppt.useSlide(1).updateChart('Chart', {
     categories: ['Q1', 'Q2', 'Q3', 'Q4'],
     series: [
       { name: 'Product A', values: [145, 210, 190, 250] },
       { name: 'Product B', values: [90, 130, 160, 200] },
       { name: 'Product C', values: [70, 85, 100, 120] },
     ],
-  });
-  console.log('✅ Updated bar chart');
+  })
+  console.log('✅ Updated Slide 1 chart')
 
   // ── Slide 2: Line chart ────────────────────────────────────────────
-  ppt.useSlide(2).updateChart('trend-line', {
+  ppt.useSlide(2).updateChart('chart2', {
     categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
     series: [
       {
@@ -50,20 +48,15 @@ async function main() {
         values: [130, 140, 140, 155, 170, 200],
       },
     ],
-  });
-  console.log('✅ Updated line chart');
+  })
+  console.log('✅ Updated Slide 2 chart')
 
-  // ── Slide 3: Pie chart ─────────────────────────────────────────────
-  ppt.useSlide(3).updateChart('market-pie', {
-    categories: ['North America', 'Europe', 'Asia Pacific', 'Other'],
-    series: [
-      { name: 'Market Share', values: [42, 28, 22, 8] },
-    ],
-  });
-  console.log('✅ Updated pie chart');
+  // Ensure output directory exists
+  const fsExtra = require('fs-extra')
+  await fsExtra.ensureDir(resolve(__dirname, './output'))
 
-  await ppt.saveToFile(OUTPUT);
-  console.log('💾 Saved to:', OUTPUT);
+  await ppt.saveToFile(OUTPUT)
+  console.log('💾 Saved to:', OUTPUT)
 }
 
 function showChartApiExample() {
@@ -90,7 +83,7 @@ ppt.updateChart('pie-chart', {
 // - area (areaChart)
 // - scatter (scatterChart)
 // - doughnut (doughnutChart)
-  `);
+  `)
 }
 
-main().catch(console.error);
+main().catch(console.error)

@@ -24,13 +24,13 @@ class PPTXError extends Error {
    * @param {Error} [cause] - Original underlying error (for error chaining).
    */
   constructor(message, cause) {
-    super(message);
-    this.name = 'PPTXError';
-    if (cause) this.cause = cause;
+    super(message)
+    this.name = 'PPTXError'
+    if (cause) this.cause = cause
 
     // Maintains proper stack trace for where error was thrown (V8 only)
     if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, this.constructor);
+      Error.captureStackTrace(this, this.constructor)
     }
   }
 }
@@ -45,8 +45,8 @@ class SlideNotFoundError extends PPTXError {
    * @param {string} message
    */
   constructor(message) {
-    super(message);
-    this.name = 'SlideNotFoundError';
+    super(message)
+    this.name = 'SlideNotFoundError'
   }
 }
 
@@ -60,8 +60,8 @@ class ChartNotFoundError extends PPTXError {
    * @param {string} message
    */
   constructor(message) {
-    super(message);
-    this.name = 'ChartNotFoundError';
+    super(message)
+    this.name = 'ChartNotFoundError'
   }
 }
 
@@ -75,8 +75,8 @@ class TableNotFoundError extends PPTXError {
    * @param {string} message
    */
   constructor(message) {
-    super(message);
-    this.name = 'TableNotFoundError';
+    super(message)
+    this.name = 'TableNotFoundError'
   }
 }
 
@@ -91,8 +91,8 @@ class XMLParseError extends PPTXError {
    * @param {Error} [cause]
    */
   constructor(message, cause) {
-    super(message, cause);
-    this.name = 'XMLParseError';
+    super(message, cause)
+    this.name = 'XMLParseError'
   }
 }
 
@@ -107,8 +107,8 @@ class InvalidTemplateError extends PPTXError {
    * @param {Error} [cause]
    */
   constructor(message, cause) {
-    super(message, cause);
-    this.name = 'InvalidTemplateError';
+    super(message, cause)
+    this.name = 'InvalidTemplateError'
   }
 }
 
@@ -123,8 +123,8 @@ class MediaEmbedError extends PPTXError {
    * @param {Error} [cause]
    */
   constructor(message, cause) {
-    super(message, cause);
-    this.name = 'MediaEmbedError';
+    super(message, cause)
+    this.name = 'MediaEmbedError'
   }
 }
 
@@ -135,5 +135,5 @@ module.exports = {
   TableNotFoundError,
   XMLParseError,
   InvalidTemplateError,
-  MediaEmbedError
-};
+  MediaEmbedError,
+}

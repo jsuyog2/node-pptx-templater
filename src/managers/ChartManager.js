@@ -39,13 +39,13 @@
  * We update both to ensure compatibility with both cached and live data.
  */
 
-const { createLogger } = require('../utils/logger.js');
-const { ChartNotFoundError } = require('../utils/errors.js');
-const { REL_TYPES } = require('./RelationshipManager.js');
-const { ChartWorkbookUpdater } = require('./charts/ChartWorkbookUpdater.js');
-const { ChartCacheGenerator } = require('./charts/ChartCacheGenerator.js');
+const { createLogger } = require('../utils/logger.js')
+const { ChartNotFoundError } = require('../utils/errors.js')
+const { REL_TYPES } = require('./RelationshipManager.js')
+const { ChartWorkbookUpdater } = require('./charts/ChartWorkbookUpdater.js')
+const { ChartCacheGenerator } = require('./charts/ChartCacheGenerator.js')
 
-const logger = createLogger('ChartManager');
+const logger = createLogger('ChartManager')
 
 /**
  * Supported chart types and their XML element names.
@@ -60,7 +60,7 @@ const CHART_TYPE_MAP = {
   radar: 'c:radarChart',
   bubble: 'c:bubbleChart',
   stock: 'c:stockChart',
-};
+}
 
 /**
  * @class ChartManager
@@ -71,21 +71,21 @@ const CHART_TYPE_MAP = {
  */
 class ChartManager {
   /** @private @type {XMLParser} */
-  #xmlParser;
+  #xmlParser
   /** @private @type {ZipManager} */
-  #zipManager;
+  #zipManager
 
   /**
    * Cache of chart ZIP paths: maps chartName → { zipPath, slideIndex }
    * @private @type {Map<string, { zipPath: string, slideIndex: number }>}
    */
-  #chartRegistry = new Map();
+  #chartRegistry = new Map()
 
   /**
    * @param {XMLParser} xmlParser
    */
   constructor(xmlParser) {
-    this.#xmlParser = xmlParser;
+    this.#xmlParser = xmlParser
   }
 
   /**
@@ -95,16 +95,18 @@ class ChartManager {
    * @returns {Promise<void>}
    */
   async initialize(zipManager) {
-    this.#zipManager = zipManager;
-    const chartFiles = zipManager.listFiles('ppt/charts/').filter(f => f.endsWith('.xml') && !f.includes('_rels'));
+    this.#zipManager = zipManager
+    const chartFiles = zipManager
+      .listFiles('ppt/charts/')
+      .filter(f => f.endsWith('.xml') && !f.includes('_rels'))
 
     for (const chartPath of chartFiles) {
       // Chart name is inferred from file name
-      const chartName = chartPath.split('/').pop().replace('.xml', '');
-      this.#chartRegistry.set(chartName, { zipPath: chartPath, slideIndex: null });
+      const chartName = chartPath.split('/').pop().replace('.xml', '')
+      this.#chartRegistry.set(chartName, { zipPath: chartPath, slideIndex: null })
     }
 
-    logger.debug(`Found ${chartFiles.length} chart file(s)`);
+    logger.debug(`Found ${chartFiles.length} chart file(s)`)
   }
 
   /**
@@ -118,14 +120,14 @@ class ChartManager {
    * @throws {ChartNotFoundError} If the chart cannot be found.
    */
   updateChart(slideIndex, chartId, data, slideManager, relationshipManager) {
-    const chartInfo = this.#findChartInSlide(slideIndex, chartId, slideManager, relationshipManager);
+    const chartInfo = this.#findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
 
     if (!chartInfo) {
-      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`);
+      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
     }
 
-    logger.debug(`Updating chart "${chartId}" at ${chartInfo.zipPath}`);
-    this.#updateChartXml(chartInfo.zipPath, data, relationshipManager);
+    logger.debug(`Updating chart "${chartId}" at ${chartInfo.zipPath}`)
+    this.#updateChartXml(chartInfo.zipPath, data, relationshipManager)
   }
 
   /**
@@ -137,13 +139,13 @@ class ChartManager {
    * @returns {Array<{name: string, zipPath: string}>}
    */
   getChartsInSlide(slideIndex, slideManager, relationshipManager) {
-    const slideInfo = slideManager.getSlideInfo(slideIndex);
-    const rels = relationshipManager.getRelationshipsByType(slideInfo.zipPath, REL_TYPES.CHART);
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    const rels = relationshipManager.getRelationshipsByType(slideInfo.zipPath, REL_TYPES.CHART)
 
     return rels.map(rel => {
-      const chartPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target);
-      return { rId: rel.id, zipPath: chartPath };
-    });
+      const chartPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
+      return { rId: rel.id, zipPath: chartPath }
+    })
   }
 
   /**
@@ -157,58 +159,58 @@ class ChartManager {
    * @returns {{ zipPath: string }|null}
    */
   #findChartInSlide(slideIndex, chartId, slideManager, relationshipManager) {
-    const slideInfo = slideManager.getSlideInfo(slideIndex);
-    const slideXml = slideManager.getSlideXml(slideIndex);
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    const slideXml = slideManager.getSlideXml(slideIndex)
 
     // Strategy 1: Look for shape with matching name (cNvPr name attribute)
     const shapeNamePattern = new RegExp(
       `<p:cNvPr[^>]*name="${chartId}"[^>]*>(?:.*?)<c:chart[^>]*r:id="(rId\\d+)"`,
       's'
-    );
-    const rIdMatch = shapeNamePattern.exec(slideXml);
+    )
+    const rIdMatch = shapeNamePattern.exec(slideXml)
 
     // Strategy 2: Find graphicFrame shapes and match chart rIds
     if (!rIdMatch) {
-      const chartRIdPattern = /<c:chart[^>]*r:id="(rId\d+)"/g;
-      let chartMatch;
+      const chartRIdPattern = /<c:chart[^>]*r:id="(rId\d+)"/g
+      let chartMatch
       while ((chartMatch = chartRIdPattern.exec(slideXml)) !== null) {
-        const rId = chartMatch[1];
-        const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rId);
+        const rId = chartMatch[1]
+        const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rId)
         if (rel) {
-          const chartPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target);
+          const chartPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
           // Check if chart file name matches chartId
           if (chartPath.includes(chartId) || rel.id === chartId) {
-            return { zipPath: chartPath };
+            return { zipPath: chartPath }
           }
           // For the first chart found, if chartId looks like a chart file name
           if (chartId.startsWith('chart')) {
-            return { zipPath: chartPath };
+            return { zipPath: chartPath }
           }
         }
       }
     }
 
     if (rIdMatch) {
-      const rId = rIdMatch[1];
-      const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rId);
+      const rId = rIdMatch[1]
+      const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rId)
       if (rel) {
-        const chartPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target);
-        return { zipPath: chartPath };
+        const chartPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
+        return { zipPath: chartPath }
       }
     }
 
     // Strategy 3: Direct chart registry lookup
     if (this.#chartRegistry.has(chartId)) {
-      return this.#chartRegistry.get(chartId);
+      return this.#chartRegistry.get(chartId)
     }
 
     // Strategy 4: Try chartN naming convention
-    const chartPath = `ppt/charts/${chartId}.xml`;
+    const chartPath = `ppt/charts/${chartId}.xml`
     if (this.#zipManager.hasFile(chartPath)) {
-      return { zipPath: chartPath };
+      return { zipPath: chartPath }
     }
 
-    return null;
+    return null
   }
 
   /**
@@ -222,13 +224,13 @@ class ChartManager {
    */
   #updateChartXml(chartZipPath, data, relationshipManager) {
     if (!this.#zipManager.hasFile(chartZipPath)) {
-      throw new ChartNotFoundError(`Chart file not found: ${chartZipPath}`);
+      throw new ChartNotFoundError(`Chart file not found: ${chartZipPath}`)
     }
 
     // Register async update to ensure it completes before saving
     this.#zipManager.addPendingPromise(
       this.updateChartAsync(chartZipPath, data, relationshipManager)
-    );
+    )
   }
 
   /**
@@ -241,29 +243,29 @@ class ChartManager {
    */
   async updateChartAsync(chartZipPath, data, relationshipManager) {
     // 1. Read Chart XML
-    const xml = await this.#zipManager.readFile(chartZipPath);
-    if (!xml) throw new ChartNotFoundError(`Chart file not found: ${chartZipPath}`);
+    const xml = await this.#zipManager.readFile(chartZipPath)
+    if (!xml) throw new ChartNotFoundError(`Chart file not found: ${chartZipPath}`)
 
     // 2. Apply Chart XML Updates
-    const updatedXml = this.#applyChartData(xml, data, chartZipPath);
-    this.#zipManager.writeFile(chartZipPath, updatedXml);
+    const updatedXml = this.#applyChartData(xml, data, chartZipPath)
+    this.#zipManager.writeFile(chartZipPath, updatedXml)
 
     // 3. Find and Update Embedded Workbook
     if (relationshipManager) {
-      const rels = relationshipManager.getRelationshipsByType(chartZipPath, REL_TYPES.PACKAGE);
+      const rels = relationshipManager.getRelationshipsByType(chartZipPath, REL_TYPES.PACKAGE)
       for (const rel of rels) {
-        const xlsxPath = relationshipManager.resolveTarget(chartZipPath, rel.target);
-        const xlsxData = this.#zipManager.rawZip.file(xlsxPath);
+        const xlsxPath = relationshipManager.resolveTarget(chartZipPath, rel.target)
+        const xlsxData = this.#zipManager.rawZip.file(xlsxPath)
         if (xlsxData) {
-          console.log(`Found embedded workbook: ${xlsxPath}`);
-          const buffer = await xlsxData.async('nodebuffer');
-          const updatedXlsx = await ChartWorkbookUpdater.updateWorkbook(buffer, data);
+          console.log(`Found embedded workbook: ${xlsxPath}`)
+          const buffer = await xlsxData.async('nodebuffer')
+          const updatedXlsx = await ChartWorkbookUpdater.updateWorkbook(buffer, data)
           if (updatedXlsx) {
-            console.log(`Writing updated workbook to: ${xlsxPath}, size: ${updatedXlsx.length}`);
-            this.#zipManager.writeBinaryFile(xlsxPath, updatedXlsx);
+            console.log(`Writing updated workbook to: ${xlsxPath}, size: ${updatedXlsx.length}`)
+            this.#zipManager.writeBinaryFile(xlsxPath, updatedXlsx)
           }
         } else {
-          console.log(`Could not find workbook at: ${xlsxPath}`);
+          console.log(`Could not find workbook at: ${xlsxPath}`)
         }
       }
     }
@@ -279,27 +281,150 @@ class ChartManager {
    * @returns {string} Updated XML.
    */
   #applyChartData(xml, data, context) {
-    const { categories, series } = data;
+    const { categories, series } = data
 
     // Detect chart type
-    const chartType = this.#detectChartType(xml);
-    logger.debug(`Updating ${chartType} chart at ${context}`);
+    const chartType = this.#detectChartType(xml)
+    logger.debug(`Updating ${chartType} chart at ${context}`)
 
-    let updatedXml = xml;
+    let updatedXml = xml
 
     if (series && series.length > 0) {
-      updatedXml = ChartCacheGenerator.appendDynamicSeries(updatedXml, series.length);
+      updatedXml = ChartCacheGenerator.appendDynamicSeries(updatedXml, series.length)
     }
 
     if (categories && categories.length > 0) {
-      updatedXml = ChartCacheGenerator.updateCategories(updatedXml, categories);
+      updatedXml = ChartCacheGenerator.updateCategories(updatedXml, categories)
     }
 
     if (series && series.length > 0) {
-      updatedXml = ChartCacheGenerator.updateSeries(updatedXml, series, categories ? categories.length : null);
+      updatedXml = ChartCacheGenerator.updateSeries(
+        updatedXml,
+        series,
+        categories ? categories.length : null
+      )
     }
 
-    return updatedXml;
+    return updatedXml
+  }
+
+  /**
+   * Updates only chart categories.
+   */
+  updateChartCategories(slideIndex, chartId, categories, slideManager, relationshipManager) {
+    const chartInfo = this.#findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
+    if (!chartInfo) {
+      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
+    }
+    this.#zipManager.addPendingPromise(
+      this.updateChartCategoriesAsync(chartInfo.zipPath, categories, relationshipManager)
+    )
+  }
+
+  async updateChartCategoriesAsync(chartZipPath, categories, relationshipManager) {
+    const xml = await this.#zipManager.readFile(chartZipPath)
+    if (!xml) throw new ChartNotFoundError(`Chart file not found: ${chartZipPath}`)
+    const data = this.#extractChartData(xml)
+    data.categories = categories
+    await this.updateChartAsync(chartZipPath, data, relationshipManager)
+  }
+
+  /**
+   * Replaces a specific chart series.
+   */
+  replaceChartSeries(
+    slideIndex,
+    chartId,
+    seriesIndex,
+    newSeriesData,
+    slideManager,
+    relationshipManager
+  ) {
+    const chartInfo = this.#findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
+    if (!chartInfo) {
+      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
+    }
+    this.#zipManager.addPendingPromise(
+      this.replaceChartSeriesAsync(
+        chartInfo.zipPath,
+        seriesIndex,
+        newSeriesData,
+        relationshipManager
+      )
+    )
+  }
+
+  async replaceChartSeriesAsync(chartZipPath, seriesIndex, newSeriesData, relationshipManager) {
+    const xml = await this.#zipManager.readFile(chartZipPath)
+    if (!xml) throw new ChartNotFoundError(`Chart file not found: ${chartZipPath}`)
+    const data = this.#extractChartData(xml)
+    data.series[seriesIndex] = newSeriesData
+    await this.updateChartAsync(chartZipPath, data, relationshipManager)
+  }
+
+  /**
+   * Updates the chart title.
+   */
+  updateChartTitle(slideIndex, chartId, title, slideManager, relationshipManager) {
+    const chartInfo = this.#findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
+    if (!chartInfo) {
+      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
+    }
+    this.#zipManager.addPendingPromise(this.updateChartTitleAsync(chartInfo.zipPath, title))
+  }
+
+  async updateChartTitleAsync(chartZipPath, title) {
+    const xml = await this.#zipManager.readFile(chartZipPath)
+    if (!xml) throw new ChartNotFoundError(`Chart file not found: ${chartZipPath}`)
+    const updatedXml = ChartCacheGenerator.updateTitle(xml, title)
+    this.#zipManager.writeFile(chartZipPath, updatedXml)
+  }
+
+  /**
+   * Helper to extract data from chart XML.
+   */
+  #extractChartData(xml) {
+    const categories = []
+    const series = []
+
+    const catMatch = /<c:cat>([\s\S]*?)<\/c:cat>/.exec(xml)
+    if (catMatch) {
+      const catXml = catMatch[1]
+      const ptPattern = /<c:pt idx="\d+">\s*<c:v>([^<]*)<\/c:v>/g
+      let match
+      while ((match = ptPattern.exec(catXml)) !== null) {
+        categories.push(match[1])
+      }
+    }
+
+    const serPattern = /<c:ser>([\s\S]*?)<\/c:ser>/g
+    let serMatch
+    let idx = 0
+    while ((serMatch = serPattern.exec(xml)) !== null) {
+      const serXml = serMatch[1]
+
+      let name = `Series ${idx + 1}`
+      const txMatch = /<c:tx>([\s\S]*?)<\/c:tx>/.exec(serXml)
+      if (txMatch) {
+        const nameValMatch = /<c:v>([^<]*)<\/c:v>/.exec(txMatch[1])
+        if (nameValMatch) name = nameValMatch[1]
+      }
+
+      const values = []
+      const valMatch = /<c:val>([\s\S]*?)<\/c:val>/.exec(serXml)
+      if (valMatch) {
+        const ptPattern = /<c:pt idx="\d+">\s*<c:v>([^<]*)<\/c:v>/g
+        let match
+        while ((match = ptPattern.exec(valMatch[1])) !== null) {
+          values.push(Number(match[1]) || 0)
+        }
+      }
+
+      series.push({ name, values })
+      idx++
+    }
+
+    return { categories, series }
   }
 
   /**
@@ -310,10 +435,10 @@ class ChartManager {
    */
   #detectChartType(xml) {
     for (const [name, element] of Object.entries(CHART_TYPE_MAP)) {
-      if (xml.includes(element)) return name;
+      if (xml.includes(element)) return name
     }
-    return 'unknown';
+    return 'unknown'
   }
 }
 
-module.exports = { ChartManager };
+module.exports = { ChartManager }

@@ -17,15 +17,15 @@
  *   </Types>
  */
 
-const { createLogger } = require('./logger.js');
+const { createLogger } = require('./logger.js')
 
-const logger = createLogger('ContentTypes');
+const logger = createLogger('ContentTypes')
 
 /** MIME type for PPTX slide parts. */
-const SLIDE_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml';
+const SLIDE_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
 
 /** MIME type for chart parts. */
-const CHART_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.drawingml.chart+xml';
+const CHART_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.drawingml.chart+xml'
 
 /**
  * Singleton helper for [Content_Types].xml manipulation.
@@ -38,11 +38,7 @@ class ContentTypesHelper {
    * @param {string} slideFileName - e.g., 'slide5.xml'
    */
   addSlideContentType(zipManager, slideFileName) {
-    this.#addOverride(
-      zipManager,
-      `/ppt/slides/${slideFileName}`,
-      SLIDE_CONTENT_TYPE
-    );
+    this.#addOverride(zipManager, `/ppt/slides/${slideFileName}`, SLIDE_CONTENT_TYPE)
   }
 
   /**
@@ -52,10 +48,7 @@ class ContentTypesHelper {
    * @param {string} slideFileName - e.g., 'slide5.xml'
    */
   removeSlideContentType(zipManager, slideFileName) {
-    this.#removeOverride(
-      zipManager,
-      `/ppt/slides/${slideFileName}`
-    );
+    this.#removeOverride(zipManager, `/ppt/slides/${slideFileName}`)
   }
 
   /**
@@ -65,11 +58,7 @@ class ContentTypesHelper {
    * @param {string} chartFileName - e.g., 'chart3.xml'
    */
   addChartContentType(zipManager, chartFileName) {
-    this.#addOverride(
-      zipManager,
-      `/ppt/charts/${chartFileName}`,
-      CHART_CONTENT_TYPE
-    );
+    this.#addOverride(zipManager, `/ppt/charts/${chartFileName}`, CHART_CONTENT_TYPE)
   }
 
   /**
@@ -81,24 +70,21 @@ class ContentTypesHelper {
    */
   addMediaDefault(zipManager, extension, mimeType) {
     this.#updateQueue = this.#updateQueue.then(async () => {
-      const xmlFile = zipManager.rawZip.file('[Content_Types].xml');
-      if (!xmlFile) return;
+      const xmlFile = zipManager.rawZip.file('[Content_Types].xml')
+      if (!xmlFile) return
 
-      const content = await xmlFile.async('text');
-      const entry = `Extension="${extension}" ContentType="${mimeType}"`;
+      const content = await xmlFile.async('text')
+      const entry = `Extension="${extension}" ContentType="${mimeType}"`
       if (!content.includes(entry)) {
-        const updated = content.replace(
-          '</Types>',
-          `  <Default ${entry}/>\n</Types>`
-        );
-        zipManager.writeFile('[Content_Types].xml', updated);
-        logger.debug(`Registered default content type for .${extension}`);
+        const updated = content.replace('</Types>', `  <Default ${entry}/>\n</Types>`)
+        zipManager.writeFile('[Content_Types].xml', updated)
+        logger.debug(`Registered default content type for .${extension}`)
       }
-    });
-    zipManager.addPendingPromise(this.#updateQueue);
+    })
+    zipManager.addPendingPromise(this.#updateQueue)
   }
 
-  #updateQueue = Promise.resolve();
+  #updateQueue = Promise.resolve()
 
   /**
    * Adds an Override entry to [Content_Types].xml.
@@ -106,21 +92,21 @@ class ContentTypesHelper {
    */
   #addOverride(zipManager, partName, contentType) {
     this.#updateQueue = this.#updateQueue.then(async () => {
-      const xmlFile = zipManager.rawZip.file('[Content_Types].xml');
+      const xmlFile = zipManager.rawZip.file('[Content_Types].xml')
       if (!xmlFile) {
-        logger.warn('[Content_Types].xml not found');
-        return;
+        logger.warn('[Content_Types].xml not found')
+        return
       }
-      const content = await xmlFile.async('text');
-      const entry = `PartName="${partName}"`;
+      const content = await xmlFile.async('text')
+      const entry = `PartName="${partName}"`
       if (!content.includes(entry)) {
-        const override = `<Override PartName="${partName}" ContentType="${contentType}"/>`;
-        const updated = content.replace('</Types>', `  ${override}\n</Types>`);
-        zipManager.writeFile('[Content_Types].xml', updated);
-        logger.debug(`Registered content type for ${partName}`);
+        const override = `<Override PartName="${partName}" ContentType="${contentType}"/>`
+        const updated = content.replace('</Types>', `  ${override}\n</Types>`)
+        zipManager.writeFile('[Content_Types].xml', updated)
+        logger.debug(`Registered content type for ${partName}`)
       }
-    });
-    zipManager.addPendingPromise(this.#updateQueue);
+    })
+    zipManager.addPendingPromise(this.#updateQueue)
   }
 
   /**
@@ -129,23 +115,23 @@ class ContentTypesHelper {
    */
   #removeOverride(zipManager, partName) {
     this.#updateQueue = this.#updateQueue.then(async () => {
-      const xmlFile = zipManager.rawZip.file('[Content_Types].xml');
+      const xmlFile = zipManager.rawZip.file('[Content_Types].xml')
       if (!xmlFile) {
-        logger.warn('[Content_Types].xml not found');
-        return;
+        logger.warn('[Content_Types].xml not found')
+        return
       }
-      const content = await xmlFile.async('text');
-      const regex = new RegExp(`<Override[^>]*PartName="${partName}"[^>]*/>\\s*`, 'g');
+      const content = await xmlFile.async('text')
+      const regex = new RegExp(`<Override[^>]*PartName="${partName}"[^>]*/>\\s*`, 'g')
       if (regex.test(content)) {
-        const updated = content.replace(regex, '');
-        zipManager.writeFile('[Content_Types].xml', updated);
-        logger.debug(`Removed content type for ${partName}`);
+        const updated = content.replace(regex, '')
+        zipManager.writeFile('[Content_Types].xml', updated)
+        logger.debug(`Removed content type for ${partName}`)
       }
-    });
-    zipManager.addPendingPromise(this.#updateQueue);
+    })
+    zipManager.addPendingPromise(this.#updateQueue)
   }
 }
 
 module.exports = {
-  contentTypesHelper: new ContentTypesHelper()
-};
+  contentTypesHelper: new ContentTypesHelper(),
+}

@@ -4,25 +4,25 @@
  * Implements structured, XML-safe manipulation of the OPC manifest.
  */
 
-const { createLogger } = require('../utils/logger.js');
-const { PPTXError } = require('../utils/errors.js');
+const { createLogger } = require('../utils/logger.js')
+const { PPTXError } = require('../utils/errors.js')
 
-const logger = createLogger('ContentTypesManager');
+const logger = createLogger('ContentTypesManager')
 
-const TYPES_XML_PATH = '[Content_Types].xml';
+const TYPES_XML_PATH = '[Content_Types].xml'
 
 class ContentTypesManager {
   /** @private @type {XMLParser} */
-  #xmlParser;
+  #xmlParser
 
   /** @private @type {Object} */
-  #contentTypesObj = null;
+  #contentTypesObj = null
 
   /**
    * @param {XMLParser} xmlParser
    */
   constructor(xmlParser) {
-    this.#xmlParser = xmlParser;
+    this.#xmlParser = xmlParser
   }
 
   /**
@@ -32,36 +32,38 @@ class ContentTypesManager {
    * @returns {Promise<void>}
    */
   async initialize(zipManager) {
-    const content = await zipManager.readFile(TYPES_XML_PATH);
+    const content = await zipManager.readFile(TYPES_XML_PATH)
     if (!content) {
-      throw new PPTXError(`${TYPES_XML_PATH} is missing from the archive.`);
+      throw new PPTXError(`${TYPES_XML_PATH} is missing from the archive.`)
     }
 
-    this.#contentTypesObj = this.#xmlParser.parse(content, TYPES_XML_PATH);
+    this.#contentTypesObj = this.#xmlParser.parse(content, TYPES_XML_PATH)
 
     // Ensure structure is correct
     if (!this.#contentTypesObj.Types) {
       this.#contentTypesObj.Types = {
         '@_xmlns': 'http://schemas.openxmlformats.org/package/2006/content-types',
         Default: [],
-        Override: []
-      };
+        Override: [],
+      }
     }
 
     // Ensure array properties
     if (!this.#contentTypesObj.Types.Default) {
-      this.#contentTypesObj.Types.Default = [];
+      this.#contentTypesObj.Types.Default = []
     } else if (!Array.isArray(this.#contentTypesObj.Types.Default)) {
-      this.#contentTypesObj.Types.Default = [this.#contentTypesObj.Types.Default];
+      this.#contentTypesObj.Types.Default = [this.#contentTypesObj.Types.Default]
     }
 
     if (!this.#contentTypesObj.Types.Override) {
-      this.#contentTypesObj.Types.Override = [];
+      this.#contentTypesObj.Types.Override = []
     } else if (!Array.isArray(this.#contentTypesObj.Types.Override)) {
-      this.#contentTypesObj.Types.Override = [this.#contentTypesObj.Types.Override];
+      this.#contentTypesObj.Types.Override = [this.#contentTypesObj.Types.Override]
     }
 
-    logger.debug(`Loaded [Content_Types].xml with ${this.#contentTypesObj.Types.Default.length} Defaults and ${this.#contentTypesObj.Types.Override.length} Overrides`);
+    logger.debug(
+      `Loaded [Content_Types].xml with ${this.#contentTypesObj.Types.Default.length} Defaults and ${this.#contentTypesObj.Types.Override.length} Overrides`
+    )
   }
 
   /**
@@ -71,18 +73,18 @@ class ContentTypesManager {
    * @param {string} contentType - The MIME type.
    */
   addDefault(extension, contentType) {
-    const extLower = extension.toLowerCase();
-    const defaults = this.#contentTypesObj.Types.Default;
+    const extLower = extension.toLowerCase()
+    const defaults = this.#contentTypesObj.Types.Default
 
-    const existing = defaults.find(d => d['@_Extension']?.toLowerCase() === extLower);
+    const existing = defaults.find(d => d['@_Extension']?.toLowerCase() === extLower)
     if (existing) {
-      existing['@_ContentType'] = contentType;
+      existing['@_ContentType'] = contentType
     } else {
       defaults.push({
         '@_Extension': extLower,
-        '@_ContentType': contentType
-      });
-      logger.debug(`Registered default content type for extension .${extLower} -> ${contentType}`);
+        '@_ContentType': contentType,
+      })
+      logger.debug(`Registered default content type for extension .${extLower} -> ${contentType}`)
     }
   }
 
@@ -93,18 +95,18 @@ class ContentTypesManager {
    * @param {string} contentType - The MIME type.
    */
   addOverride(partName, contentType) {
-    const normalizedPart = partName.startsWith('/') ? partName : `/${partName}`;
-    const overrides = this.#contentTypesObj.Types.Override;
+    const normalizedPart = partName.startsWith('/') ? partName : `/${partName}`
+    const overrides = this.#contentTypesObj.Types.Override
 
-    const existing = overrides.find(o => o['@_PartName'] === normalizedPart);
+    const existing = overrides.find(o => o['@_PartName'] === normalizedPart)
     if (existing) {
-      existing['@_ContentType'] = contentType;
+      existing['@_ContentType'] = contentType
     } else {
       overrides.push({
         '@_PartName': normalizedPart,
-        '@_ContentType': contentType
-      });
-      logger.debug(`Registered override content type for ${normalizedPart} -> ${contentType}`);
+        '@_ContentType': contentType,
+      })
+      logger.debug(`Registered override content type for ${normalizedPart} -> ${contentType}`)
     }
   }
 
@@ -114,13 +116,13 @@ class ContentTypesManager {
    * @param {string} partName - Absolute part path (e.g., '/ppt/slides/slide1.xml').
    */
   removeOverride(partName) {
-    const normalizedPart = partName.startsWith('/') ? partName : `/${partName}`;
-    const overrides = this.#contentTypesObj.Types.Override;
+    const normalizedPart = partName.startsWith('/') ? partName : `/${partName}`
+    const overrides = this.#contentTypesObj.Types.Override
 
-    const filtered = overrides.filter(o => o['@_PartName'] !== normalizedPart);
+    const filtered = overrides.filter(o => o['@_PartName'] !== normalizedPart)
     if (filtered.length !== overrides.length) {
-      this.#contentTypesObj.Types.Override = filtered;
-      logger.debug(`Removed content type override for ${normalizedPart}`);
+      this.#contentTypesObj.Types.Override = filtered
+      logger.debug(`Removed content type override for ${normalizedPart}`)
     }
   }
 
@@ -131,8 +133,10 @@ class ContentTypesManager {
    * @returns {boolean}
    */
   hasDefault(extension) {
-    const extLower = extension.toLowerCase();
-    return this.#contentTypesObj.Types.Default.some(d => d['@_Extension']?.toLowerCase() === extLower);
+    const extLower = extension.toLowerCase()
+    return this.#contentTypesObj.Types.Default.some(
+      d => d['@_Extension']?.toLowerCase() === extLower
+    )
   }
 
   /**
@@ -142,8 +146,8 @@ class ContentTypesManager {
    * @returns {boolean}
    */
   hasOverride(partName) {
-    const normalizedPart = partName.startsWith('/') ? partName : `/${partName}`;
-    return this.#contentTypesObj.Types.Override.some(o => o['@_PartName'] === normalizedPart);
+    const normalizedPart = partName.startsWith('/') ? partName : `/${partName}`
+    return this.#contentTypesObj.Types.Override.some(o => o['@_PartName'] === normalizedPart)
   }
 
   /**
@@ -152,11 +156,11 @@ class ContentTypesManager {
    * @param {ZipManager} zipManager
    */
   flush(zipManager) {
-    const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-    const xml = this.#xmlParser.build(this.#contentTypesObj, declaration);
-    zipManager.writeFile(TYPES_XML_PATH, xml);
-    logger.debug(`Flushed ${TYPES_XML_PATH}`);
+    const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    const xml = this.#xmlParser.build(this.#contentTypesObj, declaration)
+    zipManager.writeFile(TYPES_XML_PATH, xml)
+    logger.debug(`Flushed ${TYPES_XML_PATH}`)
   }
 }
 
-module.exports = { ContentTypesManager };
+module.exports = { ContentTypesManager }

@@ -31,11 +31,11 @@
  *   Use <a:hlinkMouseOver r:id="..."/> instead of hlinkClick.
  */
 
-const { createLogger } = require('../utils/logger.js');
-const { PPTXError } = require('../utils/errors.js');
-const { REL_TYPES } = require('./RelationshipManager.js');
+const { createLogger } = require('../utils/logger.js')
+const { PPTXError } = require('../utils/errors.js')
+const { REL_TYPES } = require('./RelationshipManager.js')
 
-const logger = createLogger('HyperlinkManager');
+const logger = createLogger('HyperlinkManager')
 
 /**
  * @class HyperlinkManager
@@ -43,17 +43,17 @@ const logger = createLogger('HyperlinkManager');
  */
 class HyperlinkManager {
   /** @private @type {XMLParser} */
-  #xmlParser;
+  #xmlParser
   /** @private @type {RelationshipManager} */
-  #relationshipManager;
+  #relationshipManager
 
   /**
    * @param {XMLParser} xmlParser
    * @param {RelationshipManager} relationshipManager
    */
   constructor(xmlParser, relationshipManager) {
-    this.#xmlParser = xmlParser;
-    this.#relationshipManager = relationshipManager;
+    this.#xmlParser = xmlParser
+    this.#relationshipManager = relationshipManager
   }
 
   /**
@@ -68,9 +68,9 @@ class HyperlinkManager {
    * @param {RelationshipManager} relationshipManager
    */
   addExternalHyperlink(slideIndex, options, slideManager, relationshipManager) {
-    const { text, url, tooltip } = options;
-    const slideInfo = slideManager.getSlideInfo(slideIndex);
-    const slideXml = slideManager.getSlideXml(slideIndex);
+    const { text, url, tooltip } = options
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    const slideXml = slideManager.getSlideXml(slideIndex)
 
     // Add the hyperlink relationship to the slide's .rels file
     const rId = relationshipManager.addRelationship(
@@ -78,13 +78,13 @@ class HyperlinkManager {
       REL_TYPES.HYPERLINK,
       url,
       'External'
-    );
+    )
 
     // Update the slide XML to reference the new rId
-    const updatedXml = this.#injectHyperlinkOnText(slideXml, text, rId, tooltip);
-    slideManager.setSlideXml(slideIndex, updatedXml);
+    const updatedXml = this.#injectHyperlinkOnText(slideXml, text, rId, tooltip)
+    slideManager.setSlideXml(slideIndex, updatedXml)
 
-    logger.debug(`Added hyperlink to "${text}" → ${url} (${rId}) in slide ${slideIndex}`);
+    logger.debug(`Added hyperlink to "${text}" → ${url} (${rId}) in slide ${slideIndex}`)
   }
 
   /**
@@ -96,25 +96,25 @@ class HyperlinkManager {
    * @param {RelationshipManager} relationshipManager
    */
   addSlideHyperlink(sourceSlideIndex, targetSlideIndex, slideManager, relationshipManager) {
-    const sourceInfo = slideManager.getSlideInfo(sourceSlideIndex);
-    const targetInfo = slideManager.getSlideInfo(targetSlideIndex);
+    const sourceInfo = slideManager.getSlideInfo(sourceSlideIndex)
+    const targetInfo = slideManager.getSlideInfo(targetSlideIndex)
 
     // Build relative target path from source to target slide
-    const relativePath = `../slides/${targetInfo.zipPath.split('/').pop()}`;
+    const relativePath = `../slides/${targetInfo.zipPath.split('/').pop()}`
 
     // Add relationship pointing to the target slide
     const rId = relationshipManager.addRelationship(
       sourceInfo.zipPath,
       REL_TYPES.SLIDE,
       relativePath
-    );
+    )
 
     // Add hlinkClick with slide jump action to the slide number placeholder
-    const slideXml = slideManager.getSlideXml(sourceSlideIndex);
-    const updatedXml = this.#injectSlideJumpHyperlink(slideXml, rId);
-    slideManager.setSlideXml(sourceSlideIndex, updatedXml);
+    const slideXml = slideManager.getSlideXml(sourceSlideIndex)
+    const updatedXml = this.#injectSlideJumpHyperlink(slideXml, rId)
+    slideManager.setSlideXml(sourceSlideIndex, updatedXml)
 
-    logger.debug(`Linked slide ${sourceSlideIndex} → slide ${targetSlideIndex} (${rId})`);
+    logger.debug(`Linked slide ${sourceSlideIndex} → slide ${targetSlideIndex} (${rId})`)
   }
 
   /**
@@ -127,23 +127,25 @@ class HyperlinkManager {
    * @param {RelationshipManager} relationshipManager
    */
   addTextSlideLink(sourceSlideIndex, text, targetSlideIndex, slideManager, relationshipManager) {
-    const sourceInfo = slideManager.getSlideInfo(sourceSlideIndex);
-    const targetInfo = slideManager.getSlideInfo(targetSlideIndex);
+    const sourceInfo = slideManager.getSlideInfo(sourceSlideIndex)
+    const targetInfo = slideManager.getSlideInfo(targetSlideIndex)
 
-    const relativePath = `../slides/${targetInfo.zipPath.split('/').pop()}`;
+    const relativePath = `../slides/${targetInfo.zipPath.split('/').pop()}`
     const rId = relationshipManager.addRelationship(
       sourceInfo.zipPath,
       REL_TYPES.SLIDE,
       relativePath
-    );
+    )
 
-    const slideXml = slideManager.getSlideXml(sourceSlideIndex);
+    const slideXml = slideManager.getSlideXml(sourceSlideIndex)
     // Use injectHyperlinkOnText but append action attribute
-    const actionAttr = 'action="ppaction://hlinksldjump"';
-    const updatedXml = this.#injectHyperlinkOnText(slideXml, text, rId, null, actionAttr);
-    slideManager.setSlideXml(sourceSlideIndex, updatedXml);
+    const actionAttr = 'action="ppaction://hlinksldjump"'
+    const updatedXml = this.#injectHyperlinkOnText(slideXml, text, rId, null, actionAttr)
+    slideManager.setSlideXml(sourceSlideIndex, updatedXml)
 
-    logger.debug(`Linked text "${text}" on slide ${sourceSlideIndex} → slide ${targetSlideIndex} (${rId})`);
+    logger.debug(
+      `Linked text "${text}" on slide ${sourceSlideIndex} → slide ${targetSlideIndex} (${rId})`
+    )
   }
 
   /**
@@ -155,23 +157,31 @@ class HyperlinkManager {
    * @param {SlideManager} slideManager
    * @param {RelationshipManager} relationshipManager
    */
-  addShapeSlideLink(sourceSlideIndex, shapeName, targetSlideIndex, slideManager, relationshipManager) {
-    const sourceInfo = slideManager.getSlideInfo(sourceSlideIndex);
-    const targetInfo = slideManager.getSlideInfo(targetSlideIndex);
+  addShapeSlideLink(
+    sourceSlideIndex,
+    shapeName,
+    targetSlideIndex,
+    slideManager,
+    relationshipManager
+  ) {
+    const sourceInfo = slideManager.getSlideInfo(sourceSlideIndex)
+    const targetInfo = slideManager.getSlideInfo(targetSlideIndex)
 
-    const relativePath = `../slides/${targetInfo.zipPath.split('/').pop()}`;
+    const relativePath = `../slides/${targetInfo.zipPath.split('/').pop()}`
     const rId = relationshipManager.addRelationship(
       sourceInfo.zipPath,
       REL_TYPES.SLIDE,
       relativePath
-    );
+    )
 
-    const slideXml = slideManager.getSlideXml(sourceSlideIndex);
-    const actionAttr = 'action="ppaction://hlinksldjump"';
-    const updatedXml = this.#injectHyperlinkOnShape(slideXml, shapeName, rId, actionAttr);
-    slideManager.setSlideXml(sourceSlideIndex, updatedXml);
+    const slideXml = slideManager.getSlideXml(sourceSlideIndex)
+    const actionAttr = 'action="ppaction://hlinksldjump"'
+    const updatedXml = this.#injectHyperlinkOnShape(slideXml, shapeName, rId, actionAttr)
+    slideManager.setSlideXml(sourceSlideIndex, updatedXml)
 
-    logger.debug(`Linked shape "${shapeName}" on slide ${sourceSlideIndex} → slide ${targetSlideIndex} (${rId})`);
+    logger.debug(
+      `Linked shape "${shapeName}" on slide ${sourceSlideIndex} → slide ${targetSlideIndex} (${rId})`
+    )
   }
 
   /**
@@ -184,19 +194,19 @@ class HyperlinkManager {
    * @param {RelationshipManager} relationshipManager
    */
   addShapeHyperlink(slideIndex, shapeName, url, slideManager, relationshipManager) {
-    const slideInfo = slideManager.getSlideInfo(slideIndex);
-    const slideXml = slideManager.getSlideXml(slideIndex);
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    const slideXml = slideManager.getSlideXml(slideIndex)
 
     const rId = relationshipManager.addRelationship(
       slideInfo.zipPath,
       REL_TYPES.HYPERLINK,
       url,
       'External'
-    );
+    )
 
-    const updatedXml = this.#injectHyperlinkOnShape(slideXml, shapeName, rId);
-    slideManager.setSlideXml(slideIndex, updatedXml);
-    logger.debug(`Added shape hyperlink on "${shapeName}" → ${url}`);
+    const updatedXml = this.#injectHyperlinkOnShape(slideXml, shapeName, rId)
+    slideManager.setSlideXml(slideIndex, updatedXml)
+    logger.debug(`Added shape hyperlink on "${shapeName}" → ${url}`)
   }
 
   /**
@@ -208,24 +218,24 @@ class HyperlinkManager {
    * @param {RelationshipManager} relationshipManager
    */
   removeHyperlink(slideIndex, text, slideManager, relationshipManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex);
-    const slideInfo = slideManager.getSlideInfo(slideIndex);
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
 
     // Find the rId for this hyperlink
     const hlinkPattern = new RegExp(
       `<a:hlinkClick[^>]*r:id="(rId\\d+)"[^/]*/>[\\s\\S]*?<a:t>${this.#escapeRegex(text)}</a:t>`
-    );
-    const match = hlinkPattern.exec(slideXml);
+    )
+    const match = hlinkPattern.exec(slideXml)
 
     if (match) {
-      const rId = match[1];
+      const rId = match[1]
       // Remove the hlinkClick attribute from the rPr
       const updatedXml = slideXml.replace(
         new RegExp(`<a:hlinkClick[^>]*r:id="${rId}"[^/]*/>`, 'g'),
         ''
-      );
-      slideManager.setSlideXml(slideIndex, updatedXml);
-      relationshipManager.removeRelationship(slideInfo.zipPath, rId);
+      )
+      slideManager.setSlideXml(slideIndex, updatedXml)
+      relationshipManager.removeRelationship(slideInfo.zipPath, rId)
     }
   }
 
@@ -241,75 +251,69 @@ class HyperlinkManager {
    * @returns {string} Updated slide XML.
    */
   #injectHyperlinkOnText(slideXml, text, rId, tooltip, actionAttr = '') {
-    const escapedText = this.#escapeXml(text);
-    const textPattern = new RegExp(`(<a:t>)(${this.#escapeRegex(escapedText)})(<\/a:t>)`, 'g');
+    const escapedText = this.#escapeXml(text)
+    const textPattern = new RegExp(`(<a:t>)(${this.#escapeRegex(escapedText)})(<\/a:t>)`, 'g')
 
     if (!textPattern.test(slideXml)) {
-      logger.warn(`Text "${text}" not found in slide XML`);
-      return slideXml;
+      logger.warn(`Text "${text}" not found in slide XML`)
+      return slideXml
     }
 
-    const tipAttr = tooltip ? ` tooltip="${this.#escapeXml(tooltip)}"` : '';
-    const actAttr = actionAttr ? ` ${actionAttr}` : '';
-    const rIdAttr = rId ? ` r:id="${rId}"` : '';
-    const hlinkXml = `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"${rIdAttr}${tipAttr}${actAttr}/>`;
+    const tipAttr = tooltip ? ` tooltip="${this.#escapeXml(tooltip)}"` : ''
+    const actAttr = actionAttr ? ` ${actionAttr}` : ''
+    const rIdAttr = rId ? ` r:id="${rId}"` : ''
+    const hlinkXml = `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"${rIdAttr}${tipAttr}${actAttr}/>`
 
     // We need to add the hlinkClick INSIDE the a:rPr of the text run containing our text
-    let updated = slideXml;
+    let updated = slideXml
 
     // Find the text node
-    const tStart = slideXml.indexOf(`<a:t>${escapedText}</a:t>`);
+    const tStart = slideXml.indexOf(`<a:t>${escapedText}</a:t>`)
     if (tStart === -1) {
-      const tStartPlain = slideXml.indexOf(`<a:t>${text}</a:t>`);
+      const tStartPlain = slideXml.indexOf(`<a:t>${text}</a:t>`)
       if (tStartPlain === -1) {
-        logger.warn(`Could not locate text "${text}" in slide XML`);
-        return slideXml;
+        logger.warn(`Could not locate text "${text}" in slide XML`)
+        return slideXml
       }
     }
 
     // Find the containing <a:r> tag
-    const rStart = updated.lastIndexOf('<a:r>', tStart);
-    const rEnd = updated.indexOf('</a:r>', tStart);
+    const rStart = updated.lastIndexOf('<a:r>', tStart)
+    const rEnd = updated.indexOf('</a:r>', tStart)
 
     if (rStart === -1 || rEnd === -1) {
-      return slideXml;
+      return slideXml
     }
 
-    const runXml = updated.substring(rStart, rEnd + '</a:r>'.length);
+    const runXml = updated.substring(rStart, rEnd + '</a:r>'.length)
 
     // Check if rPr exists
     if (runXml.includes('<a:rPr')) {
-      const rPrEnd = runXml.indexOf('>', runXml.indexOf('<a:rPr'));
-      const rPrIsSelfClosing = runXml[rPrEnd - 1] === '/';
+      const rPrEnd = runXml.indexOf('>', runXml.indexOf('<a:rPr'))
+      const rPrIsSelfClosing = runXml[rPrEnd - 1] === '/'
 
-      let newRunXml;
+      let newRunXml
       if (rPrIsSelfClosing) {
-        const rPrStart = runXml.indexOf('<a:rPr');
-        const rPrFull = runXml.substring(rPrStart, rPrEnd + 1);
-        const rPrAttribs = rPrFull.replace('/>', '');
-        newRunXml = runXml.replace(
-          rPrFull,
-          `${rPrAttribs}>${hlinkXml}</a:rPr>`
-        );
+        const rPrStart = runXml.indexOf('<a:rPr')
+        const rPrFull = runXml.substring(rPrStart, rPrEnd + 1)
+        const rPrAttribs = rPrFull.replace('/>', '')
+        newRunXml = runXml.replace(rPrFull, `${rPrAttribs}>${hlinkXml}</a:rPr>`)
       } else {
-        const rPrClose = runXml.indexOf('</a:rPr>');
-        newRunXml =
-          runXml.substring(0, rPrClose) + hlinkXml + runXml.substring(rPrClose);
+        const rPrClose = runXml.indexOf('</a:rPr>')
+        newRunXml = runXml.substring(0, rPrClose) + hlinkXml + runXml.substring(rPrClose)
       }
 
-      updated =
-        updated.substring(0, rStart) + newRunXml + updated.substring(rEnd + '</a:r>'.length);
+      updated = updated.substring(0, rStart) + newRunXml + updated.substring(rEnd + '</a:r>'.length)
     } else {
-      const tTagStart = runXml.indexOf('<a:t>');
+      const tTagStart = runXml.indexOf('<a:t>')
       const newRunXml =
         runXml.substring(0, tTagStart) +
         `<a:rPr lang="en-US" dirty="0">${hlinkXml}</a:rPr>` +
-        runXml.substring(tTagStart);
-      updated =
-        updated.substring(0, rStart) + newRunXml + updated.substring(rEnd + '</a:r>'.length);
+        runXml.substring(tTagStart)
+      updated = updated.substring(0, rStart) + newRunXml + updated.substring(rEnd + '</a:r>'.length)
     }
 
-    return updated;
+    return updated
   }
 
   /**
@@ -317,20 +321,17 @@ class HyperlinkManager {
    * @private
    */
   #injectSlideJumpHyperlink(slideXml, rId) {
-    const hlinkXml = `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="${rId}" action="ppaction://hlinksldjump"/>`;
+    const hlinkXml = `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="${rId}" action="ppaction://hlinksldjump"/>`
 
     // Look for slide number field (<a:fld type="slidenum">) or first text run
-    const fldPattern = /<a:fld[^>]*type="slidenum"[^>]*>/;
+    const fldPattern = /<a:fld[^>]*type="slidenum"[^>]*>/
     if (fldPattern.test(slideXml)) {
       // Add action to the fld element
-      return slideXml.replace(
-        fldPattern,
-        match => match.replace('>', `>${hlinkXml}`)
-      );
+      return slideXml.replace(fldPattern, match => match.replace('>', `>${hlinkXml}`))
     }
 
     // Fallback: add to first text in slide
-    return this.#injectHyperlinkOnFirstText(slideXml, rId);
+    return this.#injectHyperlinkOnFirstText(slideXml, rId)
   }
 
   /**
@@ -338,11 +339,11 @@ class HyperlinkManager {
    * @private
    */
   #injectHyperlinkOnFirstText(slideXml, rId) {
-    const firstT = slideXml.indexOf('<a:t>');
-    if (firstT === -1) return slideXml;
+    const firstT = slideXml.indexOf('<a:t>')
+    if (firstT === -1) return slideXml
 
-    const text = slideXml.substring(firstT + 5, slideXml.indexOf('</a:t>', firstT));
-    return this.#injectHyperlinkOnText(slideXml, text, rId);
+    const text = slideXml.substring(firstT + 5, slideXml.indexOf('</a:t>', firstT))
+    return this.#injectHyperlinkOnText(slideXml, text, rId)
   }
 
   /**
@@ -350,35 +351,32 @@ class HyperlinkManager {
    * @private
    */
   #injectHyperlinkOnShape(slideXml, shapeName, rId, actionAttr = '') {
-    const actAttr = actionAttr ? ` ${actionAttr}` : '';
-    const rIdAttr = rId ? ` r:id="${rId}"` : '';
-    const hlinkXml = `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"${rIdAttr}${actAttr}/>`;
+    const actAttr = actionAttr ? ` ${actionAttr}` : ''
+    const rIdAttr = rId ? ` r:id="${rId}"` : ''
+    const hlinkXml = `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"${rIdAttr}${actAttr}/>`
 
     // Find the shape by name
-    const namePattern = new RegExp(`name="${this.#escapeRegex(shapeName)}"`);
-    const nameMatch = namePattern.exec(slideXml);
+    const namePattern = new RegExp(`name="${this.#escapeRegex(shapeName)}"`)
+    const nameMatch = namePattern.exec(slideXml)
     if (!nameMatch) {
-      logger.warn(`Shape "${shapeName}" not found`);
-      return slideXml;
+      logger.warn(`Shape "${shapeName}" not found`)
+      return slideXml
     }
 
     // Find the p:sp containing this shape and inject into nvSpPr
-    const spStart = slideXml.lastIndexOf('<p:sp>', nameMatch.index);
-    const spEnd = slideXml.indexOf('</p:sp>', nameMatch.index);
+    const spStart = slideXml.lastIndexOf('<p:sp>', nameMatch.index)
+    const spEnd = slideXml.indexOf('</p:sp>', nameMatch.index)
 
-    if (spStart === -1 || spEnd === -1) return slideXml;
+    if (spStart === -1 || spEnd === -1) return slideXml
 
-    const spXml = slideXml.substring(spStart, spEnd + '</p:sp>'.length);
-    const cNvSpPrEnd = spXml.indexOf('</p:cNvSpPr>');
+    const spXml = slideXml.substring(spStart, spEnd + '</p:sp>'.length)
+    const cNvSpPrEnd = spXml.indexOf('</p:cNvSpPr>')
 
-    if (cNvSpPrEnd === -1) return slideXml;
+    if (cNvSpPrEnd === -1) return slideXml
 
-    const newSpXml =
-      spXml.substring(0, cNvSpPrEnd) + hlinkXml + spXml.substring(cNvSpPrEnd);
+    const newSpXml = spXml.substring(0, cNvSpPrEnd) + hlinkXml + spXml.substring(cNvSpPrEnd)
 
-    return (
-      slideXml.substring(0, spStart) + newSpXml + slideXml.substring(spEnd + '</p:sp>'.length)
-    );
+    return slideXml.substring(0, spStart) + newSpXml + slideXml.substring(spEnd + '</p:sp>'.length)
   }
 
   /**
@@ -390,7 +388,7 @@ class HyperlinkManager {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
+      .replace(/'/g, '&apos;')
   }
 
   /**
@@ -402,11 +400,11 @@ class HyperlinkManager {
    * @param {SlideManager} slideManager
    */
   addTextNavigationLink(slideIndex, text, navType, slideManager) {
-    const action = this.#getNavigationAction(navType);
-    const slideXml = slideManager.getSlideXml(slideIndex);
-    const updatedXml = this.#injectHyperlinkOnText(slideXml, text, '', null, `action="${action}"`);
-    slideManager.setSlideXml(slideIndex, updatedXml);
-    logger.debug(`Added navigation link (${navType}) to "${text}" in slide ${slideIndex}`);
+    const action = this.#getNavigationAction(navType)
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const updatedXml = this.#injectHyperlinkOnText(slideXml, text, '', null, `action="${action}"`)
+    slideManager.setSlideXml(slideIndex, updatedXml)
+    logger.debug(`Added navigation link (${navType}) to "${text}" in slide ${slideIndex}`)
   }
 
   /**
@@ -418,11 +416,13 @@ class HyperlinkManager {
    * @param {SlideManager} slideManager
    */
   addShapeNavigationLink(slideIndex, shapeName, navType, slideManager) {
-    const action = this.#getNavigationAction(navType);
-    const slideXml = slideManager.getSlideXml(slideIndex);
-    const updatedXml = this.#injectHyperlinkOnShape(slideXml, shapeName, '', `action="${action}"`);
-    slideManager.setSlideXml(slideIndex, updatedXml);
-    logger.debug(`Added navigation link (${navType}) to shape "${shapeName}" in slide ${slideIndex}`);
+    const action = this.#getNavigationAction(navType)
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const updatedXml = this.#injectHyperlinkOnShape(slideXml, shapeName, '', `action="${action}"`)
+    slideManager.setSlideXml(slideIndex, updatedXml)
+    logger.debug(
+      `Added navigation link (${navType}) to shape "${shapeName}" in slide ${slideIndex}`
+    )
   }
 
   /**
@@ -430,15 +430,19 @@ class HyperlinkManager {
    * @private
    */
   #getNavigationAction(navType) {
-    const type = String(navType).toLowerCase();
+    const type = String(navType).toLowerCase()
     switch (type) {
-      case 'next': return 'ppaction://hlinkshowjump?s=nextslide';
+      case 'next':
+        return 'ppaction://hlinkshowjump?s=nextslide'
       case 'previous':
-      case 'prev': return 'ppaction://hlinkshowjump?s=prevslide';
-      case 'first': return 'ppaction://hlinkshowjump?s=firstslide';
-      case 'last': return 'ppaction://hlinkshowjump?s=lastslide';
+      case 'prev':
+        return 'ppaction://hlinkshowjump?s=prevslide'
+      case 'first':
+        return 'ppaction://hlinkshowjump?s=firstslide'
+      case 'last':
+        return 'ppaction://hlinkshowjump?s=lastslide'
       default:
-        throw new PPTXError(`Invalid navigation type: ${navType}`);
+        throw new PPTXError(`Invalid navigation type: ${navType}`)
     }
   }
 
@@ -446,8 +450,8 @@ class HyperlinkManager {
    * @private
    */
   #escapeRegex(str) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   }
 }
 
-module.exports = { HyperlinkManager };
+module.exports = { HyperlinkManager }

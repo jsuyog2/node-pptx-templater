@@ -35,11 +35,10 @@
  *  - .../slideToSlide       → slide → another slide (inter-slide link)
  */
 
-const { createLogger } = require('../utils/logger.js');
-const { PPTXError } = require('../utils/errors.js');
-const { generateRelationshipId } = require('../utils/relationshipUtils.js');
+const { createLogger } = require('../utils/logger.js')
+const { generateRelationshipId } = require('../utils/relationshipUtils.js')
 
-const logger = createLogger('RelationshipManager');
+const logger = createLogger('RelationshipManager')
 
 /**
  * OpenXML relationship type constants.
@@ -55,11 +54,14 @@ const REL_TYPES = {
   NOTES_SLIDE: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide',
   THEME: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme',
   TABLE_STYLES: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/tableStyles',
-  PRESENTATION: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument',
-  CORE_PROPERTIES: 'http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties',
-  EXTENDED_PROPERTIES: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties',
+  PRESENTATION:
+    'http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument',
+  CORE_PROPERTIES:
+    'http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties',
+  EXTENDED_PROPERTIES:
+    'http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties',
   PACKAGE: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/package',
-};
+}
 
 /**
  * @class RelationshipManager
@@ -75,13 +77,13 @@ class RelationshipManager {
    * @private
    * @type {XMLParser}
    */
-  #xmlParser;
+  #xmlParser
 
   /**
    * @private
    * @type {ZipManager}
    */
-  #zipManager;
+  #zipManager
 
   /**
    * @private
@@ -89,13 +91,13 @@ class RelationshipManager {
    * Maps zip path → parsed relationships array.
    * Key: relationship file path (e.g., 'ppt/_rels/presentation.xml.rels')
    */
-  #relationships = new Map();
+  #relationships = new Map()
 
   /**
    * @param {XMLParser} xmlParser
    */
   constructor(xmlParser) {
-    this.#xmlParser = xmlParser;
+    this.#xmlParser = xmlParser
   }
 
   /**
@@ -105,19 +107,19 @@ class RelationshipManager {
    * @returns {Promise<void>}
    */
   async initialize(zipManager) {
-    this.#zipManager = zipManager;
-    const relFiles = zipManager.listFiles('').filter(f => f.endsWith('.rels'));
+    this.#zipManager = zipManager
+    const relFiles = zipManager.listFiles('').filter(f => f.endsWith('.rels'))
 
     await Promise.all(
       relFiles.map(async relsPath => {
-        const content = await zipManager.readFile(relsPath);
+        const content = await zipManager.readFile(relsPath)
         if (content) {
-          this.#relationships.set(relsPath, this.#parseRels(content, relsPath));
+          this.#relationships.set(relsPath, this.#parseRels(content, relsPath))
         }
       })
-    );
+    )
 
-    logger.debug(`Loaded ${this.#relationships.size} relationship files`);
+    logger.debug(`Loaded ${this.#relationships.size} relationship files`)
   }
 
   /**
@@ -131,10 +133,10 @@ class RelationshipManager {
    * @returns {string} Path to the corresponding .rels file.
    */
   getRelsPath(partPath) {
-    const lastSlash = partPath.lastIndexOf('/');
-    const dir = lastSlash >= 0 ? partPath.substring(0, lastSlash) : '';
-    const file = lastSlash >= 0 ? partPath.substring(lastSlash + 1) : partPath;
-    return dir ? `${dir}/_rels/${file}.rels` : `_rels/${file}.rels`;
+    const lastSlash = partPath.lastIndexOf('/')
+    const dir = lastSlash >= 0 ? partPath.substring(0, lastSlash) : ''
+    const file = lastSlash >= 0 ? partPath.substring(lastSlash + 1) : partPath
+    return dir ? `${dir}/_rels/${file}.rels` : `_rels/${file}.rels`
   }
 
   /**
@@ -144,8 +146,8 @@ class RelationshipManager {
    * @returns {Relationship[]} Array of relationships.
    */
   getRelationships(partPath) {
-    const relsPath = this.getRelsPath(partPath);
-    return this.#relationships.get(relsPath) || [];
+    const relsPath = this.getRelsPath(partPath)
+    return this.#relationships.get(relsPath) || []
   }
 
   /**
@@ -156,8 +158,8 @@ class RelationshipManager {
    * @returns {Relationship|null}
    */
   getRelationshipById(partPath, rId) {
-    const rels = this.getRelationships(partPath);
-    return rels.find(r => r.id === rId) || null;
+    const rels = this.getRelationships(partPath)
+    return rels.find(r => r.id === rId) || null
   }
 
   /**
@@ -168,7 +170,7 @@ class RelationshipManager {
    * @returns {Relationship[]}
    */
   getRelationshipsByType(partPath, type) {
-    return this.getRelationships(partPath).filter(r => r.type === type);
+    return this.getRelationships(partPath).filter(r => r.type === type)
   }
 
   /**
@@ -182,23 +184,23 @@ class RelationshipManager {
    * @returns {string} The assigned relationship ID (e.g., 'rId3').
    */
   addRelationship(partPath, type, target, targetMode) {
-    const relsPath = this.getRelsPath(partPath);
+    const relsPath = this.getRelsPath(partPath)
 
     if (!this.#relationships.has(relsPath)) {
-      this.#relationships.set(relsPath, []);
+      this.#relationships.set(relsPath, [])
     }
 
-    const existing = this.#relationships.get(relsPath);
-    const newId = generateRelationshipId(existing.map(r => r.id));
+    const existing = this.#relationships.get(relsPath)
+    const newId = generateRelationshipId(existing.map(r => r.id))
 
-    const rel = { id: newId, type, target };
-    if (targetMode) rel.targetMode = targetMode;
+    const rel = { id: newId, type, target }
+    if (targetMode) rel.targetMode = targetMode
 
-    existing.push(rel);
-    this.#flushRels(relsPath, partPath);
+    existing.push(rel)
+    this.#flushRels(relsPath, partPath)
 
-    logger.debug(`Added relationship ${newId} (${type.split('/').pop()}) to ${partPath}`);
-    return newId;
+    logger.debug(`Added relationship ${newId} (${type.split('/').pop()}) to ${partPath}`)
+    return newId
   }
 
   /**
@@ -208,11 +210,11 @@ class RelationshipManager {
    * @param {string} rId - Relationship ID to remove.
    */
   removeRelationship(partPath, rId) {
-    const relsPath = this.getRelsPath(partPath);
-    const existing = this.#relationships.get(relsPath) || [];
-    const filtered = existing.filter(r => r.id !== rId);
-    this.#relationships.set(relsPath, filtered);
-    this.#flushRels(relsPath, partPath);
+    const relsPath = this.getRelsPath(partPath)
+    const existing = this.#relationships.get(relsPath) || []
+    const filtered = existing.filter(r => r.id !== rId)
+    this.#relationships.set(relsPath, filtered)
+    this.#flushRels(relsPath, partPath)
   }
 
   /**
@@ -223,12 +225,12 @@ class RelationshipManager {
    * @param {string} newTarget - New target value.
    */
   updateRelationshipTarget(partPath, rId, newTarget) {
-    const relsPath = this.getRelsPath(partPath);
-    const existing = this.#relationships.get(relsPath) || [];
-    const rel = existing.find(r => r.id === rId);
+    const relsPath = this.getRelsPath(partPath)
+    const existing = this.#relationships.get(relsPath) || []
+    const rel = existing.find(r => r.id === rId)
     if (rel) {
-      rel.target = newTarget;
-      this.#flushRels(relsPath, partPath);
+      rel.target = newTarget
+      this.#flushRels(relsPath, partPath)
     }
   }
 
@@ -242,26 +244,26 @@ class RelationshipManager {
    * @returns {Map<string, string>} Map of old rId → new rId for the cloned part.
    */
   copyRelationships(sourcePath, destPath, excludeTypes = []) {
-    const sourceRels = this.getRelationships(sourcePath);
-    const destRelsPath = this.getRelsPath(destPath);
-    const idMap = new Map();
+    const sourceRels = this.getRelationships(sourcePath)
+    const destRelsPath = this.getRelsPath(destPath)
+    const idMap = new Map()
 
     if (!this.#relationships.has(destRelsPath)) {
-      this.#relationships.set(destRelsPath, []);
+      this.#relationships.set(destRelsPath, [])
     }
 
-    const destRels = this.#relationships.get(destRelsPath);
+    const destRels = this.#relationships.get(destRelsPath)
 
     for (const rel of sourceRels) {
-      if (excludeTypes.includes(rel.type)) continue;
-      const newId = generateRelationshipId(destRels.map(r => r.id));
-      const newRel = { ...rel, id: newId };
-      destRels.push(newRel);
-      idMap.set(rel.id, newId);
+      if (excludeTypes.includes(rel.type)) continue
+      const newId = generateRelationshipId(destRels.map(r => r.id))
+      const newRel = { ...rel, id: newId }
+      destRels.push(newRel)
+      idMap.set(rel.id, newId)
     }
 
-    this.#flushRels(destRelsPath, destPath);
-    return idMap;
+    this.#flushRels(destRelsPath, destPath)
+    return idMap
   }
 
   /**
@@ -277,22 +279,22 @@ class RelationshipManager {
    */
   resolveTarget(partPath, target) {
     if (target.startsWith('http://') || target.startsWith('https://')) {
-      return target; // External URL — return as-is
+      return target // External URL — return as-is
     }
 
-    const baseParts = partPath.split('/');
-    baseParts.pop(); // Remove file name, keep directory
-    const targetParts = target.split('/');
+    const baseParts = partPath.split('/')
+    baseParts.pop() // Remove file name, keep directory
+    const targetParts = target.split('/')
 
     for (const part of targetParts) {
       if (part === '..') {
-        baseParts.pop();
+        baseParts.pop()
       } else if (part !== '.') {
-        baseParts.push(part);
+        baseParts.push(part)
       }
     }
 
-    return baseParts.join('/');
+    return baseParts.join('/')
   }
 
   /**
@@ -304,19 +306,19 @@ class RelationshipManager {
    */
   #parseRels(xmlContent, relsPath) {
     try {
-      const obj = this.#xmlParser.parse(xmlContent, relsPath);
-      const relationships = obj?.Relationships?.Relationship || [];
-      const relsArray = Array.isArray(relationships) ? relationships : [relationships];
+      const obj = this.#xmlParser.parse(xmlContent, relsPath)
+      const relationships = obj?.Relationships?.Relationship || []
+      const relsArray = Array.isArray(relationships) ? relationships : [relationships]
 
       return relsArray.map(rel => ({
         id: rel['@_Id'],
         type: rel['@_Type'],
         target: rel['@_Target'],
         targetMode: rel['@_TargetMode'] || null,
-      }));
+      }))
     } catch (err) {
-      logger.warn(`Failed to parse ${relsPath}: ${err.message}`);
-      return [];
+      logger.warn(`Failed to parse ${relsPath}: ${err.message}`)
+      return []
     }
   }
 
@@ -326,11 +328,11 @@ class RelationshipManager {
    * @param {string} relsPath - Path of the .rels file.
    * @param {string} partPath - For logging.
    */
-  #flushRels(relsPath, partPath) {
-    const rels = this.#relationships.get(relsPath) || [];
-    const xml = this.#buildRelsXml(rels);
+  #flushRels(relsPath, _partPath) {
+    const rels = this.#relationships.get(relsPath) || []
+    const xml = this.#buildRelsXml(rels)
     if (this.#zipManager) {
-      this.#zipManager.writeFile(relsPath, xml);
+      this.#zipManager.writeFile(relsPath, xml)
     }
   }
 
@@ -342,16 +344,16 @@ class RelationshipManager {
    */
   #buildRelsXml(rels) {
     const lines = rels.map(rel => {
-      const targetMode = rel.targetMode ? ` TargetMode="${rel.targetMode}"` : '';
-      return `  <Relationship Id="${rel.id}" Type="${rel.type}" Target="${rel.target}"${targetMode}/>`;
-    });
+      const targetMode = rel.targetMode ? ` TargetMode="${rel.targetMode}"` : ''
+      return `  <Relationship Id="${rel.id}" Type="${rel.type}" Target="${rel.target}"${targetMode}/>`
+    })
 
     return [
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
       '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
       ...lines,
       '</Relationships>',
-    ].join('\n');
+    ].join('\n')
   }
 
   /**
@@ -362,8 +364,8 @@ class RelationshipManager {
    */
   flushAll(zipManager) {
     for (const [relsPath, rels] of this.#relationships) {
-      const xml = this.#buildRelsXml(rels);
-      zipManager.writeFile(relsPath, xml);
+      const xml = this.#buildRelsXml(rels)
+      zipManager.writeFile(relsPath, xml)
     }
   }
 
@@ -374,30 +376,32 @@ class RelationshipManager {
    * @param {ZipManager} zipManager
    */
   removeOrphanRelationships(zipManager) {
-    let removedCount = 0;
+    let removedCount = 0
     for (const [relsPath, rels] of this.#relationships.entries()) {
       // Determine the base part path from the rels path
       // e.g. ppt/slides/_rels/slide1.xml.rels -> ppt/slides/slide1.xml
-      const partPath = relsPath.replace('_rels/', '').replace('.rels', '');
+      const partPath = relsPath.replace('_rels/', '').replace('.rels', '')
 
       const filtered = rels.filter(rel => {
-        if (rel.targetMode === 'External') return true;
-        const targetPath = this.resolveTarget(partPath, rel.target);
+        if (rel.targetMode === 'External') return true
+        const targetPath = this.resolveTarget(partPath, rel.target)
         if (!zipManager.hasFile(targetPath)) {
-          logger.warn(`Removing orphan relationship ${rel.id} pointing to missing target: ${targetPath}`);
-          removedCount++;
-          return false;
+          logger.warn(
+            `Removing orphan relationship ${rel.id} pointing to missing target: ${targetPath}`
+          )
+          removedCount++
+          return false
         }
-        return true;
-      });
+        return true
+      })
 
       if (filtered.length !== rels.length) {
-        this.#relationships.set(relsPath, filtered);
-        this.#flushRels(relsPath, partPath);
+        this.#relationships.set(relsPath, filtered)
+        this.#flushRels(relsPath, partPath)
       }
     }
-    logger.debug(`Removed ${removedCount} orphan relationship(s).`);
+    logger.debug(`Removed ${removedCount} orphan relationship(s).`)
   }
 }
 
-module.exports = { REL_TYPES, RelationshipManager };
+module.exports = { REL_TYPES, RelationshipManager }

@@ -18,40 +18,43 @@
  *   node-pptx-templater --help
  */
 
-const { Command } = require('commander');
-const chalk = require('chalk');
-const { readFileSync } = require('fs');
-const { resolve } = require('path');
-const { buildCommand } = require('./commands/build.js');
-const { validateCommand } = require('./commands/validate.js');
-const { inspectCommand } = require('./commands/inspect.js');
-const { extractCommand } = require('./commands/extract.js');
-const { debugCommand } = require('./commands/debug.js');
+const { Command } = require('commander')
+const chalk = require('chalk')
+const { readFileSync } = require('fs')
+const { resolve } = require('path')
+const { buildCommand } = require('./commands/build.js')
+const { validateCommand } = require('./commands/validate.js')
+const { inspectCommand } = require('./commands/inspect.js')
+const { extractCommand } = require('./commands/extract.js')
+const { debugCommand } = require('./commands/debug.js')
 
 // Read version from package.json
-const pkg = JSON.parse(
-  readFileSync(resolve(__dirname, '../../package.json'), 'utf-8')
-);
+const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8'))
 
 /**
  * CLI banner displayed on startup.
  */
 function printBanner() {
-  console.log(chalk.bold.cyan(`
+  console.log(
+    chalk.bold.cyan(`
 ╔═══════════════════════════════════════════════╗
 ║  node-pptx-templater v${pkg.version.padEnd(17)}║
 ║  Low-level OpenXML PowerPoint template engine ║
 ╚═══════════════════════════════════════════════╝
-`));
+`)
+  )
 }
 
-const program = new Command();
+const program = new Command()
 
 program
   .name('node-pptx-templater')
   .description('Low-level PowerPoint OpenXML template engine for Node.js')
   .version(pkg.version, '-v, --version', 'Display version number')
-  .addHelpText('before', chalk.bold.cyan('\nnode-pptx-templater — PowerPoint XML manipulation engine\n'));
+  .addHelpText(
+    'before',
+    chalk.bold.cyan('\nnode-pptx-templater — PowerPoint XML manipulation engine\n')
+  )
 
 // ─── build command ─────────────────────────────────────────────────────────
 program
@@ -61,9 +64,9 @@ program
   .option('-s, --slide <numbers>', 'Comma-separated slide numbers to include (e.g., 1,3,5)')
   .option('--no-banner', 'Suppress the banner')
   .action(async (template, output, opts) => {
-    if (!opts.noBanner) printBanner();
-    await buildCommand(template, output, opts);
-  });
+    if (!opts.noBanner) printBanner()
+    await buildCommand(template, output, opts)
+  })
 
 // ─── validate command ───────────────────────────────────────────────────────
 program
@@ -71,9 +74,9 @@ program
   .description('Validate the structure of a PPTX file')
   .option('--strict', 'Exit with error code on warnings too')
   .action(async (file, opts) => {
-    printBanner();
-    await validateCommand(file, opts);
-  });
+    printBanner()
+    await validateCommand(file, opts)
+  })
 
 // ─── inspect command ────────────────────────────────────────────────────────
 program
@@ -86,9 +89,9 @@ program
   .option('--rels', 'Show relationship tree')
   .option('--all', 'Show everything')
   .action(async (file, opts) => {
-    printBanner();
-    await inspectCommand(file, opts);
-  });
+    printBanner()
+    await inspectCommand(file, opts)
+  })
 
 // ─── extract command ────────────────────────────────────────────────────────
 program
@@ -99,8 +102,8 @@ program
   .option('--chart <name>', 'Extract chart XML by name')
   .option('--rels', 'Extract relationship files')
   .action(async (file, opts) => {
-    await extractCommand(file, opts);
-  });
+    await extractCommand(file, opts)
+  })
 
 // ─── debug command ──────────────────────────────────────────────────────────
 program
@@ -109,23 +112,23 @@ program
   .option('--fix', 'Attempt automatic repairs')
   .option('-o, --out <path>', 'Output repaired file path')
   .action(async (file, opts) => {
-    printBanner();
-    await debugCommand(file, opts);
-  });
+    printBanner()
+    await debugCommand(file, opts)
+  })
 
 // ─── Global error handling ──────────────────────────────────────────────────
-program.exitOverride();
+program.exitOverride()
 
 async function main() {
   try {
-    await program.parseAsync(process.argv);
+    await program.parseAsync(process.argv)
   } catch (err) {
     if (err.code === 'commander.helpDisplayed' || err.code === 'commander.version') {
-      process.exit(0);
+      process.exit(0)
     }
-    console.error(chalk.red(`\n✗ Error: ${err.message}\n`));
-    process.exit(1);
+    console.error(chalk.red(`\n✗ Error: ${err.message}\n`))
+    process.exit(1)
   }
 }
 
-main();
+main()

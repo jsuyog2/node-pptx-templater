@@ -22,11 +22,10 @@
  *   PPTX_LOG_LEVEL=silent → suppress all logs
  */
 
-const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3, silent: 4 };
+const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3, silent: 4 }
 
-const currentLevel = LOG_LEVELS[
-  (process.env.PPTX_LOG_LEVEL || 'warn').toLowerCase()
-] ?? LOG_LEVELS.warn;
+const currentLevel =
+  LOG_LEVELS[(process.env.PPTX_LOG_LEVEL || 'warn').toLowerCase()] ?? LOG_LEVELS.warn
 
 /**
  * ANSI color codes for terminal output.
@@ -38,14 +37,14 @@ const COLORS = {
   green: '\x1b[32m',
   yellow: '\x1b[33m',
   red: '\x1b[31m',
-};
+}
 
 /**
  * Formats the current timestamp as HH:MM:SS.mmm
  * @returns {string}
  */
 function timestamp() {
-  return new Date().toISOString().substring(11, 23);
+  return new Date().toISOString().substring(11, 23)
 }
 
 /**
@@ -67,19 +66,22 @@ function timestamp() {
  * logger.info('Loaded 5 slides');
  */
 function createLogger(moduleName) {
-  const isTTY = process.stdout.isTTY;
+  const isTTY = process.stdout.isTTY
 
   const log = (level, levelNum, color, message, ...args) => {
-    if (levelNum < currentLevel) return;
+    if (levelNum < currentLevel) return
 
     const prefix = isTTY
       ? `${COLORS.dim}${timestamp()}${COLORS.reset} ${color}[${level.toUpperCase().padEnd(5)}]${COLORS.reset} ${COLORS.cyan}[${moduleName}]${COLORS.reset}`
-      : `${timestamp()} [${level.toUpperCase().padEnd(5)}] [${moduleName}]`;
+      : `${timestamp()} [${level.toUpperCase().padEnd(5)}] [${moduleName}]`
 
-    const output = args.length > 0 ? `${message} ${args.map(a => JSON.stringify(a, null, 0)).join(' ')}` : message;
-    const stream = level === 'error' ? process.stderr : process.stdout;
-    stream.write(`${prefix} ${output}\n`);
-  };
+    const output =
+      args.length > 0
+        ? `${message} ${args.map(a => JSON.stringify(a, null, 0)).join(' ')}`
+        : message
+    const stream = level === 'error' ? process.stderr : process.stdout
+    stream.write(`${prefix} ${output}\n`)
+  }
 
   return {
     /**
@@ -109,9 +111,9 @@ function createLogger(moduleName) {
      * @param {...*} args
      */
     error: (message, ...args) => log('error', LOG_LEVELS.error, COLORS.red, message, ...args),
-  };
+  }
 }
 
 module.exports = {
-  createLogger
-};
+  createLogger,
+}

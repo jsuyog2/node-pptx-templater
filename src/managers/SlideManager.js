@@ -24,17 +24,16 @@
  *  - p:cxnSp    → Connectors
  */
 
-const { createLogger } = require('../utils/logger.js');
-const { PPTXError, SlideNotFoundError } = require('../utils/errors.js');
-const { REL_TYPES } = require('./RelationshipManager.js');
-const { buildNewSlideXml } = require('../templates/slideTemplate.js');
-const { generateUniqueId } = require('../utils/idUtils.js');
-const { remapRelationshipIds } = require('../utils/relationshipUtils.js');
+const { createLogger } = require('../utils/logger.js')
+const { PPTXError, SlideNotFoundError } = require('../utils/errors.js')
+const { REL_TYPES } = require('./RelationshipManager.js')
+const { buildNewSlideXml } = require('../templates/slideTemplate.js')
+const { remapRelationshipIds } = require('../utils/relationshipUtils.js')
 
-const logger = createLogger('SlideManager');
+const logger = createLogger('SlideManager')
 
 /** MIME type for PPTX slide parts. */
-const SLIDE_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml';
+const SLIDE_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
 
 /**
  * @typedef {Object} SlideInfo
@@ -52,37 +51,37 @@ const SLIDE_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presen
  */
 class SlideManager {
   /** @private @type {XMLParser} */
-  #xmlParser;
+  #xmlParser
   /** @private @type {RelationshipManager} */
-  #relationshipManager;
+  #relationshipManager
   /** @private @type {ContentTypesManager} */
-  #contentTypesManager;
+  #contentTypesManager
   /** @private @type {ZipManager} */
-  #zipManager;
+  #zipManager
 
   /**
    * Slide registry: maps 1-based index → SlideInfo.
    * @private @type {Map<number, SlideInfo>}
    */
-  #slides = new Map();
+  #slides = new Map()
 
   /**
    * Raw XML cache: maps zipPath → XML string.
    * @private @type {Map<string, string>}
    */
-  #slideXmlCache = new Map();
+  #slideXmlCache = new Map()
 
   /**
    * Custom tags: maps tag → array of 1-based indices.
    * @private @type {Map<string, number[]>}
    */
-  #tags = new Map();
+  #tags = new Map()
 
   /**
    * Parsed presentation.xml object (cached for modification).
    * @private @type {Object}
    */
-  #presentationObj = null;
+  #presentationObj = null
 
   /**
    * @param {XMLParser} xmlParser
@@ -90,9 +89,9 @@ class SlideManager {
    * @param {ContentTypesManager} contentTypesManager
    */
   constructor(xmlParser, relationshipManager, contentTypesManager) {
-    this.#xmlParser = xmlParser;
-    this.#relationshipManager = relationshipManager;
-    this.#contentTypesManager = contentTypesManager;
+    this.#xmlParser = xmlParser
+    this.#relationshipManager = relationshipManager
+    this.#contentTypesManager = contentTypesManager
   }
 
   /**
@@ -102,17 +101,17 @@ class SlideManager {
    * @returns {Promise<void>}
    */
   async initialize(zipManager) {
-    this.#zipManager = zipManager;
-    const presentationXml = await zipManager.readFile('ppt/presentation.xml');
+    this.#zipManager = zipManager
+    const presentationXml = await zipManager.readFile('ppt/presentation.xml')
 
     if (!presentationXml) {
       // If no presentation.xml, create a blank one
-      await this.#initializeBlankPresentation();
-      return;
+      await this.#initializeBlankPresentation()
+      return
     }
 
-    this.#presentationObj = this.#xmlParser.parse(presentationXml, 'presentation.xml');
-    await this.#discoverSlides(zipManager);
+    this.#presentationObj = this.#xmlParser.parse(presentationXml, 'presentation.xml')
+    await this.#discoverSlides(zipManager)
   }
 
   /**
@@ -120,47 +119,53 @@ class SlideManager {
    * @private
    */
   async #discoverSlides(zipManager) {
-    const rels = this.#relationshipManager.getRelationships('ppt/presentation.xml');
-    const slideRels = rels.filter(r => r.type === REL_TYPES.SLIDE);
+    const rels = this.#relationshipManager.getRelationships('ppt/presentation.xml')
+    const slideRels = rels.filter(r => r.type === REL_TYPES.SLIDE)
 
     // Get slide order from presentation.xml sldIdLst
-    const sldIdList = this.#xmlParser.findAll(this.#presentationObj, 'p:presentation.p:sldIdLst.p:sldId');
+    const sldIdList = this.#xmlParser.findAll(
+      this.#presentationObj,
+      'p:presentation.p:sldIdLst.p:sldId'
+    )
 
     // Map rId → slide info from sldIdLst
-    const rIdToSlideId = new Map();
+    const rIdToSlideId = new Map()
     for (const sldId of sldIdList) {
-      const rId = sldId['@_r:id'];
-      const slideId = sldId['@_id'];
-      if (rId) rIdToSlideId.set(rId, slideId);
+      const rId = sldId['@_r:id']
+      const slideId = sldId['@_id']
+      if (rId) rIdToSlideId.set(rId, slideId)
     }
 
     // Attempt to read slide titles from docProps/app.xml to preserve them
-    let slideTitles = [];
+    let slideTitles = []
     try {
-      const appXml = await zipManager.readFile('docProps/app.xml');
+      const appXml = await zipManager.readFile('docProps/app.xml')
       if (appXml) {
-        const appObj = this.#xmlParser.parse(appXml, 'app.xml');
-        const lpstrs = appObj?.Properties?.TitlesOfParts?.['vt:vector']?.['vt:lpstr'];
+        const appObj = this.#xmlParser.parse(appXml, 'app.xml')
+        const lpstrs = appObj?.Properties?.TitlesOfParts?.['vt:vector']?.['vt:lpstr']
         if (lpstrs) {
-          const allLpstrs = Array.isArray(lpstrs) ? lpstrs : [lpstrs];
+          const allLpstrs = Array.isArray(lpstrs) ? lpstrs : [lpstrs]
           // Slide titles are usually the last N items where N = slide count
           // We take the last slideRels.length items
-          slideTitles = allLpstrs.slice(-slideRels.length);
+          slideTitles = allLpstrs.slice(-slideRels.length)
         }
       }
     } catch (e) {
-      logger.warn('Failed to parse app.xml for slide titles', e);
+      logger.warn('Failed to parse app.xml for slide titles', e)
     }
 
     // Build ordered slide list
-    let slideIndex = 1;
+    let slideIndex = 1
     for (const sldId of sldIdList) {
-      const rId = sldId['@_r:id'];
-      const slideRel = slideRels.find(r => r.id === rId);
-      if (!slideRel) continue;
+      const rId = sldId['@_r:id']
+      const slideRel = slideRels.find(r => r.id === rId)
+      if (!slideRel) continue
 
       // Resolve absolute path from relative target
-      const zipPath = this.#relationshipManager.resolveTarget('ppt/presentation.xml', slideRel.target);
+      const zipPath = this.#relationshipManager.resolveTarget(
+        'ppt/presentation.xml',
+        slideRel.target
+      )
 
       const slideInfo = {
         index: slideIndex,
@@ -169,13 +174,13 @@ class SlideManager {
         slideId: rIdToSlideId.get(rId) || String(256 + slideIndex),
         tags: [],
         title: slideTitles[slideIndex - 1] || '',
-      };
+      }
 
-      this.#slides.set(slideIndex, slideInfo);
-      slideIndex++;
+      this.#slides.set(slideIndex, slideInfo)
+      slideIndex++
     }
 
-    logger.debug(`Discovered ${this.#slides.size} slides`);
+    logger.debug(`Discovered ${this.#slides.size} slides`)
   }
 
   /**
@@ -183,7 +188,7 @@ class SlideManager {
    * @returns {number}
    */
   get slideCount() {
-    return this.#slides.size;
+    return this.#slides.size
   }
 
   /**
@@ -191,7 +196,7 @@ class SlideManager {
    * @returns {number[]}
    */
   getAllSlideIndices() {
-    return Array.from(this.#slides.keys()).sort((a, b) => a - b);
+    return Array.from(this.#slides.keys()).sort((a, b) => a - b)
   }
 
   /**
@@ -199,7 +204,7 @@ class SlideManager {
    * @returns {SlideInfo[]}
    */
   getAllSlideInfo() {
-    return this.getAllSlideIndices().map(i => this.#slides.get(i));
+    return this.getAllSlideIndices().map(i => this.#slides.get(i))
   }
 
   /**
@@ -212,14 +217,14 @@ class SlideManager {
    */
   resolveSlideRef(ref) {
     if (typeof ref === 'number') {
-      this.#assertSlideExists(ref);
-      return [ref];
+      this.#assertSlideExists(ref)
+      return [ref]
     }
-    const taggedIndices = this.#tags.get(ref);
+    const taggedIndices = this.#tags.get(ref)
     if (!taggedIndices || taggedIndices.length === 0) {
-      throw new SlideNotFoundError(`No slides found with tag: "${ref}"`);
+      throw new SlideNotFoundError(`No slides found with tag: "${ref}"`)
     }
-    return taggedIndices;
+    return taggedIndices
   }
 
   /**
@@ -230,15 +235,15 @@ class SlideManager {
    * @returns {string} Slide XML content.
    */
   getSlideXml(slideIndex) {
-    this.#assertSlideExists(slideIndex);
-    const info = this.#slides.get(slideIndex);
+    this.#assertSlideExists(slideIndex)
+    const info = this.#slides.get(slideIndex)
 
     if (this.#slideXmlCache.has(info.zipPath)) {
-      return this.#slideXmlCache.get(info.zipPath);
+      return this.#slideXmlCache.get(info.zipPath)
     }
 
     // This is sync because we pre-load; async callers should use getSlideXmlAsync
-    throw new PPTXError(`Slide ${slideIndex} XML not pre-loaded. Use getSlideXmlAsync().`);
+    throw new PPTXError(`Slide ${slideIndex} XML not pre-loaded. Use getSlideXmlAsync().`)
   }
 
   /**
@@ -248,16 +253,16 @@ class SlideManager {
    * @returns {Promise<string>}
    */
   async getSlideXmlAsync(slideIndex) {
-    this.#assertSlideExists(slideIndex);
-    const info = this.#slides.get(slideIndex);
+    this.#assertSlideExists(slideIndex)
+    const info = this.#slides.get(slideIndex)
 
     if (!this.#slideXmlCache.has(info.zipPath)) {
-      const xml = await this.#zipManager.readFile(info.zipPath);
-      if (!xml) throw new SlideNotFoundError(`Slide ${slideIndex} XML not found at ${info.zipPath}`);
-      this.#slideXmlCache.set(info.zipPath, xml);
+      const xml = await this.#zipManager.readFile(info.zipPath)
+      if (!xml) throw new SlideNotFoundError(`Slide ${slideIndex} XML not found at ${info.zipPath}`)
+      this.#slideXmlCache.set(info.zipPath, xml)
     }
 
-    return this.#slideXmlCache.get(info.zipPath);
+    return this.#slideXmlCache.get(info.zipPath)
   }
 
   /**
@@ -267,10 +272,10 @@ class SlideManager {
    * @param {string} xml - New XML content.
    */
   setSlideXml(slideIndex, xml) {
-    this.#assertSlideExists(slideIndex);
-    const info = this.#slides.get(slideIndex);
-    this.#slideXmlCache.set(info.zipPath, xml);
-    this.#zipManager.writeFile(info.zipPath, xml);
+    this.#assertSlideExists(slideIndex)
+    const info = this.#slides.get(slideIndex)
+    this.#slideXmlCache.set(info.zipPath, xml)
+    this.#zipManager.writeFile(info.zipPath, xml)
   }
 
   /**
@@ -280,13 +285,13 @@ class SlideManager {
    * @param {string} tag - Tag string.
    */
   tagSlide(slideIndex, tag) {
-    this.#assertSlideExists(slideIndex);
-    const info = this.#slides.get(slideIndex);
-    if (!info.tags.includes(tag)) info.tags.push(tag);
+    this.#assertSlideExists(slideIndex)
+    const info = this.#slides.get(slideIndex)
+    if (!info.tags.includes(tag)) info.tags.push(tag)
 
-    if (!this.#tags.has(tag)) this.#tags.set(tag, []);
-    const tagList = this.#tags.get(tag);
-    if (!tagList.includes(slideIndex)) tagList.push(slideIndex);
+    if (!this.#tags.has(tag)) this.#tags.set(tag, [])
+    const tagList = this.#tags.get(tag)
+    if (!tagList.includes(slideIndex)) tagList.push(slideIndex)
   }
 
   /**
@@ -296,8 +301,8 @@ class SlideManager {
    * @returns {SlideInfo}
    */
   getSlideInfo(slideIndex) {
-    this.#assertSlideExists(slideIndex);
-    return this.#slides.get(slideIndex);
+    this.#assertSlideExists(slideIndex)
+    return this.#slides.get(slideIndex)
   }
 
   /**
@@ -308,44 +313,42 @@ class SlideManager {
    * @param {RelationshipManager} relationshipManager
    * @param {MediaManager} mediaManager
    */
-  addNewSlide(options, relationshipManager, mediaManager) {
-    const newIndex = this.#slides.size + 1;
-    let nextFileIndex = 1;
+  addNewSlide(options, relationshipManager, _mediaManager) {
+    const newIndex = this.#slides.size + 1
+    let nextFileIndex = 1
     while (this.#zipManager.hasFile(`ppt/slides/slide${nextFileIndex}.xml`)) {
-      nextFileIndex++;
+      nextFileIndex++
     }
-    const slideFileName = `slide${nextFileIndex}.xml`;
-    const slideZipPath = `ppt/slides/${slideFileName}`;
-
-    // Find the first available layout to reference
-    const layoutRels = relationshipManager.getRelationshipsByType('ppt/presentation.xml', REL_TYPES.SLIDE_MASTER);
-    const masterTarget = layoutRels[0]?.target || '../slideMasters/slideMaster1.xml';
+    const slideFileName = `slide${nextFileIndex}.xml`
+    const slideZipPath = `ppt/slides/${slideFileName}`
 
     // Generate the slide XML
-    const slideXml = buildNewSlideXml(options, newIndex);
+    const slideXml = buildNewSlideXml(options, newIndex)
 
     // Write the slide XML to the ZIP
-    this.#zipManager.writeFile(slideZipPath, slideXml);
-    this.#slideXmlCache.set(slideZipPath, slideXml);
+    this.#zipManager.writeFile(slideZipPath, slideXml)
+    this.#slideXmlCache.set(slideZipPath, slideXml)
 
     // Add slide relationship to presentation.xml.rels
     const rId = relationshipManager.addRelationship(
       'ppt/presentation.xml',
       REL_TYPES.SLIDE,
       `slides/${slideFileName}`
-    );
+    )
 
     // Add slide layout relationship to the new slide's .rels
     // Reference the first available layout
-    const layoutRelsAll = this.#zipManager.listFiles('ppt/slideLayouts/').filter(f => f.endsWith('.xml'));
-    const firstLayout = layoutRelsAll[0] || 'ppt/slideLayouts/slideLayout1.xml';
-    const relativeLayoutPath = `../slideLayouts/${firstLayout.split('/').pop()}`;
-    relationshipManager.addRelationship(slideZipPath, REL_TYPES.SLIDE_LAYOUT, relativeLayoutPath);
+    const layoutRelsAll = this.#zipManager
+      .listFiles('ppt/slideLayouts/')
+      .filter(f => f.endsWith('.xml'))
+    const firstLayout = layoutRelsAll[0] || 'ppt/slideLayouts/slideLayout1.xml'
+    const relativeLayoutPath = `../slideLayouts/${firstLayout.split('/').pop()}`
+    relationshipManager.addRelationship(slideZipPath, REL_TYPES.SLIDE_LAYOUT, relativeLayoutPath)
 
     // Generate a unique slide ID
-    const existingIds = Array.from(this.#slides.values()).map(s => parseInt(s.slideId, 10));
-    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 255;
-    const newSlideId = String(maxId + 1);
+    const existingIds = Array.from(this.#slides.values()).map(s => parseInt(s.slideId, 10))
+    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 255
+    const newSlideId = String(maxId + 1)
 
     const slideInfo = {
       index: newIndex,
@@ -354,17 +357,17 @@ class SlideManager {
       slideId: newSlideId,
       tags: [],
       title: options.title || '',
-    };
+    }
 
-    this.#slides.set(newIndex, slideInfo);
+    this.#slides.set(newIndex, slideInfo)
 
     // Update presentation.xml sldIdLst
-    this.#addSlideToPresentation(rId, newSlideId);
+    this.#addSlideToPresentation(rId, newSlideId)
 
     // Update [Content_Types].xml
-    this.#registerSlideContentType(slideFileName);
+    this.#registerSlideContentType(slideFileName)
 
-    logger.debug(`Added new slide ${newIndex} at ${slideZipPath}`);
+    logger.debug(`Added new slide ${newIndex} at ${slideZipPath}`)
   }
 
   /**
@@ -375,43 +378,41 @@ class SlideManager {
    * @param {RelationshipManager} relationshipManager
    */
   cloneSlide(sourceIndex, atPosition, relationshipManager) {
-    this.#assertSlideExists(sourceIndex);
-    const sourceInfo = this.#slides.get(sourceIndex);
+    this.#assertSlideExists(sourceIndex)
+    const sourceInfo = this.#slides.get(sourceIndex)
 
-    const newIndex = this.#slides.size + 1;
-    let nextFileIndex = 1;
+    const newIndex = this.#slides.size + 1
+    let nextFileIndex = 1
     while (this.#zipManager.hasFile(`ppt/slides/slide${nextFileIndex}.xml`)) {
-      nextFileIndex++;
+      nextFileIndex++
     }
-    const slideFileName = `slide${nextFileIndex}.xml`;
-    const slideZipPath = `ppt/slides/${slideFileName}`;
+    const slideFileName = `slide${nextFileIndex}.xml`
+    const slideZipPath = `ppt/slides/${slideFileName}`
 
     // Copy the source XML
-    let sourceXml = this.getSlideXml(sourceIndex);
+    let sourceXml = this.getSlideXml(sourceIndex)
 
     // Copy relationships from source slide (excluding notes, which are slide-specific)
-    const idMap = relationshipManager.copyRelationships(
-      sourceInfo.zipPath,
-      slideZipPath,
-      [REL_TYPES.NOTES_SLIDE]
-    );
+    const idMap = relationshipManager.copyRelationships(sourceInfo.zipPath, slideZipPath, [
+      REL_TYPES.NOTES_SLIDE,
+    ])
 
     // Remap relationship IDs in the cloned XML to match the new targets
-    sourceXml = remapRelationshipIds(sourceXml, idMap);
+    sourceXml = remapRelationshipIds(sourceXml, idMap)
 
-    this.#zipManager.writeFile(slideZipPath, sourceXml);
-    this.#slideXmlCache.set(slideZipPath, sourceXml);
+    this.#zipManager.writeFile(slideZipPath, sourceXml)
+    this.#slideXmlCache.set(slideZipPath, sourceXml)
 
     // Add to presentation.xml
     const rId = relationshipManager.addRelationship(
       'ppt/presentation.xml',
       REL_TYPES.SLIDE,
       `slides/${slideFileName}`
-    );
+    )
 
-    const existingIds = Array.from(this.#slides.values()).map(s => parseInt(s.slideId, 10));
-    const maxId = Math.max(...existingIds);
-    const newSlideId = String(maxId + 1);
+    const existingIds = Array.from(this.#slides.values()).map(s => parseInt(s.slideId, 10))
+    const maxId = Math.max(...existingIds)
+    const newSlideId = String(maxId + 1)
 
     const slideInfo = {
       index: newIndex,
@@ -420,13 +421,13 @@ class SlideManager {
       slideId: newSlideId,
       tags: [...sourceInfo.tags],
       title: sourceInfo.title,
-    };
+    }
 
-    this.#slides.set(newIndex, slideInfo);
-    this.#addSlideToPresentation(rId, newSlideId);
-    this.#registerSlideContentType(slideFileName);
+    this.#slides.set(newIndex, slideInfo)
+    this.#addSlideToPresentation(rId, newSlideId)
+    this.#registerSlideContentType(slideFileName)
 
-    logger.debug(`Cloned slide ${sourceIndex} to new slide ${newIndex}`);
+    logger.debug(`Cloned slide ${sourceIndex} to new slide ${newIndex}`)
   }
 
   /**
@@ -435,33 +436,33 @@ class SlideManager {
    * @param {number} slideIndex - 1-based index.
    */
   removeSlide(slideIndex) {
-    this.#assertSlideExists(slideIndex);
-    const info = this.#slides.get(slideIndex);
+    this.#assertSlideExists(slideIndex)
+    const info = this.#slides.get(slideIndex)
 
     // Remove from ZIP
-    this.#zipManager.removeFile(info.zipPath);
+    this.#zipManager.removeFile(info.zipPath)
 
     // Remove its relationships file
-    const relsFileName = info.zipPath.split('/').pop() + '.rels';
-    this.#zipManager.removeFile(`ppt/slides/_rels/${relsFileName}`);
+    const relsFileName = info.zipPath.split('/').pop() + '.rels'
+    this.#zipManager.removeFile(`ppt/slides/_rels/${relsFileName}`)
 
     // Remove from cache
-    this.#slideXmlCache.delete(info.zipPath);
+    this.#slideXmlCache.delete(info.zipPath)
 
     // Remove relationship from presentation.xml
-    this.#relationshipManager.removeRelationship('ppt/presentation.xml', info.relationshipId);
+    this.#relationshipManager.removeRelationship('ppt/presentation.xml', info.relationshipId)
 
     // Remove content type from [Content_Types].xml
-    this.#contentTypesManager.removeOverride(info.zipPath);
+    this.#contentTypesManager.removeOverride(info.zipPath)
 
     // Remove from slides map and reindex
-    this.#slides.delete(slideIndex);
-    this.#reindexSlides();
+    this.#slides.delete(slideIndex)
+    this.#reindexSlides()
 
     // Update presentation.xml
-    this.#removeSlideFromPresentation(info.slideId);
+    this.#removeSlideFromPresentation(info.slideId)
 
-    logger.debug(`Removed slide ${slideIndex}`);
+    logger.debug(`Removed slide ${slideIndex}`)
   }
 
   /**
@@ -470,24 +471,26 @@ class SlideManager {
    * @param {number[]} order - Array of 1-based slide numbers in desired order.
    */
   reorderSlides(order) {
-    const current = this.getAllSlideIndices();
+    const current = this.getAllSlideIndices()
     if (order.length !== current.length) {
-      throw new PPTXError(`reorderSlides: order array length (${order.length}) must match slide count (${current.length})`);
+      throw new PPTXError(
+        `reorderSlides: order array length (${order.length}) must match slide count (${current.length})`
+      )
     }
 
-    const slidesCopy = new Map(this.#slides);
-    this.#slides.clear();
+    const slidesCopy = new Map(this.#slides)
+    this.#slides.clear()
 
     order.forEach((oldIndex, newPos) => {
-      const info = slidesCopy.get(oldIndex);
-      if (!info) throw new SlideNotFoundError(`Slide ${oldIndex} not found`);
-      info.index = newPos + 1;
-      this.#slides.set(newPos + 1, info);
-    });
+      const info = slidesCopy.get(oldIndex)
+      if (!info) throw new SlideNotFoundError(`Slide ${oldIndex} not found`)
+      info.index = newPos + 1
+      this.#slides.set(newPos + 1, info)
+    })
 
     // Rebuild presentation sldIdLst
-    this.rebuildPresentationSlideOrder();
-    logger.debug(`Reordered slides: [${order.join(', ')}]`);
+    this.rebuildPresentationSlideOrder()
+    logger.debug(`Reordered slides: [${order.join(', ')}]`)
   }
 
   /**
@@ -497,35 +500,35 @@ class SlideManager {
    * @returns {SlideInfo|null}
    */
   resolveSlideInfo(slideRef) {
-    let index;
+    let index
     if (typeof slideRef === 'number') {
-      index = slideRef;
+      index = slideRef
     } else {
       // 1. Try finding by slideId string
       for (const info of this.#slides.values()) {
         if (info.slideId === String(slideRef)) {
-          return info;
+          return info
         }
       }
       // 2. Try finding by tag
       try {
-        const indices = this.resolveSlideRef(slideRef);
+        const indices = this.resolveSlideRef(slideRef)
         if (indices && indices.length > 0) {
-          index = indices[0];
+          index = indices[0]
         }
       } catch (e) {
         // Fallback: parse as slide index
-        const parsedNum = parseInt(slideRef, 10);
+        const parsedNum = parseInt(slideRef, 10)
         if (!isNaN(parsedNum)) {
-          index = parsedNum;
+          index = parsedNum
         }
       }
     }
 
     if (index !== undefined) {
-      return this.#slides.get(index) || null;
+      return this.#slides.get(index) || null
     }
-    return null;
+    return null
   }
 
   /**
@@ -538,31 +541,31 @@ class SlideManager {
    * @returns {Promise<number>} Index of the imported slide.
    */
   async importSlide(sourceEngine, slideRef, mediaManager) {
-    const sourceSlideManager = sourceEngine.slideManager;
-    const sourceRelManager = sourceEngine.relationshipManager;
-    const sourceZip = sourceEngine.zipManager;
+    const sourceSlideManager = sourceEngine.slideManager
+    const sourceRelManager = sourceEngine.relationshipManager
+    const sourceZip = sourceEngine.zipManager
 
-    const sourceSlideInfo = sourceSlideManager.resolveSlideInfo(slideRef);
+    const sourceSlideInfo = sourceSlideManager.resolveSlideInfo(slideRef)
     if (!sourceSlideInfo) {
-      throw new SlideNotFoundError(`Source slide "${slideRef}" not found`);
+      throw new SlideNotFoundError(`Source slide "${slideRef}" not found`)
     }
 
-    const newIndex = this.#slides.size + 1;
-    let nextFileIndex = 1;
+    const newIndex = this.#slides.size + 1
+    let nextFileIndex = 1
     while (this.#zipManager.hasFile(`ppt/slides/slide${nextFileIndex}.xml`)) {
-      nextFileIndex++;
+      nextFileIndex++
     }
-    const slideFileName = `slide${nextFileIndex}.xml`;
-    const slideZipPath = `ppt/slides/${slideFileName}`;
+    const slideFileName = `slide${nextFileIndex}.xml`
+    const slideZipPath = `ppt/slides/${slideFileName}`
 
     // Read the source slide's XML
-    let slideXml = await sourceSlideManager.getSlideXmlAsync(sourceSlideInfo.index);
+    let slideXml = await sourceSlideManager.getSlideXmlAsync(sourceSlideInfo.index)
 
     // Get relationships from the source slide
-    const sourceRels = sourceRelManager.getRelationships(sourceSlideInfo.zipPath);
+    const sourceRels = sourceRelManager.getRelationships(sourceSlideInfo.zipPath)
 
     // Map to track old rId -> new rId in the destination slide's .rels file
-    const idMap = new Map();
+    const idMap = new Map()
 
     const EXT_TO_MIME_LOCAL = {
       png: 'image/png',
@@ -573,135 +576,160 @@ class SlideManager {
       bmp: 'image/bmp',
       xml: 'application/xml',
       rels: 'application/vnd.openxmlformats-package.relationships+xml',
-    };
+    }
 
     for (const rel of sourceRels) {
-      const resolvedTarget = sourceRelManager.resolveTarget(sourceSlideInfo.zipPath, rel.target);
+      const resolvedTarget = sourceRelManager.resolveTarget(sourceSlideInfo.zipPath, rel.target)
 
       if (rel.type === REL_TYPES.SLIDE_LAYOUT) {
         // Map to destination's slide layout.
-        const layoutFileName = rel.target.split('/').pop();
-        const destLayoutPath = `ppt/slideLayouts/${layoutFileName}`;
+        const layoutFileName = rel.target.split('/').pop()
+        const destLayoutPath = `ppt/slideLayouts/${layoutFileName}`
 
-        let targetLayout = `../slideLayouts/${layoutFileName}`;
+        let targetLayout = `../slideLayouts/${layoutFileName}`
         if (!this.#zipManager.hasFile(destLayoutPath)) {
           // Find first available layout
-          const layoutFiles = this.#zipManager.listFiles('ppt/slideLayouts/').filter(f => f.endsWith('.xml'));
+          const layoutFiles = this.#zipManager
+            .listFiles('ppt/slideLayouts/')
+            .filter(f => f.endsWith('.xml'))
           if (layoutFiles.length > 0) {
-            targetLayout = `../slideLayouts/${layoutFiles[0].split('/').pop()}`;
+            targetLayout = `../slideLayouts/${layoutFiles[0].split('/').pop()}`
           } else {
-            targetLayout = '../slideLayouts/slideLayout1.xml';
+            targetLayout = '../slideLayouts/slideLayout1.xml'
           }
         }
 
-        const newRId = this.#relationshipManager.addRelationship(slideZipPath, rel.type, targetLayout);
-        idMap.set(rel.id, newRId);
-
+        const newRId = this.#relationshipManager.addRelationship(
+          slideZipPath,
+          rel.type,
+          targetLayout
+        )
+        idMap.set(rel.id, newRId)
       } else if (rel.type === REL_TYPES.IMAGE) {
         // Copy media file
-        const mediaBytes = await sourceZip.readBinaryFile(resolvedTarget);
+        const mediaBytes = await sourceZip.readBinaryFile(resolvedTarget)
         if (mediaBytes) {
-          const destMediaZipPath = await mediaManager.embedImage(mediaBytes);
-          const relativeMediaTarget = `../media/${destMediaZipPath.split('/').pop()}`;
-          const newRId = this.#relationshipManager.addRelationship(slideZipPath, rel.type, relativeMediaTarget);
-          idMap.set(rel.id, newRId);
+          const destMediaZipPath = await mediaManager.embedImage(mediaBytes)
+          const relativeMediaTarget = `../media/${destMediaZipPath.split('/').pop()}`
+          const newRId = this.#relationshipManager.addRelationship(
+            slideZipPath,
+            rel.type,
+            relativeMediaTarget
+          )
+          idMap.set(rel.id, newRId)
         }
-
       } else if (rel.type === REL_TYPES.CHART) {
         // Copy chart XML and its relationships
-        const chartXml = await sourceZip.readFile(resolvedTarget);
+        const chartXml = await sourceZip.readFile(resolvedTarget)
         if (chartXml) {
-          const chartRels = sourceRelManager.getRelationships(resolvedTarget);
+          const chartRels = sourceRelManager.getRelationships(resolvedTarget)
 
-          let nextChartId = 1;
+          let nextChartId = 1
           while (this.#zipManager.hasFile(`ppt/charts/chart${nextChartId}.xml`)) {
-            nextChartId++;
+            nextChartId++
           }
-          const destChartZipPath = `ppt/charts/chart${nextChartId}.xml`;
-          const chartFileName = `chart${nextChartId}.xml`;
+          const destChartZipPath = `ppt/charts/chart${nextChartId}.xml`
+          const chartFileName = `chart${nextChartId}.xml`
 
           // Handle workbook packages within charts
           for (const chartRel of chartRels) {
-            const resolvedChartTarget = sourceRelManager.resolveTarget(resolvedTarget, chartRel.target);
-            const workbookBytes = await sourceZip.readBinaryFile(resolvedChartTarget);
+            const resolvedChartTarget = sourceRelManager.resolveTarget(
+              resolvedTarget,
+              chartRel.target
+            )
+            const workbookBytes = await sourceZip.readBinaryFile(resolvedChartTarget)
 
             if (workbookBytes) {
-              const workbookFileName = resolvedChartTarget.split('/').pop();
-              let nextEmbedId = 1;
-              let destWorkbookZipPath = `ppt/embeddings/Microsoft_Excel_Worksheet${nextEmbedId}.xlsx`;
+              const workbookFileName = resolvedChartTarget.split('/').pop()
+              let nextEmbedId = 1
+              let destWorkbookZipPath = `ppt/embeddings/Microsoft_Excel_Worksheet${nextEmbedId}.xlsx`
               if (workbookFileName.endsWith('.bin')) {
-                destWorkbookZipPath = `ppt/embeddings/oleObject${nextEmbedId}.bin`;
+                destWorkbookZipPath = `ppt/embeddings/oleObject${nextEmbedId}.bin`
               }
               while (this.#zipManager.hasFile(destWorkbookZipPath)) {
-                nextEmbedId++;
+                nextEmbedId++
                 destWorkbookZipPath = workbookFileName.endsWith('.bin')
                   ? `ppt/embeddings/oleObject${nextEmbedId}.bin`
-                  : `ppt/embeddings/Microsoft_Excel_Worksheet${nextEmbedId}.xlsx`;
+                  : `ppt/embeddings/Microsoft_Excel_Worksheet${nextEmbedId}.xlsx`
               }
 
-              this.#zipManager.writeBinaryFile(destWorkbookZipPath, workbookBytes);
+              this.#zipManager.writeBinaryFile(destWorkbookZipPath, workbookBytes)
 
               const workbookContentType = workbookFileName.endsWith('.bin')
                 ? 'application/vnd.ms-office.activeX'
-                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-              this.#contentTypesManager.addOverride(destWorkbookZipPath, workbookContentType);
+                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+              this.#contentTypesManager.addOverride(destWorkbookZipPath, workbookContentType)
 
-              const relativeWorkbookPath = `../embeddings/${destWorkbookZipPath.split('/').pop()}`;
-              this.#relationshipManager.addRelationship(destChartZipPath, chartRel.type, relativeWorkbookPath);
+              const relativeWorkbookPath = `../embeddings/${destWorkbookZipPath.split('/').pop()}`
+              this.#relationshipManager.addRelationship(
+                destChartZipPath,
+                chartRel.type,
+                relativeWorkbookPath
+              )
             }
           }
 
-          this.#zipManager.writeFile(destChartZipPath, chartXml);
-          this.#contentTypesManager.addOverride(destChartZipPath, 'application/vnd.openxmlformats-officedocument.drawingml.chart+xml');
+          this.#zipManager.writeFile(destChartZipPath, chartXml)
+          this.#contentTypesManager.addOverride(
+            destChartZipPath,
+            'application/vnd.openxmlformats-officedocument.drawingml.chart+xml'
+          )
 
-          const relativeChartPath = `../charts/${chartFileName}`;
-          const newRId = this.#relationshipManager.addRelationship(slideZipPath, rel.type, relativeChartPath);
-          idMap.set(rel.id, newRId);
+          const relativeChartPath = `../charts/${chartFileName}`
+          const newRId = this.#relationshipManager.addRelationship(
+            slideZipPath,
+            rel.type,
+            relativeChartPath
+          )
+          idMap.set(rel.id, newRId)
         }
-
       } else if (rel.type === REL_TYPES.HYPERLINK) {
         const newRId = this.#relationshipManager.addRelationship(
           slideZipPath,
           rel.type,
           rel.target,
           rel.targetMode
-        );
-        idMap.set(rel.id, newRId);
-
+        )
+        idMap.set(rel.id, newRId)
       } else {
         // Fallback for notes, themes, styles or custom XML
         if (rel.target && !rel.target.startsWith('http')) {
-          const targetBytes = await sourceZip.readBinaryFile(resolvedTarget);
+          const targetBytes = await sourceZip.readBinaryFile(resolvedTarget)
           if (targetBytes && !this.#zipManager.hasFile(resolvedTarget)) {
-            this.#zipManager.writeBinaryFile(resolvedTarget, targetBytes);
-            const ext = resolvedTarget.split('.').pop().toLowerCase();
-            const mime = EXT_TO_MIME_LOCAL[ext] || 'application/octet-stream';
-            this.#contentTypesManager.addDefault(ext, mime);
+            this.#zipManager.writeBinaryFile(resolvedTarget, targetBytes)
+            const ext = resolvedTarget.split('.').pop().toLowerCase()
+            const mime = EXT_TO_MIME_LOCAL[ext] || 'application/octet-stream'
+            this.#contentTypesManager.addDefault(ext, mime)
           }
         }
-        const newRId = this.#relationshipManager.addRelationship(slideZipPath, rel.type, rel.target, rel.targetMode);
-        idMap.set(rel.id, newRId);
+        const newRId = this.#relationshipManager.addRelationship(
+          slideZipPath,
+          rel.type,
+          rel.target,
+          rel.targetMode
+        )
+        idMap.set(rel.id, newRId)
       }
     }
 
     // Remap all relationship IDs inside the imported slide XML
-    slideXml = remapRelationshipIds(slideXml, idMap);
+    slideXml = remapRelationshipIds(slideXml, idMap)
 
     // Save the remapped slide XML to ZIP
-    this.#zipManager.writeFile(slideZipPath, slideXml);
-    this.#slideXmlCache.set(slideZipPath, slideXml);
+    this.#zipManager.writeFile(slideZipPath, slideXml)
+    this.#slideXmlCache.set(slideZipPath, slideXml)
 
     // Generate unique Slide ID
-    const existingIds = Array.from(this.#slides.values()).map(s => parseInt(s.slideId, 10));
-    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 255;
-    const newSlideId = String(maxId + 1);
+    const existingIds = Array.from(this.#slides.values()).map(s => parseInt(s.slideId, 10))
+    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 255
+    const newSlideId = String(maxId + 1)
 
     // Add relationship from presentation.xml
     const rId = this.#relationshipManager.addRelationship(
       'ppt/presentation.xml',
       REL_TYPES.SLIDE,
       `slides/${slideFileName}`
-    );
+    )
 
     const slideInfo = {
       index: newIndex,
@@ -710,18 +738,18 @@ class SlideManager {
       slideId: newSlideId,
       tags: [...sourceSlideInfo.tags],
       title: sourceSlideInfo.title || '',
-    };
+    }
 
-    this.#slides.set(newIndex, slideInfo);
+    this.#slides.set(newIndex, slideInfo)
 
     // Add entry in presentation.xml sldIdLst
-    this.#addSlideToPresentation(rId, newSlideId);
+    this.#addSlideToPresentation(rId, newSlideId)
 
     // Register slide in content types
-    this.#registerSlideContentType(slideFileName);
+    this.#registerSlideContentType(slideFileName)
 
-    logger.debug(`Successfully imported slide "${slideRef}" to index ${newIndex}`);
-    return newIndex;
+    logger.debug(`Successfully imported slide "${slideRef}" to index ${newIndex}`)
+    return newIndex
   }
 
   /**
@@ -733,24 +761,24 @@ class SlideManager {
    */
   async exportSlides(slideIndices, sourceEngine) {
     // Lazy import to avoid circular dep
-    const { PPTXTemplater } = require('../core/PPTXTemplater.js');
+    const { PPTXTemplater } = require('../core/PPTXTemplater.js')
 
     // Create a blank new PPTX
-    const newEngine = await PPTXTemplater.create();
+    const newEngine = await PPTXTemplater.create()
 
     // Remove the default slides from the blank template to avoid orphans
-    const defaultSlides = newEngine.slideManager.getAllSlideIndices();
+    const defaultSlides = newEngine.slideManager.getAllSlideIndices()
     for (const dIdx of defaultSlides.reverse()) {
-      newEngine.slideManager.removeSlide(dIdx);
+      newEngine.slideManager.removeSlide(dIdx)
     }
 
     // Copy selected slides into the new engine
     for (const idx of slideIndices) {
-      this.#assertSlideExists(idx);
-      await newEngine.slideManager.importSlide(sourceEngine, idx, newEngine.mediaManager);
+      this.#assertSlideExists(idx)
+      await newEngine.slideManager.importSlide(sourceEngine, idx, newEngine.mediaManager)
     }
 
-    return newEngine;
+    return newEngine
   }
 
   /**
@@ -761,18 +789,18 @@ class SlideManager {
    * @returns {ValidationResult}
    */
   validateStructure(relationshipManager, zipManager) {
-    const errors = [];
-    const warnings = [];
+    const errors = []
+    const warnings = []
 
     for (const [index, info] of this.#slides) {
       if (!zipManager.hasFile(info.zipPath)) {
-        errors.push(`Slide ${index}: XML file missing at ${info.zipPath}`);
+        errors.push(`Slide ${index}: XML file missing at ${info.zipPath}`)
       }
 
-      const rels = relationshipManager.getRelationships(info.zipPath);
-      const layoutRel = rels.find(r => r.type === REL_TYPES.SLIDE_LAYOUT);
+      const rels = relationshipManager.getRelationships(info.zipPath)
+      const layoutRel = rels.find(r => r.type === REL_TYPES.SLIDE_LAYOUT)
       if (!layoutRel) {
-        warnings.push(`Slide ${index}: No slide layout relationship found`);
+        warnings.push(`Slide ${index}: No slide layout relationship found`)
       }
     }
 
@@ -780,7 +808,7 @@ class SlideManager {
       valid: errors.length === 0,
       errors,
       warnings,
-    };
+    }
   }
 
   /**
@@ -788,9 +816,7 @@ class SlideManager {
    * @returns {Promise<void>}
    */
   async preloadAll() {
-    await Promise.all(
-      this.getAllSlideIndices().map(i => this.getSlideXmlAsync(i))
-    );
+    await Promise.all(this.getAllSlideIndices().map(i => this.getSlideXmlAsync(i)))
   }
 
   /**
@@ -798,21 +824,21 @@ class SlideManager {
    * @private
    */
   #addSlideToPresentation(rId, slideId) {
-    if (!this.#presentationObj) return;
+    if (!this.#presentationObj) return
 
-    let sldIdLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldIdLst');
+    let sldIdLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldIdLst')
     if (!sldIdLst) {
-      this.#xmlParser.setNode(this.#presentationObj, 'p:presentation.p:sldIdLst', { 'p:sldId': [] });
-      sldIdLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldIdLst');
+      this.#xmlParser.setNode(this.#presentationObj, 'p:presentation.p:sldIdLst', { 'p:sldId': [] })
+      sldIdLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldIdLst')
     }
 
-    if (!sldIdLst['p:sldId']) sldIdLst['p:sldId'] = [];
+    if (!sldIdLst['p:sldId']) sldIdLst['p:sldId'] = []
     if (!Array.isArray(sldIdLst['p:sldId'])) {
-      sldIdLst['p:sldId'] = [sldIdLst['p:sldId']];
+      sldIdLst['p:sldId'] = [sldIdLst['p:sldId']]
     }
 
-    sldIdLst['p:sldId'].push({ '@_id': slideId, '@_r:id': rId });
-    this.#flushPresentation();
+    sldIdLst['p:sldId'].push({ '@_id': slideId, '@_r:id': rId })
+    this.#flushPresentation()
   }
 
   /**
@@ -820,19 +846,18 @@ class SlideManager {
    * @private
    */
   #removeSlideFromPresentation(slideId) {
-    if (!this.#presentationObj) return;
-    const sldIdLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldIdLst');
-    if (!sldIdLst?.['p:sldId']) return;
+    if (!this.#presentationObj) return
+    const sldIdLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldIdLst')
+    if (!sldIdLst?.['p:sldId']) return
 
-    sldIdLst['p:sldId'] = (Array.isArray(sldIdLst['p:sldId'])
-      ? sldIdLst['p:sldId']
-      : [sldIdLst['p:sldId']]
-    ).filter(s => s['@_id'] !== slideId);
+    sldIdLst['p:sldId'] = (
+      Array.isArray(sldIdLst['p:sldId']) ? sldIdLst['p:sldId'] : [sldIdLst['p:sldId']]
+    ).filter(s => s['@_id'] !== slideId)
 
     // Also remove from any PowerPoint sections
-    this.#removeSlideFromSections(slideId);
+    this.#removeSlideFromSections(slideId)
 
-    this.#flushPresentation();
+    this.#flushPresentation()
   }
 
   /**
@@ -841,28 +866,28 @@ class SlideManager {
    * @param {string} slideId - Unique slide ID.
    */
   #removeSlideFromSections(slideId) {
-    if (!this.#presentationObj) return;
-    const extLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:extLst');
-    if (!extLst?.['p:ext']) return;
+    if (!this.#presentationObj) return
+    const extLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:extLst')
+    if (!extLst?.['p:ext']) return
 
-    const exts = Array.isArray(extLst['p:ext']) ? extLst['p:ext'] : [extLst['p:ext']];
+    const exts = Array.isArray(extLst['p:ext']) ? extLst['p:ext'] : [extLst['p:ext']]
     for (const ext of exts) {
-      const sectionLst = ext['p14:sectionLst'];
-      if (!sectionLst?.['p14:section']) continue;
+      const sectionLst = ext['p14:sectionLst']
+      if (!sectionLst?.['p14:section']) continue
 
-      const sections = sectionLst['p14:section']; // Guaranteed to be array by XMLParser config
+      const sections = sectionLst['p14:section'] // Guaranteed to be array by XMLParser config
 
       for (const section of sections) {
-        const sldIdLst = section['p14:sldIdLst'];
-        if (!sldIdLst?.['p14:sldId']) continue;
+        const sldIdLst = section['p14:sldIdLst']
+        if (!sldIdLst?.['p14:sldId']) continue
 
-        const sldIds = sldIdLst['p14:sldId']; // Guaranteed to be array by XMLParser config
-        const targetIdStr = String(slideId);
-        const filtered = sldIds.filter(s => String(s['@_id']) !== targetIdStr);
+        const sldIds = sldIdLst['p14:sldId'] // Guaranteed to be array by XMLParser config
+        const targetIdStr = String(slideId)
+        const filtered = sldIds.filter(s => String(s['@_id']) !== targetIdStr)
 
         if (filtered.length !== sldIds.length) {
-          logger.debug(`Removing slide ${targetIdStr} from section "${section['@_name']}"`);
-          section['p14:sldIdLst']['p14:sldId'] = filtered;
+          logger.debug(`Removing slide ${targetIdStr} from section "${section['@_name']}"`)
+          section['p14:sldIdLst']['p14:sldId'] = filtered
         }
       }
     }
@@ -872,17 +897,17 @@ class SlideManager {
    * Rebuilds presentation.xml sldIdLst in the current slide order.
    */
   rebuildPresentationSlideOrder() {
-    if (!this.#presentationObj) return;
-    const sldIdLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldIdLst');
-    if (!sldIdLst) return;
+    if (!this.#presentationObj) return
+    const sldIdLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldIdLst')
+    if (!sldIdLst) return
 
     const ordered = this.getAllSlideIndices().map(i => {
-      const info = this.#slides.get(i);
-      return { '@_id': info.slideId, '@_r:id': info.relationshipId };
-    });
+      const info = this.#slides.get(i)
+      return { '@_id': info.slideId, '@_r:id': info.relationshipId }
+    })
 
-    sldIdLst['p:sldId'] = ordered;
-    this.#flushPresentation();
+    sldIdLst['p:sldId'] = ordered
+    this.#flushPresentation()
   }
 
   /**
@@ -890,12 +915,12 @@ class SlideManager {
    * @private
    */
   #reindexSlides() {
-    const sorted = Array.from(this.#slides.entries()).sort(([a], [b]) => a - b);
-    this.#slides.clear();
+    const sorted = Array.from(this.#slides.entries()).sort(([a], [b]) => a - b)
+    this.#slides.clear()
     sorted.forEach(([, info], i) => {
-      info.index = i + 1;
-      this.#slides.set(i + 1, info);
-    });
+      info.index = i + 1
+      this.#slides.set(i + 1, info)
+    })
   }
 
   /**
@@ -903,7 +928,7 @@ class SlideManager {
    * @private
    */
   #registerSlideContentType(slideFileName) {
-    this.#contentTypesManager.addOverride(`ppt/slides/${slideFileName}`, SLIDE_CONTENT_TYPE);
+    this.#contentTypesManager.addOverride(`ppt/slides/${slideFileName}`, SLIDE_CONTENT_TYPE)
   }
 
   /**
@@ -911,10 +936,10 @@ class SlideManager {
    * @private
    */
   #flushPresentation() {
-    if (!this.#presentationObj || !this.#zipManager) return;
-    const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-    const xml = this.#xmlParser.build(this.#presentationObj, declaration);
-    this.#zipManager.writeFile('ppt/presentation.xml', xml);
+    if (!this.#presentationObj || !this.#zipManager) return
+    const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    const xml = this.#xmlParser.build(this.#presentationObj, declaration)
+    this.#zipManager.writeFile('ppt/presentation.xml', xml)
   }
 
   /**
@@ -933,8 +958,78 @@ class SlideManager {
         'p:sldSz': { '@_cx': '9144000', '@_cy': '5143500' },
         'p:notesSz': { '@_cx': '6858000', '@_cy': '9144000' },
       },
-    };
-    this.#flushPresentation();
+    }
+    this.#flushPresentation()
+  }
+
+  /**
+   * Duplicates a slide.
+   *
+   * @param {number} slideIndex
+   * @param {number} [atPosition]
+   * @param {RelationshipManager} relationshipManager
+   * @returns {number}
+   */
+  duplicateSlide(slideIndex, atPosition, relationshipManager) {
+    this.cloneSlide(slideIndex, null, relationshipManager)
+    const count = this.slideCount
+    if (atPosition !== undefined && atPosition !== count) {
+      const order = []
+      for (let i = 1; i < count; i++) {
+        order.push(i)
+      }
+      order.splice(atPosition - 1, 0, count)
+      this.reorderSlides(order)
+      return atPosition
+    }
+    return count
+  }
+
+  /**
+   * Moves a slide to a new position.
+   *
+   * @param {number} fromIndex
+   * @param {number} toIndex
+   */
+  moveSlide(fromIndex, toIndex) {
+    this.#assertSlideExists(fromIndex)
+    if (toIndex < 1 || toIndex > this.slideCount) {
+      throw new PPTXError(`Destination index ${toIndex} out of bounds`)
+    }
+    const order = this.getAllSlideIndices()
+    const [removed] = order.splice(fromIndex - 1, 1)
+    order.splice(toIndex - 1, 0, removed)
+    this.reorderSlides(order)
+  }
+
+  /**
+   * Inserts a new slide at a specific index.
+   *
+   * @param {number} slideIndex
+   * @param {Object} options
+   * @param {RelationshipManager} relationshipManager
+   * @param {MediaManager} mediaManager
+   */
+  insertSlide(slideIndex, options, relationshipManager, mediaManager) {
+    this.addNewSlide(options, relationshipManager, mediaManager)
+    const count = this.slideCount
+    if (slideIndex !== undefined && slideIndex !== count) {
+      const order = []
+      for (let i = 1; i < count; i++) {
+        order.push(i)
+      }
+      order.splice(slideIndex - 1, 0, count)
+      this.reorderSlides(order)
+    }
+  }
+
+  /**
+   * Gets all slides.
+   *
+   * @returns {SlideInfo[]}
+   */
+  getSlides() {
+    return this.getAllSlideInfo()
   }
 
   /**
@@ -944,9 +1039,11 @@ class SlideManager {
    */
   #assertSlideExists(index) {
     if (!this.#slides.has(index)) {
-      throw new SlideNotFoundError(`Slide ${index} does not exist. Total slides: ${this.#slides.size}`);
+      throw new SlideNotFoundError(
+        `Slide ${index} does not exist. Total slides: ${this.#slides.size}`
+      )
     }
   }
 }
 
-module.exports = { SlideManager };
+module.exports = { SlideManager }

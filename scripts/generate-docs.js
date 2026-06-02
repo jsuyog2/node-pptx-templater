@@ -1,8 +1,6 @@
-import fsExtra from 'fs-extra';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+const fsExtra = require('fs-extra');
+const { resolve } = require('path');
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const DOCS_DIR = resolve(__dirname, '../docs');
 
 const HTML_CONTENT = `<!DOCTYPE html>
@@ -320,14 +318,44 @@ const rId = rels.addRelationship(
       <section id="table-manager" class="doc-section">
         <h1>Table Engine</h1>
         <p>Dynamically scale template tables. The Table Engine lets you replace placeholder rows while fully preserving the styles, fonts, backgrounds, and cell heights of the original template row.</p>
-        
-        <h2>Example Table Feeding</h2>
-        <pre><code class="language-javascript">ppt.updateTable('team-roster', [
-          ['Name', 'Title', 'Location'],
-          ['Elena', 'Lead Designer', 'Milan'],
-          ['Keigo', 'Research Engineer', 'Tokyo'],
-          ['Tariq', 'Product Manager', 'Cairo']
-        ]);</code></pre>
+
+        <h2>Cell Merging & Unmerging</h2>
+        <p>PowerPoint DrawingML tables require strict grid adherence. For cell merging, the top-left cell acts as the <strong>origin</strong> (carrying <code>gridSpan</code> and <code>rowSpan</code> attributes) while other cells in the merge region are <strong>shadowed</strong> (carrying <code>hMerge</code> and <code>vMerge</code> flags). <code>node-pptx-templater</code> provides full compatibility with PowerPoint, Google Slides, and LibreOffice.</p>
+
+        <h3>1. Direct Cell Merging</h3>
+        <p>Merge horizontal columns, vertical rows, or a rectangular block using a simple configuration object:</p>
+        <pre><code class="language-javascript">// Merge rows 1-3 and columns 1-3 in 'sales-table'
+ppt.mergeCells({
+  slide: 1,
+  tableId: 'sales-table',
+  startRow: 1,
+  startCol: 1,
+  endRow: 3,
+  endCol: 3
+});</code></pre>
+
+        <h3>2. Unmerging / Splitting Cells</h3>
+        <p>Split a merged region back to its base components. You can target the region containing a specific cell coordinate:</p>
+        <pre><code class="language-javascript">// Split the merged block containing cell (2, 2)
+ppt.unmergeCells({
+  slide: 1,
+  tableId: 'sales-table',
+  row: 2,
+  col: 2
+});</code></pre>
+
+        <h3>3. Template-driven merges</h3>
+        <p>You can define cell merging dynamically during <code>updateTable</code> by passing objects with <code>colSpan</code> / <code>rowSpan</code> properties or providing a <code>merge</code> array configuration:</p>
+        <pre><code class="language-javascript">ppt.updateTable('sales-table', {
+  rows: [
+    ['Header 1', 'Header 2', 'Header 3'],
+    ['Normal Cell', { value: 'Spanned Cell', colSpan: 2 }],
+    ['Normal Cell', 'Normal Cell', { value: 'Spanned Row', rowSpan: 2 }]
+  ],
+  merge: [
+    { startRow: 0, startCol: 0, endRow: 0, endCol: 2 }
+  ]
+});</code></pre>
       </section>
 
       <!-- OpenXML Architecture Section -->

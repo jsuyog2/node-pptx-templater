@@ -30,42 +30,29 @@
  *     </a:graphic>
  *   </p:graphicFrame>
  *
- * EMU (English Metric Units):
- *  - 1 inch = 914400 EMU
- *  - 1 pt = 12700 EMU
- *  - 1 cm = 360000 EMU
- *
  * Key challenge: Preserving cell formatting while replacing text.
  * We ONLY modify the <a:t> text nodes, keeping all <a:tcPr>, <a:rPr>, etc.
- *
- * Merged cells use:
- *  - <a:tc gridSpan="2"> → horizontal merge (spans 2 columns)
- *  - <a:tc rowSpan="2"> → vertical merge (spans 2 rows)
- *  - <a:tc hMerge="1"> → continuation of horizontal merge
- *  - <a:tc vMerge="1"> → continuation of vertical merge
+ * And critical to avoid PPT corruption: update the val of <a16:rowId> in each cloned row's <a:extLst>.
  */
 
-const { createLogger } = require('../utils/logger.js');
-const { TableNotFoundError } = require('../utils/errors.js');
+const { createLogger } = require('../utils/logger.js')
+const { TableNotFoundError, PPTXError } = require('../utils/errors.js')
 
-const logger = createLogger('TableManager');
+const logger = createLogger('TableManager')
 
 /**
  * @class TableManager
- * @description Handles table data replacement in PPTX slides.
- *
- * The key design principle is "preserve formatting, replace content".
- * We never touch table styles, borders, or fonts — only the text.
+ * @description Handles table operations in PPTX templates.
  */
 class TableManager {
   /** @private @type {XMLParser} */
-  #xmlParser;
+  #xmlParser
 
   /**
    * @param {XMLParser} xmlParser
    */
   constructor(xmlParser) {
-    this.#xmlParser = xmlParser;
+    this.#xmlParser = xmlParser
   }
 
   /**
@@ -74,345 +61,1075 @@ class TableManager {
    * Preserves all formatting properties.
    *
    * @param {number} slideIndex - 1-based slide index.
-   * @param {string} tableId - Table name (from shape's cNvPr name attribute).
+   * @param {string} tableId - Table name or shape ID.
    * @param {string[][]} rows - 2D array of cell values [row][col].
    * @param {SlideManager} slideManager
    * @throws {TableNotFoundError} If the table is not found.
    */
-  updateTable(slideIndex, tableId, rows, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex);
-    const updatedXml = this.#updateTableInXml(slideXml, tableId, rows);
-
-    if (updatedXml === null) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`);
+  updateTable(slideIndex, tableId, data, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    if (!tblObj) {
+      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
     }
 
-    slideManager.setSlideXml(slideIndex, updatedXml);
-    logger.debug(`Updated table "${tableId}" with ${rows.length} rows`);
+    const trs = tblObj['a:tr'] || []
+    if (trs.length === 0) {
+      logger.warn('No rows found in table XML template')
+      return
+    }
+
+    let rowsData = []
+    let templateMerges = []
+
+    if (Array.isArray(data)) {
+      rowsData = data
+    } else if (data && typeof data === 'object') {
+      rowsData = data.rows || []
+      templateMerges = data.merge || []
+    }
+
+    const headerTemplate = trs[0]
+    const dataTemplate = trs[1] || trs[0]
+
+    const newRows = []
+    const generatedMerges = []
+
+    for (let i = 0; i < rowsData.length; i++) {
+      const template = i === 0 ? headerTemplate : (trs[i] || dataTemplate)
+      const newRow = this.#xmlParser.deepClone(template)
+      this.#updateRowId(newRow)
+
+      const tcs = newRow['a:tc'] || []
+      const rowData = rowsData[i]
+
+      for (let j = 0; j < tcs.length; j++) {
+        const rawCell = rowData && rowData[j] !== undefined ? rowData[j] : ''
+        let val = ''
+        let cellOptions = {}
+
+        if (tcs[j]['@_hMerge']) delete tcs[j]['@_hMerge']
+        if (tcs[j]['@_vMerge']) delete tcs[j]['@_vMerge']
+        if (tcs[j]['@_gridSpan']) delete tcs[j]['@_gridSpan']
+        if (tcs[j]['@_rowSpan']) delete tcs[j]['@_rowSpan']
+
+        if (rawCell && typeof rawCell === 'object') {
+          val = rawCell.value !== undefined ? rawCell.value : ''
+          const rowSpan = parseInt(rawCell.rowSpan || 1, 10)
+          const colSpan = parseInt(rawCell.colSpan || rawCell.gridSpan || 1, 10)
+          if (rowSpan > 1 || colSpan > 1) {
+            generatedMerges.push({
+              startRow: i,
+              startCol: j,
+              endRow: i + rowSpan - 1,
+              endCol: j + colSpan - 1,
+            })
+          }
+          cellOptions = rawCell
+        } else {
+          val = String(rawCell)
+        }
+
+        this.#setCellTextObj(tcs[j], val)
+
+        // Apply style properties if specified on the cell object
+        if (cellOptions.fill) {
+          if (!tcs[j]['a:tcPr']) tcs[j]['a:tcPr'] = {}
+          tcs[j]['a:tcPr']['a:solidFill'] = {
+            'a:srgbClr': { '@_val': cellOptions.fill },
+          }
+        }
+
+        if (cellOptions.align) {
+          const txBody = tcs[j]['a:txBody']
+          if (txBody && txBody['a:p']) {
+            const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+            for (const p of paras) {
+              if (!p['a:pPr']) p['a:pPr'] = {}
+              p['a:pPr']['@_algn'] = cellOptions.align
+            }
+          }
+        }
+
+        if (cellOptions.fontSize) {
+          const sizeVal = cellOptions.fontSize * 100
+          const txBody = tcs[j]['a:txBody']
+          if (txBody && txBody['a:p']) {
+            const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+            for (const p of paras) {
+              if (p['a:r']) {
+                const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+                for (const r of runs) {
+                  if (!r['a:rPr']) r['a:rPr'] = {}
+                  r['a:rPr']['@_sz'] = String(sizeVal)
+                }
+              }
+            }
+          }
+        }
+      }
+      newRows.push(newRow)
+    }
+
+    tblObj['a:tr'] = newRows
+
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+
+    const finalMerges = [...templateMerges, ...generatedMerges]
+    for (const merge of finalMerges) {
+      this.mergeCells(
+        slideIndex,
+        tableId,
+        merge.startRow,
+        merge.startCol,
+        merge.endRow,
+        merge.endCol,
+        slideManager
+      )
+    }
+
+    logger.debug(
+      `Updated table "${tableId}" with ${rowsData.length} rows and ${finalMerges.length} merges`
+    )
   }
 
   /**
-   * Updates a table within raw XML.
-   * Returns null if the table was not found.
+   * Adds a row at the end of the table.
    *
-   * @private
-   * @param {string} slideXml - Slide XML content.
-   * @param {string} tableId - Table name to find.
-   * @param {string[][]} rows - New row data.
-   * @returns {string|null} Updated XML or null if not found.
+   * @param {number} slideIndex
+   * @param {string} tableId
+   * @param {string[]} rowData
+   * @param {SlideManager} slideManager
    */
-  #updateTableInXml(slideXml, tableId, rows) {
-    // Step 1: Find the graphicFrame containing our table
-    // We look for the cNvPr name attribute matching tableId
-    const framePattern = new RegExp(
-      `(<p:graphicFrame>(?:(?!<\\/p:graphicFrame>)[\\s\\S])*?<p:cNvPr[^>]*name="${this.#escapeRegex(tableId)}"[^>]*>[\\s\\S]*?<\\/p:graphicFrame>)`,
-      'g'
-    );
+  addTableRow(slideIndex, tableId, rowData, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    if (!tblObj) {
+      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
+    }
 
-    // Alternative: more robust approach — find graphicFrames with table data
-    let found = false;
-    let updatedXml = slideXml;
+    const trs = tblObj['a:tr'] || []
+    if (trs.length === 0) {
+      throw new PPTXError('No rows to clone from')
+    }
 
-    // Strategy 1: Find by name attribute
-    const namePattern = new RegExp(`name="${this.#escapeRegex(tableId)}"`, 'g');
-    const nameMatch = namePattern.exec(slideXml);
+    const lastRow = trs[trs.length - 1]
+    const newRow = this.#xmlParser.deepClone(lastRow)
+    this.#updateRowId(newRow)
 
-    if (nameMatch) {
-      // Find the graphicFrame containing this name
-      const frameStart = slideXml.lastIndexOf('<p:graphicFrame>', nameMatch.index);
-      const frameEnd = this.#findClosingTag(slideXml, '</p:graphicFrame>', nameMatch.index);
+    const tcs = newRow['a:tc'] || []
+    for (let j = 0; j < tcs.length; j++) {
+      this.#setCellTextObj(tcs[j], rowData[j] !== undefined ? rowData[j] : '')
+      // Clear any merged indicators for the new row by default
+      if (tcs[j]['@_hMerge']) delete tcs[j]['@_hMerge']
+      if (tcs[j]['@_vMerge']) delete tcs[j]['@_vMerge']
+    }
 
-      if (frameStart !== -1 && frameEnd !== -1) {
-        const frameXml = slideXml.substring(frameStart, frameEnd + '</p:graphicFrame>'.length);
-        const updatedFrame = this.#updateTableRows(frameXml, rows);
+    trs.push(newRow)
 
-        updatedXml = slideXml.substring(0, frameStart) + updatedFrame +
-          slideXml.substring(frameEnd + '</p:graphicFrame>'.length);
-        found = true;
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+  }
+
+  /**
+   * Removes a table row by index.
+   *
+   * @param {number} slideIndex
+   * @param {string} tableId
+   * @param {number} rowIndex - 0-based row index.
+   * @param {SlideManager} slideManager
+   */
+  removeTableRow(slideIndex, tableId, rowIndex, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    if (!tblObj) {
+      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
+    }
+
+    const trs = tblObj['a:tr'] || []
+    if (rowIndex < 0 || rowIndex >= trs.length) {
+      throw new PPTXError(`Row index ${rowIndex} out of bounds`)
+    }
+
+    trs.splice(rowIndex, 1)
+
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+  }
+
+  /**
+   * Inserts a table row at a specific index.
+   *
+   * @param {number} slideIndex
+   * @param {string} tableId
+   * @param {number} rowIndex
+   * @param {string[]} rowData
+   * @param {SlideManager} slideManager
+   */
+  insertTableRow(slideIndex, tableId, rowIndex, rowData, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    if (!tblObj) {
+      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
+    }
+
+    const trs = tblObj['a:tr'] || []
+    if (rowIndex < 0 || rowIndex > trs.length) {
+      throw new PPTXError(`Row index ${rowIndex} out of bounds`)
+    }
+
+    // Use row above or first row as template
+    const templateIndex = Math.max(0, rowIndex - 1)
+    const template = trs[templateIndex] || trs[0]
+    if (!template) {
+      throw new PPTXError('No rows to insert and copy from')
+    }
+
+    const newRow = this.#xmlParser.deepClone(template)
+    this.#updateRowId(newRow)
+
+    const tcs = newRow['a:tc'] || []
+    for (let j = 0; j < tcs.length; j++) {
+      this.#setCellTextObj(tcs[j], rowData[j] !== undefined ? rowData[j] : '')
+      if (tcs[j]['@_hMerge']) delete tcs[j]['@_hMerge']
+      if (tcs[j]['@_vMerge']) delete tcs[j]['@_vMerge']
+    }
+
+    trs.splice(rowIndex, 0, newRow)
+
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+  }
+
+  /**
+   * Clones a row and inserts it at another index.
+   *
+   * @param {number} slideIndex
+   * @param {string} tableId
+   * @param {number} sourceRowIndex
+   * @param {number} targetRowIndex
+   * @param {SlideManager} slideManager
+   */
+  cloneTableRow(slideIndex, tableId, sourceRowIndex, targetRowIndex, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    if (!tblObj) {
+      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
+    }
+
+    const trs = tblObj['a:tr'] || []
+    if (sourceRowIndex < 0 || sourceRowIndex >= trs.length) {
+      throw new PPTXError(`Source row index ${sourceRowIndex} out of bounds`)
+    }
+    if (targetRowIndex < 0 || targetRowIndex > trs.length) {
+      throw new PPTXError(`Target row index ${targetRowIndex} out of bounds`)
+    }
+
+    const template = trs[sourceRowIndex]
+    const newRow = this.#xmlParser.deepClone(template)
+    this.#updateRowId(newRow)
+
+    trs.splice(targetRowIndex, 0, newRow)
+
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+  }
+
+  /**
+   * Updates a single cell text and formatting.
+   *
+   * @param {number} slideIndex
+   * @param {string} tableId
+   * @param {number} rowIndex
+   * @param {number} colIndex
+   * @param {string} value
+   * @param {Object} options
+   * @param {SlideManager} slideManager
+   */
+  updateCell(slideIndex, tableId, rowIndex, colIndex, value, options = {}, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    if (!tblObj) {
+      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
+    }
+
+    const row = tblObj['a:tr']?.[rowIndex]
+    if (!row) {
+      throw new PPTXError(`Row index ${rowIndex} out of bounds`)
+    }
+
+    const cell = row['a:tc']?.[colIndex]
+    if (!cell) {
+      throw new PPTXError(`Column index ${colIndex} out of bounds`)
+    }
+
+    this.#setCellTextObj(cell, value)
+
+    if (options.fill) {
+      if (!cell['a:tcPr']) cell['a:tcPr'] = {}
+      cell['a:tcPr']['a:solidFill'] = {
+        'a:srgbClr': { '@_val': options.fill },
       }
     }
 
-    // Strategy 2: Find by shape ID (tableId is numeric)
-    if (!found && /^\d+$/.test(tableId)) {
-      const idPattern = new RegExp(`id="${tableId}"`, 'g');
-      const idMatch = idPattern.exec(slideXml);
-      if (idMatch) {
-        const frameStart = slideXml.lastIndexOf('<p:graphicFrame>', idMatch.index);
-        const frameEnd = this.#findClosingTag(slideXml, '</p:graphicFrame>', idMatch.index);
-
-        if (frameStart !== -1 && frameEnd !== -1) {
-          const frameXml = slideXml.substring(frameStart, frameEnd + '</p:graphicFrame>'.length);
-          const updatedFrame = this.#updateTableRows(frameXml, rows);
-          updatedXml = slideXml.substring(0, frameStart) + updatedFrame +
-            slideXml.substring(frameEnd + '</p:graphicFrame>'.length);
-          found = true;
+    if (options.align) {
+      const txBody = cell['a:txBody']
+      if (txBody && txBody['a:p']) {
+        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+        for (const p of paras) {
+          if (!p['a:pPr']) p['a:pPr'] = {}
+          p['a:pPr']['@_algn'] = options.align
         }
       }
     }
 
-    // Strategy 3: Find first table in slide
-    if (!found && tableId === 'first') {
-      const tableStart = slideXml.indexOf('<a:tbl>');
-      const frameStart = slideXml.lastIndexOf('<p:graphicFrame>', tableStart);
-      const frameEnd = this.#findClosingTag(slideXml, '</p:graphicFrame>', tableStart);
-
-      if (frameStart !== -1 && frameEnd !== -1) {
-        const frameXml = slideXml.substring(frameStart, frameEnd + '</p:graphicFrame>'.length);
-        const updatedFrame = this.#updateTableRows(frameXml, rows);
-        updatedXml = slideXml.substring(0, frameStart) + updatedFrame +
-          slideXml.substring(frameEnd + '</p:graphicFrame>'.length);
-        found = true;
+    if (options.fontSize) {
+      const sizeVal = options.fontSize * 100
+      const txBody = cell['a:txBody']
+      if (txBody && txBody['a:p']) {
+        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+        for (const p of paras) {
+          if (p['a:r']) {
+            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+            for (const r of runs) {
+              if (!r['a:rPr']) r['a:rPr'] = {}
+              r['a:rPr']['@_sz'] = String(sizeVal)
+            }
+          }
+        }
       }
     }
 
-    return found ? updatedXml : null;
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
   }
 
   /**
-   * Replaces the table rows within a graphicFrame XML snippet.
-   * Preserves the first row's styling as a template for new rows.
+   * Validates if a merge region can be applied to the table.
    *
-   * @private
-   * @param {string} frameXml - XML of the graphicFrame containing the table.
-   * @param {string[][]} rows - New data rows.
-   * @returns {string} Updated frame XML.
+   * @param {number} slideIndex
+   * @param {string} tableId
+   * @param {number} startRow
+   * @param {number} startCol
+   * @param {number} endRow
+   * @param {number} endCol
+   * @param {SlideManager} slideManager
+   * @returns {Object} Validation report { valid: boolean, errors: string[] }
    */
-  #updateTableRows(frameXml, rows) {
-    // Extract all existing rows
-    const existingRows = this.#extractAllRows(frameXml);
-
-    if (existingRows.length === 0) {
-      logger.warn('No rows found in table');
-      return frameXml;
+  validateMergeRegion(slideIndex, tableId, startRow, startCol, endRow, endCol, slideManager) {
+    const errors = []
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    if (!tblObj) {
+      errors.push(`Table "${tableId}" not found in slide ${slideIndex}`)
+      return { valid: false, errors }
     }
 
-    // Use first row as header template, second as data row template (if available)
-    const headerTemplate = existingRows[0];
-    const dataTemplate = existingRows[1] || existingRows[0];
+    const trs = tblObj['a:tr'] || []
+    const numRows = trs.length
+    const numCols = trs[0]?.['a:tc']?.length || 0
 
-    // Build new rows
-    const newRowsXml = rows.map((rowData, rowIdx) => {
-      const template = rowIdx === 0 ? headerTemplate : dataTemplate;
-      return this.#buildRow(template, rowData);
-    }).join('');
-
-    // Replace all existing rows with new rows
-    const tblStart = frameXml.indexOf('<a:tbl>');
-    const tblEnd = frameXml.lastIndexOf('</a:tbl>') + '</a:tbl>'.length;
-    const tblXml = frameXml.substring(tblStart, tblEnd);
-
-    // Find where rows begin (after tblGrid) and end (before </a:tbl>)
-    const firstRowStart = tblXml.indexOf('<a:tr ') !== -1
-      ? tblXml.indexOf('<a:tr ')
-      : tblXml.indexOf('<a:tr>');
-    const lastRowEnd = tblXml.lastIndexOf('</a:tr>') + '</a:tr>'.length;
-
-    if (firstRowStart === -1 || lastRowEnd === -1) {
-      return frameXml;
+    if (startRow < 0 || startRow >= numRows) {
+      errors.push(`startRow ${startRow} is out of bounds (table has ${numRows} rows)`)
+    }
+    if (endRow < 0 || endRow >= numRows) {
+      errors.push(`endRow ${endRow} is out of bounds (table has ${numRows} rows)`)
+    }
+    if (startCol < 0 || startCol >= numCols) {
+      errors.push(`startCol ${startCol} is out of bounds (table has ${numCols} cols)`)
+    }
+    if (endCol < 0 || endCol >= numCols) {
+      errors.push(`endCol ${endCol} is out of bounds (table has ${numCols} cols)`)
     }
 
-    const newTblXml =
-      tblXml.substring(0, firstRowStart) +
-      newRowsXml +
-      tblXml.substring(lastRowEnd);
-
-    return frameXml.substring(0, tblStart) + newTblXml + frameXml.substring(tblEnd);
-  }
-
-  /**
-   * Extracts all <a:tr> row XML strings from a table.
-   * @private
-   * @param {string} tableXml
-   * @returns {string[]}
-   */
-  #extractAllRows(tableXml) {
-    const rows = [];
-    let searchFrom = 0;
-
-    while (true) {
-      const rowStart = tableXml.indexOf('<a:tr', searchFrom);
-      if (rowStart === -1) break;
-
-      const rowEnd = tableXml.indexOf('</a:tr>', rowStart);
-      if (rowEnd === -1) break;
-
-      rows.push(tableXml.substring(rowStart, rowEnd + '</a:tr>'.length));
-      searchFrom = rowEnd + '</a:tr>'.length;
+    if (errors.length > 0) {
+      return { valid: false, errors }
     }
 
-    return rows;
-  }
-
-  /**
-   * Builds a new row XML by cloning a template row and replacing cell text.
-   *
-   * @private
-   * @param {string} templateRow - Template row XML to clone.
-   * @param {string[]} cellValues - Text values for each cell.
-   * @returns {string} New row XML.
-   */
-  #buildRow(templateRow, cellValues) {
-    // Extract template cells
-    const cells = this.#extractCells(templateRow);
-
-    // Build new cells by replacing text in templates
-    const newCells = cellValues.map((value, colIdx) => {
-      const template = cells[colIdx] || cells[cells.length - 1] || '<a:tc><a:txBody><a:p><a:r><a:t/></a:r></a:p></a:txBody><a:tcPr/></a:tc>';
-      return this.#setCellText(template, value);
-    });
-
-    // Replace cells in template row
-    const firstCellStart = templateRow.indexOf('<a:tc>') !== -1
-      ? templateRow.indexOf('<a:tc>')
-      : templateRow.indexOf('<a:tc ');
-    const lastCellEnd = templateRow.lastIndexOf('</a:tc>') + '</a:tc>'.length;
-
-    if (firstCellStart === -1 || lastCellEnd === -1) {
-      return templateRow;
+    if (endRow < startRow) {
+      errors.push(`endRow (${endRow}) cannot be less than startRow (${startRow})`)
+    }
+    if (endCol < startCol) {
+      errors.push(`endCol (${endCol}) cannot be less than startCol (${startCol})`)
     }
 
-    return (
-      templateRow.substring(0, firstCellStart) +
-      newCells.join('') +
-      templateRow.substring(lastCellEnd)
-    );
-  }
+    if (errors.length > 0) {
+      return { valid: false, errors }
+    }
 
-  /**
-   * Extracts all <a:tc> cell XML strings from a row.
-   * @private
-   * @param {string} rowXml
-   * @returns {string[]}
-   */
-  #extractCells(rowXml) {
-    const cells = [];
-    let searchFrom = 0;
-
-    while (true) {
-      let cellStart = rowXml.indexOf('<a:tc>', searchFrom);
-      if (cellStart === -1) {
-        cellStart = rowXml.indexOf('<a:tc ', searchFrom);
+    const existingMerges = this.getMergedCells(slideIndex, tableId, slideManager)
+    for (const R of existingMerges) {
+      const overlap =
+        startRow <= R.endRow && endRow >= R.startRow && startCol <= R.endCol && endCol >= R.startCol
+      if (overlap) {
+        errors.push(
+          `Requested merge region (${startRow}, ${startCol}) to (${endRow}, ${endCol}) overlaps with existing merged region (${R.startRow}, ${R.startCol}) to (${R.endRow}, ${R.endCol})`
+        )
       }
-      if (cellStart === -1) break;
-
-      const cellEnd = rowXml.indexOf('</a:tc>', cellStart);
-      if (cellEnd === -1) break;
-
-      cells.push(rowXml.substring(cellStart, cellEnd + '</a:tc>'.length));
-      searchFrom = cellEnd + '</a:tc>'.length;
     }
 
-    return cells;
+    return {
+      valid: errors.length === 0,
+      errors,
+    }
   }
 
   /**
-   * Replaces the text content of a table cell.
-   * Preserves all formatting (borders, colors, fonts) and only changes <a:t> content.
+   * Merges cells in a table.
    *
-   * @private
-   * @param {string} cellXml - Cell XML template.
-   * @param {string} text - New text content.
-   * @returns {string} Updated cell XML.
+   * @param {number} slideIndex
+   * @param {string} tableId
+   * @param {number} startRow
+   * @param {number} startCol
+   * @param {number} endRow
+   * @param {number} endCol
+   * @param {SlideManager} slideManager
    */
-  #setCellText(cellXml, text) {
-    const escapedText = this.#escapeXml(String(text));
-
-    // If there's an existing <a:t> element, replace its content
-    const tPattern = /(<a:t>)(.*?)(<\/a:t>)/;
-    if (tPattern.test(cellXml)) {
-      // Only replace the first <a:t> to avoid touching other text runs
-      return cellXml.replace(tPattern, `$1${escapedText}$3`);
+  mergeCells(slideIndex, tableId, startRow, startCol, endRow, endCol, slideManager) {
+    const validation = this.validateMergeRegion(
+      slideIndex,
+      tableId,
+      startRow,
+      startCol,
+      endRow,
+      endCol,
+      slideManager
+    )
+    if (!validation.valid) {
+      throw new PPTXError(`Invalid merge region: ${validation.errors.join('; ')}`)
     }
 
-    // If no <a:t> exists, inject one inside the first text run
-    const rPattern = /(<a:r[^>]*>)([\s\S]*?)(<\/a:r>)/;
-    if (rPattern.test(cellXml)) {
-      return cellXml.replace(rPattern, `$1$2<a:t>${escapedText}</a:t>$3`);
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    const trs = tblObj['a:tr'] || []
+
+    const allTexts = []
+
+    for (let r = startRow; r <= endRow; r++) {
+      const row = trs[r]
+      if (!row) continue
+      const tcs = row['a:tc'] || []
+
+      for (let c = startCol; c <= endCol; c++) {
+        const cell = tcs[c]
+        if (!cell) continue
+
+        if (r === startRow && c === startCol) {
+          const text = this.#getCellText(cell)
+          if (text) allTexts.push(text)
+          if (cell['@_hMerge'] !== undefined) delete cell['@_hMerge']
+          if (cell['@_vMerge'] !== undefined) delete cell['@_vMerge']
+        } else {
+          const text = this.#getCellText(cell)
+          if (text) allTexts.push(text)
+
+          if (cell['@_gridSpan'] !== undefined) delete cell['@_gridSpan']
+          if (cell['@_rowSpan'] !== undefined) delete cell['@_rowSpan']
+
+          if (r === startRow) {
+            cell['@_hMerge'] = '1'
+            if (cell['@_vMerge'] !== undefined) delete cell['@_vMerge']
+          } else if (c === startCol) {
+            cell['@_vMerge'] = '1'
+            if (cell['@_hMerge'] !== undefined) delete cell['@_hMerge']
+          } else {
+            cell['@_hMerge'] = '1'
+            cell['@_vMerge'] = '1'
+          }
+          this.#setCellTextObj(cell, '')
+        }
+      }
     }
 
-    // Fallback: inject a basic text paragraph
-    const txBodyPattern = /(<a:txBody>)([\s\S]*?)(<\/a:txBody>)/;
-    if (txBodyPattern.test(cellXml)) {
-      return cellXml.replace(
-        txBodyPattern,
-        `$1<a:p><a:r><a:t>${escapedText}</a:t></a:r></a:p>$3`
-      );
+    const originCell = trs[startRow]['a:tc'][startCol]
+    if (endCol > startCol) {
+      originCell['@_gridSpan'] = String(endCol - startCol + 1)
+    }
+    if (endRow > startRow) {
+      originCell['@_rowSpan'] = String(endRow - startRow + 1)
     }
 
-    return cellXml;
+    const combinedText = allTexts.filter(t => t.trim() !== '').join('\n')
+    this.#setCellTextObj(originCell, combinedText)
+
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
   }
 
   /**
-   * Finds the position of the closing tag that matches an opening at searchFrom.
-   * @private
-   * @param {string} xml
-   * @param {string} closingTag
-   * @param {number} searchFrom
-   * @returns {number} Index of closing tag or -1.
+   * Unmerges cells in a table.
+   *
+   * @param {number} slideIndex
+   * @param {string} tableId
+   * @param {number} startRow
+   * @param {number} startCol
+   * @param {number} endRow
+   * @param {number} endCol
+   * @param {SlideManager} slideManager
    */
-  #findClosingTag(xml, closingTag, searchFrom) {
-    return xml.indexOf(closingTag, searchFrom);
+  unmergeCells(slideIndex, tableId, startRow, startCol, endRow, endCol, slideManager) {
+    let actualSlideManager = slideManager
+    let actualEndRow = endRow
+    let actualEndCol = endCol
+
+    if (typeof endRow === 'object' && endRow.getSlideXml) {
+      actualSlideManager = endRow
+      actualEndRow = undefined
+      actualEndCol = undefined
+    }
+
+    const slideXml = actualSlideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    if (!tblObj) {
+      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
+    }
+
+    const trs = tblObj['a:tr'] || []
+
+    if (actualEndRow === undefined || actualEndCol === undefined) {
+      const R = this.getMergeRegion(slideIndex, tableId, startRow, startCol, actualSlideManager)
+      if (!R) return
+
+      for (let r = R.startRow; r <= R.endRow; r++) {
+        const rowObj = trs[r]
+        if (!rowObj) continue
+        const tcs = rowObj['a:tc'] || []
+        for (let c = R.startCol; c <= R.endCol; c++) {
+          const cell = tcs[c]
+          if (!cell) continue
+          if (cell['@_hMerge'] !== undefined) delete cell['@_hMerge']
+          if (cell['@_vMerge'] !== undefined) delete cell['@_vMerge']
+          if (cell['@_gridSpan'] !== undefined) delete cell['@_gridSpan']
+          if (cell['@_rowSpan'] !== undefined) delete cell['@_rowSpan']
+        }
+      }
+    } else {
+      for (let r = startRow; r <= actualEndRow; r++) {
+        const rowObj = trs[r]
+        if (!rowObj) continue
+        const tcs = rowObj['a:tc'] || []
+        for (let c = startCol; c <= actualEndCol; c++) {
+          const cell = tcs[c]
+          if (!cell) continue
+          if (cell['@_hMerge'] !== undefined) delete cell['@_hMerge']
+          if (cell['@_vMerge'] !== undefined) delete cell['@_vMerge']
+          if (cell['@_gridSpan'] !== undefined) delete cell['@_gridSpan']
+          if (cell['@_rowSpan'] !== undefined) delete cell['@_rowSpan']
+        }
+      }
+    }
+
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    actualSlideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
   }
 
   /**
-   * Escapes regex special characters.
-   * @private
-   * @param {string} str
-   * @returns {string}
+   * Scans the table grid and returns all merged regions.
+   *
+   * @param {number} slideIndex
+   * @param {string} tableId
+   * @param {SlideManager} slideManager
+   * @returns {Array<Object>} List of merged region coordinates
    */
-  #escapeRegex(str) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  getMergedCells(slideIndex, tableId, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    if (!tblObj) {
+      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
+    }
+
+    const trs = tblObj['a:tr'] || []
+    const merged = []
+
+    for (let r = 0; r < trs.length; r++) {
+      const row = trs[r]
+      const tcs = row['a:tc'] || []
+      for (let c = 0; c < tcs.length; c++) {
+        const cell = tcs[c]
+        if (!cell) continue
+
+        const gridSpan = parseInt(cell['@_gridSpan'] || 1, 10)
+        const rowSpan = parseInt(cell['@_rowSpan'] || 1, 10)
+
+        if (gridSpan > 1 || rowSpan > 1) {
+          merged.push({
+            startRow: r,
+            startCol: c,
+            endRow: r + rowSpan - 1,
+            endCol: c + gridSpan - 1,
+          })
+        }
+      }
+    }
+    return merged
   }
 
   /**
-   * Escapes XML special characters.
-   * @private
-   * @param {string} str
-   * @returns {string}
+   * Helper to get clean string content of a cell.
    */
-  #escapeXml(str) {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
+  #getCellText(cellObj) {
+    const txBody = cellObj?.['a:txBody']
+    if (!txBody) return ''
+    const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+    const text = []
+    for (const p of paras) {
+      let pText = ''
+      if (p['a:r']) {
+        const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+        for (const r of runs) {
+          if (r['a:t']) {
+            pText += String(r['a:t'])
+          }
+        }
+      }
+      text.push(pText)
+    }
+    return text.join('\n')
   }
 
   /**
-   * Inspects a slide's table structure (for debugging).
+   * Returns true if the cell is part of any merged region.
+   */
+  isMergedCell(slideIndex, tableId, row, col, slideManager) {
+    return this.getMergeRegion(slideIndex, tableId, row, col, slideManager) !== null
+  }
+
+  /**
+   * Returns the region coordinate containing cell (row, col).
+   */
+  getMergeRegion(slideIndex, tableId, row, col, slideManager) {
+    const merges = this.getMergedCells(slideIndex, tableId, slideManager)
+    for (const R of merges) {
+      if (row >= R.startRow && row <= R.endRow && col >= R.startCol && col <= R.endCol) {
+        return R
+      }
+    }
+    return null
+  }
+
+  /**
+   * Returns origin cell coordinates.
+   */
+  getMergeParent(slideIndex, tableId, row, col, slideManager) {
+    const R = this.getMergeRegion(slideIndex, tableId, row, col, slideManager)
+    if (R) {
+      return { row: R.startRow, col: R.startCol }
+    }
+    return { row, col }
+  }
+
+  /**
+   * Splits a merged region containing cell (row, col).
+   */
+  splitMergedRegion(slideIndex, tableId, row, col, slideManager) {
+    this.unmergeCells(slideIndex, tableId, row, col, slideManager)
+  }
+
+  /**
+   * Clones a merged region.
+   */
+  cloneMergedRegion(slideIndex, tableId, row, col, targetRow, targetCol, slideManager) {
+    const R = this.getMergeRegion(slideIndex, tableId, row, col, slideManager)
+    if (!R) return
+
+    const rowSpan = R.endRow - R.startRow + 1
+    const colSpan = R.endCol - R.startCol + 1
+
+    const targetEndRow = targetRow + rowSpan - 1
+    const targetEndCol = targetCol + colSpan - 1
+
+    this.mergeCells(
+      slideIndex,
+      tableId,
+      targetRow,
+      targetCol,
+      targetEndRow,
+      targetEndCol,
+      slideManager
+    )
+
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    if (!tblObj) return
+
+    const trs = tblObj['a:tr'] || []
+    const srcCell = trs[R.startRow]?.['a:tc']?.[R.startCol]
+    const destCell = trs[targetRow]?.['a:tc']?.[targetCol]
+
+    if (srcCell && destCell) {
+      if (srcCell['a:tcPr']) {
+        destCell['a:tcPr'] = this.#xmlParser.deepClone(srcCell['a:tcPr'])
+      }
+      if (srcCell['a:txBody']) {
+        destCell['a:txBody'] = this.#xmlParser.deepClone(srcCell['a:txBody'])
+      }
+    }
+
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+  }
+
+  /**
+   * Auto-fits table columns based on text length.
+   *
+   * @param {number} slideIndex
+   * @param {string} tableId
+   * @param {SlideManager} slideManager
+   */
+  autoFitTable(slideIndex, tableId, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tblObj = this.#findTableObj(slideObj, tableId)
+    if (!tblObj) {
+      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
+    }
+
+    const trs = tblObj['a:tr'] || []
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol']
+    if (!gridCols || trs.length === 0) return
+
+    const numCols = gridCols.length
+    const maxLens = new Array(numCols).fill(0)
+
+    for (const row of trs) {
+      const tcs = row['a:tc'] || []
+      for (let c = 0; c < numCols; c++) {
+        const cell = tcs[c]
+        if (!cell || cell['@_hMerge'] || cell['@_vMerge']) continue
+
+        const txBody = cell['a:txBody']
+        if (txBody) {
+          const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+          let len = 0
+          for (const p of paras) {
+            if (p['a:r']) {
+              const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+              for (const r of runs) {
+                if (r['a:t']) {
+                  len += String(r['a:t']).length
+                }
+              }
+            }
+          }
+          if (len > maxLens[c]) {
+            maxLens[c] = len
+          }
+        }
+      }
+    }
+
+    for (let c = 0; c < numCols; c++) {
+      const width = Math.max(1000000, maxLens[c] * 120000)
+      gridCols[c]['@_w'] = String(width)
+    }
+
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+  }
+
+  /**
+   * Resizes the table width and height.
+   *
+   * @param {number} slideIndex
+   * @param {string} tableId
+   * @param {number} width - New width in EMUs or inches.
+   * @param {number} height - New height in EMUs or inches.
+   * @param {SlideManager} slideManager
+   */
+  resizeTable(slideIndex, tableId, width, height, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    if (!spTree) return
+
+    let frames = spTree['p:graphicFrame'] || []
+    if (!Array.isArray(frames)) frames = [frames]
+
+    let targetFrame = null
+    let tbl = null
+
+    for (const frame of frames) {
+      tbl = frame?.['a:graphic']?.['a:graphicData']?.['a:tbl']
+      if (!tbl) continue
+
+      const cNvPr = frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
+      if (!cNvPr) continue
+
+      const name = cNvPr['@_name']
+      const id = String(cNvPr['@_id'])
+
+      if (tableId === 'first' || name === tableId || id === tableId) {
+        targetFrame = frame
+        break
+      }
+    }
+
+    if (!targetFrame || !tbl) {
+      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
+    }
+
+    const emuWidth = width < 100 ? Math.round(width * 914400) : Math.round(width)
+    const emuHeight = height < 100 ? Math.round(height * 914400) : Math.round(height)
+
+    if (!targetFrame['p:xfrm']) targetFrame['p:xfrm'] = {}
+    if (!targetFrame['p:xfrm']['a:ext']) targetFrame['p:xfrm']['a:ext'] = {}
+    targetFrame['p:xfrm']['a:ext']['@_cx'] = String(emuWidth)
+    targetFrame['p:xfrm']['a:ext']['@_cy'] = String(emuHeight)
+
+    const gridCols = tbl['a:tblGrid']?.['a:gridCol']
+    if (gridCols && gridCols.length > 0) {
+      let currentTotalWidth = 0
+      for (const col of gridCols) {
+        currentTotalWidth += parseInt(col['@_w'] || 0, 10)
+      }
+
+      if (currentTotalWidth > 0) {
+        const ratio = emuWidth / currentTotalWidth
+        for (const col of gridCols) {
+          const w = parseInt(col['@_w'] || 0, 10)
+          col['@_w'] = String(Math.round(w * ratio))
+        }
+      } else {
+        const evenWidth = Math.round(emuWidth / gridCols.length)
+        for (const col of gridCols) {
+          col['@_w'] = String(evenWidth)
+        }
+      }
+    }
+
+    const trs = tbl['a:tr'] || []
+    if (trs.length > 0) {
+      let currentTotalHeight = 0
+      for (const row of trs) {
+        currentTotalHeight += parseInt(row['@_h'] || 0, 10)
+      }
+
+      if (currentTotalHeight > 0) {
+        const ratio = emuHeight / currentTotalHeight
+        for (const row of trs) {
+          const h = parseInt(row['@_h'] || 0, 10)
+          row['@_h'] = String(Math.round(h * ratio))
+        }
+      } else {
+        const evenHeight = Math.round(emuHeight / trs.length)
+        for (const row of trs) {
+          row['@_h'] = String(evenHeight)
+        }
+      }
+    }
+
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+  }
+
+  /**
+   * Inspects all tables in a slide.
    *
    * @param {number} slideIndex
    * @param {SlideManager} slideManager
    * @returns {Array<{name: string, id: string, rows: number, cols: number}>}
    */
   inspectTables(slideIndex, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex);
-    const tables = [];
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const tables = []
 
-    // Find all graphicFrames with table data
-    const framePattern = /<p:graphicFrame>([\s\S]*?)<\/p:graphicFrame>/g;
-    let match;
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    if (!spTree) return []
 
-    while ((match = framePattern.exec(slideXml)) !== null) {
-      const frameXml = match[1];
-      if (!frameXml.includes('<a:tbl>')) continue;
+    let frames = spTree['p:graphicFrame'] || []
+    if (!Array.isArray(frames)) frames = [frames]
 
-      const nameMatch = /name="([^"]*)"/.exec(frameXml);
-      const idMatch = /id="([^"]*)"/.exec(frameXml);
-      const rows = this.#extractAllRows(frameXml);
-      const cols = rows[0] ? this.#extractCells(rows[0]).length : 0;
+    for (const frame of frames) {
+      const tbl = frame?.['a:graphic']?.['a:graphicData']?.['a:tbl']
+      if (!tbl) continue
+
+      const cNvPr = frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
+      const name = cNvPr ? cNvPr['@_name'] : 'unnamed'
+      const id = cNvPr ? String(cNvPr['@_id']) : 'unknown'
+
+      const trs = tbl['a:tr'] || []
+      const cols = trs[0]?.['a:tc']?.length || 0
 
       tables.push({
-        name: nameMatch ? nameMatch[1] : 'unnamed',
-        id: idMatch ? idMatch[1] : 'unknown',
-        rows: rows.length,
+        name,
+        id,
+        rows: trs.length,
         cols,
-      });
+      })
     }
 
-    return tables;
+    return tables
+  }
+
+  /**
+   * Helper to set cell text in parsed object structure.
+   */
+  #setCellTextObj(cellObj, text) {
+    const val = text === undefined || text === null ? '' : String(text)
+
+    if (!cellObj['a:txBody']) {
+      cellObj['a:txBody'] = {
+        'a:bodyPr': {},
+        'a:lstStyle': {},
+        'a:p': [],
+      }
+    }
+
+    const txBody = cellObj['a:txBody']
+
+    if (!txBody['a:p']) {
+      txBody['a:p'] = []
+    }
+    if (!Array.isArray(txBody['a:p'])) {
+      txBody['a:p'] = [txBody['a:p']]
+    }
+    if (txBody['a:p'].length === 0) {
+      txBody['a:p'].push({})
+    }
+
+    const lines = val.split(/\r?\n/)
+    const templatePara = txBody['a:p'][0]
+    const newParas = []
+
+    for (const line of lines) {
+      const p = this.#xmlParser.deepClone(templatePara)
+
+      if (!p['a:r']) {
+        p['a:r'] = []
+      }
+      if (!Array.isArray(p['a:r'])) {
+        p['a:r'] = [p['a:r']]
+      }
+
+      if (p['a:r'].length === 0) {
+        p['a:r'].push({ 'a:t': line })
+      } else {
+        const firstRun = p['a:r'][0]
+        firstRun['a:t'] = line
+        p['a:r'] = [firstRun]
+      }
+
+      // Ensure strict schema ordering for DrawingML paragraph elements:
+      // 1. a:pPr (paragraph properties)
+      // 2. a:r / a:br / a:fld (text runs, breaks, fields)
+      // 3. a:endParaRPr (end paragraph run properties)
+      const pOrdered = {}
+      if (p['a:pPr'] !== undefined) {
+        pOrdered['a:pPr'] = p['a:pPr']
+      }
+      if (p['a:r'] !== undefined) {
+        pOrdered['a:r'] = p['a:r']
+      }
+      if (p['a:br'] !== undefined) {
+        pOrdered['a:br'] = p['a:br']
+      }
+      if (p['a:fld'] !== undefined) {
+        pOrdered['a:fld'] = p['a:fld']
+      }
+      for (const key of Object.keys(p)) {
+        if (
+          key !== 'a:pPr' &&
+          key !== 'a:r' &&
+          key !== 'a:br' &&
+          key !== 'a:fld' &&
+          key !== 'a:endParaRPr'
+        ) {
+          pOrdered[key] = p[key]
+        }
+      }
+      if (p['a:endParaRPr'] !== undefined) {
+        pOrdered['a:endParaRPr'] = p['a:endParaRPr']
+      }
+
+      newParas.push(pOrdered)
+    }
+
+    txBody['a:p'] = newParas
+  }
+
+  /**
+   * Helper to find a table element inside a slide parsed object.
+   */
+  #findTableObj(slideObj, tableId) {
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    if (!spTree) return null
+
+    let frames = spTree['p:graphicFrame'] || []
+    if (!Array.isArray(frames)) frames = [frames]
+
+    for (const frame of frames) {
+      const tbl = frame?.['a:graphic']?.['a:graphicData']?.['a:tbl']
+      if (!tbl) continue
+
+      const cNvPr = frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
+      if (!cNvPr) continue
+
+      const name = cNvPr['@_name']
+      const id = String(cNvPr['@_id'])
+
+      if (tableId === 'first' || name === tableId || id === tableId) {
+        return tbl
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Generates a new rowId for the given row object.
+   */
+  #updateRowId(rowObj) {
+    const randomVal = String(this.#generateRandomUint32())
+    if (rowObj['a:extLst']?.['a:ext']) {
+      const ext = rowObj['a:extLst']['a:ext']
+      const exts = Array.isArray(ext) ? ext : [ext]
+      let updated = false
+      for (const e of exts) {
+        if (e['a16:rowId']) {
+          e['a16:rowId']['@_val'] = randomVal
+          updated = true
+        }
+      }
+      if (!updated) {
+        exts.push({
+          '@_uri': '{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}',
+          'a16:rowId': {
+            '@_xmlns:a16': 'http://schemas.microsoft.com/office/drawing/2014/main',
+            '@_val': randomVal,
+          },
+        })
+        rowObj['a:extLst']['a:ext'] = exts
+      }
+    } else {
+      rowObj['a:extLst'] = {
+        'a:ext': {
+          '@_uri': '{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}',
+          'a16:rowId': {
+            '@_xmlns:a16': 'http://schemas.microsoft.com/office/drawing/2014/main',
+            '@_val': randomVal,
+          },
+        },
+      }
+    }
+  }
+
+  #generateRandomUint32() {
+    return Math.floor(Math.random() * 4294967296)
   }
 }
 
-module.exports = { TableManager };
+module.exports = { TableManager }
