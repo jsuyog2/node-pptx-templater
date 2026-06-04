@@ -64,6 +64,7 @@ async function main() {
         { name: 'Product C', values: [70, 85, 100, 120] },
       ],
     })
+    ppt.updateChartTitle('Chart', 'Global SaaS Revenue (2026)');
 
     ppt.applyZOrder(1, [{ id: 'Shape', zIndex: 2 }])
 

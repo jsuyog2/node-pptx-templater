@@ -154,14 +154,55 @@ class ChartCacheGenerator {
   }
 
   /**
-   * Updates the chart title in chart XML.
+   * Updates the chart title text in chart XML while preserving all existing
+   * styling (spPr, txPr, overlay, layout) from the template.
+   *
+   * Because <c:txPr> is ignored by PowerPoint once <c:tx><c:rich> is present,
+   * this method extracts <a:defRPr> from <c:txPr> and injects it as <a:rPr>
+   * into the run, and uses <a:bodyPr> from <c:txPr> inside <c:rich>, so that
+   * the template's font, size, and color are faithfully applied to the title text.
    */
   static updateTitle(xml, title) {
-    const titleBlock = `<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>${this.#escapeXml(title)}</a:t></a:r></a:p></c:rich></c:tx><c:layout/></c:title>`
+    const escapedTitle = this.#escapeXml(title)
+
     if (xml.includes('<c:title>')) {
-      const fullTitlePattern = /(<c:title>[\s\S]*?<\/c:title>)/
-      return xml.replace(fullTitlePattern, titleBlock)
+      return xml.replace(/<c:title>([\s\S]*?)<\/c:title>/, (match, titleContent) => {
+        // Extract <a:bodyPr .../> from existing <c:txPr> to use in <c:rich>
+        let bodyPr = '<a:bodyPr/>'
+        const txPrMatch = /<c:txPr>([\s\S]*?)<\/c:txPr>/.exec(titleContent)
+        if (txPrMatch) {
+          const bodyPrMatch = /(<a:bodyPr[^>]*\/>|<a:bodyPr[^>]*>[\s\S]*?<\/a:bodyPr>)/.exec(
+            txPrMatch[1]
+          )
+          if (bodyPrMatch) bodyPr = bodyPrMatch[1]
+        }
+
+        // Extract <a:defRPr .../> from <c:txPr><a:p><a:pPr> to use as <a:rPr> in the run
+        let rPr = ''
+        if (txPrMatch) {
+          const defRPrMatch = /(<a:defRPr[\s\S]*?<\/a:defRPr>|<a:defRPr[^>]*\/>)/.exec(txPrMatch[1])
+          if (defRPrMatch) {
+            // Convert <a:defRPr ...> to <a:rPr ...> (same attributes, different tag name)
+            rPr = defRPrMatch[1]
+              .replace(/^<a:defRPr/, '<a:rPr')
+              .replace(/<\/a:defRPr>$/, '</a:rPr>')
+          }
+        }
+
+        const newTxBlock = `<c:tx><c:rich>${bodyPr}<a:lstStyle/><a:p><a:r>${rPr}<a:t>${escapedTitle}</a:t></a:r></a:p></c:rich></c:tx>`
+
+        if (titleContent.includes('<c:tx>')) {
+          // Replace existing c:tx, keep all other siblings intact
+          const updatedContent = titleContent.replace(/<c:tx>[\s\S]*?<\/c:tx>/, newTxBlock)
+          return `<c:title>${updatedContent}</c:title>`
+        } else {
+          // No c:tx yet – prepend before first existing sibling
+          return `<c:title>${newTxBlock}${titleContent}</c:title>`
+        }
+      })
     } else {
+      // No title block exists yet – create a minimal one
+      const titleBlock = `<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>${escapedTitle}</a:t></a:r></a:p></c:rich></c:tx><c:layout/></c:title>`
       const chartPattern = /(<c:chart>)/
       return xml.replace(chartPattern, `$1${titleBlock}`)
     }
