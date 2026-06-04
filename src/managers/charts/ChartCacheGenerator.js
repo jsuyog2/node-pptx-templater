@@ -154,58 +154,113 @@ class ChartCacheGenerator {
   }
 
   /**
-   * Updates the chart title text in chart XML while preserving all existing
-   * styling (spPr, txPr, overlay, layout) from the template.
+   * Updates the chart title text while fully preserving all existing styling.
    *
-   * Because <c:txPr> is ignored by PowerPoint once <c:tx><c:rich> is present,
-   * this method extracts <a:defRPr> from <c:txPr> and injects it as <a:rPr>
-   * into the run, and uses <a:bodyPr> from <c:txPr> inside <c:rich>, so that
-   * the template's font, size, and color are faithfully applied to the title text.
+   * Three strategies in priority order:
+   *
+   * 1. If <c:tx><c:rich> already exists (title was previously set via PowerPoint or this
+   *    library): ONLY replace <a:t> text values in-place, mapped by \n-split lines to
+   *    existing runs in document order. This preserves alignment, bold/italic/underline,
+   *    font sizes, paragraph structure, and any other per-run or per-paragraph properties.
+   *
+   * 2. If <c:title> exists but has no <c:tx> (title text comes from <c:txPr> default
+   *    properties): Build a new <c:tx><c:rich> by extracting <a:bodyPr>, <a:pPr> (including
+   *    algn), and <a:defRPr>→<a:rPr> from <c:txPr>. Supports multi-line via \n splitting
+   *    into separate <a:p> paragraphs, each inheriting the same pPr and rPr.
+   *
+   * 3. If no <c:title> block exists at all: create a minimal one.
    */
   static updateTitle(xml, title) {
-    const escapedTitle = this.#escapeXml(title)
+    // Split by \n so callers can drive multi-paragraph titles
+    const titleLines = title.split('\n')
 
-    if (xml.includes('<c:title>')) {
-      return xml.replace(/<c:title>([\s\S]*?)<\/c:title>/, (match, titleContent) => {
-        // Extract <a:bodyPr .../> from existing <c:txPr> to use in <c:rich>
-        let bodyPr = '<a:bodyPr/>'
-        const txPrMatch = /<c:txPr>([\s\S]*?)<\/c:txPr>/.exec(titleContent)
-        if (txPrMatch) {
-          const bodyPrMatch = /(<a:bodyPr[^>]*\/>|<a:bodyPr[^>]*>[\s\S]*?<\/a:bodyPr>)/.exec(
-            txPrMatch[1]
-          )
-          if (bodyPrMatch) bodyPr = bodyPrMatch[1]
-        }
-
-        // Extract <a:defRPr .../> from <c:txPr><a:p><a:pPr> to use as <a:rPr> in the run
-        let rPr = ''
-        if (txPrMatch) {
-          const defRPrMatch = /(<a:defRPr[\s\S]*?<\/a:defRPr>|<a:defRPr[^>]*\/>)/.exec(txPrMatch[1])
-          if (defRPrMatch) {
-            // Convert <a:defRPr ...> to <a:rPr ...> (same attributes, different tag name)
-            rPr = defRPrMatch[1]
-              .replace(/^<a:defRPr/, '<a:rPr')
-              .replace(/<\/a:defRPr>$/, '</a:rPr>')
-          }
-        }
-
-        const newTxBlock = `<c:tx><c:rich>${bodyPr}<a:lstStyle/><a:p><a:r>${rPr}<a:t>${escapedTitle}</a:t></a:r></a:p></c:rich></c:tx>`
-
-        if (titleContent.includes('<c:tx>')) {
-          // Replace existing c:tx, keep all other siblings intact
-          const updatedContent = titleContent.replace(/<c:tx>[\s\S]*?<\/c:tx>/, newTxBlock)
-          return `<c:title>${updatedContent}</c:title>`
-        } else {
-          // No c:tx yet – prepend before first existing sibling
-          return `<c:title>${newTxBlock}${titleContent}</c:title>`
-        }
-      })
-    } else {
-      // No title block exists yet – create a minimal one
-      const titleBlock = `<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>${escapedTitle}</a:t></a:r></a:p></c:rich></c:tx><c:layout/></c:title>`
-      const chartPattern = /(<c:chart>)/
-      return xml.replace(chartPattern, `$1${titleBlock}`)
+    if (!xml.includes('<c:title>')) {
+      // Strategy 3 – no title block yet, create minimal
+      const escapedText = this.#escapeXml(titleLines[0])
+      const titleBlock = `<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>${escapedText}</a:t></a:r></a:p></c:rich></c:tx><c:layout/></c:title>`
+      return xml.replace(/(<c:chart>)/, `$1${titleBlock}`)
     }
+
+    return xml.replace(/<c:title>([\s\S]*?)<\/c:title>/, (match, titleContent) => {
+      // ── Strategy 1 ──────────────────────────────────────────────────────────────
+      // Existing <c:tx><c:rich> is present: preserve every element, just swap text.
+      if (titleContent.includes('<c:tx>')) {
+        const txMatch = /<c:tx>([\s\S]*?)<\/c:tx>/.exec(titleContent)
+        if (txMatch && txMatch[1].includes('<c:rich>')) {
+          let lineIndex = 0
+          // Replace each <a:t>…</a:t> in document order with the next line.
+          // Any run that maps beyond the supplied lines gets an empty string.
+          const updatedTx = txMatch[1].replace(/<a:t>[^<]*<\/a:t>/g, () => {
+            const text = lineIndex < titleLines.length ? this.#escapeXml(titleLines[lineIndex]) : ''
+            lineIndex++
+            return `<a:t>${text}</a:t>`
+          })
+          const updatedContent = titleContent.replace(
+            /<c:tx>[\s\S]*?<\/c:tx>/,
+            `<c:tx>${updatedTx}</c:tx>`
+          )
+          return `<c:title>${updatedContent}</c:title>`
+        }
+      }
+
+      // ── Strategy 2 ──────────────────────────────────────────────────────────────
+      // No <c:tx> yet – build one from <c:txPr> styles.
+      let bodyPr = '<a:bodyPr/>'
+      let pPrXml = '' // paragraph properties (alignment etc.) without defRPr
+      let rPr = '' // run properties from defRPr
+
+      const txPrMatch = /<c:txPr>([\s\S]*?)<\/c:txPr>/.exec(titleContent)
+      if (txPrMatch) {
+        const txPrContent = txPrMatch[1]
+
+        // Extract <a:bodyPr>
+        const bodyPrMatch = /(<a:bodyPr[^>]*\/>|<a:bodyPr[^>]*>[\s\S]*?<\/a:bodyPr>)/.exec(
+          txPrContent
+        )
+        if (bodyPrMatch) bodyPr = bodyPrMatch[1]
+
+        // Extract <a:defRPr> → convert to <a:rPr> for the run
+        const defRPrMatch = /(<a:defRPr[\s\S]*?<\/a:defRPr>|<a:defRPr[^>]*\/>)/.exec(txPrContent)
+        if (defRPrMatch) {
+          rPr = defRPrMatch[1].replace(/^<a:defRPr/, '<a:rPr').replace(/<\/a:defRPr>$/, '</a:rPr>')
+        }
+
+        // Extract <a:pPr> (keeps algn, indent, etc.) but strip <a:defRPr> from it
+        // since that is now expressed as <a:rPr> in the run.
+        // We must handle both <a:defRPr .../> (self-closing) and
+        // <a:defRPr ...>...</a:defRPr> (element with children).
+        const pPrBlockMatch = /(<a:pPr[^>]*>)([\s\S]*?)(<\/a:pPr>)/.exec(txPrContent)
+        if (pPrBlockMatch) {
+          const innerContent = pPrBlockMatch[2]
+            .replace(/<a:defRPr(?:[^>]*\/>|[\s\S]*?<\/a:defRPr>)/g, '')
+            .trim()
+          // Only emit pPr tag if it has attributes or remaining child content
+          const attrs = pPrBlockMatch[1].slice(7, -1).trim() // strip '<a:pPr' and '>'
+          if (attrs || innerContent) {
+            pPrXml = innerContent
+              ? `${pPrBlockMatch[1]}${innerContent}${pPrBlockMatch[3]}`
+              : `<a:pPr ${attrs}/>`
+          }
+        } else {
+          // Self-closing <a:pPr .../> (no children)
+          const scPPrMatch = /(<a:pPr[^>]*\/>)/.exec(txPrContent)
+          if (scPPrMatch) pPrXml = scPPrMatch[1]
+        }
+      }
+
+      // Build one <a:p> per title line, each with the same pPr + rPr
+      const paragraphs = titleLines
+        .map(line => {
+          const escapedLine = this.#escapeXml(line)
+          return `<a:p>${pPrXml}<a:r>${rPr}<a:t>${escapedLine}</a:t></a:r></a:p>`
+        })
+        .join('')
+
+      const newTxBlock = `<c:tx><c:rich>${bodyPr}<a:lstStyle/>${paragraphs}</c:rich></c:tx>`
+
+      // Prepend <c:tx> before the first existing sibling (overlay, spPr, txPr, etc.)
+      return `<c:title>${newTxBlock}${titleContent}</c:title>`
+    })
   }
 
   static updateDataLabelsInXml(xml, seriesIndex, options, categories = [], seriesData = {}) {
