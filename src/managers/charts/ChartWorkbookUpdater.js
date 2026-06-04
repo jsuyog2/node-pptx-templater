@@ -148,7 +148,7 @@ class ChartWorkbookUpdater {
     })
 
     // 5. Write custom data labels
-    series.forEach((ser) => {
+    series.forEach(ser => {
       if (ser.labels && ser.labelsFromCells) {
         const range = this.parseCellRange(ser.labelsFromCells)
         const startColNum = this.colLetterToNum(range.startCol)
@@ -177,7 +177,9 @@ class ChartWorkbookUpdater {
     }
 
     // Sort rows ascending
-    const sortedRowKeys = Object.keys(rows).map(Number).sort((a, b) => a - b)
+    const sortedRowKeys = Object.keys(rows)
+      .map(Number)
+      .sort((a, b) => a - b)
 
     let maxRow = 1
     let maxColNum = 0

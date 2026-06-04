@@ -1368,12 +1368,7 @@ class PPTXTemplater {
     const targetIndices = this.#getTargetSlideIndices()
     if (targetIndices.length === 0) return { valid: true, errors: [] }
     const idx = targetIndices[0]
-    return ValidationEngine.validateDataLabels(
-      this,
-      idx,
-      chartId,
-      options
-    )
+    return ValidationEngine.validateDataLabels(this, idx, chartId, options)
   }
 
   getCharts() {

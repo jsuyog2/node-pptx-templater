@@ -351,8 +351,18 @@ class ValidationEngine {
         ppt.slideManager,
         ppt.relationshipManager
       )
-      
-      const supportedTypes = ['bar', 'column', 'line', 'pie', 'doughnut', 'area', 'scatter', 'combo', 'unknown']
+
+      const supportedTypes = [
+        'bar',
+        'column',
+        'line',
+        'pie',
+        'doughnut',
+        'area',
+        'scatter',
+        'combo',
+        'unknown',
+      ]
       if (!supportedTypes.includes(chartType)) {
         errors.push(`Unsupported chart type "${chartType}" for data labels`)
       }
@@ -361,7 +371,7 @@ class ValidationEngine {
       let ptsCount = 0
       const catMatch = /<c:cat>([\s\S]*?)<\/c:cat>/.exec(xml)
       const valMatch = /<c:val>([\s\S]*?)<\/c:val>/.exec(xml)
-      const targetBlock = catMatch ? catMatch[1] : (valMatch ? valMatch[1] : '')
+      const targetBlock = catMatch ? catMatch[1] : valMatch ? valMatch[1] : ''
       const ptCountMatch = /<c:ptCount val="(\d+)"\/>/.exec(targetBlock)
       if (ptCountMatch) {
         ptsCount = parseInt(ptCountMatch[1], 10)
@@ -369,9 +379,11 @@ class ValidationEngine {
 
       if (options.labels) {
         if (ptsCount > 0 && options.labels.length !== ptsCount) {
-          errors.push(`Label count (${options.labels.length}) does not match chart data points count (${ptsCount})`)
+          errors.push(
+            `Label count (${options.labels.length}) does not match chart data points count (${ptsCount})`
+          )
         }
-        
+
         options.labels.forEach((lbl, i) => {
           if (lbl === null || lbl === undefined || String(lbl).trim() === '') {
             warnings.push(`Label at index ${i} is empty`)
@@ -383,13 +395,12 @@ class ValidationEngine {
         const range = options.labelsFromCells
         const parts = range.split('!')
         const rangePart = parts.length > 1 ? parts[1] : parts[0]
-        
+
         const rangeRegex = /^\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?$/i
         if (!rangeRegex.test(rangePart)) {
           errors.push(`Invalid range format: "${options.labelsFromCells}"`)
         }
       }
-
     } catch (err) {
       errors.push(`Data labels validation error: ${err.message}`)
     }
@@ -397,7 +408,7 @@ class ValidationEngine {
     return {
       valid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     }
   }
 }

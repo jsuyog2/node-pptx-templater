@@ -27,7 +27,7 @@ describe('Chart Data Labels Integration Tests', () => {
     const ppt = await PPTXTemplater.load(FIXTURE_FILE)
     ppt.useSlide(1).updateDataLabels('Chart', {
       series: 0,
-      labels: ['Excellent', 'Good', 'Average', 'Poor']
+      labels: ['Excellent', 'Good', 'Average', 'Poor'],
     })
 
     const buffer = await ppt.toBuffer()
@@ -48,8 +48,8 @@ describe('Chart Data Labels Integration Tests', () => {
       series: 0,
       labelMap: {
         'Category 1': 'Tier 1',
-        'Category 2': 'Tier 2'
-      }
+        'Category 2': 'Tier 2',
+      },
     })
 
     const buffer = await ppt.toBuffer()
@@ -64,13 +64,13 @@ describe('Chart Data Labels Integration Tests', () => {
     // First, update chart with known series values
     ppt.useSlide(1).updateChart('Chart', {
       categories: ['Sales', 'Revenue'],
-      series: [{ name: '2026', values: [100, 200] }]
+      series: [{ name: '2026', values: [100, 200] }],
     })
 
     // Now set data label template
     ppt.updateDataLabels('Chart', {
       series: 0,
-      template: '{category}: {value}'
+      template: '{category}: {value}',
     })
 
     const buffer = await ppt.toBuffer()
@@ -91,8 +91,8 @@ describe('Chart Data Labels Integration Tests', () => {
         bold: true,
         italic: true,
         underline: true,
-        color: '#FF0000'
-      }
+        color: '#FF0000',
+      },
     })
 
     const buffer = await ppt.toBuffer()
@@ -101,16 +101,16 @@ describe('Chart Data Labels Integration Tests', () => {
 
   it('should validate chart data label configurations', async () => {
     const ppt = await PPTXTemplater.load(FIXTURE_FILE)
-    
+
     // Valid labels configuration
     const result1 = await ppt.useSlide(1).validateDataLabels('Chart', {
-      labels: ['A', 'B', 'C', 'D']
+      labels: ['A', 'B', 'C', 'D'],
     })
     expect(result1.valid).toBe(true)
 
     // Invalid labels configuration (length mismatch)
     const result2 = await ppt.useSlide(1).validateDataLabels('Chart', {
-      labels: ['A', 'B'] // matches 4 points typically in Chart, so should be invalid
+      labels: ['A', 'B'], // matches 4 points typically in Chart, so should be invalid
     })
     expect(result2.valid).toBe(false)
     expect(result2.errors.length).toBeGreaterThan(0)
@@ -128,10 +128,10 @@ describe('Chart Data Labels Integration Tests', () => {
             { data: 145, label: '145 (30%)' },
             { data: 210, label: '210 (40%)' },
             { data: 190, label: '190 (20%)' },
-            { data: 250, label: '250 (10%)' }
-          ]
-        }
-      ]
+            { data: 250, label: '250 (10%)' },
+          ],
+        },
+      ],
     })
 
     const buffer = await ppt.toBuffer()
@@ -153,14 +153,14 @@ describe('Chart Data Labels Integration Tests', () => {
             { data: 10, label: 'Low A' },
             { data: 20, label: 'Mid A' },
             { data: 30, label: 'High A' },
-            { data: 40, label: 'Peak A' }
-          ]
+            { data: 40, label: 'Peak A' },
+          ],
         },
         {
           name: 'Product B',
-          values: [100, 200, 300, 400] // primitive values (no custom labels for Product B)
-        }
-      ]
+          values: [100, 200, 300, 400], // primitive values (no custom labels for Product B)
+        },
+      ],
     })
 
     const buffer = await ppt.toBuffer()
@@ -174,7 +174,7 @@ describe('Chart Data Labels Integration Tests', () => {
 
   it('should throw validation error on label count mismatch or invalid data types', async () => {
     const ppt = await PPTXTemplater.load(FIXTURE_FILE)
-    
+
     // Label count mismatch
     expect(() => {
       ppt.useSlide(1).updateChart('Chart', {
@@ -184,10 +184,10 @@ describe('Chart Data Labels Integration Tests', () => {
             name: 'Product A',
             values: [
               { data: 100, label: 'L1' },
-              { data: 200 } // Missing label
-            ]
-          }
-        ]
+              { data: 200 }, // Missing label
+            ],
+          },
+        ],
       })
     }).toThrow('Label count mismatch for series Product A')
 
@@ -200,10 +200,10 @@ describe('Chart Data Labels Integration Tests', () => {
             name: 'Product A',
             values: [
               { data: 'not-a-number', label: 'L1' },
-              { data: 200, label: 'L2' }
-            ]
-          }
-        ]
+              { data: 200, label: 'L2' },
+            ],
+          },
+        ],
       })
     }).toThrow('Data value must be numeric in series Product A')
 
@@ -214,16 +214,16 @@ describe('Chart Data Labels Integration Tests', () => {
         series: [
           {
             name: 'Product A',
-            values: [100, 200, 300] // 3 values instead of 2
-          }
-        ]
+            values: [100, 200, 300], // 3 values instead of 2
+          },
+        ],
       })
     }).toThrow('Series lengths mismatch')
   })
 
   it('should preserve existing styles (txPr, dLblPos, show tags) when updating labels', async () => {
     const ppt = await PPTXTemplater.load(FIXTURE_FILE)
-    
+
     // Check original XML for labels properties if possible, or perform update
     // with a styling option, then update again without styling, and verify style is preserved!
     ppt.useSlide(1).updateDataLabels('Chart', {
@@ -234,8 +234,8 @@ describe('Chart Data Labels Integration Tests', () => {
         fontFamily: 'Courier New',
         fontSize: 15,
         bold: true,
-        color: '#00FF00'
-      }
+        color: '#00FF00',
+      },
     })
 
     // Save and load
@@ -252,10 +252,10 @@ describe('Chart Data Labels Integration Tests', () => {
             { data: 12, label: 'Label A' },
             { data: 22, label: 'Label B' },
             { data: 32, label: 'Label C' },
-            { data: 42, label: 'Label D' }
-          ]
-        }
-      ]
+            { data: 42, label: 'Label D' },
+          ],
+        },
+      ],
     })
 
     const buffer2 = await ppt2.toBuffer()

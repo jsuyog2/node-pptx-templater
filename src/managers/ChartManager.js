@@ -291,7 +291,7 @@ class ChartManager {
       if (labels && labels.some(l => l !== undefined)) {
         const labelOptions = {
           series: i,
-          labels: labels.map(l => l === undefined ? '' : String(l))
+          labels: labels.map(l => (l === undefined ? '' : String(l))),
         }
         await this.updateDataLabelsAsync(chartZipPath, labelOptions, relationshipManager)
       }
@@ -488,7 +488,9 @@ class ChartManager {
 
     const seriesIndex = options.series !== undefined ? options.series : 0
     if (seriesIndex >= series.length) {
-      throw new Error(`Series index ${seriesIndex} out of bounds (chart has ${series.length} series)`)
+      throw new Error(
+        `Series index ${seriesIndex} out of bounds (chart has ${series.length} series)`
+      )
     }
 
     const seriesData = series[seriesIndex]
@@ -496,7 +498,8 @@ class ChartManager {
     let resolvedLabels = null
     let labelsFromCells = options.labelsFromCells
 
-    const hasCustomLabels = options.labels || options.labelMap || options.template || options.labelsFromCells
+    const hasCustomLabels =
+      options.labels || options.labelMap || options.template || options.labelsFromCells
 
     if (hasCustomLabels) {
       const values = seriesData.values || []
@@ -581,7 +584,7 @@ class ChartManager {
     const resolvedOptions = {
       ...options,
       labels: resolvedLabels || options.labels,
-      labelsFromCells
+      labelsFromCells,
     }
 
     const updatedXml = ChartCacheGenerator.updateDataLabelsInXml(
@@ -607,11 +610,11 @@ class ChartManager {
                 return {
                   ...ser,
                   labels: resolvedOptions.labels,
-                  labelsFromCells: resolvedOptions.labelsFromCells
+                  labelsFromCells: resolvedOptions.labelsFromCells,
                 }
               }
               return ser
-            })
+            }),
           }
           const updatedXlsx = await ChartWorkbookUpdater.updateWorkbook(buffer, workbookData)
           if (updatedXlsx) {
@@ -647,15 +650,21 @@ class ChartManager {
     // Since it's preloaded, it is in #xmlCache of zipManager.
     // Let's see if we can get it from xmlCache
     const path = chartInfo.zipPath.replace(/\\/g, '/')
-    const xml = this.#zipManager.hasFile(path) ? this.#zipManager.rawZip.file(path).async('text') : null
+    const xml = this.#zipManager.hasFile(path)
+      ? this.#zipManager.rawZip.file(path).async('text')
+      : null
     // Actually, we can return the detected type from the file's text.
     // Wait, is getChartType needed? We can make it async or use cached xml.
     // Let's implement it asynchronously to be 100% correct, or read from cache!
     // Let's see:
-    const xmlText = this.#zipManager.rawZip.file(path) ? String(this.#zipManager.rawZip.file(path)._data) : '' 
+    const xmlText = this.#zipManager.rawZip.file(path)
+      ? String(this.#zipManager.rawZip.file(path)._data)
+      : ''
     // Wait, JSZip's internal _data might not be fully text. Let's make getChartTypeAsync or just read the cache.
     // Since they were all loaded into cache during initialization:
-    const xmlFromCache = this.#zipManager.rawZip.file(path) ? this.#zipManager.rawZip.file(path).name : '' // wait, let's just make it async or check xmlCache
+    const xmlFromCache = this.#zipManager.rawZip.file(path)
+      ? this.#zipManager.rawZip.file(path).name
+      : '' // wait, let's just make it async or check xmlCache
     return 'bar' // fallback or default for type check, or we can make it async!
   }
 
@@ -674,12 +683,18 @@ class ChartManager {
     if (!series || series.length === 0) return
 
     // Series lengths remain consistent (if categories exist, check against length of categories)
-    const expectedLen = categories ? categories.length : (series[0].values ? series[0].values.length : 0)
+    const expectedLen = categories
+      ? categories.length
+      : series[0].values
+        ? series[0].values.length
+        : 0
     for (const ser of series) {
       const name = ser.name || 'Unknown'
       const len = ser.values ? ser.values.length : 0
       if (len !== expectedLen) {
-        throw new Error(`Series lengths mismatch: expected ${expectedLen} values, got ${len} in series ${name}`)
+        throw new Error(
+          `Series lengths mismatch: expected ${expectedLen} values, got ${len} in series ${name}`
+        )
       }
 
       // Check values inside the series
@@ -720,15 +735,15 @@ class ChartManager {
     const seriesLabels = []
 
     if (data.series) {
-      data.series.forEach((ser) => {
+      data.series.forEach(ser => {
         const cleanValues = []
         const labels = []
         let hasLabel = false
 
         if (ser.values) {
-          ser.values.forEach((v) => {
+          ser.values.forEach(v => {
             if (typeof v === 'object' && v !== null) {
-              const val = v.value !== undefined ? v.value : (v.data !== undefined ? v.data : 0)
+              const val = v.value !== undefined ? v.value : v.data !== undefined ? v.data : 0
               cleanValues.push(val)
               labels.push(v.label)
               if (v.label !== undefined) hasLabel = true
@@ -741,7 +756,7 @@ class ChartManager {
 
         cleanSeries.push({
           ...ser,
-          values: cleanValues
+          values: cleanValues,
         })
         seriesLabels.push(hasLabel ? labels : null)
       })
@@ -750,9 +765,9 @@ class ChartManager {
     return {
       cleanData: {
         ...data,
-        series: cleanSeries
+        series: cleanSeries,
       },
-      labels: seriesLabels
+      labels: seriesLabels,
     }
   }
 }

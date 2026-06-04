@@ -212,7 +212,7 @@ class ChartCacheGenerator {
           'showCatName',
           'showSerName',
           'showPercent',
-          'showBubbleSize'
+          'showBubbleSize',
         ]
         showTagsList.forEach(tag => {
           const tagPattern = new RegExp(`(<c:${tag}\\s+val="([^"]*)"\\s*\\/>)`)
@@ -261,14 +261,7 @@ class ChartCacheGenerator {
     existingNumFmt = '',
     existingShowTags = {}
   ) {
-    const {
-      labels,
-      labelsFromCells,
-      template,
-      position,
-      labelStyle,
-      labelMap
-    } = options
+    const { labels, labelsFromCells, template, position, labelStyle, labelMap } = options
 
     let xml = '<c:dLbls>'
 
@@ -281,7 +274,7 @@ class ChartCacheGenerator {
       left: 'l',
       right: 'r',
       top: 't',
-      bottom: 'b'
+      bottom: 'b',
     }
     const openxmlPos = position ? posMap[position] : null
 
@@ -448,7 +441,7 @@ class ChartCacheGenerator {
     }
 
     // showPercent
-    const defaultShowPercent = (hasCustomLabels || !options.showPercent) ? '0' : '1'
+    const defaultShowPercent = hasCustomLabels || !options.showPercent ? '0' : '1'
     if (options.showPercent !== undefined) {
       xml += `<c:showPercent val="${options.showPercent ? '1' : '0'}"/>`
     } else if (existingShowTags['showPercent'] && !hasCustomLabels) {
@@ -469,14 +462,7 @@ class ChartCacheGenerator {
   }
 
   static generateTxPrXml(style) {
-    const {
-      fontFamily,
-      fontSize,
-      bold,
-      italic,
-      underline,
-      color
-    } = style
+    const { fontFamily, fontSize, bold, italic, underline, color } = style
 
     const sz = fontSize ? ` sz="${fontSize * 100}"` : ''
     const b = bold !== undefined ? ` b="${bold ? '1' : '0'}"` : ''

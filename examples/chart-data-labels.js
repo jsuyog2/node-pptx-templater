@@ -27,7 +27,7 @@ async function main() {
   console.log('📊 Chart Data Labels API Demo')
 
   const hasTemplate = existsSync(TEMPLATE)
-  let ppt;
+  let ppt
 
   if (hasTemplate) {
     ppt = await PPTXTemplater.load(TEMPLATE)
@@ -42,13 +42,11 @@ async function main() {
   // Update Chart 1 with explicit string label array
   ppt.useSlide(1).updateChart('Chart', {
     categories: ['Excellent', 'Good', 'Average', 'Poor'],
-    series: [
-      { name: 'Feedback', values: [85, 95, 45, 12] }
-    ]
+    series: [{ name: 'Feedback', values: [85, 95, 45, 12] }],
   })
   ppt.useSlide(1).updateDataLabels('Chart', {
     series: 0,
-    labels: ['A+ Grade', 'B Grade', 'C Grade', 'F Grade']
+    labels: ['A+ Grade', 'B Grade', 'C Grade', 'F Grade'],
   })
   console.log('✅ Applied literal label arrays to Slide 1 chart')
 
@@ -57,10 +55,10 @@ async function main() {
   ppt.useSlide(1).updateDataLabels('Chart', {
     series: 0,
     labelMap: {
-      'Excellent': 'Top performer',
-      'Poor': 'Needs improvement'
+      Excellent: 'Top performer',
+      Poor: 'Needs improvement',
     },
-    template: '{category}: {customLabel} ({value})'
+    template: '{category}: {customLabel} ({value})',
   })
   console.log('✅ Applied dynamic label templates and mapping to Slide 1 chart')
 
@@ -75,8 +73,8 @@ async function main() {
       color: '#0055A5',
       bold: true,
       italic: true,
-      underline: true
-    }
+      underline: true,
+    },
   })
   console.log('✅ Applied position insideEnd and custom styles')
 
@@ -84,7 +82,7 @@ async function main() {
   // Pull values from cell coordinates (Sheet1!D2:D5)
   ppt.useSlide(1).updateDataLabels('Chart', {
     series: 0,
-    labelsFromCells: 'Sheet1!D2:D5'
+    labelsFromCells: 'Sheet1!D2:D5',
   })
   console.log('✅ Configured Labels From Cells referencing Sheet1!D2:D5')
 
