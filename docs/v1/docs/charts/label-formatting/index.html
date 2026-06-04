@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Label Formatting - node-pptx-templater</title>
+  <meta name="description" content="Inline custom label formatting object parameters inside updateChart.">
+  <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/docs/charts/label-formatting/">
+  <link rel="stylesheet" href="../../../../style.css">
+  <script>
+    // Immediate SEO redirect to main single-page application at correct anchor
+    window.location.replace("../../../../index.html#label-formatting");
+  </script>
+</head>
+<body class="bg-[#080b11] text-gray-200 font-sans p-8">
+  <div class="max-w-3xl mx-auto space-y-6">
+    <div class="border-b border-white/5 pb-4">
+      <a href="../../../../index.html" class="text-indigo-400 hover:underline">&larr; Back to Documentation</a>
+      <h1 class="text-4xl font-extrabold text-white mt-2">Label Formatting - node-pptx-templater</h1>
+    </div>
+    
+    <div class="prose prose-invert max-w-none">
+      
+    <h2>Inline Custom Data Labels</h2>
+    <p>In addition to using the <code>updateDataLabels()</code> method, <strong>node-pptx-templater</strong> supports defining custom data labels directly inline inside the standard <code>updateChart()</code> and <code>updateChartData()</code> series values arrays. This allows you to apply labels to chart series in a single step without introducing breaking API changes or calling separate methods.</p>
+    
+    <h2>Inline Object Syntax</h2>
+    <p>To set custom labels inline, pass objects in the format <code>{ data: number, label: string }</code> instead of standard numeric primitives inside the <code>values</code> array of a series:</p>
+    <ul>
+      <li><code>data</code>: The raw numeric value to write into the chart data cache and the embedded Excel worksheet (e.g. <code>145</code>). Also accepts <code>value</code> as an alias (e.g. <code>{ value: 145, label: 'Custom' }</code>).</li>
+      <li><code>label</code>: The string label to display on the PowerPoint chart for that specific data point (e.g. <code>'145 (30%)'</code>).</li>
+    </ul>
+
+    <h2>Validation Rules & Safety</h2>
+    <p>To prevent PowerPoint Repair warnings and ensure data consistency, the engine automatically enforces the following validation checks:</p>
+    <ul>
+      <li><strong>Consistent Types</strong>: If one data point in a series defines a custom label, all other data points in that same series must also define a custom label (i.e. you cannot mix naked numbers and label objects in the same series values array).</li>
+      <li><strong>Numeric Values</strong>: The <code>data</code> (or <code>value</code>) property of the label object must be a valid number.</li>
+      <li><strong>String Labels</strong>: The <code>label</code> property must be a valid string.</li>
+    </ul>
+
+    <h2>Usage Example</h2>
+    <pre><code class="language-javascript">const { PPTXTemplater } = require('node-pptx-templater');
+
+async function main() {
+  const ppt = await PPTXTemplater.load('template.pptx');
+  
+  // Update a chart and set custom labels inline
+  ppt.useSlide(1).updateChart('RevenueChart', {
+    categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+    series: [
+      {
+        name: 'Product A',
+        values: [
+          { data: 145, label: 'Q1: 145 (Low)' },
+          { data: 210, label: 'Q2: 210 (Med)' },
+          { data: 190, label: 'Q3: 190 (Med)' },
+          { data: 250, label: 'Q4: 250 (High)' }
+        ]
+      }
+    ]
+  });
+  
+  await ppt.saveToFile('report.pptx');
+}
+main();</code></pre>
+  
+    </div>
+    
+    <div class="text-xs text-gray-500 border-t border-white/5 pt-4 mt-8">
+      This page is an SEO-optimized landing page for search engines. JavaScript-enabled browsers will automatically transition to the main interface.
+    </div>
+  </div>
+</body>
+</html>

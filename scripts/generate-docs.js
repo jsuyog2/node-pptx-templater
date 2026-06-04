@@ -47,6 +47,9 @@ const METHOD_CATEGORIES = {
   'replaceChartSeries': 'charts',
   'updateChartTitle': 'charts',
   'updateChartCategories': 'charts',
+  'updateDataLabels': 'charts',
+  'getDataLabels': 'charts',
+  'validateDataLabels': 'charts',
   'getCharts': 'charts',
   'validateCharts': 'charts',
   'repairCharts': 'charts',
@@ -224,6 +227,39 @@ const API_METADATA_EXTENSIONS = {
       basic: `ppt.useSlide(1).updateChartTitle('sales-chart', 'Quarterly Metrics Overview');`,
       advanced: `ppt.useSlide(2).updateChartTitle('revenue-chart', 'Global SaaS Revenue (2026)');`,
       production: `const q = getActiveQuarter();\nppt.useSlide(1).updateChartTitle('kpi-chart', \`Quarter \${q} Performance Summary\`);`
+    }
+  },
+  updateDataLabels: {
+    edgeCases: 'If options.series exceeds available series in the chart, an out of bounds error is thrown. Cell range formats in labelsFromCells must match valid worksheet notation.',
+    errorHandling: 'Validates that the chart exists and options are well-formed. Enqueues sequentially behind other chart operations to prevent zip structure race conditions.',
+    related: ['getDataLabels', 'validateDataLabels', 'updateChart'],
+    xmlImpact: 'Generates and appends a `<c:dLbls>` block inside the targeted series `<c:ser>` node in the chart XML, setting flags and custom values, and synchronizes the backing workbook.',
+    examples: {
+      basic: `ppt.useSlide(1).updateDataLabels('SalesChart', {\n  series: 0,\n  labels: ['Excellent', 'Good', 'Poor']\n});`,
+      advanced: `// Use cell range from embedded worksheet for custom labels\nppt.useSlide(1).updateDataLabels('SalesChart', {\n  series: 0,\n  labelsFromCells: 'Sheet1!D2:D4'\n});`,
+      production: `// Apply templates, custom positions, and fonts to data labels\nppt.useSlide(1).updateDataLabels('SalesChart', {\n  series: 0,\n  template: '{category}: {value}',\n  position: 'insideEnd',\n  labelStyle: {\n    fontFamily: 'Arial',\n    fontSize: 12,\n    bold: true,\n    color: '#FF0000'\n  }\n});`
+    }
+  },
+  getDataLabels: {
+    edgeCases: 'Returns an empty array if the targeted series index has no custom data label overrides or does not exist.',
+    errorHandling: 'Gracefully resolves any pending chart queue tasks first before executing to ensure read accuracy.',
+    related: ['updateDataLabels', 'validateDataLabels'],
+    xmlImpact: 'Reads individual `<c:dLbl>` values and structures from `<c:dLbls>` inside slide chart XML caches.',
+    examples: {
+      basic: `const labels = await ppt.useSlide(1).getDataLabels('SalesChart', { series: 0 });\nconsole.log(labels); // [{ point: 0, value: 'Excellent' }, ...]`,
+      advanced: `const labels = await ppt.getDataLabels('SalesChart', { series: 1 });`,
+      production: `// Extract and log all custom data labels for a chart\ntry {\n  const labels = await ppt.useSlide(1).getDataLabels('KPIChart', { series: 0 });\n  labels.forEach(lbl => {\n    console.log(\`Data Point \${lbl.point} Override: \${lbl.value}\`);\n  });\n} catch (err) {\n  console.error('Failed to read data labels:', err);\n}`
+    }
+  },
+  validateDataLabels: {
+    edgeCases: 'Ensures the series count matches bounds and cell formats conform to correct patterns (e.g. Sheet1!A1:B2).',
+    errorHandling: 'Returns validation status object `{ valid: boolean, errors: string[] }` instead of throwing.',
+    related: ['updateDataLabels', 'getDataLabels'],
+    xmlImpact: 'Dry-runs verification of dimensions, structures, and references without writing updates to the ZIP archive.',
+    examples: {
+      basic: `const result = await ppt.useSlide(1).validateDataLabels('SalesChart', {\n  labels: ['High', 'Low']\n});\nconsole.log(result.valid);`,
+      advanced: `const result = await ppt.validateDataLabels('SalesChart', {\n  labelsFromCells: 'Sheet1!D2:D10'\n});`,
+      production: `const check = await ppt.useSlide(1).validateDataLabels('SalesChart', {\n  labels: ['High', 'Medium', 'Low'],\n  position: 'invalidPosition'\n});\nif (!check.valid) {\n  console.warn('Configuration errors detected:', check.errors.join('\\n'));\n}`
     }
   },
 
@@ -738,6 +774,11 @@ function generateSearchIndex(apis) {
     { id: 'table-merging', title: 'Table Cell Merging', type: 'concept', category: 'Concepts', desc: 'Spans and cell merges details inside DrawingML grids.' },
     { id: 'chart-engine', title: 'Excel Chart Update', type: 'concept', category: 'Concepts', desc: 'Caching updates in spreadsheets backing PowerPoint charts.' },
     { id: 'zorder', title: 'Z-Order & Layers', type: 'concept', category: 'Concepts', desc: 'Stack sorting and layers indices order.' },
+    { id: 'data-labels', title: 'Chart Data Labels', type: 'concept', category: 'Concepts', desc: 'Custom text, styling, alignment, and Value From Cells for charts.' },
+    { id: 'label-templates', title: 'Chart Label Templates', type: 'concept', category: 'Concepts', desc: 'Variables like category, value, percentage, and custom label in templates.' },
+    { id: 'label-styling', title: 'Chart Label Styling', type: 'concept', category: 'Concepts', desc: 'Apply custom drawingML formatting, colors, sizes, and fonts.' },
+    { id: 'label-positions', title: 'Chart Label Positions', type: 'concept', category: 'Concepts', desc: 'PowerPoint-compatible alignment: insideEnd, outsideEnd, center, bestFit.' },
+    { id: 'label-formatting', title: 'Chart Label Formatting', type: 'concept', category: 'Concepts', desc: 'Custom inline label formats and value/data structures inside updateChart.' },
     { id: 'openxml-internals', title: 'Presentation Packaging Structure', type: 'concept', category: 'OpenXML', desc: 'Deep dive inside ZIP folders and slides XML.' },
     { id: 'security-arch', title: 'XML Security Architecture', type: 'concept', category: 'OpenXML', desc: 'Vulnerabilities mitigation strategies (XXE, XML bombs).' },
     { id: 'faq', title: 'FAQ & Troubleshooting', type: 'concept', category: 'Resources', desc: 'Solving presentation corruption warnings and fragmented placeholder runs.' },
@@ -807,6 +848,165 @@ function renderChangelogContent() {
     return '<h3>Changelog</h3><p>Changelog data is currently unavailable.</p>';
   }
 }
+
+function getDataLabelsContent() {
+  return `
+    <h2>Introduction to Chart Data Labels</h2>
+    <p>Data labels make your PowerPoint charts easier to read by showing data values or custom annotations directly on the chart points. <strong>node-pptx-templater</strong> provides advanced data label support, including Excel-style <em>Value From Cells</em>, literal arrays, category mapping, dynamic templates, styling, and positioning.</p>
+    
+    <h2>Feature Highlights</h2>
+    <ul>
+      <li><strong>Value From Cells</strong>: Reference cell ranges in the backing spreadsheet (e.g. <code>Sheet1!D2:D10</code>) as dynamic data labels.</li>
+      <li><strong>Literal Arrays</strong>: Apply a list of static labels directly (e.g. <code>['High', 'Medium', 'Low']</code>).</li>
+      <li><strong>Category Mappings</strong>: Map specific category keys to custom label names (e.g. <code>{ 'Sales': 'Peak Performance' }</code>).</li>
+      <li><strong>Label Templates</strong>: Format labels dynamically using template placeholders like <code>{category}</code>, <code>{value}</code>, and <code>{percentage}</code>.</li>
+      <li><strong>PowerPoint Stacking</strong>: Fully compliant with OpenXML layout and formatting rules to avoid PowerPoint Repair dialogs.</li>
+    </ul>
+
+    <h2>Value From Cells Code Example</h2>
+    <p>Update a specific chart series to pull labels from a worksheet cell range:</p>
+    <pre><code class="language-javascript">const { PPTXTemplater } = require('node-pptx-templater');
+
+async function main() {
+  const ppt = await PPTXTemplater.load('template.pptx');
+  
+  // Set data labels for series 0 from cell range D2:D5
+  ppt.useSlide(1).updateDataLabels('SalesChart', {
+    series: 0,
+    labelsFromCells: 'Sheet1!D2:D5'
+  });
+  
+  await ppt.saveToFile('report.pptx');
+}
+main();</code></pre>
+  `;
+}
+
+function getLabelTemplatesContent() {
+  return `
+    <h2>Dynamic Label Templates</h2>
+    <p>Templates allow you to mix variables and custom text to build descriptive labels. The templating engine evaluates expression templates for each data point and writes them as text values in both the chart XML and the embedded workbook.</p>
+    
+    <h2>Supported Template Variables</h2>
+    <ul>
+      <li><code>{category}</code>: Evaluates to the data point's category name (e.g. "Sales").</li>
+      <li><code>{value}</code>: Evaluates to the numeric value of the point (e.g. 150).</li>
+      <li><code>{percentage}</code>: Evaluates to the percentage of the point relative to the series sum (useful for pie/bar charts).</li>
+      <li><code>{series}</code>: Evaluates to the series name.</li>
+      <li><code>{customLabel}</code>: Evaluates to the literal label or category mapped label.</li>
+    </ul>
+    
+    <h2>Usage Example</h2>
+    <pre><code class="language-javascript">ppt.useSlide(1).updateDataLabels('KPIChart', {
+  series: 0,
+  template: '{category}: {value} ({percentage}%)'
+});</code></pre>
+  `;
+}
+
+function getLabelStylingContent() {
+  return `
+    <h2>Chart Data Label Styling</h2>
+    <p>Customize the typography, sizing, colors, and formatting of chart labels using a clean styling object. The engine generates standard DrawingML markup to ensure styles render exactly as requested.</p>
+    
+    <h2>Supported Styling Options</h2>
+    <ul>
+      <li><code>fontFamily</code>: String name of the font face (e.g. <code>'Calibri'</code>, <code>'Arial'</code>, <code>'Century Gothic'</code>).</li>
+      <li><code>fontSize</code>: Number representing font size in points (e.g. <code>12</code>, <code>14</code>).</li>
+      <li><code>color</code>: Hex color code (e.g. <code>'#FF0000'</code> or <code>'FF0000'</code>).</li>
+      <li><code>bold</code>: Boolean to toggle bold font weight.</li>
+      <li><code>italic</code>: Boolean to toggle italic font style.</li>
+      <li><code>underline</code>: Boolean to toggle underline decoration.</li>
+    </ul>
+    
+    <h2>Styling Example</h2>
+    <pre><code class="language-javascript">ppt.useSlide(1).updateDataLabels('RevenueChart', {
+  series: 0,
+  labels: ['Top Performance', 'Target Met', 'At Risk'],
+  labelStyle: {
+    fontFamily: 'Century Gothic',
+    fontSize: 13,
+    color: '#0055A5',
+    bold: true,
+    italic: false,
+    underline: true
+  }
+});</code></pre>
+  `;
+}
+
+function getLabelPositionsContent() {
+  return `
+    <h2>Label Positions & Alignment</h2>
+    <p>Adjust the placement of labels relative to data points or chart slices. Positioning options are fully PowerPoint-compatible and adapt to specific chart layouts (bar, line, pie, etc.).</p>
+    
+    <h2>Supported Position Options</h2>
+    <ul>
+      <li><code>center</code>: Place labels directly centered on the data points.</li>
+      <li><code>insideEnd</code>: Place labels inside the top/end border of the series shape.</li>
+      <li><code>insideBase</code>: Place labels inside the base of the series shape.</li>
+      <li><code>outsideEnd</code>: Place labels outside the top/end border of the series shape.</li>
+      <li><code>bestFit</code>: Let PowerPoint automatically choose the best fit (recommended for Pie/Doughnut charts).</li>
+      <li><code>left</code> / <code>right</code> / <code>top</code> / <code>bottom</code>: Position labels relative to the data point coordinates.</li>
+    </ul>
+    
+    <h2>Positioning Example</h2>
+    <pre><code class="language-javascript">ppt.useSlide(1).updateDataLabels('MarketSharePie', {
+  series: 0,
+  position: 'bestFit',
+  showPercent: true
+});</code></pre>
+  `;
+}
+
+function getLabelFormattingContent() {
+  return `
+    <h2>Inline Custom Data Labels</h2>
+    <p>In addition to using the <code>updateDataLabels()</code> method, <strong>node-pptx-templater</strong> supports defining custom data labels directly inline inside the standard <code>updateChart()</code> and <code>updateChartData()</code> series values arrays. This allows you to apply labels to chart series in a single step without introducing breaking API changes or calling separate methods.</p>
+    
+    <h2>Inline Object Syntax</h2>
+    <p>To set custom labels inline, pass objects in the format <code>{ data: number, label: string }</code> instead of standard numeric primitives inside the <code>values</code> array of a series:</p>
+    <ul>
+      <li><code>data</code>: The raw numeric value to write into the chart data cache and the embedded Excel worksheet (e.g. <code>145</code>). Also accepts <code>value</code> as an alias (e.g. <code>{ value: 145, label: 'Custom' }</code>).</li>
+      <li><code>label</code>: The string label to display on the PowerPoint chart for that specific data point (e.g. <code>'145 (30%)'</code>).</li>
+    </ul>
+
+    <h2>Validation Rules & Safety</h2>
+    <p>To prevent PowerPoint Repair warnings and ensure data consistency, the engine automatically enforces the following validation checks:</p>
+    <ul>
+      <li><strong>Consistent Types</strong>: If one data point in a series defines a custom label, all other data points in that same series must also define a custom label (i.e. you cannot mix naked numbers and label objects in the same series values array).</li>
+      <li><strong>Numeric Values</strong>: The <code>data</code> (or <code>value</code>) property of the label object must be a valid number.</li>
+      <li><strong>String Labels</strong>: The <code>label</code> property must be a valid string.</li>
+    </ul>
+
+    <h2>Usage Example</h2>
+    <pre><code class="language-javascript">const { PPTXTemplater } = require('node-pptx-templater');
+
+async function main() {
+  const ppt = await PPTXTemplater.load('template.pptx');
+  
+  // Update a chart and set custom labels inline
+  ppt.useSlide(1).updateChart('RevenueChart', {
+    categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+    series: [
+      {
+        name: 'Product A',
+        values: [
+          { data: 145, label: 'Q1: 145 (Low)' },
+          { data: 210, label: 'Q2: 210 (Med)' },
+          { data: 190, label: 'Q3: 190 (Med)' },
+          { data: 250, label: 'Q4: 250 (High)' }
+        ]
+      }
+    ]
+  });
+  
+  await ppt.saveToFile('report.pptx');
+}
+main();</code></pre>
+  `;
+}
+
 
 function getInstallationContent() {
   return `
@@ -1105,6 +1305,7 @@ async function validateSitemap(routes, examplesUrls, foundImages, baseVUrl) {
   if (errors.length > 0) {
     console.error('Sitemap Validation Errors Found:');
     errors.forEach(e => console.error(`  - [${e.type}] ${e.message}`));
+    process.exit(1);
   }
 }
 
@@ -1160,6 +1361,11 @@ async function generateSeoSitemapsAndPages(apis, htmlContent) {
     { id: 'installation', title: 'Installation & Onboarding - node-pptx-templater', desc: 'How to install and set up node-pptx-templater in Node.js applications.', content: getInstallationContent(), hash: 'installation' },
     { id: 'quickstart', title: 'Quick Start Guide - node-pptx-templater', desc: 'Quick start guide to replace placeholders, update tables, and process presentations.', content: getQuickStartContent(), hash: 'quickstart' },
     { id: 'getting-started', title: 'Getting Started - node-pptx-templater', desc: 'Core concepts and onboarding with node-pptx-templater.', content: getGettingStartedContent(), hash: 'introduction' },
+    { id: 'docs/charts/data-labels', title: 'Chart Data Labels - node-pptx-templater', desc: 'Custom annotations, arrays, mappings, templates, positioning, and styling.', content: getDataLabelsContent(), hash: 'data-labels' },
+    { id: 'docs/charts/label-templates', title: 'Label Templates - node-pptx-templater', desc: 'Dynamic templates for chart data labels.', content: getLabelTemplatesContent(), hash: 'label-templates' },
+    { id: 'docs/charts/label-styling', title: 'Label Styling - node-pptx-templater', desc: 'DrawingML styling parameters for chart labels.', content: getLabelStylingContent(), hash: 'label-styling' },
+    { id: 'docs/charts/label-positions', title: 'Label Positions - node-pptx-templater', desc: 'PowerPoint alignments for data labels.', content: getLabelPositionsContent(), hash: 'label-positions' },
+    { id: 'docs/charts/label-formatting', title: 'Label Formatting - node-pptx-templater', desc: 'Inline custom label formatting object parameters inside updateChart.', content: getLabelFormattingContent(), hash: 'label-formatting' },
     { id: 'faq', title: 'Frequently Asked Questions & Troubleshooting - node-pptx-templater', desc: 'Solutions for Repair Presentation alerts, unreplaced placeholders, and XML Entity expansion limit errors.', content: getFaqContent(), hash: 'faq' },
     { id: 'roadmap', title: 'Project Roadmap - node-pptx-templater', desc: 'Future development plans for shapes rendering, multi-threading, and PDF conversion.', content: getRoadmapContent(), hash: 'roadmap' },
     { id: 'changelog', title: 'Changelog & Releases - node-pptx-templater', desc: 'Release history and updates list for node-pptx-templater.', content: changelogHtml, hash: 'changelog' }
@@ -1507,6 +1713,18 @@ async function main() {
           </ul>
         </div>
 
+        <div class="space-y-1">
+          <h3 class="text-xs uppercase text-gray-500 font-semibold tracking-wider px-3">Charts</h3>
+          <ul class="space-y-1">
+            <li><a href="#chart-engine" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Overview</a></li>
+            <li><a href="#data-labels" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Data Labels</a></li>
+            <li><a href="#label-templates" class="nav-item block px-3 py-1.5 text-[12px] text-gray-500 hover:text-white rounded-md transition-colors pl-6 font-medium">└─ Label Templates</a></li>
+            <li><a href="#label-styling" class="nav-item block px-3 py-1.5 text-[12px] text-gray-500 hover:text-white rounded-md transition-colors pl-6 font-medium">└─ Label Styling</a></li>
+            <li><a href="#label-positions" class="nav-item block px-3 py-1.5 text-[12px] text-gray-500 hover:text-white rounded-md transition-colors pl-6 font-medium">└─ Label Positions</a></li>
+            <li><a href="#label-formatting" class="nav-item block px-3 py-1.5 text-[12px] text-gray-500 hover:text-white rounded-md transition-colors pl-6 font-medium">└─ Label Formatting</a></li>
+          </ul>
+        </div>
+
         <!-- Categorized API Reference Sidebar -->
         <div class="space-y-1">
           <h3 class="text-xs uppercase text-gray-400 font-bold tracking-wider px-3 border-t border-white/5 pt-4">API Reference</h3>
@@ -1760,6 +1978,88 @@ ppt.bringToFront({ slide: 1, objectId: 'Logo' });
 
 // Send the background template banner shape to the bottom
 ppt.sendToBack({ slide: 1, objectId: 'Background' });</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+      </section>
+
+      <!-- Chart Data Labels Section -->
+      <section id="data-labels" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Chart Data Labels</h1>
+        <p class="text-sm text-gray-300 font-light">Custom chart annotations help emphasize critical data points. The engine integrates custom values, cell range bindings, maps, and layouts seamlessly into the OpenXML slide cache and the backing Excel spreadsheet.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Value From Cells</h4>
+            <p class="text-xs text-gray-400">Pull labels directly from worksheet range cells:</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">ppt.useSlide(1).updateDataLabels('SalesChart', {
+  series: 0,
+  labelsFromCells: 'Sheet1!D2:D10'
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2.5 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Custom Label Arrays</h4>
+            <p class="text-xs text-gray-400">Define manual string labels for each data point:</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">ppt.useSlide(1).updateDataLabels('KPIChart', {
+  series: 0,
+  labels: ['Excellent', 'Average', 'Poor']
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2.5 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Label Templates Section -->
+      <section id="label-templates" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Label Templates</h1>
+        <p class="text-sm text-gray-300 font-light">Build dynamic annotations by combining values, percentage metrics, series names, and categories inside text run templates.</p>
+        <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">ppt.useSlide(1).updateDataLabels('RevenueChart', {
+  series: 0,
+  template: '{category} performance: {value} ({percentage}%)'
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+      </section>
+
+      <!-- Label Styling Section -->
+      <section id="label-styling" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Label Styling</h1>
+        <p class="text-sm text-gray-300 font-light">Configure typography, sizes, weights, and colors. The engine generates standard DrawingML definitions (<code>&lt;c:txPr&gt;</code>) to preserve visual rendering quality.</p>
+        <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">ppt.useSlide(1).updateDataLabels('KPIChart', {
+  series: 0,
+  labels: ['High', 'Medium', 'Low'],
+  labelStyle: {
+    fontFamily: 'Trebuchet MS',
+    fontSize: 14,
+    color: '#00AAFF',
+    bold: true,
+    italic: true,
+    underline: true
+  }
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+      </section>
+
+      <!-- Label Positions Section -->
+      <section id="label-positions" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Label Positions</h1>
+        <p class="text-sm text-gray-300 font-light">Position custom annotations relative to data points. The engine maps alignment strings to valid OpenXML schema tags.</p>
+        <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">ppt.useSlide(1).updateDataLabels('MarketSharePie', {
+  series: 0,
+  position: 'bestFit', // 'center', 'insideEnd', 'insideBase', 'outsideEnd', etc.
+  showPercent: true
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+      </section>
+
+      <!-- Label Formatting Section -->
+      <section id="label-formatting" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Label Formatting</h1>
+        <p class="text-sm text-gray-300 font-light">Custom inline label formatting within <code>updateChart()</code> series values allows defining custom labels without separate function calls.</p>
+        <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">ppt.useSlide(1).updateChart('RevenueChart', {
+  categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+  series: [{
+    name: 'Product A',
+    values: [
+      { data: 145, label: 'Q1: 145 (Low)' },
+      { data: 210, label: 'Q2: 210 (Med)' },
+      { data: 190, label: 'Q3: 190 (Med)' },
+      { data: 250, label: 'Q4: 250 (High)' }
+    ]
+  }]
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
       </section>
 
       <!-- Pre-rendered JSDoc API Content -->

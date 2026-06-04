@@ -35,6 +35,7 @@ You design your layouts, tables, fonts, brand styles, charts, and animations ins
 * 🛡️ **Hardened XML Security**: Fully immune to Billion Laughs (XML bombs), XXE (XML External Entity Injection), and parser crashes due to oversized expansions.
 * 🧩 **Text Run Fragmentation Healing**: Solves the split-tag issue. PowerPoint splits `{{placeholders}}` into fragmented `<a:r>` nodes; our parser unifies and replaces them while keeping original formatting intact.
 * 📊 **Excel Cache Synchronized Charting**: Supports Bar, Line, Pie, Doughnut, Area, and Scatter charts. Not only updates the visual XML coordinates but also synchronizes data points inside the underlying embedded Excel spreadsheets (`ppt/embeddings/`) to bypass PowerPoint's "Update Data" warnings.
+* 🏷️ **Chart Data Labels & Value From Cells**: Configure custom arrays, dynamic category maps, rich templates, positions (insideEnd, bestFit, center), and custom styles (fonts, colors, weight) and serialize them directly to the underlying Excel backing sheet.
 * 📋 **DrawingML Table Cell Merging**: Easily configure horizontal spans (`gridSpan`/`hMerge`), vertical spans (`rowSpan`/`vMerge`), and rectangular blocks. Injects unique `rowId` hashes to maintain relationship integrity.
 * 🥞 **Z-Order Layer Stacking**: Reorder shapes, images, charts, and tables programmatically. Simulates PowerPoint's "Bring to Front" and "Send to Back" commands directly in the slide's `<p:spTree>`.
 * 🎛️ **Slide Management**: Duplicate, delete, reorder slides, or import slides from external decks with automatic media and theme deduplication.
@@ -78,6 +79,15 @@ async function generateReport() {
          { name: 'Target', values: [120000, 150000, 180000] },
          { name: 'Actual', values: [125000, 162000, 195000] }
        ]
+     });
+
+  // 3b. Configure custom chart data labels with templates and styling
+  ppt.useSlide(2)
+     .updateDataLabels('revenue-chart', {
+       series: 0,
+       template: '{category}: {value}',
+       position: 'insideEnd',
+       labelStyle: { fontFamily: 'Arial', fontSize: 10, bold: true }
      });
 
   // 4. Update table structure with cell merges and colors on Slide 3
@@ -330,7 +340,7 @@ ppt.useSlide(1).getTables(());
 ### Charts API
 
 #### `updateChart(chartId, data)`
-Updates chart data in the selected slide(s). Finds charts by their name/ID and updates categories, series, and values. Preserves original chart styles, themes, and formatting.
+Updates chart data in the selected slide(s). Finds charts by their name/ID and updates categories, series, and values. Preserves original chart styles, themes, and formatting. Supports inline custom data labels by passing objects in the format `{ data: number, label: string }` instead of numbers.
 
 * **Arguments**:
   * `chartId` (`string`): Chart name or relationship ID.
@@ -338,7 +348,7 @@ Updates chart data in the selected slide(s). Finds charts by their name/ID and u
   * `data.categories` (`string[]`): Category labels (X-axis).
   * `data.series` (`SeriesData[]`): Data series array.
   * `data.series[].name` (`string`): Series name.
-  * `data.series[].values` (`number[]`): Data values.
+  * `data.series[].values` (`number[]|object[]`): Data values (numbers or label objects).
 * **Returns**: `PPTXTemplater` - this (chainable)
 
 ```javascript
@@ -400,6 +410,40 @@ Delegates core actions to slide element sub-managers.
 
 ```javascript
 ppt.useSlide(1).updateChartCategories(());
+```
+
+#### `updateDataLabels(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).updateDataLabels('SalesChart', {
+  series: 0,
+  labels: ['Excellent', 'Good', 'Poor']
+});
+```
+
+#### `getDataLabels(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+const labels = await ppt.useSlide(1).getDataLabels('SalesChart', { series: 0 });
+console.log(labels); // [{ point: 0, value: 'Excellent' }, ...]
+```
+
+#### `validateDataLabels(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+const result = await ppt.useSlide(1).validateDataLabels('SalesChart', {
+  labels: ['High', 'Low']
+});
+console.log(result.valid);
 ```
 
 #### `getCharts(())`
@@ -1246,6 +1290,93 @@ ppt.useSlide(1).create(());
 ---
 
 <!-- API_REFERENCE_END -->
+
+---
+
+## 📊 Chart Data Labels & Value From Cells
+
+PPTXForge supports advanced, PowerPoint-compatible chart data labels. You can customize label data sources, templates, positioning, and visual styles. 
+
+### 1. Value From Cells (Excel Synchronization)
+Pull dynamic data labels directly from worksheet range cells inside the backing Excel spreadsheet. This is Excel's native "Value From Cells" feature, reconstructed programmatically inside the `.pptx` XML and `.xlsx` worksheets.
+
+```javascript
+ppt.useSlide(1).updateDataLabels('SalesChart', {
+  series: 0,
+  labelsFromCells: 'Sheet1!D2:D5'
+});
+```
+
+### 2. Literal Arrays
+Override data labels for specific points in a series with a static list of strings:
+
+```javascript
+ppt.useSlide(1).updateDataLabels('SalesChart', {
+  series: 0,
+  labels: ['Top Performance', 'Met Target', 'Action Required', 'At Risk']
+});
+```
+
+### 3. Dynamic Label Templates
+Combine values, category names, percentages, and custom label strings to format annotations:
+
+```javascript
+ppt.useSlide(1).updateDataLabels('SalesChart', {
+  series: 0,
+  template: '{category}: {value} ({percentage}%)'
+});
+```
+* **Variables**: `{category}`, `{value}`, `{percentage}`, `{series}`, `{customLabel}`
+
+### 4. Label Positions
+Set label alignment to any of PowerPoint's standard values:
+
+```javascript
+ppt.useSlide(1).updateDataLabels('SalesChart', {
+  series: 0,
+  position: 'insideEnd' // 'center', 'insideEnd', 'insideBase', 'outsideEnd', 'bestFit', 'left', 'right', 'top', 'bottom'
+});
+```
+
+### 5. Custom Label Styling
+Format your data labels using custom fonts, sizes, colors, and weight properties:
+
+```javascript
+ppt.useSlide(1).updateDataLabels('SalesChart', {
+  series: 0,
+  labels: ['High', 'Medium', 'Low'],
+  labelStyle: {
+    fontFamily: 'Century Gothic',
+    fontSize: 12,
+    color: '#0055A5',
+    bold: true,
+    italic: true,
+    underline: true
+  }
+});
+```
+
+### 6. Inline Custom Data Labels (`updateChart`)
+You can define custom data labels inline within the standard `updateChart()` series `values` array using objects in the format `{ data: number, label: string }`. This avoids calling separate styling or update methods:
+
+```javascript
+ppt.useSlide(1).updateChart('RevenueChart', {
+  categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+  series: [
+    {
+      name: 'Product A',
+      values: [
+        { data: 145, label: 'Q1: 145 (Low)' },
+        { data: 210, label: 'Q2: 210 (Med)' },
+        { data: 190, label: 'Q3: 190 (Med)' },
+        { data: 250, label: 'Q4: 250 (High)' }
+      ]
+    }
+  ]
+});
+```
+
+To preserve PowerPoint integrity, the engine ensures that if one value contains a label, all values in that series must have labels, and the label properties must be string values.
 
 ---
 

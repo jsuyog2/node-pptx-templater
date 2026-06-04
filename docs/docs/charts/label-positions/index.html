@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Label Positions - node-pptx-templater</title>
+  <meta name="description" content="PowerPoint alignments for data labels.">
+  <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/docs/charts/label-positions/">
+  <link rel="stylesheet" href="../../../style.css">
+  <script>
+    // Immediate SEO redirect to main single-page application at correct anchor
+    window.location.replace("../../../index.html#label-positions");
+  </script>
+</head>
+<body class="bg-[#080b11] text-gray-200 font-sans p-8">
+  <div class="max-w-3xl mx-auto space-y-6">
+    <div class="border-b border-white/5 pb-4">
+      <a href="../../../index.html" class="text-indigo-400 hover:underline">&larr; Back to Documentation</a>
+      <h1 class="text-4xl font-extrabold text-white mt-2">Label Positions - node-pptx-templater</h1>
+    </div>
+    
+    <div class="prose prose-invert max-w-none">
+      
+    <h2>Label Positions & Alignment</h2>
+    <p>Adjust the placement of labels relative to data points or chart slices. Positioning options are fully PowerPoint-compatible and adapt to specific chart layouts (bar, line, pie, etc.).</p>
+    
+    <h2>Supported Position Options</h2>
+    <ul>
+      <li><code>center</code>: Place labels directly centered on the data points.</li>
+      <li><code>insideEnd</code>: Place labels inside the top/end border of the series shape.</li>
+      <li><code>insideBase</code>: Place labels inside the base of the series shape.</li>
+      <li><code>outsideEnd</code>: Place labels outside the top/end border of the series shape.</li>
+      <li><code>bestFit</code>: Let PowerPoint automatically choose the best fit (recommended for Pie/Doughnut charts).</li>
+      <li><code>left</code> / <code>right</code> / <code>top</code> / <code>bottom</code>: Position labels relative to the data point coordinates.</li>
+    </ul>
+    
+    <h2>Positioning Example</h2>
+    <pre><code class="language-javascript">ppt.useSlide(1).updateDataLabels('MarketSharePie', {
+  series: 0,
+  position: 'bestFit',
+  showPercent: true
+});</code></pre>
+  
+    </div>
+    
+    <div class="text-xs text-gray-500 border-t border-white/5 pt-4 mt-8">
+      This page is an SEO-optimized landing page for search engines. JavaScript-enabled browsers will automatically transition to the main interface.
+    </div>
+  </div>
+</body>
+</html>

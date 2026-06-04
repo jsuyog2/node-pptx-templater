@@ -359,19 +359,33 @@ class PPTXTemplater {
    * Updates chart data in the selected slide(s).
    * Finds charts by their name/ID and updates categories, series, and values.
    * Preserves original chart styles, themes, and formatting.
+   * Supports inline custom data labels by passing objects in the format `{ data: number, label: string }` instead of numbers.
    *
    * @param {string} chartId - Chart name or relationship ID.
    * @param {ChartData} data - New chart data.
    * @param {string[]} data.categories - Category labels (X-axis).
    * @param {SeriesData[]} data.series - Data series array.
    * @param {string} data.series[].name - Series name.
-   * @param {number[]} data.series[].values - Data values.
+   * @param {number[]|object[]} data.series[].values - Data values (numbers or label objects).
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
+   * // Simple numeric values:
    * ppt.updateChart('sales-chart', {
    *   categories: ['Jan', 'Feb', 'Mar'],
    *   series: [{ name: 'Revenue', values: [120, 150, 180] }]
+   * });
+   *
+   * // Custom inline data labels:
+   * ppt.updateChart('sales-chart', {
+   *   categories: ['Q1', 'Q2'],
+   *   series: [{
+   *     name: 'Revenue',
+   *     values: [
+   *       { data: 120, label: '120 (40%)' },
+   *       { data: 180, label: '180 (60%)' }
+   *     ]
+   *   }]
    * });
    */
   updateChart(chartId, data) {
@@ -1318,6 +1332,48 @@ class PPTXTemplater {
       )
     }
     return this
+  }
+
+  updateDataLabels(chartId, options) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#chartManager.updateDataLabels(
+        idx,
+        chartId,
+        options,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+    }
+    return this
+  }
+
+  async getDataLabels(chartId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    if (targetIndices.length === 0) return []
+    const idx = targetIndices[0]
+    return this.#chartManager.getDataLabels(
+      idx,
+      chartId,
+      options,
+      this.#slideManager,
+      this.#relationshipManager
+    )
+  }
+
+  async validateDataLabels(chartId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    if (targetIndices.length === 0) return { valid: true, errors: [] }
+    const idx = targetIndices[0]
+    return ValidationEngine.validateDataLabels(
+      this,
+      idx,
+      chartId,
+      options
+    )
   }
 
   getCharts() {

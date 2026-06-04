@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>updateChart() API Method - node-pptx-templater</title>
-  <meta name="description" content="Updates chart data in the selected slide(s). Finds charts by their name/ID and updates categories, series, and values. Preserves original chart styles, themes, and formatting.">
+  <meta name="description" content="Updates chart data in the selected slide(s). Finds charts by their name/ID and updates categories, series, and values. Preserves original chart styles, themes, and formatting. Supports inline custom data labels by passing objects in the format `{ data: number, label: string }` instead of numbers.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/updateChart/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,7 +21,7 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Updates chart data in the selected slide(s). Finds charts by their name/ID and updates categories, series, and values. Preserves original chart styles, themes, and formatting.</p>
+    <p><strong>Description:</strong> Updates chart data in the selected slide(s). Finds charts by their name/ID and updates categories, series, and values. Preserves original chart styles, themes, and formatting. Supports inline custom data labels by passing objects in the format `{ data: number, label: string }` instead of numbers.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
     
       <h3>Parameters</h3>
@@ -67,8 +67,8 @@
           
             <tr>
               <td><strong>data.series[].values</strong></td>
-              <td><code>number[]</code></td>
-              <td>Data values.</td>
+              <td><code>number[]|object[]</code></td>
+              <td>Data values (numbers or label objects).</td>
             </tr>
           
         </tbody>
@@ -85,9 +85,21 @@
     <p><strong>Errors:</strong> Wrap inside try/catch blocks to process execution errors.</p>
     
       <h3>Code Example</h3>
-      <pre><code>ppt.updateChart(&#039;sales-chart&#039;, {
+      <pre><code>// Simple numeric values:
+ppt.updateChart(&#039;sales-chart&#039;, {
 categories: [&#039;Jan&#039;, &#039;Feb&#039;, &#039;Mar&#039;],
 series: [{ name: &#039;Revenue&#039;, values: [120, 150, 180] }]
+});
+// Custom inline data labels:
+ppt.updateChart(&#039;sales-chart&#039;, {
+categories: [&#039;Q1&#039;, &#039;Q2&#039;],
+series: [{
+name: &#039;Revenue&#039;,
+values: [
+{ data: 120, label: &#039;120 (40%)&#039; },
+{ data: 180, label: &#039;180 (60%)&#039; }
+]
+}]
 });</code></pre>
     
   

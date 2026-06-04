@@ -25,6 +25,36 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/docs/charts/data-labels/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/docs/charts/label-templates/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/docs/charts/label-styling/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/docs/charts/label-positions/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/docs/charts/label-formatting/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
     <loc>https://jsuyog2.github.io/node-pptx-templater/faq/</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
@@ -565,6 +595,24 @@
     <priority>0.9</priority>
   </url>
   <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/api/updateDataLabels/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/api/getDataLabels/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/api/validateDataLabels/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://jsuyog2.github.io/node-pptx-templater/api/getCharts/</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
@@ -770,6 +818,36 @@
   </url>
   <url>
     <loc>https://jsuyog2.github.io/node-pptx-templater/latest/getting-started/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/latest/docs/charts/data-labels/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/latest/docs/charts/label-templates/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/latest/docs/charts/label-styling/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/latest/docs/charts/label-positions/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/latest/docs/charts/label-formatting/</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
@@ -1315,6 +1393,24 @@
     <priority>0.9</priority>
   </url>
   <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/latest/api/updateDataLabels/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/latest/api/getDataLabels/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/latest/api/validateDataLabels/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://jsuyog2.github.io/node-pptx-templater/latest/api/getCharts/</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
@@ -1520,6 +1616,36 @@
   </url>
   <url>
     <loc>https://jsuyog2.github.io/node-pptx-templater/v1/getting-started/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/v1/docs/charts/data-labels/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/v1/docs/charts/label-templates/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/v1/docs/charts/label-styling/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/v1/docs/charts/label-positions/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/v1/docs/charts/label-formatting/</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
@@ -2060,6 +2186,24 @@
   </url>
   <url>
     <loc>https://jsuyog2.github.io/node-pptx-templater/v1/api/updateChartCategories/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/v1/api/updateDataLabels/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/v1/api/getDataLabels/</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://jsuyog2.github.io/node-pptx-templater/v1/api/validateDataLabels/</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>

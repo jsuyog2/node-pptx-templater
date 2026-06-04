@@ -162,6 +162,391 @@ class ChartCacheGenerator {
     }
   }
 
+  static updateDataLabelsInXml(xml, seriesIndex, options, categories = [], seriesData = {}) {
+    let serIndex = 0
+    const serPattern = /(<c:ser>)([\s\S]*?)(<\/c:ser>)/g
+
+    return xml.replace(serPattern, (match, open, content, close) => {
+      if (serIndex !== seriesIndex) {
+        serIndex++
+        return match
+      }
+      serIndex++
+
+      let pointsCount = categories.length
+      if (pointsCount === 0) {
+        const valMatch = /<c:val>([\s\S]*?)<\/c:val>/.exec(content)
+        if (valMatch) {
+          const countMatch = /<c:ptCount val="(\d+)"\/>/.exec(valMatch[1])
+          if (countMatch) pointsCount = parseInt(countMatch[1], 10)
+        }
+      }
+      if (pointsCount === 0 && options.labels) {
+        pointsCount = options.labels.length
+      }
+
+      // Parse existing styling and flags from the current <c:dLbls> block
+      let existingTxPr = ''
+      let existingDLblPos = ''
+      let existingNumFmt = ''
+      const existingShowTags = {}
+
+      const dLblsMatch = /<c:dLbls>([\s\S]*?)<\/c:dLbls>/.exec(content)
+      if (dLblsMatch) {
+        const dLblsContent = dLblsMatch[1]
+        const txPrMatch = /(<c:txPr>[\s\S]*?<\/c:txPr>)/.exec(dLblsContent)
+        if (txPrMatch) {
+          existingTxPr = txPrMatch[1]
+        }
+        const dLblPosMatch = /(<c:dLblPos\s+[^>]*\/>)/.exec(dLblsContent)
+        if (dLblPosMatch) {
+          existingDLblPos = dLblPosMatch[1]
+        }
+        const numFmtMatch = /(<c:numFmt\s+[^>]*\/>)/.exec(dLblsContent)
+        if (numFmtMatch) {
+          existingNumFmt = numFmtMatch[1]
+        }
+        const showTagsList = [
+          'showLegendKey',
+          'showVal',
+          'showCatName',
+          'showSerName',
+          'showPercent',
+          'showBubbleSize'
+        ]
+        showTagsList.forEach(tag => {
+          const tagPattern = new RegExp(`(<c:${tag}\\s+val="([^"]*)"\\s*\\/>)`)
+          const tagMatch = tagPattern.exec(dLblsContent)
+          if (tagMatch) {
+            existingShowTags[tag] = tagMatch[1]
+          }
+        })
+      }
+
+      const dLblsXml = this.generateDLblsXml(
+        pointsCount,
+        options,
+        categories,
+        seriesData,
+        existingTxPr,
+        existingDLblPos,
+        existingNumFmt,
+        existingShowTags
+      )
+
+      let updatedContent = content
+      const dLblsPattern = /(<c:dLbls>[\s\S]*?<\/c:dLbls>)/
+      if (dLblsPattern.test(updatedContent)) {
+        updatedContent = updatedContent.replace(dLblsPattern, dLblsXml)
+      } else {
+        const insertBefore = /(<c:cat>|<c:val>|<c:extLst>)/
+        if (insertBefore.test(updatedContent)) {
+          updatedContent = updatedContent.replace(insertBefore, `${dLblsXml}$1`)
+        } else {
+          updatedContent += dLblsXml
+        }
+      }
+
+      return `${open}${updatedContent}${close}`
+    })
+  }
+
+  static generateDLblsXml(
+    pointsCount,
+    options,
+    categories = [],
+    seriesData = {},
+    existingTxPr = '',
+    existingDLblPos = '',
+    existingNumFmt = '',
+    existingShowTags = {}
+  ) {
+    const {
+      labels,
+      labelsFromCells,
+      template,
+      position,
+      labelStyle,
+      labelMap
+    } = options
+
+    let xml = '<c:dLbls>'
+
+    const posMap = {
+      center: 'ctr',
+      insideEnd: 'inEnd',
+      insideBase: 'inBase',
+      outsideEnd: 'outEnd',
+      bestFit: 'bestFit',
+      left: 'l',
+      right: 'r',
+      top: 't',
+      bottom: 'b'
+    }
+    const openxmlPos = position ? posMap[position] : null
+
+    const values = seriesData.values || []
+    const sumValues = values.reduce((sum, v) => sum + (Number(v) || 0), 0)
+    const seriesName = seriesData.name || ''
+
+    const hasCustomLabels = labels || labelsFromCells || template || labelMap
+
+    if (hasCustomLabels && pointsCount > 0) {
+      for (let i = 0; i < pointsCount; i++) {
+        const cat = categories[i] !== undefined ? String(categories[i]) : ''
+        const val = values[i] !== undefined ? values[i] : ''
+
+        let pct = 0
+        if (sumValues > 0 && val !== '') {
+          pct = Math.round((Number(val) / sumValues) * 100)
+        }
+
+        let customLabel = ''
+        if (labels && labels[i] !== undefined) {
+          customLabel = String(labels[i])
+        } else if (labelMap && cat && labelMap[cat] !== undefined) {
+          customLabel = String(labelMap[cat])
+        }
+
+        let textContent = customLabel
+        if (template) {
+          textContent = template
+            .replace(/{category}/g, cat)
+            .replace(/{value}/g, String(val))
+            .replace(/{percentage}/g, String(pct))
+            .replace(/{series}/g, seriesName)
+            .replace(/{customLabel}/g, customLabel)
+        }
+
+        xml += `<c:dLbl>`
+        xml += `<c:idx val="${i}"/>`
+
+        if (labelsFromCells && !template) {
+          const range = ChartWorkbookUpdater.parseCellRange(labelsFromCells)
+          const startColNum = ChartWorkbookUpdater.colLetterToNum(range.startCol)
+
+          let cellRef
+          if (range.startRow === range.endRow) {
+            cellRef = `${ChartWorkbookUpdater.numToColLetter(startColNum + i)}${range.startRow}`
+          } else {
+            cellRef = `${range.startCol}${range.startRow + i}`
+          }
+          const fullCellRef = `${range.sheetName}!$${cellRef.replace(/(\d+)/, '$$$1')}`
+          const displayVal = textContent || customLabel || ''
+
+          xml += `<c:tx>`
+          xml += `<c:strRef>`
+          xml += `<c:f>${fullCellRef}</c:f>`
+          xml += `<c:strCache>`
+          xml += `<c:ptCount val="1"/>`
+          xml += `<c:pt idx="0"><c:v>${this.#escapeXml(displayVal)}</c:v></c:pt>`
+          xml += `</c:strCache>`
+          xml += `</c:strRef>`
+          xml += `</c:tx>`
+        } else if (textContent) {
+          if (labelsFromCells) {
+            const range = ChartWorkbookUpdater.parseCellRange(labelsFromCells)
+            const startColNum = ChartWorkbookUpdater.colLetterToNum(range.startCol)
+            let cellRef
+            if (range.startRow === range.endRow) {
+              cellRef = `${ChartWorkbookUpdater.numToColLetter(startColNum + i)}${range.startRow}`
+            } else {
+              cellRef = `${range.startCol}${range.startRow + i}`
+            }
+            const fullCellRef = `${range.sheetName}!$${cellRef.replace(/(\d+)/, '$$$1')}`
+
+            xml += `<c:tx>`
+            xml += `<c:strRef>`
+            xml += `<c:f>${fullCellRef}</c:f>`
+            xml += `<c:strCache>`
+            xml += `<c:ptCount val="1"/>`
+            xml += `<c:pt idx="0"><c:v>${this.#escapeXml(textContent)}</c:v></c:pt>`
+            xml += `</c:strCache>`
+            xml += `</c:strRef>`
+            xml += `</c:tx>`
+          } else {
+            xml += `<c:tx>`
+            xml += `<c:rich>`
+            xml += `<a:bodyPr/>`
+            xml += `<a:lstStyle/>`
+            xml += `<a:p>`
+            xml += `<a:r>`
+            xml += `<a:t>${this.#escapeXml(textContent)}</a:t>`
+            xml += `</a:r>`
+            xml += `</a:p>`
+            xml += `</c:rich>`
+            xml += `</c:tx>`
+          }
+        }
+
+        if (labelStyle) {
+          xml += this.generateTxPrXml(labelStyle)
+        } else if (existingTxPr) {
+          xml += existingTxPr
+        }
+
+        if (openxmlPos) {
+          xml += `<c:dLblPos val="${openxmlPos}"/>`
+        } else if (existingDLblPos) {
+          xml += existingDLblPos
+        }
+
+        xml += `<c:showLegendKey val="0"/>`
+        xml += `<c:showVal val="0"/>`
+        xml += `<c:showCatName val="0"/>`
+        xml += `<c:showSerName val="0"/>`
+        xml += `<c:showPercent val="0"/>`
+        xml += `<c:showBubbleSize val="0"/>`
+
+        xml += `</c:dLbl>`
+      }
+    }
+
+    if (existingNumFmt) {
+      xml += existingNumFmt
+    }
+
+    if (labelStyle) {
+      xml += this.generateTxPrXml(labelStyle)
+    } else if (existingTxPr) {
+      xml += existingTxPr
+    }
+
+    if (openxmlPos) {
+      xml += `<c:dLblPos val="${openxmlPos}"/>`
+    } else if (existingDLblPos) {
+      xml += existingDLblPos
+    }
+
+    // showLegendKey
+    if (existingShowTags['showLegendKey']) {
+      xml += existingShowTags['showLegendKey']
+    } else {
+      xml += `<c:showLegendKey val="0"/>`
+    }
+
+    // showVal
+    const defaultShowVal = hasCustomLabels ? '0' : '1'
+    if (existingShowTags['showVal'] && !hasCustomLabels) {
+      xml += existingShowTags['showVal']
+    } else {
+      xml += `<c:showVal val="${defaultShowVal}"/>`
+    }
+
+    // showCatName
+    if (existingShowTags['showCatName']) {
+      xml += existingShowTags['showCatName']
+    } else {
+      xml += `<c:showCatName val="0"/>`
+    }
+
+    // showSerName
+    if (existingShowTags['showSerName']) {
+      xml += existingShowTags['showSerName']
+    } else {
+      xml += `<c:showSerName val="0"/>`
+    }
+
+    // showPercent
+    const defaultShowPercent = (hasCustomLabels || !options.showPercent) ? '0' : '1'
+    if (options.showPercent !== undefined) {
+      xml += `<c:showPercent val="${options.showPercent ? '1' : '0'}"/>`
+    } else if (existingShowTags['showPercent'] && !hasCustomLabels) {
+      xml += existingShowTags['showPercent']
+    } else {
+      xml += `<c:showPercent val="${defaultShowPercent}"/>`
+    }
+
+    // showBubbleSize
+    if (existingShowTags['showBubbleSize']) {
+      xml += existingShowTags['showBubbleSize']
+    } else {
+      xml += `<c:showBubbleSize val="0"/>`
+    }
+
+    xml += '</c:dLbls>'
+    return xml
+  }
+
+  static generateTxPrXml(style) {
+    const {
+      fontFamily,
+      fontSize,
+      bold,
+      italic,
+      underline,
+      color
+    } = style
+
+    const sz = fontSize ? ` sz="${fontSize * 100}"` : ''
+    const b = bold !== undefined ? ` b="${bold ? '1' : '0'}"` : ''
+    const i = italic !== undefined ? ` i="${italic ? '1' : '0'}"` : ''
+    const u = underline !== undefined ? ` u="${underline ? 'sng' : 'none'}"` : ''
+
+    let fillXml = ''
+    if (color) {
+      const cleanColor = color.replace('#', '')
+      fillXml = `<a:solidFill><a:srgbClr val="${cleanColor}"/></a:solidFill>`
+    }
+
+    let latinXml = ''
+    if (fontFamily) {
+      latinXml = `<a:latin typeface="${fontFamily}"/><a:cs typeface="${fontFamily}"/>`
+    }
+
+    return `<c:txPr>
+      <a:bodyPr/>
+      <a:lstStyle/>
+      <a:p>
+        <a:pPr>
+          <a:defRPr${sz}${b}${i}${u}>
+            ${fillXml}
+            ${latinXml}
+          </a:defRPr>
+        </a:pPr>
+        <a:endParaRPr lang="en-US"/>
+      </a:p>
+    </c:txPr>`
+  }
+
+  static getDataLabelsFromXml(xml, seriesIndex) {
+    const serPattern = /<c:ser>([\s\S]*?)<\/c:ser>/g
+    const matches = [...xml.matchAll(serPattern)]
+    if (seriesIndex >= matches.length) return []
+
+    const serXml = matches[seriesIndex][1]
+    const dLblsMatch = /<c:dLbls>([\s\S]*?)<\/c:dLbls>/.exec(serXml)
+    if (!dLblsMatch) return []
+
+    const dLblsXml = dLblsMatch[1]
+    const dLblPattern = /<c:dLbl>([\s\S]*?)<\/c:dLbl>/g
+    const result = []
+
+    let dLblMatch
+    while ((dLblMatch = dLblPattern.exec(dLblsXml)) !== null) {
+      const dLblXml = dLblMatch[1]
+      const idxMatch = /<c:idx val="(\d+)"\/>/.exec(dLblXml)
+      if (!idxMatch) continue
+      const point = parseInt(idxMatch[1], 10)
+
+      let value = ''
+      const strCacheMatch = /<c:strCache>([\s\S]*?)<\/c:strCache>/.exec(dLblXml)
+      if (strCacheMatch) {
+        const vMatch = /<c:v>([^<]*)<\/c:v>/.exec(strCacheMatch[1])
+        if (vMatch) value = vMatch[1]
+      } else {
+        const tPattern = /<a:t>([^<]*)<\/a:t>/g
+        let tMatch
+        while ((tMatch = tPattern.exec(dLblXml)) !== null) {
+          value += tMatch[1]
+        }
+      }
+
+      result.push({ point, value })
+    }
+    return result
+  }
+
   static #escapeXml(str) {
     return str
       .replace(/&/g, '&amp;')

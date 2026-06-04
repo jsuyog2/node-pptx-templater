@@ -20,14 +20,22 @@ class ChartWorkbookUpdater {
       // Look for sheet1.xml
       const sheetPath = 'xl/worksheets/sheet1.xml'
       if (!zip.file(sheetPath)) {
-        logger.warn('sheet1.xml not found in embedded workbook, trying to find first sheet')
-        // fallback to finding the first sheet
+        logger.warn('sheet1.xml not found in embedded workbook')
+        return workbookData
       }
 
-      const newSheetXml = this.#generateSheetXml(data)
-      zip.file(sheetPath, newSheetXml)
+      const sheetXml = await zip.file(sheetPath).async('text')
+      const sharedStrings = await this.getSharedStrings(zip)
+      const cells = this.parseWorksheetCells(sheetXml, sharedStrings)
 
-      // Clean up any existing Excel tables, as our new sheet data might not align with them
+      // Update categories, series values, and custom labels in the cell grid
+      this.#updateCellGrid(cells, data)
+
+      // Serialize cells to sheet XML
+      const updatedSheetXml = this.#serializeSheetXml(sheetXml, cells)
+      zip.file(sheetPath, updatedSheetXml)
+
+      // Clean up any existing Excel tables
       const tableFiles = Object.keys(zip.files).filter(f => f.startsWith('xl/tables/'))
       tableFiles.forEach(f => zip.remove(f))
 
@@ -56,50 +64,160 @@ class ChartWorkbookUpdater {
     }
   }
 
-  static #generateSheetXml(data) {
+  static async getSharedStrings(zip) {
+    const sstFile = zip.file('xl/sharedStrings.xml')
+    if (!sstFile) return []
+    const xml = await sstFile.async('text')
+    const strings = []
+    const pattern = /<si>([\s\S]*?)<\/si>/g
+    let match
+    while ((match = pattern.exec(xml)) !== null) {
+      const siContent = match[1]
+      const tPattern = /<t\b[^>]*>([^<]*)<\/t>/g
+      let tMatch
+      let textVal = ''
+      while ((tMatch = tPattern.exec(siContent)) !== null) {
+        textVal += tMatch[1]
+      }
+      strings.push(textVal)
+    }
+    return strings
+  }
+
+  static parseWorksheetCells(sheetXml, sharedStrings) {
+    const cells = {}
+    const cellPattern = /<c r="([A-Z]+\d+)"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g
+    let match
+    while ((match = cellPattern.exec(sheetXml)) !== null) {
+      const ref = match[1]
+      const attrs = match[2]
+      const content = match[3] || ''
+
+      const tMatch = /t="([^"]*)"/.exec(attrs)
+      const t = tMatch ? tMatch[1] : null
+
+      let val = ''
+      if (t === 'inlineStr') {
+        const tValMatch = /<t\b[^>]*>([^<]*)<\/t>/.exec(content)
+        val = tValMatch ? tValMatch[1] : ''
+      } else if (t === 's') {
+        const vMatch = /<v>(\d+)<\/v>/.exec(content)
+        if (vMatch) {
+          const idx = parseInt(vMatch[1], 10)
+          val = sharedStrings[idx] !== undefined ? sharedStrings[idx] : ''
+        }
+      } else if (content) {
+        const vMatch = /<v>([^<]*)<\/v>/.exec(content)
+        if (vMatch) {
+          val = vMatch[1]
+          if (val !== '' && !isNaN(val)) {
+            val = Number(val)
+          }
+        }
+      }
+      cells[ref] = val
+    }
+    return cells
+  }
+
+  static #updateCellGrid(cells, data) {
     const { categories = [], series = [] } = data
 
-    // Column count = 1 (categories) + series.length
-    const numCols = 1 + series.length
-    const numRows = 1 + categories.length // Row 1 = headers
+    // 1. Write Header A1 as empty
+    cells['A1'] = ''
 
-    const lastColLetter = this.getColumnLetter(numCols - 1)
-    const dimensionRef = `A1:${lastColLetter}${numRows}`
-
-    let sheetData = '<sheetData>'
-
-    // Row 1: Headers (empty cell A1, then series names)
-    sheetData += '<row r="1">'
-    sheetData += `<c r="A1" t="inlineStr"><is><t></t></is></c>`
+    // 2. Write series titles in Row 1 (B1, C1, etc.)
     series.forEach((ser, i) => {
       const colLetter = this.getColumnLetter(i + 1)
-      sheetData += `<c r="${colLetter}1" t="inlineStr"><is><t>${this.#escapeXml(ser.name || '')}</t></is></c>`
+      cells[`${colLetter}1`] = ser.name || ''
     })
-    sheetData += '</row>'
 
-    // Rows 2..N: Data (category name in A, then values)
+    // 3. Write categories in column A (A2, A3, etc.)
     categories.forEach((cat, rowIndex) => {
-      const r = rowIndex + 2 // +1 for 1-based, +1 for header row
-      sheetData += `<row r="${r}">`
-      sheetData += `<c r="A${r}" t="inlineStr"><is><t>${this.#escapeXml(String(cat))}</t></is></c>`
-
-      series.forEach((ser, colIndex) => {
-        const colLetter = this.getColumnLetter(colIndex + 1)
-        const val = ser.values && ser.values[rowIndex] !== undefined ? ser.values[rowIndex] : 0
-        sheetData += `<c r="${colLetter}${r}"><v>${Number(val)}</v></c>`
-      })
-      sheetData += '</row>'
+      cells[`A${rowIndex + 2}`] = String(cat)
     })
 
+    // 4. Write series values
+    series.forEach((ser, colIndex) => {
+      const colLetter = this.getColumnLetter(colIndex + 1)
+      if (ser.values) {
+        ser.values.forEach((val, rowIndex) => {
+          cells[`${colLetter}${rowIndex + 2}`] = val !== undefined ? val : 0
+        })
+      }
+    })
+
+    // 5. Write custom data labels
+    series.forEach((ser) => {
+      if (ser.labels && ser.labelsFromCells) {
+        const range = this.parseCellRange(ser.labelsFromCells)
+        const startColNum = this.colLetterToNum(range.startCol)
+        ser.labels.forEach((lbl, i) => {
+          let cellRef
+          if (range.startRow === range.endRow) {
+            cellRef = `${this.numToColLetter(startColNum + i)}${range.startRow}`
+          } else {
+            cellRef = `${range.startCol}${range.startRow + i}`
+          }
+          cells[cellRef] = lbl
+        })
+      }
+    })
+  }
+
+  static #serializeSheetXml(sheetXml, cells) {
+    // Group cells by row
+    const rows = {}
+    for (const [ref, val] of Object.entries(cells)) {
+      const rowMatch = /\d+$/.exec(ref)
+      if (!rowMatch) continue
+      const r = parseInt(rowMatch[0], 10)
+      if (!rows[r]) rows[r] = []
+      rows[r].push(ref)
+    }
+
+    // Sort rows ascending
+    const sortedRowKeys = Object.keys(rows).map(Number).sort((a, b) => a - b)
+
+    let maxRow = 1
+    let maxColNum = 0
+
+    let sheetData = '<sheetData>'
+    for (const r of sortedRowKeys) {
+      if (r > maxRow) maxRow = r
+      sheetData += `<row r="${r}">`
+
+      // Sort cells in this row by column letters
+      const sortedRefs = rows[r].sort((a, b) => {
+        const colA = /^[A-Z]+/.exec(a)[0]
+        const colB = /^[A-Z]+/.exec(b)[0]
+        if (colA.length !== colB.length) return colA.length - colB.length
+        return colA.localeCompare(colB)
+      })
+
+      for (const ref of sortedRefs) {
+        const colLetter = /^[A-Z]+/.exec(ref)[0]
+        const colNum = this.colLetterToNum(colLetter)
+        if (colNum > maxColNum) maxColNum = colNum
+
+        const val = cells[ref]
+        if (typeof val === 'number') {
+          sheetData += `<c r="${ref}"><v>${val}</v></c>`
+        } else {
+          sheetData += `<c r="${ref}" t="inlineStr"><is><t>${this.#escapeXml(String(val))}</t></is></c>`
+        }
+      }
+      sheetData += '</row>'
+    }
     sheetData += '</sheetData>'
 
-    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <dimension ref="${dimensionRef}"/>
-  <sheetViews><sheetView workbookViewId="0"/></sheetViews>
-  <sheetFormatPr defaultRowHeight="15"/>
-  ${sheetData}
-</worksheet>`
+    const maxColLetter = this.numToColLetter(maxColNum)
+    const newDimension = `<dimension ref="A1:${maxColLetter}${maxRow}"/>`
+
+    let updatedXml = sheetXml.replace(/<sheetData>[\s\S]*?<\/sheetData>/, sheetData)
+    updatedXml = updatedXml.replace(/<dimension ref="[^"]*"\/>/, newDimension)
+
+    return updatedXml
   }
 
   static getColumnLetter(colIndex) {
@@ -109,6 +227,39 @@ class ChartWorkbookUpdater {
       colIndex = Math.floor(colIndex / 26) - 1
     }
     return letter
+  }
+
+  static colLetterToNum(letter) {
+    let num = 0
+    for (let i = 0; i < letter.length; i++) {
+      num = num * 26 + (letter.charCodeAt(i) - 64)
+    }
+    return num - 1
+  }
+
+  static numToColLetter(num) {
+    return this.getColumnLetter(num)
+  }
+
+  static parseCellRange(rangeStr) {
+    const parts = rangeStr.split('!')
+    const range = parts.length > 1 ? parts[1] : parts[0]
+    const cleanRange = range.replace(/\$/g, '')
+    const [start, end] = cleanRange.split(':')
+
+    const startCol = /^[A-Z]+/.exec(start)[0]
+    const startRow = parseInt(/\d+$/.exec(start)[0], 10)
+
+    const endCol = end ? /^[A-Z]+/.exec(end)[0] : startCol
+    const endRow = end ? parseInt(/\d+$/.exec(end)[0], 10) : startRow
+
+    return {
+      sheetName: parts.length > 1 ? parts[0] : 'Sheet1',
+      startCol,
+      startRow,
+      endCol,
+      endRow,
+    }
   }
 
   static getFormulaRange(sheetName, startRow, startCol, endRow, endCol) {

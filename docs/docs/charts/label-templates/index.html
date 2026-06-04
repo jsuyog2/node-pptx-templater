@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Label Templates - node-pptx-templater</title>
+  <meta name="description" content="Dynamic templates for chart data labels.">
+  <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/docs/charts/label-templates/">
+  <link rel="stylesheet" href="../../../style.css">
+  <script>
+    // Immediate SEO redirect to main single-page application at correct anchor
+    window.location.replace("../../../index.html#label-templates");
+  </script>
+</head>
+<body class="bg-[#080b11] text-gray-200 font-sans p-8">
+  <div class="max-w-3xl mx-auto space-y-6">
+    <div class="border-b border-white/5 pb-4">
+      <a href="../../../index.html" class="text-indigo-400 hover:underline">&larr; Back to Documentation</a>
+      <h1 class="text-4xl font-extrabold text-white mt-2">Label Templates - node-pptx-templater</h1>
+    </div>
+    
+    <div class="prose prose-invert max-w-none">
+      
+    <h2>Dynamic Label Templates</h2>
+    <p>Templates allow you to mix variables and custom text to build descriptive labels. The templating engine evaluates expression templates for each data point and writes them as text values in both the chart XML and the embedded workbook.</p>
+    
+    <h2>Supported Template Variables</h2>
+    <ul>
+      <li><code>{category}</code>: Evaluates to the data point's category name (e.g. "Sales").</li>
+      <li><code>{value}</code>: Evaluates to the numeric value of the point (e.g. 150).</li>
+      <li><code>{percentage}</code>: Evaluates to the percentage of the point relative to the series sum (useful for pie/bar charts).</li>
+      <li><code>{series}</code>: Evaluates to the series name.</li>
+      <li><code>{customLabel}</code>: Evaluates to the literal label or category mapped label.</li>
+    </ul>
+    
+    <h2>Usage Example</h2>
+    <pre><code class="language-javascript">ppt.useSlide(1).updateDataLabels('KPIChart', {
+  series: 0,
+  template: '{category}: {value} ({percentage}%)'
+});</code></pre>
+  
+    </div>
+    
+    <div class="text-xs text-gray-500 border-t border-white/5 pt-4 mt-8">
+      This page is an SEO-optimized landing page for search engines. JavaScript-enabled browsers will automatically transition to the main interface.
+    </div>
+  </div>
+</body>
+</html>

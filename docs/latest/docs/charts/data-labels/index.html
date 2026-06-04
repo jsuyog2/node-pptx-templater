@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chart Data Labels - node-pptx-templater</title>
+  <meta name="description" content="Custom annotations, arrays, mappings, templates, positioning, and styling.">
+  <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/latest/docs/charts/data-labels/">
+  <link rel="stylesheet" href="../../../../style.css">
+  <script>
+    // Immediate SEO redirect to main single-page application at correct anchor
+    window.location.replace("../../../../index.html#data-labels");
+  </script>
+</head>
+<body class="bg-[#080b11] text-gray-200 font-sans p-8">
+  <div class="max-w-3xl mx-auto space-y-6">
+    <div class="border-b border-white/5 pb-4">
+      <a href="../../../../index.html" class="text-indigo-400 hover:underline">&larr; Back to Documentation</a>
+      <h1 class="text-4xl font-extrabold text-white mt-2">Chart Data Labels - node-pptx-templater</h1>
+    </div>
+    
+    <div class="prose prose-invert max-w-none">
+      
+    <h2>Introduction to Chart Data Labels</h2>
+    <p>Data labels make your PowerPoint charts easier to read by showing data values or custom annotations directly on the chart points. <strong>node-pptx-templater</strong> provides advanced data label support, including Excel-style <em>Value From Cells</em>, literal arrays, category mapping, dynamic templates, styling, and positioning.</p>
+    
+    <h2>Feature Highlights</h2>
+    <ul>
+      <li><strong>Value From Cells</strong>: Reference cell ranges in the backing spreadsheet (e.g. <code>Sheet1!D2:D10</code>) as dynamic data labels.</li>
+      <li><strong>Literal Arrays</strong>: Apply a list of static labels directly (e.g. <code>['High', 'Medium', 'Low']</code>).</li>
+      <li><strong>Category Mappings</strong>: Map specific category keys to custom label names (e.g. <code>{ 'Sales': 'Peak Performance' }</code>).</li>
+      <li><strong>Label Templates</strong>: Format labels dynamically using template placeholders like <code>{category}</code>, <code>{value}</code>, and <code>{percentage}</code>.</li>
+      <li><strong>PowerPoint Stacking</strong>: Fully compliant with OpenXML layout and formatting rules to avoid PowerPoint Repair dialogs.</li>
+    </ul>
+
+    <h2>Value From Cells Code Example</h2>
+    <p>Update a specific chart series to pull labels from a worksheet cell range:</p>
+    <pre><code class="language-javascript">const { PPTXTemplater } = require('node-pptx-templater');
+
+async function main() {
+  const ppt = await PPTXTemplater.load('template.pptx');
+  
+  // Set data labels for series 0 from cell range D2:D5
+  ppt.useSlide(1).updateDataLabels('SalesChart', {
+    series: 0,
+    labelsFromCells: 'Sheet1!D2:D5'
+  });
+  
+  await ppt.saveToFile('report.pptx');
+}
+main();</code></pre>
+  
+    </div>
+    
+    <div class="text-xs text-gray-500 border-t border-white/5 pt-4 mt-8">
+      This page is an SEO-optimized landing page for search engines. JavaScript-enabled browsers will automatically transition to the main interface.
+    </div>
+  </div>
+</body>
+</html>

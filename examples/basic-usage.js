@@ -104,6 +104,19 @@ async function main() {
     ppt.mergeCells('Table2', 0, 0, 0, 1)
     ppt.mergeCells('Table2', 1, 0, 1, 1)
 
+    ppt.useSlide(3)
+
+    ppt.updateChart('Label Chart', {
+      categories: [''],
+      series: [
+        { name: 'Product A', values: [{ data: 145, label: '145 (18.24%)' }] },
+        { name: 'Product B', values: [{ data: 210, label: '210 (26.42%)' }] },
+        { name: 'Product C', values: [{ data: 190, label: '190 (23.9%)' }] },
+        { name: 'Product D', values: [{ data: 250, label: '250 (31.45%)' }] }
+      ],
+    })
+
+
     // Step 3: Save to file
     await ppt.saveToFile(OUTPUT_PATH)
     console.log('💾 Saved to:', OUTPUT_PATH)
