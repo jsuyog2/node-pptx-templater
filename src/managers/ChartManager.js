@@ -262,7 +262,13 @@ class ChartManager {
     const seriesLabels = normalized.labels
 
     // 3. Apply Chart XML Updates
-    const updatedXml = this.#applyChartData(xml, cleanNumericData, chartZipPath)
+    let updatedXml = this.#applyChartData(xml, cleanNumericData, chartZipPath)
+    if (data.title !== undefined) {
+      updatedXml = require('./charts/ChartCacheGenerator.js').ChartCacheGenerator.updateTitle(
+        updatedXml,
+        data.title
+      )
+    }
     this.#zipManager.writeFile(chartZipPath, updatedXml)
 
     // 4. Find and Update Embedded Workbook
@@ -680,6 +686,9 @@ class ChartManager {
 
   #validateChartData(data) {
     const { categories, series } = data
+    if (data.title !== undefined && typeof data.title !== 'string') {
+      throw new Error('Chart title must be a string')
+    }
     if (!series || series.length === 0) return
 
     // Series lengths remain consistent (if categories exist, check against length of categories)
@@ -688,14 +697,36 @@ class ChartManager {
       : series[0].values
         ? series[0].values.length
         : 0
+
     for (const ser of series) {
       const name = ser.name || 'Unknown'
-      const len = ser.values ? ser.values.length : 0
-      if (len !== expectedLen) {
-        throw new Error(
-          `Series lengths mismatch: expected ${expectedLen} values, got ${len} in series ${name}`
-        )
+      if (!ser.values) {
+        ser.values = []
       }
+
+      // Check if there is any label in the series to determine padding style
+      let seriesHasLabels = false
+      for (const val of ser.values) {
+        if (typeof val === 'object' && val !== null && val.label !== undefined) {
+          seriesHasLabels = true
+          break
+        }
+      }
+
+      // Pad or truncate values to match expectedLen
+      if (ser.values.length < expectedLen) {
+        while (ser.values.length < expectedLen) {
+          if (seriesHasLabels) {
+            ser.values.push({ value: null, label: '' })
+          } else {
+            ser.values.push(null)
+          }
+        }
+      } else if (ser.values.length > expectedLen) {
+        ser.values = ser.values.slice(0, expectedLen)
+      }
+
+      const len = ser.values.length
 
       // Check values inside the series
       let hasLabels = false
@@ -703,8 +734,8 @@ class ChartManager {
       for (const val of ser.values) {
         if (typeof val === 'object' && val !== null) {
           const numVal = val.value !== undefined ? val.value : val.data
-          // Data values remain numeric
-          if (typeof numVal !== 'number' || isNaN(numVal)) {
+          // Data values remain numeric or null
+          if (numVal !== null && (typeof numVal !== 'number' || isNaN(numVal))) {
             throw new Error(`Data value must be numeric in series ${name}`)
           }
           if (val.label !== undefined) {
@@ -716,8 +747,8 @@ class ChartManager {
             }
           }
         } else {
-          // Data values remain numeric (primitive value)
-          if (typeof val !== 'number' || isNaN(val)) {
+          // Data values remain numeric (primitive value) or null
+          if (val !== null && (typeof val !== 'number' || isNaN(val))) {
             throw new Error(`Data value must be numeric in series ${name}`)
           }
         }
@@ -743,12 +774,12 @@ class ChartManager {
         if (ser.values) {
           ser.values.forEach(v => {
             if (typeof v === 'object' && v !== null) {
-              const val = v.value !== undefined ? v.value : v.data !== undefined ? v.data : 0
+              const val = v.value !== undefined ? v.value : v.data !== undefined ? v.data : null
               cleanValues.push(val)
               labels.push(v.label)
               if (v.label !== undefined) hasLabel = true
             } else {
-              cleanValues.push(Number(v) || 0)
+              cleanValues.push(v === null || v === undefined ? null : Number(v) || 0)
               labels.push(undefined)
             }
           })

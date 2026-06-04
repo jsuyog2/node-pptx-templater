@@ -83,6 +83,9 @@ const METHOD_CATEGORIES = {
   'addShapeLink': 'text',
   'addTextNavigationLink': 'text',
   'addShapeNavigationLink': 'text',
+  'updateText': 'text',
+  'getList': 'text',
+  'validateList': 'text',
 
   // Images
   'replaceImage': 'images',
@@ -297,6 +300,39 @@ const API_METADATA_EXTENSIONS = {
       basic: `ppt.useSlide(1).replaceTextByTag('company', 'Acme Corp');`,
       advanced: `// Search-replace with custom text configuration\nppt.useSlide(1).replaceTextByTag('year', '2026', { bold: true });`,
       production: `const profile = await getUserProfile();\nppt.useSlide(1)\n   .replaceTextByTag('firstName', profile.first)\n   .replaceTextByTag('lastName', profile.last)\n   .replaceTextByTag('email', profile.email);`
+    }
+  },
+  updateText: {
+    edgeCases: 'Supports simple strings or bulleted/numbered list config objects. Paragraph alignments and styles of template run are preserved.',
+    errorHandling: 'Throws PPTXError if placeholder tag or shape name/ID is not found in the selected slide.',
+    related: ['getList', 'validateList', 'replaceTextByTag'],
+    xmlImpact: 'Replaces paragraph text run content or spawns multiple <a:p> sibling blocks formatted with bullet and numbering markers.',
+    examples: {
+      basic: `ppt.useSlide(1).updateText('Features', {\n  list: ['Point A', 'Point B', 'Point C']\n});`,
+      advanced: `// Numbered and nested lists\nppt.useSlide(1).updateText('Steps', {\n  ordered: true,\n  list: [\n    'Phase 1',\n    { text: 'Phase 2', children: ['Sub-step A', 'Sub-step B'] }\n  ]\n});`,
+      production: `// Full styled and customized list structure\nppt.useSlide(2).updateText('KPIs', {\n  list: ['Revenue Up', 'Margins Normal'],\n  style: {\n    fontSize: 18,\n    color: '#0055AA',\n    bulletColor: '#FF5500',\n    bulletChar: '✦'\n  }\n});`
+    }
+  },
+  getList: {
+    edgeCases: 'Scans specified shape or text placeholders, parsing nested levels and bullet definitions.',
+    errorHandling: 'Returns empty array if shape has no text body or tag cannot be found.',
+    related: ['updateText', 'validateList'],
+    xmlImpact: 'Reads individual paragraph structures, properties (a:pPr lvl), and combined run texts from shape text frames.',
+    examples: {
+      basic: `const items = ppt.useSlide(1).getList('Features');\nconsole.log(items); // ['A', { text: 'B', children: [...] }]`,
+      advanced: `const items = ppt.getList('Steps');`,
+      production: `try {\n  const list = ppt.useSlide(1).getList('ProjectRequirements');\n  list.forEach(item => {\n    const text = typeof item === 'string' ? item : item.text;\n    console.log('List Item:', text);\n  });\n} catch (err) {\n  console.error('Failed to parse list:', err);\n}`
+    }
+  },
+  validateList: {
+    edgeCases: 'Verifies level indices (0-8), level skipping (gaps), and formatting parameters.',
+    errorHandling: 'Returns structured format check results with valid boolean and errors array.',
+    related: ['updateText', 'getList'],
+    xmlImpact: 'Performs dry-run syntax and structure audits without writing adjustments to disk.',
+    examples: {
+      basic: `const result = ppt.validateList(['Valid string', 'Another item']);\nconsole.log(result.valid);`,
+      advanced: `const report = ppt.validateList({\n  list: ['Parent', { text: 'Child', children: ['Grandchild'] }],\n  style: { fontSize: -10 } // will fail validation\n});\nconsole.log(report.errors);`,
+      production: `const check = ppt.validateList(userProvidedListData);\nif (!check.valid) {\n  console.warn('Formatting issues:', check.errors.join('\\n'));\n}`
     }
   },
 

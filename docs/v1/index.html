@@ -105,7 +105,7 @@
         </defs>
       </svg>
       <span class="font-title font-extrabold text-lg text-white tracking-wide">node-pptx-templater</span>
-      <span class="bg-brand-500/10 text-brand-400 text-[10px] px-2.5 py-0.5 rounded-full font-semibold border border-brand-500/20">v1.0.6</span>
+      <span class="bg-brand-500/10 text-brand-400 text-[10px] px-2.5 py-0.5 rounded-full font-semibold border border-brand-500/20">v1.0.7</span>
     </div>
     
     <div class="flex items-center gap-5 relative">
@@ -313,6 +313,12 @@
             <li><a href="#method-addTextNavigationLink" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">addTextNavigationLink()</a></li>
           
             <li><a href="#method-addShapeNavigationLink" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">addShapeNavigationLink()</a></li>
+          
+            <li><a href="#method-updateText" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">updateText()</a></li>
+          
+            <li><a href="#method-getList" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">getList()</a></li>
+          
+            <li><a href="#method-validateList" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">validateList()</a></li>
           
             <li><a href="#method-replaceTextByTag" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">replaceTextByTag()</a></li>
           
@@ -4302,6 +4308,263 @@ items.forEach((item, index) =&gt; {
   ppt.useSlide(1).addShapeNavigationLink(options);
 } catch (err) {
   console.error(&#039;API Error: &#039;, err);
+}</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method updateText Card -->
+        <div id="method-updateText" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">updateText</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              updateText(tag, data)
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Updates shape text or list content by placeholder tag or shape name/ID. Supports bullet lists, numbered lists, nested lists, and custom styling.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Supports simple strings or bulleted/numbered list config objects. Paragraph alignments and styles of template run are preserved.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Replaces paragraph text run content or spawns multiple &lt;a:p&gt; sibling blocks formatted with bullet and numbering markers.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tag</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300">Placeholder tag (e.g. &#039;{{name}}&#039; or &#039;name&#039;) or shape name/ID.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">data</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string|Object</td>
+                    <td class="px-4 py-2.5 text-gray-300">String value or list configuration object.</td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">PPTXTemplater</span>
+            <span class="text-gray-300">this (chainable)</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).updateText(&#039;Features&#039;, {
+  list: [&#039;Point A&#039;, &#039;Point B&#039;, &#039;Point C&#039;]
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">// Numbered and nested lists
+ppt.useSlide(1).updateText(&#039;Steps&#039;, {
+  ordered: true,
+  list: [
+    &#039;Phase 1&#039;,
+    { text: &#039;Phase 2&#039;, children: [&#039;Sub-step A&#039;, &#039;Sub-step B&#039;] }
+  ]
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">// Full styled and customized list structure
+ppt.useSlide(2).updateText(&#039;KPIs&#039;, {
+  list: [&#039;Revenue Up&#039;, &#039;Margins Normal&#039;],
+  style: {
+    fontSize: 18,
+    color: &#039;#0055AA&#039;,
+    bulletColor: &#039;#FF5500&#039;,
+    bulletChar: &#039;✦&#039;
+  }
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method getList Card -->
+        <div id="method-getList" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getList</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              getList(tag)
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Retrieves list items from a shape or text box by name or placeholder tag.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Scans specified shape or text placeholders, parsing nested levels and bullet definitions.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Reads individual paragraph structures, properties (a:pPr lvl), and combined run texts from shape text frames.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tag</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300">Shape name/ID or placeholder tag.</td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">Array</span>
+            <span class="text-gray-300">Nested list structure of items.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const items = ppt.useSlide(1).getList(&#039;Features&#039;);
+console.log(items); // [&#039;A&#039;, { text: &#039;B&#039;, children: [...] }]</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const items = ppt.getList(&#039;Steps&#039;);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">try {
+  const list = ppt.useSlide(1).getList(&#039;ProjectRequirements&#039;);
+  list.forEach(item =&gt; {
+    const text = typeof item === &#039;string&#039; ? item : item.text;
+    console.log(&#039;List Item:&#039;, text);
+  });
+} catch (err) {
+  console.error(&#039;Failed to parse list:&#039;, err);
+}</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method validateList Card -->
+        <div id="method-validateList" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">validateList</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              validateList(data)
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Validates a list structure and values.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Verifies level indices (0-8), level skipping (gaps), and formatting parameters.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Performs dry-run syntax and structure audits without writing adjustments to disk.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">data</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">Object|Array</td>
+                    <td class="px-4 py-2.5 text-gray-300">List config object or array of items.</td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">Object</span>
+            <span class="text-gray-300">Report containing validation result.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const result = ppt.validateList([&#039;Valid string&#039;, &#039;Another item&#039;]);
+console.log(result.valid);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const report = ppt.validateList({
+  list: [&#039;Parent&#039;, { text: &#039;Child&#039;, children: [&#039;Grandchild&#039;] }],
+  style: { fontSize: -10 } // will fail validation
+});
+console.log(report.errors);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const check = ppt.validateList(userProvidedListData);
+if (!check.valid) {
+  console.warn(&#039;Formatting issues:&#039;, check.errors.join(&#039;\n&#039;));
 }</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
           </div>

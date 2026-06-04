@@ -411,6 +411,92 @@ class ValidationEngine {
       warnings,
     }
   }
+
+  /**
+   * Validates a list structure and values.
+   *
+   * @param {Object|Array} data - List config object or array of items.
+   * @returns {Object} Report containing errors and warnings.
+   */
+  static validateList(data) {
+    const errors = []
+    const warnings = []
+
+    if (!data) {
+      errors.push('List data must be provided')
+      return { valid: false, errors, warnings }
+    }
+
+    const listArray = Array.isArray(data) ? data : data.list
+    if (!listArray) {
+      errors.push('List data must contain an array under the "list" property or be an array')
+      return { valid: false, errors, warnings }
+    }
+
+    const checkItem = (item, level) => {
+      if (level < 0 || level > 8) {
+        errors.push(`Level ${level} is out of supported range (0 to 8)`)
+      }
+
+      if (typeof item === 'string') {
+        if (item.trim() === '') {
+          errors.push('Empty list item text is not allowed')
+        }
+      } else if (typeof item === 'object' && item !== null) {
+        if (item.text === undefined || item.text === null || String(item.text).trim() === '') {
+          errors.push('Empty list item text is not allowed')
+        }
+        if (item.children) {
+          if (!Array.isArray(item.children)) {
+            errors.push('Children property must be an array of items')
+          } else {
+            item.children.forEach(child => {
+              checkItem(child, level + 1)
+            })
+          }
+        }
+      } else {
+        errors.push(`Invalid list item type: "${typeof item}"`)
+      }
+    }
+
+    listArray.forEach(item => {
+      checkItem(item, 0)
+    })
+
+    if (data.style) {
+      const style = data.style
+      if (style.fontSize !== undefined) {
+        if (typeof style.fontSize !== 'number' || style.fontSize <= 0) {
+          errors.push('fontSize must be a positive number')
+        }
+      }
+      if (style.color !== undefined) {
+        if (typeof style.color !== 'string' || !/^#(?:[0-9a-fA-F]{3}){1,2}$/.test(style.color)) {
+          errors.push(`Invalid color format: "${style.color}" (expected hex e.g. #FF0000)`)
+        }
+      }
+      if (style.bulletColor !== undefined) {
+        if (
+          typeof style.bulletColor !== 'string' ||
+          !/^#(?:[0-9a-fA-F]{3}){1,2}$/.test(style.bulletColor)
+        ) {
+          errors.push(`Invalid bulletColor format: "${style.bulletColor}"`)
+        }
+      }
+      if (style.bulletSize !== undefined) {
+        if (typeof style.bulletSize !== 'number' || style.bulletSize <= 0) {
+          errors.push('bulletSize must be a positive number')
+        }
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    }
+  }
 }
 
 module.exports = { ValidationEngine }

@@ -16,7 +16,12 @@ class ChartCacheGenerator {
    */
   static generateNumCache(values) {
     const ptEntries = values
-      .map((val, i) => `<c:pt idx="${i}"><c:v>${Number(val) || 0}</c:v></c:pt>`)
+      .map((val, i) => {
+        if (val === null || val === undefined) {
+          return `<c:pt idx="${i}"/>`
+        }
+        return `<c:pt idx="${i}"><c:v>${val}</c:v></c:pt>`
+      })
       .join('')
     return `<c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${values.length}"/>${ptEntries}</c:numCache>`
   }
@@ -189,6 +194,8 @@ class ChartCacheGenerator {
       let existingTxPr = ''
       let existingDLblPos = ''
       let existingNumFmt = ''
+      let existingSpPr = ''
+      const existingDLblSpPrs = {}
       const existingShowTags = {}
 
       const dLblsMatch = /<c:dLbls>([\s\S]*?)<\/c:dLbls>/.exec(content)
@@ -206,6 +213,26 @@ class ChartCacheGenerator {
         if (numFmtMatch) {
           existingNumFmt = numFmtMatch[1]
         }
+        const spPrMatch = /(<c:spPr>[\s\S]*?<\/c:spPr>)/.exec(dLblsContent)
+        if (spPrMatch) {
+          existingSpPr = spPrMatch[1]
+        }
+
+        // Parse individual <c:dLbl> shape properties to map their background fills
+        const dLblPattern = /<c:dLbl>([\s\S]*?)<\/c:dLbl>/g
+        let dLblMatch
+        while ((dLblMatch = dLblPattern.exec(dLblsContent)) !== null) {
+          const dLblContent = dLblMatch[1]
+          const idxMatch = /<c:idx val="(\d+)"\/>/.exec(dLblContent)
+          if (idxMatch) {
+            const idx = parseInt(idxMatch[1], 10)
+            const dLblSpPrMatch = /(<c:spPr>[\s\S]*?<\/c:spPr>)/.exec(dLblContent)
+            if (dLblSpPrMatch) {
+              existingDLblSpPrs[idx] = dLblSpPrMatch[1]
+            }
+          }
+        }
+
         const showTagsList = [
           'showLegendKey',
           'showVal',
@@ -231,7 +258,9 @@ class ChartCacheGenerator {
         existingTxPr,
         existingDLblPos,
         existingNumFmt,
-        existingShowTags
+        existingShowTags,
+        existingSpPr,
+        existingDLblSpPrs
       )
 
       let updatedContent = content
@@ -259,7 +288,9 @@ class ChartCacheGenerator {
     existingTxPr = '',
     existingDLblPos = '',
     existingNumFmt = '',
-    existingShowTags = {}
+    existingShowTags = {},
+    existingSpPr = '',
+    existingDLblSpPrs = {}
   ) {
     const { labels, labelsFromCells, template, position, labelStyle, labelMap } = options
 
@@ -372,6 +403,25 @@ class ChartCacheGenerator {
           }
         }
 
+        // Restore individual point-level spPr (background fill, border, line) from template.
+        // Priority: individual dLbl spPr → first available individual dLbl spPr → series-level spPr.
+        // The series-level spPr fallback ensures fills are preserved even when the template stores
+        // styling only at the dLbls level (not per individual dLbl override).
+        if (existingDLblSpPrs && existingDLblSpPrs[i]) {
+          xml += existingDLblSpPrs[i]
+        } else {
+          const firstIdx =
+            existingDLblSpPrs && Object.keys(existingDLblSpPrs).length > 0
+              ? Object.keys(existingDLblSpPrs)[0]
+              : undefined
+          if (firstIdx !== undefined && existingDLblSpPrs[firstIdx]) {
+            xml += existingDLblSpPrs[firstIdx]
+          } else if (existingSpPr) {
+            // Fall back to series-level spPr so fills are preserved on each label
+            xml += existingSpPr
+          }
+        }
+
         if (labelStyle) {
           xml += this.generateTxPrXml(labelStyle)
         } else if (existingTxPr) {
@@ -397,6 +447,11 @@ class ChartCacheGenerator {
 
     if (existingNumFmt) {
       xml += existingNumFmt
+    }
+
+    // Restore series-level spPr (background fill, border, line) from template
+    if (existingSpPr) {
+      xml += existingSpPr
     }
 
     if (labelStyle) {

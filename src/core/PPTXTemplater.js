@@ -1383,6 +1383,46 @@ class PPTXTemplater {
     return charts
   }
 
+  /**
+   * Updates shape text or list content by placeholder tag or shape name/ID.
+   * Supports bullet lists, numbered lists, nested lists, and custom styling.
+   *
+   * @param {string} tag - Placeholder tag (e.g. '{{name}}' or 'name') or shape name/ID.
+   * @param {string|Object} data - String value or list configuration object.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  updateText(tag, data) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.updateText(idx, tag, data, this.#slideManager, this.#templateEngine)
+    }
+    return this
+  }
+
+  /**
+   * Retrieves list items from a shape or text box by name or placeholder tag.
+   *
+   * @param {string} tag - Shape name/ID or placeholder tag.
+   * @returns {Array} Nested list structure of items.
+   */
+  getList(tag) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const idx = targetIndices.length > 0 ? targetIndices[0] : 1
+    return this.#textManager.getList(idx, tag, this.#slideManager)
+  }
+
+  /**
+   * Validates a list structure and values.
+   *
+   * @param {Object|Array} data - List config object or array of items.
+   * @returns {Object} Report containing validation result.
+   */
+  validateList(data) {
+    return ValidationEngine.validateList(data)
+  }
+
   // === Text Features ===
   replaceTextByTag(tag, value, options = {}) {
     this.#assertLoaded()

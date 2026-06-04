@@ -109,11 +109,17 @@ async function main() {
     ppt.updateChart('Label Chart', {
       categories: [''],
       series: [
-        { name: 'Product A', values: [{ data: 145, label: '145 (18.24%)' }] },
-        { name: 'Product B', values: [{ data: 210, label: '210 (26.42%)' }] },
-        { name: 'Product C', values: [{ data: 190, label: '190 (23.9%)' }] },
-        { name: 'Product D', values: [{ data: 250, label: '250 (31.45%)' }] },
+        { name: 'Product A', values: [{ data: 145, label: '145\n(18.24%)' }] },
+        { name: 'Product B', values: [{ data: 210, label: '210\n(26.42%)' }] },
+        { name: 'Product C', values: [{ data: 190, label: '190\n(23.9%)' }] },
+        { name: 'Product D', values: [] },
       ],
+    })
+
+    ppt.useSlide(4)
+
+    ppt.updateText('List', {
+      list: ['Fast PPTX generation', 'OpenXML based', 'Chart updates', 'Table updates'],
     })
 
     // Step 3: Save to file

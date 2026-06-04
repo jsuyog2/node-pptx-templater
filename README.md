@@ -718,6 +718,44 @@ Adds a special navigation link (next, previous, first, last slide) to a shape or
 ppt.useSlide(1).addShapeNavigationLink(options);
 ```
 
+#### `updateText(tag, data)`
+Updates shape text or list content by placeholder tag or shape name/ID. Supports bullet lists, numbered lists, nested lists, and custom styling.
+
+* **Arguments**:
+  * `tag` (`string`): Placeholder tag (e.g. '{{name}}' or 'name') or shape name/ID.
+  * `data` (`string|Object`): String value or list configuration object.
+* **Returns**: `PPTXTemplater` - this (chainable)
+
+```javascript
+ppt.useSlide(1).updateText('Features', {
+  list: ['Point A', 'Point B', 'Point C']
+});
+```
+
+#### `getList(tag)`
+Retrieves list items from a shape or text box by name or placeholder tag.
+
+* **Arguments**:
+  * `tag` (`string`): Shape name/ID or placeholder tag.
+* **Returns**: `Array` - Nested list structure of items.
+
+```javascript
+const items = ppt.useSlide(1).getList('Features');
+console.log(items); // ['A', { text: 'B', children: [...] }]
+```
+
+#### `validateList(data)`
+Validates a list structure and values.
+
+* **Arguments**:
+  * `data` (`Object|Array`): List config object or array of items.
+* **Returns**: `Object` - Report containing validation result.
+
+```javascript
+const result = ppt.validateList(['Valid string', 'Another item']);
+console.log(result.valid);
+```
+
 #### `replaceTextByTag(())`
 Delegates core actions to slide element sub-managers.
 
@@ -1377,6 +1415,93 @@ ppt.useSlide(1).updateChart('RevenueChart', {
 ```
 
 To preserve PowerPoint integrity, the engine ensures that if one value contains a label, all values in that series must have labels, and the label properties must be string values.
+
+---
+
+## 📋 Native Lists (Bullet & Numbered Lists)
+
+PPTXForge supports native PowerPoint bullet lists and numbered lists across text placeholders, shapes, text boxes, table cells, and grouped shapes. When generating lists, the engine preserves run styles, custom bullet characters, indentation, and color overlays, generating valid OpenXML/DrawingML without repair alerts.
+
+### 1. Basic Bullet List
+Update a shape or text placeholder to be a bullet list:
+
+```javascript
+ppt.useSlide(1).updateText('Features', {
+  list: [
+    'Fast PPTX generation',
+    'OpenXML based',
+    'Chart updates',
+    'Table updates'
+  ]
+});
+```
+
+### 2. Numbered / Ordered List
+Use the `ordered` flag to convert the list to a numbered format:
+
+```javascript
+ppt.useSlide(1).updateText('Steps', {
+  ordered: true,
+  list: [
+    'Import template',
+    'Update data',
+    'Generate PPTX'
+  ]
+});
+```
+* Custom numbering systems can be specified with `style.numberType` (e.g., `arabicPeriod`, `alphaLcParen`, `romanUcPeriod`).
+
+### 3. Nested / Multi-Level Lists
+Construct hierarchy by passing objects containing a `text` string and a `children` array:
+
+```javascript
+ppt.useSlide(1).updateText('Requirements', {
+  list: [
+    'Frontend',
+    {
+      text: 'Backend Development',
+      children: [
+        'Node.js',
+        {
+          text: 'Databases',
+          children: ['MS SQL', 'PostgreSQL']
+        }
+      ]
+    }
+  ]
+});
+```
+
+### 4. Custom List Styling
+Customize bullet characters, colors, sizes, and font properties:
+
+```javascript
+ppt.useSlide(1).updateText('KPIs', {
+  list: ['Revenue Up', 'Margins Normal'],
+  style: {
+    fontFamily: 'Arial',
+    fontSize: 18,
+    color: '#0055AA',
+    bulletColor: '#FF5500',
+    bulletChar: '✦',
+    bulletSize: 120 // Percentage relative to text (e.g. 120%)
+  }
+});
+```
+
+### 5. Table Cell Lists
+You can also generate list hierarchies directly inside a cell of a DrawingML table:
+
+```javascript
+ppt.useSlide(3).updateTable('sales-table', [
+  ['Category', 'Performance details'],
+  ['North Region', '{{CellPlaceholder}}']
+]);
+
+ppt.updateText('CellPlaceholder', {
+  list: ['Table Bullet 1', 'Table Bullet 2']
+});
+```
 
 ---
 

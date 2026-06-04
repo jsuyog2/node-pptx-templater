@@ -207,18 +207,51 @@ describe('Chart Data Labels Integration Tests', () => {
       })
     }).toThrow('Data value must be numeric in series Product A')
 
-    // Series length mismatch
-    expect(() => {
-      ppt.useSlide(1).updateChart('Chart', {
-        categories: ['Q1', 'Q2'],
-        series: [
-          {
-            name: 'Product A',
-            values: [100, 200, 300], // 3 values instead of 2
-          },
-        ],
-      })
-    }).toThrow('Series lengths mismatch')
+    // Series length mismatch: should support padding or truncating series values length mismatches
+    const data1 = {
+      categories: ['Q1', 'Q2'],
+      series: [
+        {
+          name: 'Product A',
+          values: [100, 200, 300], // 3 values instead of 2
+        },
+      ],
+    }
+    ppt.useSlide(1).updateChart('Chart', data1)
+    expect(data1.series[0].values).toEqual([100, 200])
+
+    // Padding: passing 1 value instead of 2
+    const data2 = {
+      categories: ['Q1', 'Q2'],
+      series: [
+        {
+          name: 'Product B',
+          values: [100],
+        },
+      ],
+    }
+    ppt.useSlide(1).updateChart('Chart', data2)
+    expect(data2.series[0].values).toEqual([100, null])
+
+    // Title update and empty pt check
+    const data3 = {
+      title: 'New Dynamic Chart Title',
+      categories: ['Q1', 'Q2'],
+      series: [
+        {
+          name: 'Product C',
+          values: [100, null],
+        },
+      ],
+    }
+    ppt.useSlide(1).updateChart('Chart', data3)
+    const buffer = await ppt.toBuffer()
+    const ppt2 = await PPTXTemplater.load(buffer)
+    const xml = await ppt2.zipManager.readFile('ppt/charts/chart1.xml')
+    expect(xml).toContain('New Dynamic Chart Title')
+    expect(xml).toContain(
+      '<c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="2"/><c:pt idx="0"><c:v>100</c:v></c:pt><c:pt idx="1"/></c:numCache>'
+    )
   })
 
   it('should preserve existing styles (txPr, dLblPos, show tags) when updating labels', async () => {

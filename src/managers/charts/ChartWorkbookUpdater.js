@@ -123,6 +123,22 @@ class ChartWorkbookUpdater {
   static #updateCellGrid(cells, data) {
     const { categories = [], series = [] } = data
 
+    // Clear cells that are outside the new category/series grid
+    const maxRow = categories.length + 1
+    const maxCol = series.length // Column A is 0, Column B is 1, etc.
+
+    for (const ref of Object.keys(cells)) {
+      const match = /^([A-Z]+)(\d+)$/.exec(ref)
+      if (match) {
+        const colLetter = match[1]
+        const row = parseInt(match[2], 10)
+        const col = this.colLetterToNum(colLetter)
+        if (row > maxRow || col > maxCol) {
+          delete cells[ref]
+        }
+      }
+    }
+
     // 1. Write Header A1 as empty
     cells['A1'] = ''
 
@@ -142,7 +158,7 @@ class ChartWorkbookUpdater {
       const colLetter = this.getColumnLetter(colIndex + 1)
       if (ser.values) {
         ser.values.forEach((val, rowIndex) => {
-          cells[`${colLetter}${rowIndex + 2}`] = val !== undefined ? val : 0
+          cells[`${colLetter}${rowIndex + 2}`] = val !== undefined ? val : null
         })
       }
     })
@@ -203,7 +219,9 @@ class ChartWorkbookUpdater {
         if (colNum > maxColNum) maxColNum = colNum
 
         const val = cells[ref]
-        if (typeof val === 'number') {
+        if (val === null || val === undefined) {
+          sheetData += `<c r="${ref}" t="inlineStr"><is><t></t></is></c>`
+        } else if (typeof val === 'number') {
           sheetData += `<c r="${ref}"><v>${val}</v></c>`
         } else {
           sheetData += `<c r="${ref}" t="inlineStr"><is><t>${this.#escapeXml(String(val))}</t></is></c>`
