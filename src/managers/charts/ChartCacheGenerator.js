@@ -293,16 +293,17 @@ class ChartCacheGenerator {
           if (countMatch) pointsCount = parseInt(countMatch[1], 10)
         }
       }
-      if (pointsCount === 0 && options.labels) {
-        pointsCount = options.labels.length
-      }
 
-      // Parse existing styling and flags from the current <c:dLbls> block
       let existingTxPr = ''
       let existingDLblPos = ''
       let existingNumFmt = ''
       let existingSpPr = ''
+      let existingExtLst = ''
+      let existingShowLeaderLines = ''
       const existingDLblSpPrs = {}
+      const existingDLblTxPrs = {}
+      const existingDLblLayouts = {}
+      const existingDLblPositions = {}
       const existingShowTags = {}
 
       const dLblsMatch = /<c:dLbls>([\s\S]*?)<\/c:dLbls>/.exec(content)
@@ -324,8 +325,16 @@ class ChartCacheGenerator {
         if (spPrMatch) {
           existingSpPr = spPrMatch[1]
         }
+        const extLstMatch = /(<c:extLst>[\s\S]*?<\/c:extLst>)/.exec(dLblsContent)
+        if (extLstMatch) {
+          existingExtLst = extLstMatch[1]
+        }
+        const showLeaderMatch = /(<c:showLeaderLines\s+[^>]*\/>)/.exec(dLblsContent)
+        if (showLeaderMatch) {
+          existingShowLeaderLines = showLeaderMatch[1]
+        }
 
-        // Parse individual <c:dLbl> shape properties to map their background fills
+        // Parse individual <c:dLbl> properties: fills, text styling, layouts, and positions
         const dLblPattern = /<c:dLbl>([\s\S]*?)<\/c:dLbl>/g
         let dLblMatch
         while ((dLblMatch = dLblPattern.exec(dLblsContent)) !== null) {
@@ -336,6 +345,18 @@ class ChartCacheGenerator {
             const dLblSpPrMatch = /(<c:spPr>[\s\S]*?<\/c:spPr>)/.exec(dLblContent)
             if (dLblSpPrMatch) {
               existingDLblSpPrs[idx] = dLblSpPrMatch[1]
+            }
+            const dLblTxPrMatch = /(<c:txPr>[\s\S]*?<\/c:txPr>)/.exec(dLblContent)
+            if (dLblTxPrMatch) {
+              existingDLblTxPrs[idx] = dLblTxPrMatch[1]
+            }
+            const dLblLayoutMatch = /(<c:layout>[\s\S]*?<\/c:layout>|<c:layout\/>)/.exec(dLblContent)
+            if (dLblLayoutMatch) {
+              existingDLblLayouts[idx] = dLblLayoutMatch[1]
+            }
+            const dLblPosMatch = /(<c:dLblPos\s+[^>]*\/>)/.exec(dLblContent)
+            if (dLblPosMatch) {
+              existingDLblPositions[idx] = dLblPosMatch[1]
             }
           }
         }
@@ -367,7 +388,12 @@ class ChartCacheGenerator {
         existingNumFmt,
         existingShowTags,
         existingSpPr,
-        existingDLblSpPrs
+        existingDLblSpPrs,
+        existingDLblTxPrs,
+        existingDLblLayouts,
+        existingDLblPositions,
+        existingExtLst,
+        existingShowLeaderLines
       )
 
       let updatedContent = content
@@ -397,7 +423,12 @@ class ChartCacheGenerator {
     existingNumFmt = '',
     existingShowTags = {},
     existingSpPr = '',
-    existingDLblSpPrs = {}
+    existingDLblSpPrs = {},
+    existingDLblTxPrs = {},
+    existingDLblLayouts = {},
+    existingDLblPositions = {},
+    existingExtLst = '',
+    existingShowLeaderLines = ''
   ) {
     const {
       labels,
@@ -463,6 +494,11 @@ class ChartCacheGenerator {
         xml += `<c:dLbl>`
         xml += `<c:idx val="${i}"/>`
 
+        // Restore per-point layout (manual position offsets) from template
+        if (existingDLblLayouts && existingDLblLayouts[i]) {
+          xml += existingDLblLayouts[i]
+        }
+
         if (labelsFromCells && !template) {
           const range = ChartWorkbookUpdater.parseCellRange(labelsFromCells)
           const startColNum = ChartWorkbookUpdater.colLetterToNum(range.startCol)
@@ -510,8 +546,9 @@ class ChartCacheGenerator {
             let bodyPr = '<a:bodyPr/>'
             let pPrXml = ''
             let rPrXml = ''
-            if (existingTxPr) {
-              const extracted = this.extractTxPrParts(existingTxPr)
+            const dLblTxPr = (existingDLblTxPrs && existingDLblTxPrs[i]) || existingTxPr
+            if (dLblTxPr) {
+              const extracted = this.extractTxPrParts(dLblTxPr)
               bodyPr = extracted.bodyPr
               pPrXml = extracted.pPrXml
               rPrXml = extracted.rPrXml
@@ -556,12 +593,16 @@ class ChartCacheGenerator {
 
         if (labelStyle) {
           xml += this.generateTxPrXml(labelStyle)
+        } else if (existingDLblTxPrs && existingDLblTxPrs[i]) {
+          xml += existingDLblTxPrs[i]
         } else if (existingTxPr) {
           xml += existingTxPr
         }
 
         if (openxmlPos) {
           xml += `<c:dLblPos val="${openxmlPos}"/>`
+        } else if (existingDLblPositions && existingDLblPositions[i]) {
+          xml += existingDLblPositions[i]
         } else if (existingDLblPos) {
           xml += existingDLblPos
         }
@@ -646,6 +687,14 @@ class ChartCacheGenerator {
       xml += existingShowTags['showBubbleSize']
     } else {
       xml += `<c:showBubbleSize val="0"/>`
+    }
+
+    // Restore showLeaderLines and extension list from template
+    if (existingShowLeaderLines) {
+      xml += existingShowLeaderLines
+    }
+    if (existingExtLst) {
+      xml += existingExtLst
     }
 
     xml += '</c:dLbls>'

@@ -69,24 +69,43 @@ class ShapeManager {
       throw new PPTXError(`Shape "${shapeId}" not found in slide ${slideIndex}`)
     }
 
-    const xfrm = res.shape['p:spPr']?.['a:xfrm']
-    if (xfrm) {
-      if (options.x !== undefined) {
-        if (!xfrm['a:off']) xfrm['a:off'] = {}
-        xfrm['a:off']['@_x'] = String(Math.round(options.x))
-      }
-      if (options.y !== undefined) {
-        if (!xfrm['a:off']) xfrm['a:off'] = {}
-        xfrm['a:off']['@_y'] = String(Math.round(options.y))
-      }
-      if (options.width !== undefined) {
-        if (!xfrm['a:ext']) xfrm['a:ext'] = {}
-        xfrm['a:ext']['@_cx'] = String(Math.round(options.width))
-      }
-      if (options.height !== undefined) {
-        if (!xfrm['a:ext']) xfrm['a:ext'] = {}
-        xfrm['a:ext']['@_cy'] = String(Math.round(options.height))
-      }
+    if (!res.shape['p:spPr']) {
+      res.shape['p:spPr'] = {}
+    }
+    if (!res.shape['p:spPr']['a:xfrm']) {
+      res.shape['p:spPr']['a:xfrm'] = {}
+    }
+    const xfrm = res.shape['p:spPr']['a:xfrm']
+
+    if (!xfrm['a:off']) {
+      xfrm['a:off'] = {}
+    }
+    if (!xfrm['a:ext']) {
+      xfrm['a:ext'] = {}
+    }
+
+    if (options.x !== undefined) {
+      xfrm['a:off']['@_x'] = String(Math.round(options.x))
+    } else if (xfrm['a:off']['@_x'] === undefined) {
+      xfrm['a:off']['@_x'] = '0'
+    }
+
+    if (options.y !== undefined) {
+      xfrm['a:off']['@_y'] = String(Math.round(options.y))
+    } else if (xfrm['a:off']['@_y'] === undefined) {
+      xfrm['a:off']['@_y'] = '0'
+    }
+
+    if (options.width !== undefined) {
+      xfrm['a:ext']['@_cx'] = String(Math.round(options.width))
+    } else if (xfrm['a:ext']['@_cx'] === undefined) {
+      xfrm['a:ext']['@_cx'] = '0'
+    }
+
+    if (options.height !== undefined) {
+      xfrm['a:ext']['@_cy'] = String(Math.round(options.height))
+    } else if (xfrm['a:ext']['@_cy'] === undefined) {
+      xfrm['a:ext']['@_cy'] = '0'
     }
 
     const decl = this.#xmlParser.extractDeclaration(slideXml)

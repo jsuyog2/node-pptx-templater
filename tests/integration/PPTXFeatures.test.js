@@ -132,6 +132,24 @@ describe('PPTXTemplater - Extended Features & Safety', () => {
         ppt.updateTextBoxPosition('NonExistentTextBox', { x: 100 })
       }).toThrow('Textbox "NonExistentTextBox" not found in slide 3')
 
+      // Test updating a shape that has no existing position (null xfrm)
+      ppt.useSlide(1)
+      const shapesOnSlide1 = ppt.getShapes()
+      const titleShape = shapesOnSlide1.find(s => s.name === 'Title')
+      expect(titleShape.position).toBeNull()
+
+      ppt.updateShapePosition('Title', { x: 500000, y: 600000, width: 700000, height: 800000 })
+      const shapesOnSlide1After = ppt.getShapes()
+      const updatedTitleShape = shapesOnSlide1After.find(s => s.name === 'Title')
+      expect(updatedTitleShape.position).not.toBeNull()
+      expect(updatedTitleShape.position.x).toBe(500000)
+      expect(updatedTitleShape.position.y).toBe(600000)
+      expect(updatedTitleShape.position.cx).toBe(700000)
+      expect(updatedTitleShape.position.cy).toBe(800000)
+
+      // Switch back to Slide 3 for remaining shape operations
+      ppt.useSlide(3)
+
       ppt.cloneShape(firstShapeId, 'ClonedShapeCopy', { offsetX: 1.0, offsetY: 0.5 })
       ppt.deleteShape('ClonedShapeCopy')
 

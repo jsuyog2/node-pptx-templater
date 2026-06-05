@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { existsSync } from 'fs'
+import { ChartCacheGenerator } from '../../src/managers/charts/ChartCacheGenerator.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const FIXTURE_FILE = resolve(__dirname, '../fixtures/sample.pptx')
@@ -55,6 +56,49 @@ describe('Chart Label Inheritance and Series Name Tests', () => {
     // Let's verify that a:r elements in the rich text contain an a:rPr element
     expect(xml).toContain('<c:rich>')
     expect(xml).toContain('<a:rPr')
+  })
+
+  it('should inherit styling from point-level template data labels when custom labels are specified', () => {
+    const mockXml = `<c:ser>
+      <c:dLbls>
+        <c:dLbl>
+          <c:idx val="0"/>
+          <c:txPr>
+            <a:bodyPr/>
+            <a:lstStyle/>
+            <a:p>
+              <a:pPr>
+                <a:defRPr sz="1400" b="1" i="1">
+                  <a:solidFill><a:srgbClr val="FF0000"/></a:solidFill>
+                  <a:latin typeface="Courier New"/>
+                </a:defRPr>
+              </a:pPr>
+            </a:p>
+          </c:txPr>
+        </c:dLbl>
+      </c:dLbls>
+      <c:val>
+        <c:numRef>
+          <c:numCache>
+            <c:ptCount val="1"/>
+            <c:pt idx="0"><c:v>100</c:v></c:pt>
+          </c:numCache>
+        </c:numRef>
+      </c:val>
+    </c:ser>`
+
+    const updatedXml = ChartCacheGenerator.updateDataLabelsInXml(mockXml, 0, {
+      labels: ['PointA'],
+    })
+
+    // Assert that the generated <c:rich> block for point 0 inherited point-level rPr
+    expect(updatedXml).toContain('<a:rPr sz="1400" b="1" i="1">')
+    expect(updatedXml).toContain('<a:solidFill><a:srgbClr val="FF0000"/></a:solidFill>')
+    expect(updatedXml).toContain('<a:latin typeface="Courier New"/>')
+
+    // Assert that the <c:txPr> block itself is also preserved inside the <c:dLbl>
+    expect(updatedXml).toContain('<c:txPr>')
+    expect(updatedXml).toContain('<a:defRPr sz="1400" b="1" i="1">')
   })
 
   it('should support showSeriesNameInBar option globally', async () => {
