@@ -373,6 +373,68 @@ Repairs common chart corruption issues such as broken caches, missing embedded w
 ppt.useSlide(1).repairCharts();
 ```
 
+#### `getChartLabelPositions(chartId)`
+Retrieves the exact coordinate positions of all data labels for a chart on the active slide. Calculates absolute layout limits in EMUs (English Metric Units).
+
+* **Arguments**:
+  * `chartId` (`string`): 
+* **Returns**: `Promise<Array<{series: string, category: string, seriesIndex: number, categoryIndex: number, value: number, x: number, y: number, width: number, height: number` - 
+
+```javascript
+const positions = await ppt.useSlide(1).getChartLabelPositions('SalesChart');
+```
+
+#### `getChartBarPositions(chartId)`
+Retrieves the exact coordinate positions of all bars/columns for a chart on the active slide. Calculates absolute layout limits in EMUs (English Metric Units).
+
+* **Arguments**:
+  * `chartId` (`string`): 
+* **Returns**: `Promise<Array<{series: string, category: string, seriesIndex: number, categoryIndex: number, value: number, x: number, y: number, width: number, height: number` - 
+
+```javascript
+const bars = await ppt.useSlide(1).getChartBarPositions('SalesChart');
+```
+
+#### `addTextAtPosition(options)`
+Adds a textbox shape at a specific EMU coordinate position on targeted slides. Supports custom font styling and alignment configuration.
+
+* **Arguments**:
+  * `options` (`Object`): 
+  * `options.text` (`string`): 
+  * `options.x` (`number`): 
+  * `options.y` (`number`): 
+  * `[options.width=1200000]` (`number`): 
+  * `[options.height=300000]` (`number`): 
+  * `[options.style]` (`Object`): 
+* **Returns**: `this` - The chainable presentation engine instance.
+
+```javascript
+ppt.useSlide(1).addTextAtPosition({
+  text: 'Label',
+  x: 1000000,
+  y: 1000000
+});
+```
+
+#### `addTextNearChartLabel(options)`
+Dynamically places textboxes next to a chart's data labels with vertical collision avoidance. Textboxes are positioned either on the left or right of the chart area, vertically aligned with their corresponding label.
+
+* **Arguments**:
+  * `options` (`Object`): 
+  * `options.chart` (`string`): 
+  * `options.text` (`string|Function`): 
+  * `[options.position='left']` (`'left'|'right'`): 
+  * `[options.style]` (`Object`): 
+* **Returns**: `this` - The chainable presentation engine instance.
+
+```javascript
+ppt.addTextNearChartLabel({
+  chart: 'SalesChart',
+  text: 'Series',
+  position: 'left'
+});
+```
+
 #### `updateChartData(())`
 Delegates core actions to slide element sub-managers.
 
@@ -442,6 +504,31 @@ Delegates core actions to slide element sub-managers.
 ```javascript
 const result = await ppt.useSlide(1).validateDataLabels('SalesChart', {
   labels: ['High', 'Low']
+});
+console.log(result.valid);
+```
+
+#### `validateChartLabels(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+const result = await ppt.useSlide(1).validateChartLabels('SalesChart', {
+  labels: ['High', 'Low']
+});
+console.log(result.valid);
+```
+
+#### `validateSeriesNameLabels(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+const result = await ppt.useSlide(1).validateSeriesNameLabels('SalesChart', {
+  enabled: true,
+  position: 'left'
 });
 console.log(result.valid);
 ```
@@ -835,6 +922,38 @@ ppt.useSlide(1).getImages(());
 ---
 
 ### Shapes API
+
+#### `updateShapePosition(shapeId, options = {})`
+Updates the position and/or dimensions of an existing shape on targeted slides.
+
+* **Arguments**:
+  * `shapeId` (`string`): 
+  * `options` (`Object`): 
+  * `[options.x]` (`number`): 
+  * `[options.y]` (`number`): 
+  * `[options.width]` (`number`): 
+  * `[options.height]` (`number`): 
+* **Returns**: `this` - The chainable presentation engine instance.
+
+```javascript
+ppt.useSlide(1).updateShapePosition('TitleShape', { x: 1000000, y: 1500000 });
+```
+
+#### `updateTextBoxPosition(textBoxId, options = {})`
+Updates the position and/or dimensions of an existing textbox on targeted slides.
+
+* **Arguments**:
+  * `textBoxId` (`string`): 
+  * `options` (`Object`): 
+  * `[options.x]` (`number`): 
+  * `[options.y]` (`number`): 
+  * `[options.width]` (`number`): 
+  * `[options.height]` (`number`): 
+* **Returns**: `this` - The chainable presentation engine instance.
+
+```javascript
+ppt.useSlide(1).updateTextBoxPosition('TextBox 2', { x: 1000000, y: 1500000 });
+```
 
 #### `updateShapeText(())`
 Delegates core actions to slide element sub-managers.
@@ -1415,6 +1534,79 @@ ppt.useSlide(1).updateChart('RevenueChart', {
 ```
 
 To preserve PowerPoint integrity, the engine ensures that if one value contains a label, all values in that series must have labels, and the label properties must be string values.
+
+### 7. Label Style Inheritance & Series Names Inside Bars
+
+#### Style Inheritance
+When custom labels (inline or via `updateDataLabels`) are generated, they inherit the styling properties (font family, font size, bold, italic, color, and alignment) defined in the template's `<c:txPr>` tag for the series. This ensures your custom labels match the branding and layout design from your PowerPoint template file.
+
+#### Series Names Inside Bars (`showSeriesNameInBar`)
+For stacked bar charts, you can show the series name inside each segment (typically centered) to make them easily readable. To enable this, set `showSeriesNameInBar: true` in the chart options (globally) or on individual series:
+
+```javascript
+ppt.useSlide(1).updateChart('RevenueChart', {
+  showSeriesNameInBar: true, // Show series name labels globally
+  categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+  series: [
+    { name: 'Product A', values: [100, 200, 300, 400] },
+    { name: 'Product B', values: [150, 250, 350, 450], showSeriesNameInBar: true } // Or per-series
+  ]
+});
+```
+
+#### Chart Labels Validation
+You can programmatically validate that the chart labels configured in a chart conform to your template structure:
+
+```javascript
+const report = await ppt.useSlide(1).validateChartLabels('RevenueChart', {
+  labels: ['Custom label 1', 'Custom label 2'],
+  showSeriesNameInBar: true
+});
+
+if (!report.valid) {
+  console.log('Errors:', report.errors);
+  console.log('Warnings:', report.warnings);
+}
+```
+
+#### External Series Name Labels (`seriesNameLabels`)
+You can position the series names outside the chart area as separate text boxes (`<p:sp>`) aligned with each corresponding bar or stack. These external labels automatically inherit the styling (font family, font size, bold, italic, color) defined in the template's series properties.
+
+Supported features:
+* **Position**: Can be set to `'left'` or `'right'` to align text boxes to the left or right of the chart.
+* **Auto-fit & Height Wrapping**: Automatically wraps text and calculates height if labels are longer than the available margin space.
+* **Collision Detection**: Prevent overlapping with slide bounds by shrinking the chart, and resolve vertical overlaps of labels by shifting them apart.
+* **Idempotency**: Safely clean up previous labels on multiple chart updates.
+
+Example usage:
+```javascript
+ppt.useSlide(1).updateChart('RevenueChart', {
+  categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+  series: [
+    { name: 'Product A', values: [100, 200, 300, 400] },
+    { name: 'Product B', values: [150, 250, 350, 450] }
+  ],
+  seriesNameLabels: {
+    enabled: true,
+    position: 'left', // 'left' or 'right'
+    autoFit: true     // Automatically wrap and shrink layout if needed (default: true)
+  }
+});
+```
+
+To validate your configuration and check for boundary or collision warning/errors:
+```javascript
+const report = await ppt.useSlide(1).validateSeriesNameLabels('RevenueChart', {
+  enabled: true,
+  position: 'left',
+  autoFit: true
+});
+
+if (!report.valid) {
+  console.error('Validation errors:', report.errors);
+  console.warn('Validation warnings:', report.warnings);
+}
+```
 
 ---
 

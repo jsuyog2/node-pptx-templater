@@ -90,6 +90,12 @@ class ChartManager {
   #chartQueues = new Map()
 
   /**
+   * Promise queue for sequential execution per slide ZIP path.
+   * @private @type {Map<string, Promise>}
+   */
+  #slideQueues = new Map()
+
+  /**
    * @param {XMLParser} xmlParser
    */
   constructor(xmlParser) {
@@ -132,7 +138,14 @@ class ChartManager {
     }
 
     logger.debug(`Updating chart "${chartId}" at ${chartInfo.zipPath}`)
-    this.#updateChartXml(chartInfo.zipPath, data, relationshipManager)
+    this.#updateChartXml(
+      chartInfo.zipPath,
+      data,
+      relationshipManager,
+      slideIndex,
+      chartId,
+      slideManager
+    )
   }
 
   /**
@@ -237,9 +250,16 @@ class ChartManager {
     this.#zipManager.addPendingPromise(nextTask)
   }
 
-  #updateChartXml(chartZipPath, data, relationshipManager) {
+  #updateChartXml(chartZipPath, data, relationshipManager, slideIndex, chartId, slideManager) {
     this.#enqueueChartTask(chartZipPath, () =>
-      this.updateChartAsync(chartZipPath, data, relationshipManager)
+      this.updateChartAsync(
+        chartZipPath,
+        data,
+        relationshipManager,
+        slideIndex,
+        chartId,
+        slideManager
+      )
     )
   }
 
@@ -251,7 +271,14 @@ class ChartManager {
    * @param {RelationshipManager} relationshipManager
    * @returns {Promise<void>}
    */
-  async updateChartAsync(chartZipPath, data, relationshipManager) {
+  async updateChartAsync(
+    chartZipPath,
+    data,
+    relationshipManager,
+    slideIndex,
+    chartId,
+    slideManager
+  ) {
     // 1. Read Chart XML
     const xml = await this.#zipManager.readFile(chartZipPath)
     if (!xml) throw new ChartNotFoundError(`Chart file not found: ${chartZipPath}`)
@@ -291,16 +318,39 @@ class ChartManager {
       }
     }
 
-    // 5. Apply custom data labels if present
+    // 5. Apply custom data labels if present or if showSeriesNameInBar is enabled
     for (let i = 0; i < seriesLabels.length; i++) {
       const labels = seriesLabels[i]
-      if (labels && labels.some(l => l !== undefined)) {
+      const ser = cleanNumericData.series[i]
+      const showSerName =
+        ser.showSeriesNameInBar !== undefined ? ser.showSeriesNameInBar : data.showSeriesNameInBar
+
+      if ((labels && labels.some(l => l !== undefined)) || showSerName) {
         const labelOptions = {
           series: i,
-          labels: labels.map(l => (l === undefined ? '' : String(l))),
+          ...(labels ? { labels: labels.map(l => (l === undefined ? '' : String(l))) } : {}),
+          showSeriesNameInBar: !!showSerName,
         }
         await this.updateDataLabelsAsync(chartZipPath, labelOptions, relationshipManager)
       }
+    }
+
+    // 6. Apply series name labels if enabled
+    if (
+      data.seriesNameLabels &&
+      slideIndex !== undefined &&
+      chartId !== undefined &&
+      slideManager !== undefined
+    ) {
+      const finalXml = await this.#zipManager.readFile(chartZipPath)
+      await this.#applySeriesNameLabels(
+        slideIndex,
+        chartId,
+        data,
+        finalXml,
+        slideManager,
+        relationshipManager
+      )
     }
   }
 
@@ -800,6 +850,1380 @@ class ChartManager {
       },
       labels: seriesLabels,
     }
+  }
+
+  async validateChartLabels(slideIndex, chartId, options, slideManager, relationshipManager) {
+    const chartInfo = this.findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
+    if (!chartInfo) {
+      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
+    }
+    const queue = this.#chartQueues.get(chartInfo.zipPath) || Promise.resolve()
+    await queue
+    const xml = await this.#zipManager.readFile(chartInfo.zipPath)
+    if (!xml) throw new ChartNotFoundError(`Chart file not found: ${chartInfo.zipPath}`)
+
+    const { ValidationEngine } = require('../core/ValidationEngine')
+    return ValidationEngine.validateChartLabels(xml, options)
+  }
+
+  async validateSeriesNameLabels(slideIndex, chartId, options, slideManager, relationshipManager) {
+    const chartInfo = this.findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
+    if (!chartInfo) {
+      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
+    }
+    const queue = this.#chartQueues.get(chartInfo.zipPath) || Promise.resolve()
+    await queue
+    const xml = await this.#zipManager.readFile(chartInfo.zipPath)
+    if (!xml) throw new ChartNotFoundError(`Chart file not found: ${chartInfo.zipPath}`)
+
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    const slideXml = await this.#zipManager.readFile(slideInfo.zipPath)
+    const xfrm = this.#findChartCoordinates(
+      slideXml,
+      chartId,
+      relationshipManager,
+      slideInfo.zipPath
+    )
+
+    const { ValidationEngine } = require('../core/ValidationEngine')
+    return ValidationEngine.validateSeriesNameLabels(xml, xfrm, options)
+  }
+
+  #findChartCoordinates(slideXml, chartId, relationshipManager, slideZipPath) {
+    const gfPattern = /<p:graphicFrame>([\s\S]*?)<\/p:graphicFrame>/g
+    let match
+    const escapedChartId = chartId.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+    while ((match = gfPattern.exec(slideXml)) !== null) {
+      const gfContent = match[0]
+      const nameMatch = /<p:cNvPr[^>]*name="([^"]+)"/.exec(gfContent)
+      const idMatch = /<p:cNvPr[^>]*id="([^"]+)"/.exec(gfContent)
+
+      let isMatch = false
+      if (nameMatch && nameMatch[1] === chartId) {
+        isMatch = true
+      } else if (idMatch && idMatch[1] === chartId) {
+        isMatch = true
+      } else {
+        const chartRIdMatch = /<c:chart[^>]*r:id="([^"]+)"/.exec(gfContent)
+        if (chartRIdMatch) {
+          const rId = chartRIdMatch[1]
+          const rel = relationshipManager.getRelationshipById(slideZipPath, rId)
+          if (rel) {
+            const chartPath = relationshipManager.resolveTarget(slideZipPath, rel.target)
+            if (chartPath.includes(chartId) || rel.id === chartId) {
+              isMatch = true
+            }
+          }
+        }
+      }
+
+      if (isMatch) {
+        const xfrmMatch = /<p:xfrm[^>]*>([\s\S]*?)<\/p:xfrm>/.exec(gfContent)
+        if (xfrmMatch) {
+          const offMatch = /<a:off\s+x="(\d+)"\s+y="(\d+)"\/>/.exec(xfrmMatch[1])
+          const extMatch = /<a:ext\s+cx="(\d+)"\s+cy="(\d+)"\/>/.exec(xfrmMatch[1])
+          if (offMatch && extMatch) {
+            return {
+              left: parseInt(offMatch[1], 10),
+              top: parseInt(offMatch[2], 10),
+              width: parseInt(extMatch[1], 10),
+              height: parseInt(extMatch[2], 10),
+            }
+          }
+        }
+      }
+    }
+    return null
+  }
+
+  #parsePlotAreaLayout(chartXml) {
+    const plotAreaMatch = /<c:plotArea>([\s\S]*?)<\/c:plotArea>/.exec(chartXml)
+    if (plotAreaMatch) {
+      const layoutMatch = /<c:layout>([\s\S]*?)<\/c:layout>/.exec(plotAreaMatch[1])
+      if (layoutMatch) {
+        const xMatch = /<c:x\s+val="([^"]+)"\/>/.exec(layoutMatch[1])
+        const yMatch = /<c:y\s+val="([^"]+)"\/>/.exec(layoutMatch[1])
+        const wMatch = /<c:w\s+val="([^"]+)"\/>/.exec(layoutMatch[1])
+        const hMatch = /<c:h\s+val="([^"]+)"\/>/.exec(layoutMatch[1])
+
+        return {
+          x: xMatch ? parseFloat(xMatch[1]) : 0.1,
+          y: yMatch ? parseFloat(yMatch[1]) : 0.1,
+          w: wMatch ? parseFloat(wMatch[1]) : 0.8,
+          h: hMatch ? parseFloat(hMatch[1]) : 0.8,
+        }
+      }
+    }
+    return { x: 0.1, y: 0.1, w: 0.8, h: 0.8 }
+  }
+
+  #parseChartTypeAndGrouping(chartXml) {
+    let dir = 'col'
+    let grouping = 'clustered'
+    let chartType = 'unknown'
+
+    if (chartXml.includes('<c:barChart>') || chartXml.includes('c:barChart')) {
+      chartType = 'bar'
+      const barDirMatch = /<c:barDir\s+val="([^"]+)"\/>/.exec(chartXml)
+      if (barDirMatch) dir = barDirMatch[1]
+
+      const groupingMatch = /<c:grouping\s+val="([^"]+)"\/>/.exec(chartXml)
+      if (groupingMatch) grouping = groupingMatch[1]
+    }
+
+    return { chartType, dir, grouping }
+  }
+
+  #resolveAxisMax(grouping, seriesValues, categoriesCount, seriesCount, chartXml) {
+    const maxMatch = /<c:max\s+val="([^"]+)"\/>/.exec(chartXml)
+    if (maxMatch) {
+      return parseFloat(maxMatch[1])
+    }
+
+    if (grouping === 'stacked' || grouping === 'percentStacked') {
+      const sums = []
+      for (let c = 0; c < categoriesCount; c++) {
+        let sum = 0
+        for (let s = 0; s < seriesCount; s++) {
+          sum += Math.abs(Number(seriesValues[s]?.[c]) || 0)
+        }
+        sums.push(sum)
+      }
+      const maxSum = Math.max(...sums, 1)
+      return this.#getAxisMax(maxSum)
+    } else {
+      let maxVal = 1
+      for (let s = 0; s < seriesCount; s++) {
+        for (let c = 0; c < categoriesCount; c++) {
+          maxVal = Math.max(maxVal, Math.abs(Number(seriesValues[s]?.[c]) || 0))
+        }
+      }
+      return this.#getAxisMax(maxVal)
+    }
+  }
+
+  #resolveSegmentsGeometry(geom) {
+    const segments = []
+    const fontSize = 10
+    const emuPerPt = 12700
+    const {
+      plotLeft,
+      plotTop,
+      plotWidth,
+      plotHeight,
+      dir,
+      grouping,
+      categories,
+      seriesCount,
+      categoriesCount,
+      seriesValues,
+      seriesNames,
+      axisMax,
+    } = geom
+
+    for (let c = 0; c < categoriesCount; c++) {
+      const categoryName = categories[c] !== undefined ? String(categories[c]) : `Category ${c + 1}`
+
+      if (dir === 'col') {
+        const colWidth = plotWidth / Math.max(1, categoriesCount)
+        const colLeftX = plotLeft + c * colWidth
+        const colCenterX = colLeftX + colWidth / 2
+
+        if (grouping === 'stacked' || grouping === 'percentStacked') {
+          let categorySum = 0
+          for (let s = 0; s < seriesCount; s++) {
+            categorySum += Math.abs(Number(seriesValues[s]?.[c]) || 0)
+          }
+          if (categorySum === 0) categorySum = 1
+
+          const barWidth = colWidth * 0.6
+          const barLeft = colCenterX - barWidth / 2
+
+          let cumulative = 0
+          for (let s = 0; s < seriesCount; s++) {
+            const val = Number(seriesValues[s]?.[c]) || 0
+            const absVal = Math.abs(val)
+            const nextCumulative = cumulative + absVal
+
+            let segBottomY, segTopY
+            if (grouping === 'percentStacked') {
+              segBottomY = plotTop + plotHeight - plotHeight * (cumulative / categorySum)
+              segTopY = plotTop + plotHeight - plotHeight * (nextCumulative / categorySum)
+            } else {
+              segBottomY = plotTop + plotHeight - plotHeight * (cumulative / axisMax)
+              segTopY = plotTop + plotHeight - plotHeight * (nextCumulative / axisMax)
+            }
+
+            const segHeight = Math.max(0, segBottomY - segTopY)
+            const segCenterY = (segBottomY + segTopY) / 2
+            const seriesName = seriesNames[s] || `Series ${s + 1}`
+
+            const labelText = String(val)
+            const lblWidth = labelText.length * fontSize * 0.55 * emuPerPt
+            const lblHeight = fontSize * 1.2 * emuPerPt
+
+            segments.push({
+              series: seriesName,
+              category: categoryName,
+              seriesIndex: s,
+              categoryIndex: c,
+              value: val,
+              bar: {
+                x: Math.round(barLeft),
+                y: Math.round(segTopY),
+                width: Math.round(barWidth),
+                height: Math.round(segHeight),
+              },
+              label: {
+                x: Math.round(colCenterX - lblWidth / 2),
+                y: Math.round(segCenterY - lblHeight / 2),
+                width: Math.round(lblWidth),
+                height: Math.round(lblHeight),
+              },
+            })
+
+            cumulative = nextCumulative
+          }
+        } else {
+          const slotWidth = colWidth / Math.max(1, seriesCount)
+          const barWidth = slotWidth * 0.8
+
+          for (let s = 0; s < seriesCount; s++) {
+            const val = Number(seriesValues[s]?.[c]) || 0
+            const slotLeftX = colLeftX + s * slotWidth
+            const slotCenterX = slotLeftX + slotWidth / 2
+            const barLeft = slotCenterX - barWidth / 2
+
+            const barHeight = plotHeight * (Math.abs(val) / axisMax)
+            let barTopY, barBottomY
+            if (val >= 0) {
+              barTopY = plotTop + plotHeight - barHeight
+              barBottomY = plotTop + plotHeight
+            } else {
+              barTopY = plotTop + plotHeight
+              barBottomY = plotTop + plotHeight + barHeight
+            }
+
+            const seriesName = seriesNames[s] || `Series ${s + 1}`
+            const labelText = String(val)
+            const lblWidth = labelText.length * fontSize * 0.55 * emuPerPt
+            const lblHeight = fontSize * 1.2 * emuPerPt
+            const segCenterY = (barTopY + barBottomY) / 2
+
+            segments.push({
+              series: seriesName,
+              category: categoryName,
+              seriesIndex: s,
+              categoryIndex: c,
+              value: val,
+              bar: {
+                x: Math.round(barLeft),
+                y: Math.round(barTopY),
+                width: Math.round(barWidth),
+                height: Math.round(barBottomY - barTopY),
+              },
+              label: {
+                x: Math.round(slotCenterX - lblWidth / 2),
+                y: Math.round(segCenterY - lblHeight / 2),
+                width: Math.round(lblWidth),
+                height: Math.round(lblHeight),
+              },
+            })
+          }
+        }
+      } else {
+        const rowHeight = plotHeight / Math.max(1, categoriesCount)
+        const catTopY = plotTop + c * rowHeight
+        const catCenterY = catTopY + rowHeight / 2
+
+        if (grouping === 'stacked' || grouping === 'percentStacked') {
+          let categorySum = 0
+          for (let s = 0; s < seriesCount; s++) {
+            categorySum += Math.abs(Number(seriesValues[s]?.[c]) || 0)
+          }
+          if (categorySum === 0) categorySum = 1
+
+          const barHeight = rowHeight * 0.6
+          const barTop = catCenterY - barHeight / 2
+
+          let cumulative = 0
+          for (let s = 0; s < seriesCount; s++) {
+            const val = Number(seriesValues[s]?.[c]) || 0
+            const absVal = Math.abs(val)
+            const nextCumulative = cumulative + absVal
+
+            let segLeftX, segRightX
+            if (grouping === 'percentStacked') {
+              segLeftX = plotLeft + plotWidth * (cumulative / categorySum)
+              segRightX = plotLeft + plotWidth * (nextCumulative / categorySum)
+            } else {
+              segLeftX = plotLeft + plotWidth * (cumulative / axisMax)
+              segRightX = plotLeft + plotWidth * (nextCumulative / axisMax)
+            }
+
+            const segWidth = Math.max(0, segRightX - segLeftX)
+            const segCenterX = (segLeftX + segRightX) / 2
+            const seriesName = seriesNames[s] || `Series ${s + 1}`
+
+            const labelText = String(val)
+            const lblWidth = labelText.length * fontSize * 0.55 * emuPerPt
+            const lblHeight = fontSize * 1.2 * emuPerPt
+
+            segments.push({
+              series: seriesName,
+              category: categoryName,
+              seriesIndex: s,
+              categoryIndex: c,
+              value: val,
+              bar: {
+                x: Math.round(segLeftX),
+                y: Math.round(barTop),
+                width: Math.round(segWidth),
+                height: Math.round(barHeight),
+              },
+              label: {
+                x: Math.round(segCenterX - lblWidth / 2),
+                y: Math.round(catCenterY - lblHeight / 2),
+                width: Math.round(lblWidth),
+                height: Math.round(lblHeight),
+              },
+            })
+
+            cumulative = nextCumulative
+          }
+        } else {
+          const slotHeight = rowHeight / Math.max(1, seriesCount)
+          const barHeight = slotHeight * 0.8
+
+          for (let s = 0; s < seriesCount; s++) {
+            const val = Number(seriesValues[s]?.[c]) || 0
+            const slotTopY = catTopY + s * slotHeight
+            const slotCenterY = slotTopY + slotHeight / 2
+            const barTop = slotCenterY - barHeight / 2
+
+            const barWidth = plotWidth * (Math.abs(val) / axisMax)
+            let barLeftX, barRightX
+            if (val >= 0) {
+              barLeftX = plotLeft
+              barRightX = plotLeft + barWidth
+            } else {
+              barLeftX = plotLeft - barWidth
+              barRightX = plotLeft
+            }
+
+            const seriesName = seriesNames[s] || `Series ${s + 1}`
+            const labelText = String(val)
+            const lblWidth = labelText.length * fontSize * 0.55 * emuPerPt
+            const lblHeight = fontSize * 1.2 * emuPerPt
+            const segCenterX = (barLeftX + barRightX) / 2
+
+            segments.push({
+              series: seriesName,
+              category: categoryName,
+              seriesIndex: s,
+              categoryIndex: c,
+              value: val,
+              bar: {
+                x: Math.round(barLeftX),
+                y: Math.round(barTop),
+                width: Math.round(barRightX - barLeftX),
+                height: Math.round(barHeight),
+              },
+              label: {
+                x: Math.round(segCenterX - lblWidth / 2),
+                y: Math.round(slotCenterY - lblHeight / 2),
+                width: Math.round(lblWidth),
+                height: Math.round(lblHeight),
+              },
+            })
+          }
+        }
+      }
+    }
+
+    return segments
+  }
+
+  #resolveBarSegmentCoordinates(
+    plotLeft,
+    plotTop,
+    plotWidth,
+    plotHeight,
+    dir,
+    grouping,
+    categoriesCount,
+    seriesCount,
+    seriesValues,
+    axisMax
+  ) {
+    const categories = Array.from({ length: categoriesCount }, (_, i) => `Category ${i + 1}`)
+    const seriesNames = Array.from({ length: seriesCount }, (_, i) => `Series ${i + 1}`)
+    const geom = {
+      plotLeft,
+      plotTop,
+      plotWidth,
+      plotHeight,
+      dir,
+      grouping,
+      categories,
+      seriesCount,
+      categoriesCount,
+      seriesValues,
+      seriesNames,
+      axisMax,
+    }
+    const segments = this.#resolveSegmentsGeometry(geom)
+    return segments.map(seg => ({
+      seriesIndex: seg.seriesIndex,
+      categoryIndex: seg.categoryIndex,
+      x: seg.label.x + seg.label.width / 2,
+      y: seg.label.y + seg.label.height / 2,
+    }))
+  }
+
+  #cleanRPrAttributes(attrs) {
+    if (!attrs) return 'lang="en-US"'
+
+    const attrMap = {}
+    const pattern = /([a-zA-Z0-9:]+)="([^"]*)"/g
+    let match
+    while ((match = pattern.exec(attrs)) !== null) {
+      attrMap[match[1]] = match[2]
+    }
+
+    delete attrMap['u']
+    delete attrMap['strike']
+    delete attrMap['kern']
+    delete attrMap['baseline']
+    delete attrMap['spc']
+    delete attrMap['dirty']
+    delete attrMap['smtClean']
+
+    if (attrMap['b'] === '0' || attrMap['b'] === 'false') delete attrMap['b']
+    if (attrMap['i'] === '0' || attrMap['i'] === 'false') delete attrMap['i']
+
+    if (!attrMap['lang']) {
+      attrMap['lang'] = 'en-US'
+    }
+
+    return Object.entries(attrMap)
+      .map(([k, v]) => `${k}="${v}"`)
+      .join(' ')
+  }
+
+  #resolveVerticalCollisions(labels, plotTop, plotBottom) {
+    labels.sort((a, b) => a.targetY - b.targetY)
+    const N = labels.length
+    for (let iter = 0; iter < 100; iter++) {
+      let moved = false
+      for (let i = 0; i < N - 1; i++) {
+        const curr = labels[i]
+        const next = labels[i + 1]
+
+        const currBottom = curr.y + curr.height / 2
+        const nextTop = next.y - next.height / 2
+
+        if (currBottom > nextTop) {
+          const overlap = currBottom - nextTop
+          curr.y -= overlap / 2
+          next.y += overlap / 2
+          moved = true
+        }
+      }
+
+      for (let i = 0; i < N; i++) {
+        const lbl = labels[i]
+        const halfH = lbl.height / 2
+        if (lbl.y - halfH < plotTop) {
+          lbl.y = plotTop + halfH
+        }
+        if (lbl.y + halfH > plotBottom) {
+          lbl.y = plotBottom - halfH
+        }
+      }
+
+      if (!moved) break
+    }
+  }
+
+  #escapeXml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;')
+  }
+
+  async #applySeriesNameLabels(
+    slideIndex,
+    chartId,
+    data,
+    chartXml,
+    slideManager,
+    relationshipManager
+  ) {
+    const options = data.seriesNameLabels
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    const slideZipPath = slideInfo.zipPath
+
+    const queue = this.#slideQueues.get(slideZipPath) || Promise.resolve()
+    const nextTask = queue.then(async () => {
+      let slideXml = await this.#zipManager.readFile(slideZipPath)
+
+      const escapedChartId = chartId.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+      const shapePattern = new RegExp(
+        `<p:sp>(?:(?!<p:sp>)[\\s\\S])*?name="SeriesNameLabel-${escapedChartId}-\\d+(?:-\\d+)?"(?:(?!<\\/p:sp>)[\\s\\S])*?<\\/p:sp>`,
+        'g'
+      )
+      slideXml = slideXml.replace(shapePattern, '')
+
+      if (!options.enabled) {
+        this.#zipManager.writeFile(slideZipPath, slideXml)
+        return
+      }
+
+      const chartXfrm = this.#findChartCoordinates(
+        slideXml,
+        chartId,
+        relationshipManager,
+        slideZipPath
+      )
+      if (!chartXfrm) {
+        logger.warn(`Could not find coordinates for chart "${chartId}" on slide ${slideIndex}`)
+        this.#zipManager.writeFile(slideZipPath, slideXml)
+        return
+      }
+
+      const plotLayout = this.#parsePlotAreaLayout(chartXml)
+      const { dir, grouping } = this.#parseChartTypeAndGrouping(chartXml)
+
+      const normalized = this.#normalizeChartData(data)
+      const cleanNumericData = normalized.cleanData
+
+      const categoriesCount = cleanNumericData.categories ? cleanNumericData.categories.length : 1
+      const seriesCount = cleanNumericData.series ? cleanNumericData.series.length : 0
+      const seriesValues = cleanNumericData.series.map(s => s.values || [])
+      const seriesNames = cleanNumericData.series.map(s => s.name || '')
+
+      const axisMax = this.#resolveAxisMax(
+        grouping,
+        seriesValues,
+        categoriesCount,
+        seriesCount,
+        chartXml
+      )
+
+      const txPrMatch = /<c:txPr>([\s\S]*?)<\/c:txPr>/.exec(chartXml)
+      const existingTxPr = txPrMatch ? txPrMatch[1] : ''
+      const { ChartCacheGenerator } = require('./charts/ChartCacheGenerator.js')
+      const { bodyPr, pPrXml, rPrXml } = ChartCacheGenerator.extractTxPrParts(existingTxPr)
+
+      const szMatch = /sz="(\d+)"/.exec(rPrXml)
+      let fontSize = szMatch ? parseInt(szMatch[1], 10) / 100 : 10
+      if (options.style && options.style.fontSize !== undefined) {
+        fontSize = Number(options.style.fontSize)
+      }
+
+      const position = options.position || 'left'
+      const autoFit = options.autoFit !== false
+      const emuPerPt = 12700
+      const charAspect = 0.55
+      const spacing = 200000
+
+      const labelItems = []
+      let maxLabelWidth = 0
+
+      for (let s = 0; s < seriesCount; s++) {
+        const seriesName = seriesNames[s] || `Series ${s + 1}`
+        const textWidth = seriesName.length * fontSize * charAspect * emuPerPt
+        maxLabelWidth = Math.max(maxLabelWidth, textWidth)
+        labelItems.push({
+          seriesIndex: s,
+          seriesName,
+          textWidth,
+        })
+      }
+
+      const slideWidth = 12192000
+      const fontEmuHeight = fontSize * 1.2 * emuPerPt
+
+      const labelsForCollision = labelItems.map(item => {
+        let maxWidth = maxLabelWidth
+        if (position === 'left') {
+          maxWidth = chartXfrm.left - spacing
+        } else {
+          maxWidth = slideWidth - (chartXfrm.left + chartXfrm.width) - spacing
+        }
+        maxWidth = Math.max(100000, maxWidth)
+
+        let boxWidth = item.textWidth
+        let boxHeight = fontEmuHeight
+        if (autoFit) {
+          if (boxWidth > maxWidth) {
+            boxWidth = maxWidth
+            const lines = Math.ceil(item.textWidth / maxWidth)
+            boxHeight = lines * fontEmuHeight
+          }
+        } else {
+          const standardWidth = 1371600
+          boxWidth = Math.min(standardWidth, maxWidth)
+          if (item.textWidth > boxWidth) {
+            const lines = Math.ceil(item.textWidth / boxWidth)
+            boxHeight = lines * fontEmuHeight
+          }
+        }
+
+        const segments = this.#resolveSegmentsGeometry({
+          plotLeft: chartXfrm.left + chartXfrm.width * plotLayout.x,
+          plotTop: chartXfrm.top + chartXfrm.height * plotLayout.y,
+          plotWidth: chartXfrm.width * plotLayout.w,
+          plotHeight: chartXfrm.height * plotLayout.h,
+          dir,
+          grouping,
+          categories: cleanNumericData.categories,
+          seriesCount,
+          categoriesCount,
+          seriesValues,
+          seriesNames,
+          axisMax,
+        })
+
+        const matchedSegs = segments.filter(seg => seg.seriesIndex === item.seriesIndex)
+        let sumY = 0
+        matchedSegs.forEach(seg => {
+          sumY += seg.bar.y + seg.bar.height / 2
+        })
+        const targetY =
+          matchedSegs.length > 0 ? sumY / matchedSegs.length : chartXfrm.top + chartXfrm.height / 2
+
+        return {
+          seriesIndex: item.seriesIndex,
+          name: item.seriesName,
+          targetY,
+          y: targetY,
+          width: boxWidth,
+          height: boxHeight,
+        }
+      })
+
+      this.#resolveVerticalCollisions(
+        labelsForCollision,
+        chartXfrm.top,
+        chartXfrm.top + chartXfrm.height
+      )
+
+      const finalBodyPr =
+        bodyPr ||
+        '<a:bodyPr lIns="0" tIns="0" rIns="0" bIns="0" anchor="ctr"><a:spAutoFit/></a:bodyPr>'
+      let finalPPrXml = pPrXml || '<a:pPr/>'
+      let templateRPr =
+        rPrXml ||
+        `<a:rPr lang="en-US" sz="${Math.round(fontSize * 100)}"><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:latin typeface="Arial"/></a:rPr>`
+
+      if (!templateRPr || !templateRPr.trim().startsWith('<a:rPr')) {
+        templateRPr = `<a:rPr lang="en-US" sz="${Math.round(fontSize * 100)}"><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:latin typeface="Arial"/></a:rPr>`
+      }
+      if (!finalPPrXml || !finalPPrXml.trim().startsWith('<a:pPr')) {
+        finalPPrXml = '<a:pPr/>'
+      }
+
+      let existingSolidFill = ''
+      let existingLatin = ''
+      let existingEa = ''
+      let existingCs = ''
+
+      const solidFillMatch = /(<a:solidFill>[\s\S]*?<\/a:solidFill>|<a:solidFill[^>]*\/>)/.exec(
+        templateRPr
+      )
+      if (solidFillMatch) {
+        existingSolidFill = solidFillMatch[1]
+      }
+
+      const latinMatch = /(<a:latin[^>]*\/>)/.exec(templateRPr)
+      if (latinMatch) {
+        existingLatin = latinMatch[1]
+      }
+
+      const eaMatch = /(<a:ea[^>]*\/>)/.exec(templateRPr)
+      if (eaMatch) {
+        existingEa = eaMatch[1]
+      }
+
+      const csMatch = /(<a:cs[^>]*\/>)/.exec(templateRPr)
+      if (csMatch) {
+        existingCs = csMatch[1]
+      }
+
+      const rPrStartMatch = /^<a:rPr([^>]*)>/.exec(templateRPr)
+      let rPrAttrs = rPrStartMatch ? rPrStartMatch[1] : ''
+      if (rPrAttrs.endsWith('/')) {
+        rPrAttrs = rPrAttrs.slice(0, -1)
+      }
+      rPrAttrs = rPrAttrs.trim()
+
+      const cleanedAttrs = this.#cleanRPrAttributes(rPrAttrs)
+
+      const attrMap = {}
+      const pattern = /([a-zA-Z0-9:]+)="([^"]*)"/g
+      let match
+      while ((match = pattern.exec(cleanedAttrs)) !== null) {
+        attrMap[match[1]] = match[2]
+      }
+
+      attrMap['sz'] = String(Math.round(fontSize * 100))
+      if (options.style) {
+        if (options.style.bold !== undefined) {
+          if (options.style.bold) attrMap['b'] = '1'
+          else delete attrMap['b']
+        }
+        if (options.style.italic !== undefined) {
+          if (options.style.italic) attrMap['i'] = '1'
+          else delete attrMap['i']
+        }
+        if (options.style.color !== undefined) {
+          const hexColor = String(options.style.color).replace('#', '').trim()
+          existingSolidFill = `<a:solidFill><a:srgbClr val="${hexColor}"/></a:solidFill>`
+        }
+        if (options.style.fontFamily !== undefined) {
+          const typeface = options.style.fontFamily
+          existingLatin = `<a:latin typeface="${typeface}"/>`
+          existingEa = `<a:ea typeface="${typeface}"/>`
+          existingCs = `<a:cs typeface="${typeface}"/>`
+        }
+      }
+
+      if (
+        existingSolidFill &&
+        (existingSolidFill.includes('val="bg1"') || existingSolidFill.includes('val="bg2"'))
+      ) {
+        existingSolidFill = '<a:solidFill><a:schemeClr val="tx1"/></a:solidFill>'
+      }
+
+      const finalAttrsStr = Object.entries(attrMap)
+        .map(([k, v]) => `${k}="${v}"`)
+        .join(' ')
+
+      let finalRPrXml = `<a:rPr ${finalAttrsStr}>`
+      if (existingSolidFill) finalRPrXml += existingSolidFill
+      if (existingLatin) finalRPrXml += existingLatin
+      if (existingEa) finalRPrXml += existingEa
+      if (existingCs) finalRPrXml += existingCs
+      finalRPrXml += '</a:rPr>'
+
+      let alignVal = options.style ? options.style.align : undefined
+      if (!alignVal) {
+        alignVal = position === 'left' ? 'r' : 'l'
+      } else {
+        if (alignVal === 'left') alignVal = 'l'
+        else if (alignVal === 'right') alignVal = 'r'
+        else if (alignVal === 'center') alignVal = 'ctr'
+      }
+
+      if (finalPPrXml.includes('algn=')) {
+        finalPPrXml = finalPPrXml.replace(/algn="[^"]+"/, `algn="${alignVal}"`)
+      } else if (finalPPrXml.includes('<a:pPr')) {
+        finalPPrXml = finalPPrXml.replace('<a:pPr', `<a:pPr algn="${alignVal}"`)
+      } else {
+        finalPPrXml = `<a:pPr algn="${alignVal}"/>`
+      }
+
+      const idMatchPattern = /id="(\d+)"/g
+      let idMatch
+      const existingIds = []
+      while ((idMatch = idMatchPattern.exec(slideXml)) !== null) {
+        existingIds.push(parseInt(idMatch[1], 10))
+      }
+
+      let shapesXml = ''
+      const { generateUniqueId } = require('../utils/idUtils.js')
+      for (let i = 0; i < labelsForCollision.length; i++) {
+        const lbl = labelsForCollision[i]
+        const newId = generateUniqueId(existingIds)
+        existingIds.push(newId)
+
+        let boxLeft = 0
+        if (position === 'left') {
+          boxLeft = chartXfrm.left - lbl.width - spacing
+        } else {
+          boxLeft = chartXfrm.left + chartXfrm.width + spacing
+        }
+        boxLeft = Math.max(0, boxLeft)
+        const boxTop = lbl.y - lbl.height / 2
+
+        shapesXml += `<p:sp>
+          <p:nvSpPr>
+            <p:cNvPr id="${newId}" name="SeriesNameLabel-${chartId}-${lbl.seriesIndex}"/>
+            <p:cNvSpPr txBox="1"/>
+            <p:nvPr/>
+          </p:nvSpPr>
+          <p:spPr>
+            <a:xfrm>
+              <a:off x="${Math.round(boxLeft)}" y="${Math.round(boxTop)}"/>
+              <a:ext cx="${Math.round(lbl.width)}" cy="${Math.round(lbl.height)}"/>
+            </a:xfrm>
+            <a:prstGeom prst="rect">
+              <a:avLst/>
+            </a:prstGeom>
+            <a:noFill/>
+          </p:spPr>
+          <p:txBody>
+            ${finalBodyPr}
+            <a:lstStyle/>
+            <a:p>
+              ${finalPPrXml}
+              <a:r>
+                ${finalRPrXml}
+                <a:t>${this.#escapeXml(lbl.name)}</a:t>
+              </a:r>
+              <a:endParaRPr lang="en-US"/>
+            </a:p>
+          </p:txBody>
+        </p:sp>`
+      }
+
+      const spTreeEnd = '</p:spTree>'
+      if (slideXml.includes(spTreeEnd)) {
+        slideXml = slideXml.replace(spTreeEnd, `${shapesXml}${spTreeEnd}`)
+      }
+
+      this.#zipManager.writeFile(slideZipPath, slideXml)
+    })
+
+    this.#slideQueues.set(slideZipPath, nextTask)
+    return nextTask
+  }
+
+  #getAxisMax(maxVal) {
+    if (maxVal <= 0) return 1
+    const padded = maxVal * 1.05
+    const power = Math.floor(Math.log10(padded))
+    const temp = padded / Math.pow(10, power)
+    let niceMax
+    if (temp <= 1.0) niceMax = 1.0
+    else if (temp <= 1.2) niceMax = 1.2
+    else if (temp <= 1.5) niceMax = 1.5
+    else if (temp <= 2.0) niceMax = 2.0
+    else if (temp <= 2.5) niceMax = 2.5
+    else if (temp <= 3.0) niceMax = 3.0
+    else if (temp <= 4.0) niceMax = 4.0
+    else if (temp <= 5.0) niceMax = 5.0
+    else if (temp <= 6.0) niceMax = 6.0
+    else if (temp <= 8.0) niceMax = 8.0
+    else niceMax = 10.0
+    return niceMax * Math.pow(10, power)
+  }
+
+  async #resolveChartGeometry(slideIndex, chartId, slideManager, relationshipManager) {
+    const chartInfo = this.findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
+    if (!chartInfo) {
+      throw new Error(`Chart "${chartId}" not found in slide ${slideIndex}`)
+    }
+    const queue = this.#chartQueues.get(chartInfo.zipPath) || Promise.resolve()
+    await queue
+    const chartXml = await this.#zipManager.readFile(chartInfo.zipPath)
+    if (!chartXml) {
+      throw new Error(`Chart file not found: ${chartInfo.zipPath}`)
+    }
+
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    const slideXml = await this.#zipManager.readFile(slideInfo.zipPath)
+    const chartXfrm = this.#findChartCoordinates(
+      slideXml,
+      chartId,
+      relationshipManager,
+      slideInfo.zipPath
+    )
+    if (!chartXfrm) {
+      throw new Error(`Coordinates not found for chart "${chartId}" on slide ${slideIndex}`)
+    }
+
+    const plotLayout = this.#parsePlotAreaLayout(chartXml)
+    const { dir, grouping } = this.#parseChartTypeAndGrouping(chartXml)
+
+    const chartData = this.#extractChartData(chartXml)
+    const categories = chartData.categories
+    const series = chartData.series
+
+    const categoriesCount = categories.length || 1
+    const seriesCount = series.length
+    const seriesValues = series.map(s => s.values || [])
+    const seriesNames = series.map(s => s.name || '')
+
+    const axisMax = this.#resolveAxisMax(
+      grouping,
+      seriesValues,
+      categoriesCount,
+      seriesCount,
+      chartXml
+    )
+
+    const chartLeft = chartXfrm.left
+    const chartTop = chartXfrm.top
+    const chartWidth = chartXfrm.width
+    const chartHeight = chartXfrm.height
+
+    const px = plotLayout.x
+    const py = plotLayout.y
+    const pw = plotLayout.w
+    const ph = plotLayout.h
+    const plotLeft = chartLeft + chartWidth * px
+    const plotTop = chartTop + chartHeight * py
+    const plotWidth = chartWidth * pw
+    const plotHeight = chartHeight * ph
+
+    return {
+      chartLeft,
+      chartTop,
+      chartWidth,
+      chartHeight,
+      plotLeft,
+      plotTop,
+      plotWidth,
+      plotHeight,
+      dir,
+      grouping,
+      categories,
+      series,
+      seriesCount,
+      categoriesCount,
+      seriesValues,
+      seriesNames,
+      axisMax,
+    }
+  }
+
+  async getChartLabelPositions(slideIndex, chartId, slideManager, relationshipManager) {
+    const geom = await this.#resolveChartGeometry(
+      slideIndex,
+      chartId,
+      slideManager,
+      relationshipManager
+    )
+    const segments = this.#resolveSegmentsGeometry(geom)
+    return segments.map(seg => ({
+      series: seg.series,
+      category: seg.category,
+      seriesIndex: seg.seriesIndex,
+      categoryIndex: seg.categoryIndex,
+      value: seg.value,
+      x: seg.label.x,
+      y: seg.label.y,
+      width: seg.label.width,
+      height: seg.label.height,
+    }))
+  }
+
+  async getChartBarPositions(slideIndex, chartId, slideManager, relationshipManager) {
+    const geom = await this.#resolveChartGeometry(
+      slideIndex,
+      chartId,
+      slideManager,
+      relationshipManager
+    )
+    const segments = this.#resolveSegmentsGeometry(geom)
+    return segments.map(seg => ({
+      series: seg.series,
+      category: seg.category,
+      seriesIndex: seg.seriesIndex,
+      categoryIndex: seg.categoryIndex,
+      value: seg.value,
+      x: seg.bar.x,
+      y: seg.bar.y,
+      width: seg.bar.width,
+      height: seg.bar.height,
+    }))
+  }
+
+  async addTextAtPosition(slideIndex, options, slideManager) {
+    const { text, x, y, width = 1200000, height = 300000, style = {} } = options
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    const slideZipPath = slideInfo.zipPath
+
+    const queue = this.#slideQueues.get(slideZipPath) || Promise.resolve()
+    const nextTask = queue.then(async () => {
+      let slideXml = await this.#zipManager.readFile(slideZipPath)
+
+      const fontSize = style.fontSize || 10
+      const fontFamily = style.fontFamily || 'Arial'
+      const alignVal = style.align === 'center' ? 'ctr' : style.align === 'right' ? 'r' : 'l'
+
+      let colorXml = '<a:solidFill><a:srgbClr val="000000"/></a:solidFill>'
+      if (style.color) {
+        const hexColor = String(style.color).replace('#', '').trim()
+        colorXml = `<a:solidFill><a:srgbClr val="${hexColor}"/></a:solidFill>`
+      }
+
+      const finalBodyPr =
+        '<a:bodyPr lIns="0" tIns="0" rIns="0" bIns="0" anchor="ctr"><a:spAutoFit/></a:bodyPr>'
+      const finalPPrXml = `<a:pPr algn="${alignVal}"/>`
+
+      let rPrAttrs = `lang="en-US" sz="${Math.round(fontSize * 100)}"`
+      if (style.bold) rPrAttrs += ' b="1"'
+      if (style.italic) rPrAttrs += ' i="1"'
+
+      const finalRPrXml = `<a:rPr ${rPrAttrs}>${colorXml}<a:latin typeface="${fontFamily}"/><a:ea typeface="${fontFamily}"/><a:cs typeface="${fontFamily}"/></a:rPr>`
+
+      const idMatchPattern = /id="(\d+)"/g
+      let idMatch
+      const existingIds = []
+      while ((idMatch = idMatchPattern.exec(slideXml)) !== null) {
+        existingIds.push(parseInt(idMatch[1], 10))
+      }
+      const { generateUniqueId } = require('../utils/idUtils.js')
+      const newId = generateUniqueId(existingIds)
+
+      const shapeXml = `<p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="${newId}" name="TextBoxAtPosition-${newId}"/>
+          <p:cNvSpPr txBox="1"/>
+          <p:nvPr/>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm>
+            <a:off x="${Math.round(x)}" y="${Math.round(y)}"/>
+            <a:ext cx="${Math.round(width)}" cy="${Math.round(height)}"/>
+          </a:xfrm>
+          <a:prstGeom prst="rect">
+            <a:avLst/>
+          </a:prstGeom>
+          <a:noFill/>
+        </p:spPr>
+        <p:txBody>
+          ${finalBodyPr}
+          <a:lstStyle/>
+          <a:p>
+            ${finalPPrXml}
+            <a:r>
+              ${finalRPrXml}
+              <a:t>${this.#escapeXml(text)}</a:t>
+            </a:r>
+            <a:endParaRPr lang="en-US"/>
+          </a:p>
+        </p:txBody>
+      </p:sp>`
+
+      const spTreeEnd = '</p:spTree>'
+      if (slideXml.includes(spTreeEnd)) {
+        slideXml = slideXml.replace(spTreeEnd, `${shapeXml}${spTreeEnd}`)
+      }
+
+      this.#zipManager.writeFile(slideZipPath, slideXml)
+    })
+
+    this.#slideQueues.set(slideZipPath, nextTask)
+    return nextTask
+  }
+
+  async addTextNearChartLabel(slideIndex, options, slideManager, relationshipManager) {
+    const { chart, text, position = 'left', style = {} } = options
+
+    const allowedPositions = ['left', 'right']
+    if (!allowedPositions.includes(position)) {
+      throw new Error(`Invalid position "${position}". Only "left" and "right" are supported.`)
+    }
+
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    const slideZipPath = slideInfo.zipPath
+
+    const queue = this.#slideQueues.get(slideZipPath) || Promise.resolve()
+    const nextTask = queue.then(async () => {
+      const labels = await this.getChartLabelPositions(
+        slideIndex,
+        chart,
+        slideManager,
+        relationshipManager
+      )
+
+      let slideXml = await this.#zipManager.readFile(slideZipPath)
+      const escapedChartId = chart.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+      const shapePattern = new RegExp(
+        `<p:sp>(?:(?!<p:sp>)[\\s\\S])*?name="SeriesNameLabel-${escapedChartId}-\\d+"(?:(?!<\\/p:sp>)[\\s\\S])*?<\\/p:sp>`,
+        'g'
+      )
+      slideXml = slideXml.replace(shapePattern, '')
+      this.#zipManager.writeFile(slideZipPath, slideXml)
+
+      const fontSize = style.fontSize || 10
+      const emuPerPt = 12700
+      const charAspect = 0.55
+      const spacing = 200000
+
+      const labelItems = []
+      let maxLabelWidth = 0
+
+      for (let i = 0; i < labels.length; i++) {
+        const lbl = labels[i]
+        let labelText = ''
+        if (typeof text === 'function') {
+          labelText = text({
+            series: lbl.series,
+            category: lbl.category,
+            value: lbl.value,
+          })
+        } else {
+          labelText = String(text)
+        }
+
+        const textWidth = labelText.length * fontSize * charAspect * emuPerPt
+        maxLabelWidth = Math.max(maxLabelWidth, textWidth)
+        labelItems.push({
+          seriesIndex: i,
+          seriesName: lbl.series,
+          categoryName: lbl.category,
+          labelText,
+          textWidth,
+          lbl,
+        })
+      }
+
+      const chartXfrm = this.#findChartCoordinates(
+        slideXml,
+        chart,
+        relationshipManager,
+        slideZipPath
+      )
+
+      const autoFit = style.autoFit !== false
+      const slideWidth = 12192000
+      const fontEmuHeight = fontSize * 1.2 * emuPerPt
+
+      const labelsForCollision = labelItems.map(item => {
+        let maxWidth = maxLabelWidth
+        if (chartXfrm) {
+          if (position === 'left') {
+            maxWidth = chartXfrm.left - spacing
+          } else {
+            maxWidth = slideWidth - (chartXfrm.left + chartXfrm.width) - spacing
+          }
+        }
+        maxWidth = Math.max(100000, maxWidth)
+
+        let boxWidth = item.textWidth
+        let boxHeight = fontEmuHeight
+        if (autoFit) {
+          if (boxWidth > maxWidth) {
+            boxWidth = maxWidth
+            const lines = Math.ceil(item.textWidth / maxWidth)
+            boxHeight = lines * fontEmuHeight
+          }
+        } else {
+          const standardWidth = 1371600
+          boxWidth = Math.min(standardWidth, maxWidth)
+          if (item.textWidth > boxWidth) {
+            const lines = Math.ceil(item.textWidth / boxWidth)
+            boxHeight = lines * fontEmuHeight
+          }
+        }
+
+        return {
+          seriesIndex: item.seriesIndex,
+          name: item.labelText,
+          targetY: item.lbl.y + item.lbl.height / 2,
+          y: item.lbl.y + item.lbl.height / 2,
+          width: boxWidth,
+          height: boxHeight,
+          lbl: item.lbl,
+        }
+      })
+
+      if (chartXfrm) {
+        this.#resolveVerticalCollisions(
+          labelsForCollision,
+          chartXfrm.top,
+          chartXfrm.top + chartXfrm.height
+        )
+      }
+
+      const chartInfo = this.findChartInSlide(slideIndex, chart, slideManager, relationshipManager)
+      const chartXml = await this.#zipManager.readFile(chartInfo.zipPath)
+      const txPrMatch = /<c:txPr>([\s\S]*?)<\/c:txPr>/.exec(chartXml)
+      const existingTxPr = txPrMatch ? txPrMatch[1] : ''
+      const { ChartCacheGenerator } = require('./charts/ChartCacheGenerator.js')
+      const { pPrXml, rPrXml } = ChartCacheGenerator.extractTxPrParts(existingTxPr)
+
+      const finalBodyPr =
+        '<a:bodyPr lIns="0" tIns="0" rIns="0" bIns="0" anchor="ctr"><a:spAutoFit/></a:bodyPr>'
+      let finalPPrXml = pPrXml || '<a:pPr/>'
+      let templateRPr =
+        rPrXml ||
+        `<a:rPr lang="en-US" sz="${Math.round(fontSize * 100)}"><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:latin typeface="Arial"/></a:rPr>`
+
+      if (!templateRPr || !templateRPr.trim().startsWith('<a:rPr')) {
+        templateRPr = `<a:rPr lang="en-US" sz="${Math.round(fontSize * 100)}"><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:latin typeface="Arial"/></a:rPr>`
+      }
+      if (!finalPPrXml || !finalPPrXml.trim().startsWith('<a:pPr')) {
+        finalPPrXml = '<a:pPr/>'
+      }
+
+      let existingSolidFill = ''
+      let existingLatin = ''
+      let existingEa = ''
+      let existingCs = ''
+
+      const solidFillMatch = /(<a:solidFill>[\s\S]*?<\/a:solidFill>|<a:solidFill[^>]*\/>)/.exec(
+        templateRPr
+      )
+      if (solidFillMatch) {
+        existingSolidFill = solidFillMatch[1]
+      }
+
+      const latinMatch = /(<a:latin[^>]*\/>)/.exec(templateRPr)
+      if (latinMatch) {
+        existingLatin = latinMatch[1]
+      }
+
+      const eaMatch = /(<a:ea[^>]*\/>)/.exec(templateRPr)
+      if (eaMatch) {
+        existingEa = eaMatch[1]
+      }
+
+      const csMatch = /(<a:cs[^>]*\/>)/.exec(templateRPr)
+      if (csMatch) {
+        existingCs = csMatch[1]
+      }
+
+      const rPrStartMatch = /^<a:rPr([^>]*)>/.exec(templateRPr)
+      let rPrAttrs = rPrStartMatch ? rPrStartMatch[1] : ''
+      if (rPrAttrs.endsWith('/')) {
+        rPrAttrs = rPrAttrs.slice(0, -1)
+      }
+      rPrAttrs = rPrAttrs.trim()
+
+      const cleanedAttrs = this.#cleanRPrAttributes(rPrAttrs)
+
+      const attrMap = {}
+      const pattern = /([a-zA-Z0-9:]+)="([^"]*)"/g
+      let match
+      while ((match = pattern.exec(cleanedAttrs)) !== null) {
+        attrMap[match[1]] = match[2]
+      }
+
+      attrMap['sz'] = String(Math.round(fontSize * 100))
+      if (style.bold !== undefined) {
+        if (style.bold) attrMap['b'] = '1'
+        else delete attrMap['b']
+      }
+      if (style.italic !== undefined) {
+        if (style.italic) attrMap['i'] = '1'
+        else delete attrMap['i']
+      }
+
+      if (style.color !== undefined) {
+        const hexColor = String(style.color).replace('#', '').trim()
+        existingSolidFill = `<a:solidFill><a:srgbClr val="${hexColor}"/></a:solidFill>`
+      } else {
+        if (
+          existingSolidFill &&
+          (existingSolidFill.includes('val="bg1"') || existingSolidFill.includes('val="bg2"'))
+        ) {
+          existingSolidFill = '<a:solidFill><a:schemeClr val="tx1"/></a:solidFill>'
+        }
+      }
+
+      if (style.fontFamily !== undefined) {
+        const typeface = style.fontFamily
+        existingLatin = `<a:latin typeface="${typeface}"/>`
+        existingEa = `<a:ea typeface="${typeface}"/>`
+        existingCs = `<a:cs typeface="${typeface}"/>`
+      }
+
+      const finalAttrsStr = Object.entries(attrMap)
+        .map(([k, v]) => `${k}="${v}"`)
+        .join(' ')
+
+      let finalRPrXml = `<a:rPr ${finalAttrsStr}>`
+      if (existingSolidFill) finalRPrXml += existingSolidFill
+      if (existingLatin) finalRPrXml += existingLatin
+      if (existingEa) finalRPrXml += existingEa
+      if (existingCs) finalRPrXml += existingCs
+      finalRPrXml += '</a:rPr>'
+
+      let alignVal = style.align
+      if (!alignVal) {
+        alignVal = position === 'left' ? 'r' : 'l'
+      } else {
+        if (alignVal === 'left') alignVal = 'l'
+        else if (alignVal === 'right') alignVal = 'r'
+        else if (alignVal === 'center') alignVal = 'ctr'
+      }
+
+      if (finalPPrXml.includes('algn=')) {
+        finalPPrXml = finalPPrXml.replace(/algn="[^"]+"/, `algn="${alignVal}"`)
+      } else if (finalPPrXml.includes('<a:pPr')) {
+        finalPPrXml = finalPPrXml.replace('<a:pPr', `<a:pPr algn="${alignVal}"`)
+      } else {
+        finalPPrXml = `<a:pPr algn="${alignVal}"/>`
+      }
+
+      slideXml = await this.#zipManager.readFile(slideZipPath)
+      const idMatchPattern = /id="(\d+)"/g
+      let idMatch
+      const existingIds = []
+      while ((idMatch = idMatchPattern.exec(slideXml)) !== null) {
+        existingIds.push(parseInt(idMatch[1], 10))
+      }
+
+      let shapesXml = ''
+      const { generateUniqueId } = require('../utils/idUtils.js')
+      for (let i = 0; i < labelsForCollision.length; i++) {
+        const lbl = labelsForCollision[i]
+        const newId = generateUniqueId(existingIds)
+        existingIds.push(newId)
+
+        let boxLeft = 0
+        if (chartXfrm) {
+          if (position === 'left') {
+            boxLeft = chartXfrm.left - lbl.width - spacing
+          } else {
+            boxLeft = chartXfrm.left + chartXfrm.width + spacing
+          }
+        } else {
+          boxLeft = lbl.lbl.x - lbl.width - spacing
+        }
+        boxLeft = Math.max(0, boxLeft)
+        const boxTop = lbl.y - lbl.height / 2
+
+        shapesXml += `<p:sp>
+          <p:nvSpPr>
+            <p:cNvPr id="${newId}" name="SeriesNameLabel-${chart}-${lbl.lbl.seriesIndex}"/>
+            <p:cNvSpPr txBox="1"/>
+            <p:nvPr/>
+          </p:nvSpPr>
+          <p:spPr>
+            <a:xfrm>
+              <a:off x="${Math.round(boxLeft)}" y="${Math.round(boxTop)}"/>
+              <a:ext cx="${Math.round(lbl.width)}" cy="${Math.round(lbl.height)}"/>
+            </a:xfrm>
+            <a:prstGeom prst="rect">
+              <a:avLst/>
+            </a:prstGeom>
+            <a:noFill/>
+          </p:spPr>
+          <p:txBody>
+            ${finalBodyPr}
+            <a:lstStyle/>
+            <a:p>
+              ${finalPPrXml}
+              <a:r>
+                ${finalRPrXml}
+                <a:t>${this.#escapeXml(lbl.name)}</a:t>
+              </a:r>
+              <a:endParaRPr lang="en-US"/>
+            </a:p>
+          </p:txBody>
+        </p:sp>`
+      }
+
+      const spTreeEnd = '</p:spTree>'
+      if (slideXml.includes(spTreeEnd)) {
+        slideXml = slideXml.replace(spTreeEnd, `${shapesXml}${spTreeEnd}`)
+      }
+      this.#zipManager.writeFile(slideZipPath, slideXml)
+    })
+
+    this.#slideQueues.set(slideZipPath, nextTask)
+    return nextTask
   }
 }
 

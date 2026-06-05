@@ -105,7 +105,7 @@
         </defs>
       </svg>
       <span class="font-title font-extrabold text-lg text-white tracking-wide">node-pptx-templater</span>
-      <span class="bg-brand-500/10 text-brand-400 text-[10px] px-2.5 py-0.5 rounded-full font-semibold border border-brand-500/20">v1.0.7</span>
+      <span class="bg-brand-500/10 text-brand-400 text-[10px] px-2.5 py-0.5 rounded-full font-semibold border border-brand-500/20">v1.0.10</span>
     </div>
     
     <div class="flex items-center gap-5 relative">
@@ -232,6 +232,14 @@
           
             <li><a href="#method-repairCharts" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">repairCharts()</a></li>
           
+            <li><a href="#method-getChartLabelPositions" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">getChartLabelPositions()</a></li>
+          
+            <li><a href="#method-getChartBarPositions" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">getChartBarPositions()</a></li>
+          
+            <li><a href="#method-addTextAtPosition" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">addTextAtPosition()</a></li>
+          
+            <li><a href="#method-addTextNearChartLabel" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">addTextNearChartLabel()</a></li>
+          
             <li><a href="#method-updateChartData" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">updateChartData()</a></li>
           
             <li><a href="#method-replaceChartSeries" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">replaceChartSeries()</a></li>
@@ -245,6 +253,10 @@
             <li><a href="#method-getDataLabels" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">getDataLabels()</a></li>
           
             <li><a href="#method-validateDataLabels" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">validateDataLabels()</a></li>
+          
+            <li><a href="#method-validateChartLabels" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">validateChartLabels()</a></li>
+          
+            <li><a href="#method-validateSeriesNameLabels" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">validateSeriesNameLabels()</a></li>
           
             <li><a href="#method-getCharts" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">getCharts()</a></li>
           
@@ -357,6 +369,10 @@
         </h3>
         <ul id="sidebar-list-api-shapes" class="space-y-1 pl-2 transition-all duration-300 hidden">
           <li><a href="#api-shapes" class="nav-item block px-3 py-1.5 text-xs text-gray-400 hover:text-white rounded-md transition-colors font-medium">Overview</a></li>
+          
+            <li><a href="#method-updateShapePosition" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">updateShapePosition()</a></li>
+          
+            <li><a href="#method-updateTextBoxPosition" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">updateTextBoxPosition()</a></li>
           
             <li><a href="#method-updateShapeText" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">updateShapeText()</a></li>
           
@@ -2116,6 +2132,392 @@ regions.forEach(reg =&gt; {
         
         </div>
       
+        <!-- Method getChartLabelPositions Card -->
+        <div id="method-getChartLabelPositions" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getChartLabelPositions</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              getChartLabelPositions(chartId)
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Retrieves the exact coordinate positions of all data labels for a chart on the active slide. Calculates absolute layout limits in EMUs (English Metric Units).</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Returns exact coordinate positions of data labels on the slide. Chart must be present and updated.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Reads template geometry layouts and maps plotArea bounds to slide coordinates.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">chartId</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">Promise&lt;Array&lt;{series: string, category: string, seriesIndex: number, categoryIndex: number, value: number, x: number, y: number, width: number, height: number</span>
+            <span class="text-gray-300"></span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const positions = await ppt.useSlide(1).getChartLabelPositions(&#039;SalesChart&#039;);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const positions = await ppt.getChartLabelPositions(&#039;SalesChart&#039;);
+console.log(positions[0]); // { series: &#039;A&#039;, category: &#039;Q1&#039;, x: 1200000, y: 1500000, ... }</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const positions = await ppt.useSlide(1).getChartLabelPositions(&#039;ChartId&#039;);
+positions.forEach(pos =&gt; {
+  console.log(`Label at X:${pos.x}, Y:${pos.y}`);
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method getChartBarPositions Card -->
+        <div id="method-getChartBarPositions" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getChartBarPositions</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              getChartBarPositions(chartId)
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Retrieves the exact coordinate positions of all bars/columns for a chart on the active slide. Calculates absolute layout limits in EMUs (English Metric Units).</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Returns exact coordinates of bars/columns. Bounding box coordinates represent absolute slide positions.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Reads template chart series layout data and calculates exact bar locations.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">chartId</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">Promise&lt;Array&lt;{series: string, category: string, seriesIndex: number, categoryIndex: number, value: number, x: number, y: number, width: number, height: number</span>
+            <span class="text-gray-300"></span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const bars = await ppt.useSlide(1).getChartBarPositions(&#039;SalesChart&#039;);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const bars = await ppt.getChartBarPositions(&#039;SalesChart&#039;);
+console.log(bars[0]); // { series: &#039;A&#039;, category: &#039;Q1&#039;, x: 1000000, y: 1400000, ... }</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const bars = await ppt.useSlide(1).getChartBarPositions(&#039;ChartId&#039;);
+bars.forEach(b =&gt; {
+  console.log(`Bar at X:${b.x}, Y:${b.y}, Width:${b.width}, Height:${b.height}`);
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method addTextAtPosition Card -->
+        <div id="method-addTextAtPosition" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">addTextAtPosition</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              addTextAtPosition(options)
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Adds a textbox shape at a specific EMU coordinate position on targeted slides. Supports custom font styling and alignment configuration.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Adds a textbox shape directly to the slide at the specified coordinate layout position.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Creates and inserts a new `&lt;p:sp&gt;` shape component node at the end of the slide `&lt;p:spTree&gt;` list.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">options</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">Object</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">options.text</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">options.x</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">options.y</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.width=1200000]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.height=300000]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.style]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">Object</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">this</span>
+            <span class="text-gray-300">The chainable presentation engine instance.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).addTextAtPosition({
+  text: &#039;Label&#039;,
+  x: 1000000,
+  y: 1000000
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.addTextAtPosition({
+  text: &#039;Header&#039;,
+  x: 500000,
+  y: 500000,
+  width: 2000000,
+  height: 500000,
+  style: { fontSize: 12, bold: true, color: &#039;#FF0000&#039; }
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).addTextAtPosition({
+  text: &#039;Confidential&#039;,
+  x: 8000000,
+  y: 100000,
+  style: { fontSize: 10, italic: true, color: &#039;#777777&#039; }
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method addTextNearChartLabel Card -->
+        <div id="method-addTextNearChartLabel" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">addTextNearChartLabel</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              addTextNearChartLabel(options)
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Dynamically places textboxes next to a chart&#039;s data labels with vertical collision avoidance. Textboxes are positioned either on the left or right of the chart area, vertically aligned with their corresponding label.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Detects collision and places textboxes nicely next to chart data labels. Position must be left or right.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Determines target label coordinates and appends aligned text shape `&lt;p:sp&gt;` elements.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">options</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">Object</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">options.chart</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">options.text</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string|Function</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.position=&#039;left&#039;]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">&#039;left&#039;|&#039;right&#039;</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.style]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">Object</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">this</span>
+            <span class="text-gray-300">The chainable presentation engine instance.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.addTextNearChartLabel({
+  chart: &#039;SalesChart&#039;,
+  text: &#039;Series&#039;,
+  position: &#039;left&#039;
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).addTextNearChartLabel({
+  chart: &#039;Chart&#039;,
+  text: ({ series }) =&gt; `Near ${series}`,
+  position: &#039;right&#039;,
+  style: { fontSize: 11, italic: true, color: &#039;#333333&#039; }
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).addTextNearChartLabel({
+  chart: &#039;RevenueChart&#039;,
+  text: ({ category, value }) =&gt; `${category}: ${value}`,
+  position: &#039;left&#039;,
+  style: { fontSize: 10, fontFamily: &#039;Arial&#039; }
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
         <!-- Method updateChartData Card -->
         <div id="method-updateChartData" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
@@ -2530,6 +2932,134 @@ console.log(result.valid);</code><button class="copy-btn absolute top-3.5 right-
 });
 if (!check.valid) {
   console.warn(&#039;Configuration errors detected:&#039;, check.errors.join(&#039;\n&#039;));
+}</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method validateChartLabels Card -->
+        <div id="method-validateChartLabels" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">validateChartLabels</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              validateChartLabels(())
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Delegates core actions to slide element sub-managers.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Ensures the targeted chart is stacked and the series details/style properties are present in the template.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Reads template dLbls properties and layout data structure to identify potential visual alignment and rendering issues.</p>
+            </div>
+          </div>
+          
+          
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">PPTXTemplater</span>
+            <span class="text-gray-300">The fluent engine instance.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const result = await ppt.useSlide(1).validateChartLabels(&#039;SalesChart&#039;, {
+  labels: [&#039;High&#039;, &#039;Low&#039;]
+});
+console.log(result.valid);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const result = await ppt.validateChartLabels(&#039;SalesChart&#039;, {
+  showSeriesNameInBar: true
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const check = await ppt.useSlide(1).validateChartLabels(&#039;SalesChart&#039;, {
+  labels: [&#039;A&#039;, &#039;B&#039;, &#039;C&#039;, &#039;D&#039;],
+  showSeriesNameInBar: true
+});
+if (!check.valid) {
+  console.warn(&#039;Chart label warnings/errors:&#039;, check.warnings, check.errors);
+}</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method validateSeriesNameLabels Card -->
+        <div id="method-validateSeriesNameLabels" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">validateSeriesNameLabels</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              validateSeriesNameLabels(())
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Delegates core actions to slide element sub-managers.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Checks slide boundaries collision and ensures options.position is either &quot;left&quot; or &quot;right&quot;.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Dry-runs verification of options structure, slide limits, and chart area coordinate references.</p>
+            </div>
+          </div>
+          
+          
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">PPTXTemplater</span>
+            <span class="text-gray-300">The fluent engine instance.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const result = await ppt.useSlide(1).validateSeriesNameLabels(&#039;SalesChart&#039;, {
+  enabled: true,
+  position: &#039;left&#039;
+});
+console.log(result.valid);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const result = await ppt.validateSeriesNameLabels(&#039;SalesChart&#039;, {
+  enabled: true,
+  position: &#039;right&#039;,
+  autoFit: true
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const check = await ppt.useSlide(1).validateSeriesNameLabels(&#039;SalesChart&#039;, {
+  enabled: true,
+  position: &#039;left&#039;,
+  autoFit: true
+});
+if (!check.valid) {
+  console.error(&#039;Validation errors:&#039;, check.errors);
 }</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
           </div>
@@ -5044,6 +5574,230 @@ for (let i = 0; i &lt; users.length; i++) {
         
         <div class="grid grid-cols-1 gap-6 mt-6">
     
+        <!-- Method updateShapePosition Card -->
+        <div id="method-updateShapePosition" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">updateShapePosition</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              updateShapePosition(shapeId, options = {})
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Updates the position and/or dimensions of an existing shape on targeted slides.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Coordinate offsets are in English Metric Units (EMU). Properties omitted are not modified.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Updates the coordinate values in the shape `&lt;a:off&gt;` and `&lt;a:ext&gt;` tags inside the slide XML.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">shapeId</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">options</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">Object</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.x]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.y]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.width]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.height]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">this</span>
+            <span class="text-gray-300">The chainable presentation engine instance.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).updateShapePosition(&#039;TitleShape&#039;, { x: 1000000, y: 1500000 });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.updateShapePosition(&#039;TextBoxName&#039;, {
+  x: 2000000,
+  y: 3000000,
+  width: 4000000,
+  height: 500000
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">// Relocate a shape dynamically based on slide width
+const slideWidth = 12192000;
+ppt.useSlide(1).updateShapePosition(&#039;Sidebar&#039;, {
+  x: slideWidth - 3000000,
+  width: 2500000
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method updateTextBoxPosition Card -->
+        <div id="method-updateTextBoxPosition" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">updateTextBoxPosition</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              updateTextBoxPosition(textBoxId, options = {})
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Updates the position and/or dimensions of an existing textbox on targeted slides.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Coordinate offsets are in English Metric Units (EMU). Properties omitted are not modified.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Updates the coordinate values in the textbox shape `&lt;a:off&gt;` and `&lt;a:ext&gt;` tags inside the slide XML.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">textBoxId</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">options</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">Object</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.x]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.y]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.width]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.height]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">this</span>
+            <span class="text-gray-300">The chainable presentation engine instance.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).updateTextBoxPosition(&#039;TextBox 2&#039;, { x: 1000000, y: 1500000 });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.updateTextBoxPosition(&#039;TextBox 2&#039;, {
+  x: 2000000,
+  y: 3000000,
+  width: 4000000,
+  height: 500000
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">// Relocate a textbox dynamically based on slide width
+const slideWidth = 12192000;
+ppt.useSlide(1).updateTextBoxPosition(&#039;StatusBox&#039;, {
+  x: slideWidth - 3000000,
+  width: 2500000
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
         <!-- Method updateShapeText Card -->
         <div id="method-updateShapeText" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">

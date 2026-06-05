@@ -50,6 +50,12 @@ const METHOD_CATEGORIES = {
   'updateDataLabels': 'charts',
   'getDataLabels': 'charts',
   'validateDataLabels': 'charts',
+  'validateChartLabels': 'charts',
+  'validateSeriesNameLabels': 'charts',
+  'getChartLabelPositions': 'charts',
+  'getChartBarPositions': 'charts',
+  'addTextAtPosition': 'charts',
+  'addTextNearChartLabel': 'charts',
   'getCharts': 'charts',
   'validateCharts': 'charts',
   'repairCharts': 'charts',
@@ -95,6 +101,8 @@ const METHOD_CATEGORIES = {
 
   // Shapes
   'updateShapeText': 'shapes',
+  'updateShapePosition': 'shapes',
+  'updateTextBoxPosition': 'shapes',
   'cloneShape': 'shapes',
   'deleteShape': 'shapes',
   'getShapes': 'shapes',
@@ -265,6 +273,28 @@ const API_METADATA_EXTENSIONS = {
       production: `const check = await ppt.useSlide(1).validateDataLabels('SalesChart', {\n  labels: ['High', 'Medium', 'Low'],\n  position: 'invalidPosition'\n});\nif (!check.valid) {\n  console.warn('Configuration errors detected:', check.errors.join('\\n'));\n}`
     }
   },
+  validateChartLabels: {
+    edgeCases: 'Ensures the targeted chart is stacked and the series details/style properties are present in the template.',
+    errorHandling: 'Returns validation report object `{ valid: boolean, errors: string[], warnings: string[] }` instead of throwing.',
+    related: ['updateDataLabels', 'validateDataLabels'],
+    xmlImpact: 'Reads template dLbls properties and layout data structure to identify potential visual alignment and rendering issues.',
+    examples: {
+      basic: `const result = await ppt.useSlide(1).validateChartLabels('SalesChart', {\n  labels: ['High', 'Low']\n});\nconsole.log(result.valid);`,
+      advanced: `const result = await ppt.validateChartLabels('SalesChart', {\n  showSeriesNameInBar: true\n});`,
+      production: `const check = await ppt.useSlide(1).validateChartLabels('SalesChart', {\n  labels: ['A', 'B', 'C', 'D'],\n  showSeriesNameInBar: true\n});\nif (!check.valid) {\n  console.warn('Chart label warnings/errors:', check.warnings, check.errors);\n}`
+    }
+  },
+  validateSeriesNameLabels: {
+    edgeCases: 'Checks slide boundaries collision and ensures options.position is either "left" or "right".',
+    errorHandling: 'Returns validation report object `{ valid: boolean, errors: string[], warnings: string[] }` instead of throwing.',
+    related: ['updateChart', 'validateChartLabels'],
+    xmlImpact: 'Dry-runs verification of options structure, slide limits, and chart area coordinate references.',
+    examples: {
+      basic: `const result = await ppt.useSlide(1).validateSeriesNameLabels('SalesChart', {\n  enabled: true,\n  position: 'left'\n});\nconsole.log(result.valid);`,
+      advanced: `const result = await ppt.validateSeriesNameLabels('SalesChart', {\n  enabled: true,\n  position: 'right',\n  autoFit: true\n});`,
+      production: `const check = await ppt.useSlide(1).validateSeriesNameLabels('SalesChart', {\n  enabled: true,\n  position: 'left',\n  autoFit: true\n});\nif (!check.valid) {\n  console.error('Validation errors:', check.errors);\n}`
+    }
+  },
 
   // --- SLIDES ---
   duplicateSlide: {
@@ -361,6 +391,28 @@ const API_METADATA_EXTENSIONS = {
       production: `const items = ['Speed', 'Stability', 'Scalability'];\nitems.forEach((item, index) => {\n  if (index > 0) {\n    ppt.cloneShape('bullet-template', \`bullet-\${index}\`, {\n      offsetX: 0,\n      offsetY: index * 400000\n    }).updateShapeText(\`bullet-\${index}\`, item);\n  } else {\n    ppt.updateShapeText('bullet-template', item);\n  }\n});`
     }
   },
+  updateShapePosition: {
+    edgeCases: 'Coordinate offsets are in English Metric Units (EMU). Properties omitted are not modified.',
+    errorHandling: 'Throws error if target shape is not found on the slide or if active slide index is empty.',
+    related: ['updateShapeText', 'cloneShape', 'deleteShape'],
+    xmlImpact: 'Updates the coordinate values in the shape `<a:off>` and `<a:ext>` tags inside the slide XML.',
+    examples: {
+      basic: `ppt.useSlide(1).updateShapePosition('TitleShape', { x: 1000000, y: 1500000 });`,
+      advanced: `ppt.updateShapePosition('TextBoxName', {\n  x: 2000000,\n  y: 3000000,\n  width: 4000000,\n  height: 500000\n});`,
+      production: `// Relocate a shape dynamically based on slide width\nconst slideWidth = 12192000;\nppt.useSlide(1).updateShapePosition('Sidebar', {\n  x: slideWidth - 3000000,\n  width: 2500000\n});`
+    }
+  },
+  updateTextBoxPosition: {
+    edgeCases: 'Coordinate offsets are in English Metric Units (EMU). Properties omitted are not modified.',
+    errorHandling: 'Throws error if target textbox is not found on the slide or if active slide index is empty.',
+    related: ['updateShapePosition', 'updateShapeText', 'cloneShape'],
+    xmlImpact: 'Updates the coordinate values in the textbox shape `<a:off>` and `<a:ext>` tags inside the slide XML.',
+    examples: {
+      basic: `ppt.useSlide(1).updateTextBoxPosition('TextBox 2', { x: 1000000, y: 1500000 });`,
+      advanced: `ppt.updateTextBoxPosition('TextBox 2', {\n  x: 2000000,\n  y: 3000000,\n  width: 4000000,\n  height: 500000\n});`,
+      production: `// Relocate a textbox dynamically based on slide width\nconst slideWidth = 12192000;\nppt.useSlide(1).updateTextBoxPosition('StatusBox', {\n  x: slideWidth - 3000000,\n  width: 2500000\n});`
+    }
+  },
 
   // --- LAYER MANAGEMENT ---
   bringToFront: {
@@ -372,6 +424,50 @@ const API_METADATA_EXTENSIONS = {
       basic: `ppt.useSlide(1).bringToFront('OverlayLogo');`,
       advanced: `// Or pass as config object directly\nppt.bringToFront({ slide: 1, objectId: 'OverlayLogo' });`,
       production: `// Bring all images to the front\nconst layers = ppt.getObjectOrder(1);\nlayers.forEach(lay => {\n  if (lay.type === 'image') {\n    ppt.bringToFront(lay.id);\n  }\n});`
+    }
+  },
+  getChartLabelPositions: {
+    edgeCases: 'Returns exact coordinate positions of data labels on the slide. Chart must be present and updated.',
+    errorHandling: 'Throws ChartNotFoundError if the chart target cannot be resolved.',
+    related: ['getChartBarPositions', 'addTextNearChartLabel'],
+    xmlImpact: 'Reads template geometry layouts and maps plotArea bounds to slide coordinates.',
+    examples: {
+      basic: `const positions = await ppt.useSlide(1).getChartLabelPositions('SalesChart');`,
+      advanced: `const positions = await ppt.getChartLabelPositions('SalesChart');\nconsole.log(positions[0]); // { series: 'A', category: 'Q1', x: 1200000, y: 1500000, ... }`,
+      production: `const positions = await ppt.useSlide(1).getChartLabelPositions('ChartId');\npositions.forEach(pos => {\n  console.log(\`Label at X:\${pos.x}, Y:\${pos.y}\`);\n});`
+    }
+  },
+  getChartBarPositions: {
+    edgeCases: 'Returns exact coordinates of bars/columns. Bounding box coordinates represent absolute slide positions.',
+    errorHandling: 'Throws ChartNotFoundError if the chart target cannot be resolved.',
+    related: ['getChartLabelPositions', 'addTextNearChartLabel'],
+    xmlImpact: 'Reads template chart series layout data and calculates exact bar locations.',
+    examples: {
+      basic: `const bars = await ppt.useSlide(1).getChartBarPositions('SalesChart');`,
+      advanced: `const bars = await ppt.getChartBarPositions('SalesChart');\nconsole.log(bars[0]); // { series: 'A', category: 'Q1', x: 1000000, y: 1400000, ... }`,
+      production: `const bars = await ppt.useSlide(1).getChartBarPositions('ChartId');\nbars.forEach(b => {\n  console.log(\`Bar at X:\${b.x}, Y:\${b.y}, Width:\${b.width}, Height:\${b.height}\`);\n});`
+    }
+  },
+  addTextAtPosition: {
+    edgeCases: 'Adds a textbox shape directly to the slide at the specified coordinate layout position.',
+    errorHandling: 'Validates coordinate bounds and parameters. Throws error on empty slide target selection.',
+    related: ['addTextNearChartLabel'],
+    xmlImpact: 'Creates and inserts a new `<p:sp>` shape component node at the end of the slide `<p:spTree>` list.',
+    examples: {
+      basic: `ppt.useSlide(1).addTextAtPosition({\n  text: 'Label',\n  x: 1000000,\n  y: 1000000\n});`,
+      advanced: `ppt.addTextAtPosition({\n  text: 'Header',\n  x: 500000,\n  y: 500000,\n  width: 2000000,\n  height: 500000,\n  style: { fontSize: 12, bold: true, color: '#FF0000' }\n});`,
+      production: `ppt.useSlide(1).addTextAtPosition({\n  text: 'Confidential',\n  x: 8000000,\n  y: 100000,\n  style: { fontSize: 10, italic: true, color: '#777777' }\n});`
+    }
+  },
+  addTextNearChartLabel: {
+    edgeCases: 'Detects collision and places textboxes nicely next to chart data labels. Position must be left or right.',
+    errorHandling: 'Validates position option, throws RangeError or configuration error if options are invalid.',
+    related: ['getChartLabelPositions', 'addTextAtPosition'],
+    xmlImpact: 'Determines target label coordinates and appends aligned text shape `<p:sp>` elements.',
+    examples: {
+      basic: `ppt.addTextNearChartLabel({\n  chart: 'SalesChart',\n  text: 'Series',\n  position: 'left'\n});`,
+      advanced: `ppt.useSlide(1).addTextNearChartLabel({\n  chart: 'Chart',\n  text: ({ series }) => \`Near \${series}\`,\n  position: 'right',\n  style: { fontSize: 11, italic: true, color: '#333333' }\n});`,
+      production: `ppt.useSlide(1).addTextNearChartLabel({\n  chart: 'RevenueChart',\n  text: ({ category, value }) => \`\${category}: \${value}\`,\n  position: 'left',\n  style: { fontSize: 10, fontFamily: 'Arial' }\n});`
     }
   },
 

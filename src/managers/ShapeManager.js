@@ -48,6 +48,76 @@ class ShapeManager {
   }
 
   /**
+   * Updates an existing shape's position and/or dimensions.
+   *
+   * @param {number} slideIndex
+   * @param {string} shapeId
+   * @param {Object} options Position and dimensions configuration.
+   * @param {number} [options.x] Absolute X offset coordinate (in EMUs).
+   * @param {number} [options.y] Absolute Y offset coordinate (in EMUs).
+   * @param {number} [options.width] Bounding box width (in EMUs).
+   * @param {number} [options.height] Bounding box height (in EMUs).
+   * @param {SlideManager} slideManager
+   */
+  updateShapePosition(slideIndex, shapeId, options = {}, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    const res = this.findShapeRecursive(spTree, shapeId)
+
+    if (!res) {
+      throw new PPTXError(`Shape "${shapeId}" not found in slide ${slideIndex}`)
+    }
+
+    const xfrm = res.shape['p:spPr']?.['a:xfrm']
+    if (xfrm) {
+      if (options.x !== undefined) {
+        if (!xfrm['a:off']) xfrm['a:off'] = {}
+        xfrm['a:off']['@_x'] = String(Math.round(options.x))
+      }
+      if (options.y !== undefined) {
+        if (!xfrm['a:off']) xfrm['a:off'] = {}
+        xfrm['a:off']['@_y'] = String(Math.round(options.y))
+      }
+      if (options.width !== undefined) {
+        if (!xfrm['a:ext']) xfrm['a:ext'] = {}
+        xfrm['a:ext']['@_cx'] = String(Math.round(options.width))
+      }
+      if (options.height !== undefined) {
+        if (!xfrm['a:ext']) xfrm['a:ext'] = {}
+        xfrm['a:ext']['@_cy'] = String(Math.round(options.height))
+      }
+    }
+
+    const decl = this.#xmlParser.extractDeclaration(slideXml)
+    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    logger.debug(`Updated position/dimensions for shape "${shapeId}" on slide ${slideIndex}`)
+  }
+
+  /**
+   * Updates an existing textbox shape's position and/or dimensions.
+   *
+   * @param {number} slideIndex
+   * @param {string} textBoxId
+   * @param {Object} options Position and dimensions configuration.
+   * @param {number} [options.x] Absolute X offset coordinate (in EMUs).
+   * @param {number} [options.y] Absolute Y offset coordinate (in EMUs).
+   * @param {number} [options.width] Bounding box width (in EMUs).
+   * @param {number} [options.height] Bounding box height (in EMUs).
+   * @param {SlideManager} slideManager
+   */
+  updateTextBoxPosition(slideIndex, textBoxId, options = {}, slideManager) {
+    try {
+      this.updateShapePosition(slideIndex, textBoxId, options, slideManager)
+    } catch (err) {
+      if (err.message.includes('not found')) {
+        throw new PPTXError(`Textbox "${textBoxId}" not found in slide ${slideIndex}`)
+      }
+      throw err
+    }
+  }
+
+  /**
    * Clones a shape and adds it with offsets.
    *
    * @param {number} slideIndex

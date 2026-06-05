@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>addTextNearChartLabel() API Method - node-pptx-templater</title>
+  <meta name="description" content="Dynamically places textboxes next to a chart&#039;s data labels with vertical collision avoidance. Textboxes are positioned either on the left or right of the chart area, vertically aligned with their corresponding label.">
+  <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/addTextNearChartLabel/">
+  <link rel="stylesheet" href="../../../style.css">
+  <script>
+    // Immediate SEO redirect to main single-page application at correct anchor
+    window.location.replace("../../../index.html#method-addTextNearChartLabel");
+  </script>
+</head>
+<body class="bg-[#080b11] text-gray-200 font-sans p-8">
+  <div class="max-w-3xl mx-auto space-y-6">
+    <div class="border-b border-white/5 pb-4">
+      <a href="../../../index.html" class="text-indigo-400 hover:underline">&larr; Back to Documentation</a>
+      <h1 class="text-4xl font-extrabold text-white mt-2">addTextNearChartLabel() API Method - node-pptx-templater</h1>
+    </div>
+    
+    <div class="prose prose-invert max-w-none">
+      
+    <p><strong>Description:</strong> Dynamically places textboxes next to a chart&#039;s data labels with vertical collision avoidance. Textboxes are positioned either on the left or right of the chart area, vertically aligned with their corresponding label.</p>
+    <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>options</strong></td>
+              <td><code>Object</code></td>
+              <td></td>
+            </tr>
+          
+            <tr>
+              <td><strong>options.chart</strong></td>
+              <td><code>string</code></td>
+              <td></td>
+            </tr>
+          
+            <tr>
+              <td><strong>options.text</strong></td>
+              <td><code>string|Function</code></td>
+              <td></td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.position=&#039;left&#039;]</strong></td>
+              <td><code>&#039;left&#039;|&#039;right&#039;</code></td>
+              <td></td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.style]</strong></td>
+              <td><code>Object</code></td>
+              <td></td>
+            </tr>
+          
+        </tbody>
+      </table>
+    
+    
+      <h3>Returns</h3>
+      <p><code>this</code> — The chainable presentation engine instance.</p>
+    
+    <h3>OpenXML Impact</h3>
+    <p>Determines target label coordinates and appends aligned text shape `&lt;p:sp&gt;` elements.</p>
+    <h3>Edge Cases & Error Handling</h3>
+    <p><strong>Edge Cases:</strong> Detects collision and places textboxes nicely next to chart data labels. Position must be left or right.</p>
+    <p><strong>Errors:</strong> Validates position option, throws RangeError or configuration error if options are invalid.</p>
+    
+  
+    </div>
+    
+    <div class="text-xs text-gray-500 border-t border-white/5 pt-4 mt-8">
+      This page is an SEO-optimized landing page for search engines. JavaScript-enabled browsers will automatically transition to the main interface.
+    </div>
+  </div>
+</body>
+</html>

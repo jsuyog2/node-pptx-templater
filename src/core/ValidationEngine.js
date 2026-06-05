@@ -497,6 +497,176 @@ class ValidationEngine {
       warnings,
     }
   }
+
+  /**
+   * Validates chart labels for stacked bar charts.
+   *
+   * @param {string} xml - Chart XML string.
+   * @param {Object} options - Validation options.
+   * @returns {Object} report
+   */
+  static validateChartLabels(xml, options = {}) {
+    const errors = []
+    const warnings = []
+
+    if (!xml) {
+      errors.push('Chart XML must be provided')
+      return { valid: false, errors, warnings }
+    }
+
+    // Check chart type is stacked bar
+    const isBarChart = xml.includes('c:barChart')
+    const isStacked = xml.includes('val="stacked"') || xml.includes('val="percentStacked"')
+    if (!isBarChart || !isStacked) {
+      warnings.push(
+        'Chart is not a stacked bar chart (expected <c:barChart> with stacked grouping)'
+      )
+    }
+
+    // Verify label count consistency if options.labels is provided
+    let ptsCount = 0
+    const catMatch = /<c:cat>([\s\S]*?)<\/c:cat>/.exec(xml)
+    const valMatch = /<c:val>([\s\S]*?)<\/c:val>/.exec(xml)
+    const targetBlock = catMatch ? catMatch[1] : valMatch ? valMatch[1] : ''
+    const ptCountMatch = /<c:ptCount val="(\d+)"\/>/.exec(targetBlock)
+    if (ptCountMatch) {
+      ptsCount = parseInt(ptCountMatch[1], 10)
+    }
+
+    if (options.labels) {
+      if (ptsCount > 0 && options.labels.length !== ptsCount) {
+        errors.push(
+          `Label count (${options.labels.length}) does not match chart data points count (${ptsCount})`
+        )
+      }
+    }
+
+    // Check series name availability (meaning if showSeriesNameInBar is requested, does the chart have series names?)
+    if (options.showSeriesNameInBar) {
+      const hasSeriesName = xml.includes('<c:tx>') || xml.includes('<c:f>')
+      if (!hasSeriesName) {
+        warnings.push('Series name might not be available or defined in the template')
+      }
+    }
+
+    // Check template style availability (dLbls, txPr, etc.)
+    const hasDLbls = xml.includes('<c:dLbls>')
+    const hasTxPr = xml.includes('<c:txPr>')
+    if (!hasDLbls) {
+      warnings.push('Template does not contain default data labels (<c:dLbls>)')
+    } else if (!hasTxPr) {
+      warnings.push('Template data labels do not have styling properties (<c:txPr>)')
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    }
+  }
+
+  /**
+   * Validates series name labels configuration.
+   *
+   * @param {string} xml - Chart XML string.
+   * @param {Object} xfrm - Chart graphic frame xfrm.
+   * @param {Object} options - Configuration options.
+   * @returns {Object} report
+   */
+  static validateSeriesNameLabels(xml, xfrm, options = {}) {
+    const errors = []
+    const warnings = []
+
+    if (!options || !options.enabled) {
+      return { valid: true, errors, warnings }
+    }
+
+    const { position } = options
+    const allowedPositions = ['left', 'right']
+    if (!position || !allowedPositions.includes(position)) {
+      errors.push(`Invalid position "${position}". Only "left" and "right" are supported.`)
+    }
+
+    if (options.style) {
+      if (typeof options.style !== 'object' || Array.isArray(options.style)) {
+        errors.push('style must be a key-value object')
+      } else {
+        const { fontSize, bold, italic, color, fontFamily, align } = options.style
+        if (fontSize !== undefined && (typeof fontSize !== 'number' || fontSize <= 0)) {
+          errors.push('style.fontSize must be a positive number')
+        }
+        if (bold !== undefined && typeof bold !== 'boolean') {
+          errors.push('style.bold must be a boolean')
+        }
+        if (italic !== undefined && typeof italic !== 'boolean') {
+          errors.push('style.italic must be a boolean')
+        }
+        if (color !== undefined && typeof color !== 'string') {
+          errors.push('style.color must be a string')
+        } else if (color !== undefined) {
+          const cleanColor = color.replace('#', '').trim()
+          if (!/^[0-9A-Fa-f]{6}$/.test(cleanColor)) {
+            errors.push(`style.color "${color}" is not a valid hex color (e.g. "#FF0000")`)
+          }
+        }
+        if (fontFamily !== undefined && typeof fontFamily !== 'string') {
+          errors.push('style.fontFamily must be a string')
+        }
+        if (align !== undefined && !['left', 'right', 'center'].includes(align)) {
+          errors.push(
+            `Invalid style.align "${align}". Supported alignments are "left", "right", "center"`
+          )
+        }
+      }
+    }
+
+    if (!xml) {
+      errors.push('Chart XML must be provided')
+      return { valid: false, errors, warnings }
+    }
+
+    if (!xfrm) {
+      errors.push('Chart coordinates (xfrm) must be resolved')
+      return { valid: false, errors, warnings }
+    }
+
+    // Check plot area layout
+    const plotAreaMatch = /<c:plotArea>([\s\S]*?)<\/c:plotArea>/.exec(xml)
+    if (!plotAreaMatch) {
+      errors.push('Plot area not detected in chart XML')
+    }
+
+    // Verify slide boundary collision
+    if (position === 'left') {
+      if (xfrm.left <= 0) {
+        errors.push(
+          `Chart left boundary (${xfrm.left}) is at or outside slide bounds, labels on the left cannot fit`
+        )
+      } else if (xfrm.left < 500000) {
+        warnings.push(
+          `Chart left boundary (${xfrm.left}) is very close to slide edge, labels on the left might clip`
+        )
+      }
+    } else if (position === 'right') {
+      const chartRight = xfrm.left + xfrm.width
+      const slideWidth = 12192000
+      if (chartRight >= slideWidth) {
+        errors.push(
+          `Chart right boundary (${chartRight}) is at or outside slide bounds, labels on the right cannot fit`
+        )
+      } else if (slideWidth - chartRight < 500000) {
+        warnings.push(
+          `Chart right boundary (${chartRight}) is very close to slide edge, labels on the right might clip`
+        )
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    }
+  }
 }
 
 module.exports = { ValidationEngine }

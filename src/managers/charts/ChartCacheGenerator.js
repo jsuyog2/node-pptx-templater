@@ -170,6 +170,58 @@ class ChartCacheGenerator {
    *
    * 3. If no <c:title> block exists at all: create a minimal one.
    */
+  /**
+   * Extracts parts of <c:txPr> block (bodyPr, pPr, and converts defRPr to rPr)
+   * to use when creating custom rich text components.
+   *
+   * @param {string} txPrXml - The <c:txPr> XML string or block content.
+   * @returns {Object} { bodyPr, pPrXml, rPrXml }
+   */
+  static extractTxPrParts(txPrXml) {
+    let bodyPr = '<a:bodyPr/>'
+    let pPrXml = ''
+    let rPrXml = ''
+
+    if (!txPrXml) {
+      return { bodyPr, pPrXml, rPrXml }
+    }
+
+    let txPrContent = txPrXml
+    const txPrInnerMatch = /<c:txPr>([\s\S]*?)<\/c:txPr>/.exec(txPrXml)
+    if (txPrInnerMatch) {
+      txPrContent = txPrInnerMatch[1]
+    }
+
+    // Extract <a:bodyPr>
+    const bodyPrMatch = /(<a:bodyPr[^>]*\/>|<a:bodyPr[^>]*>[\s\S]*?<\/a:bodyPr>)/.exec(txPrContent)
+    if (bodyPrMatch) bodyPr = bodyPrMatch[1]
+
+    // Extract <a:defRPr> → convert to <a:rPr> for the run
+    const defRPrMatch = /(<a:defRPr[\s\S]*?<\/a:defRPr>|<a:defRPr[^>]*\/>)/.exec(txPrContent)
+    if (defRPrMatch) {
+      rPrXml = defRPrMatch[1].replace(/^<a:defRPr/, '<a:rPr').replace(/<\/a:defRPr>$/, '</a:rPr>')
+    }
+
+    // Extract <a:pPr> (keeps algn, indent, etc.) but strip <a:defRPr> from it
+    const pPrBlockMatch = /(<a:pPr[^>]*>)([\s\S]*?)(<\/a:pPr>)/.exec(txPrContent)
+    if (pPrBlockMatch) {
+      const innerContent = pPrBlockMatch[2]
+        .replace(/<a:defRPr(?:[^>]*\/>|[\s\S]*?<\/a:defRPr>)/g, '')
+        .trim()
+      const attrs = pPrBlockMatch[1].slice(7, -1).trim()
+      if (attrs || innerContent) {
+        pPrXml = innerContent
+          ? `${pPrBlockMatch[1]}${innerContent}${pPrBlockMatch[3]}`
+          : `<a:pPr ${attrs}/>`
+      }
+    } else {
+      const scPPrMatch = /(<a:pPr[^>]*\/>)/.exec(txPrContent)
+      if (scPPrMatch) pPrXml = scPPrMatch[1]
+    }
+
+    return { bodyPr, pPrXml, rPrXml }
+  }
+
   static updateTitle(xml, title) {
     // Split by \n so callers can drive multi-paragraph titles
     const titleLines = title.split('\n')
@@ -205,48 +257,7 @@ class ChartCacheGenerator {
 
       // ── Strategy 2 ──────────────────────────────────────────────────────────────
       // No <c:tx> yet – build one from <c:txPr> styles.
-      let bodyPr = '<a:bodyPr/>'
-      let pPrXml = '' // paragraph properties (alignment etc.) without defRPr
-      let rPr = '' // run properties from defRPr
-
-      const txPrMatch = /<c:txPr>([\s\S]*?)<\/c:txPr>/.exec(titleContent)
-      if (txPrMatch) {
-        const txPrContent = txPrMatch[1]
-
-        // Extract <a:bodyPr>
-        const bodyPrMatch = /(<a:bodyPr[^>]*\/>|<a:bodyPr[^>]*>[\s\S]*?<\/a:bodyPr>)/.exec(
-          txPrContent
-        )
-        if (bodyPrMatch) bodyPr = bodyPrMatch[1]
-
-        // Extract <a:defRPr> → convert to <a:rPr> for the run
-        const defRPrMatch = /(<a:defRPr[\s\S]*?<\/a:defRPr>|<a:defRPr[^>]*\/>)/.exec(txPrContent)
-        if (defRPrMatch) {
-          rPr = defRPrMatch[1].replace(/^<a:defRPr/, '<a:rPr').replace(/<\/a:defRPr>$/, '</a:rPr>')
-        }
-
-        // Extract <a:pPr> (keeps algn, indent, etc.) but strip <a:defRPr> from it
-        // since that is now expressed as <a:rPr> in the run.
-        // We must handle both <a:defRPr .../> (self-closing) and
-        // <a:defRPr ...>...</a:defRPr> (element with children).
-        const pPrBlockMatch = /(<a:pPr[^>]*>)([\s\S]*?)(<\/a:pPr>)/.exec(txPrContent)
-        if (pPrBlockMatch) {
-          const innerContent = pPrBlockMatch[2]
-            .replace(/<a:defRPr(?:[^>]*\/>|[\s\S]*?<\/a:defRPr>)/g, '')
-            .trim()
-          // Only emit pPr tag if it has attributes or remaining child content
-          const attrs = pPrBlockMatch[1].slice(7, -1).trim() // strip '<a:pPr' and '>'
-          if (attrs || innerContent) {
-            pPrXml = innerContent
-              ? `${pPrBlockMatch[1]}${innerContent}${pPrBlockMatch[3]}`
-              : `<a:pPr ${attrs}/>`
-          }
-        } else {
-          // Self-closing <a:pPr .../> (no children)
-          const scPPrMatch = /(<a:pPr[^>]*\/>)/.exec(txPrContent)
-          if (scPPrMatch) pPrXml = scPPrMatch[1]
-        }
-      }
+      const { bodyPr, pPrXml, rPrXml: rPr } = this.extractTxPrParts(titleContent)
 
       // Build one <a:p> per title line, each with the same pPr + rPr
       const paragraphs = titleLines
@@ -388,7 +399,15 @@ class ChartCacheGenerator {
     existingSpPr = '',
     existingDLblSpPrs = {}
   ) {
-    const { labels, labelsFromCells, template, position, labelStyle, labelMap } = options
+    const {
+      labels,
+      labelsFromCells,
+      template,
+      position,
+      labelStyle,
+      labelMap,
+      showSeriesNameInBar,
+    } = options
 
     let xml = '<c:dLbls>'
 
@@ -403,7 +422,10 @@ class ChartCacheGenerator {
       top: 't',
       bottom: 'b',
     }
-    const openxmlPos = position ? posMap[position] : null
+    let openxmlPos = position ? posMap[position] : null
+    if (!openxmlPos && showSeriesNameInBar) {
+      openxmlPos = 'ctr'
+    }
 
     const values = seriesData.values || []
     const sumValues = values.reduce((sum, v) => sum + (Number(v) || 0), 0)
@@ -485,15 +507,29 @@ class ChartCacheGenerator {
             xml += `</c:strRef>`
             xml += `</c:tx>`
           } else {
+            let bodyPr = '<a:bodyPr/>'
+            let pPrXml = ''
+            let rPrXml = ''
+            if (existingTxPr) {
+              const extracted = this.extractTxPrParts(existingTxPr)
+              bodyPr = extracted.bodyPr
+              pPrXml = extracted.pPrXml
+              rPrXml = extracted.rPrXml
+            }
+
+            const labelLines = String(textContent).split('\n')
+            const paragraphs = labelLines
+              .map(line => {
+                const escapedLine = this.#escapeXml(line)
+                return `<a:p>${pPrXml}<a:r>${rPrXml}<a:t>${escapedLine}</a:t></a:r></a:p>`
+              })
+              .join('')
+
             xml += `<c:tx>`
             xml += `<c:rich>`
-            xml += `<a:bodyPr/>`
+            xml += bodyPr
             xml += `<a:lstStyle/>`
-            xml += `<a:p>`
-            xml += `<a:r>`
-            xml += `<a:t>${this.#escapeXml(textContent)}</a:t>`
-            xml += `</a:r>`
-            xml += `</a:p>`
+            xml += paragraphs
             xml += `</c:rich>`
             xml += `</c:tx>`
           }
@@ -571,7 +607,9 @@ class ChartCacheGenerator {
 
     // showVal
     const defaultShowVal = hasCustomLabels ? '0' : '1'
-    if (existingShowTags['showVal'] && !hasCustomLabels) {
+    if (showSeriesNameInBar) {
+      xml += `<c:showVal val="0"/>`
+    } else if (existingShowTags['showVal'] && !hasCustomLabels) {
       xml += existingShowTags['showVal']
     } else {
       xml += `<c:showVal val="${defaultShowVal}"/>`
@@ -585,7 +623,9 @@ class ChartCacheGenerator {
     }
 
     // showSerName
-    if (existingShowTags['showSerName']) {
+    if (showSeriesNameInBar) {
+      xml += `<c:showSerName val="1"/>`
+    } else if (existingShowTags['showSerName']) {
       xml += existingShowTags['showSerName']
     } else {
       xml += `<c:showSerName val="0"/>`

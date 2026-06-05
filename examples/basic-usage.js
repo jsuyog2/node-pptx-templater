@@ -64,7 +64,7 @@ async function main() {
         { name: 'Product C', values: [70, 85, 100, 120] },
       ],
     })
-    ppt.updateChartTitle('Chart', 'Global SaaS\nRevenue (2026)');
+    ppt.updateChartTitle('Chart', 'Global SaaS\nRevenue (2026)')
 
     ppt.applyZOrder(1, [{ id: 'Shape', zIndex: 2 }])
 
@@ -115,6 +115,14 @@ async function main() {
         { name: 'Product C', values: [{ data: 190, label: '190\n(23.9%)' }] },
         { name: 'Product D', values: [] },
       ],
+    })
+
+    const positions = await ppt.getChartLabelPositions('Label Chart')
+    positions.forEach((d, i) => {
+      ppt.updateTextBoxPosition(`Series ${i + 1}`, {
+        x: d.x - 3500000,
+        y: d.y,
+      })
     })
 
     ppt.useSlide(4)

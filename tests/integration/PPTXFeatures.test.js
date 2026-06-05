@@ -88,14 +88,50 @@ describe('PPTXTemplater - Extended Features & Safety', () => {
 
   describe('Shape Operations', async () => {
     it('should update, clone, delete, and list shapes', async () => {
-      ppt.useSlide(1)
+      ppt.useSlide(3)
 
       const shapes = ppt.getShapes()
       expect(shapes.length).toBeGreaterThan(0)
 
-      const firstShapeId = shapes[0].name
+      const shapeWithPos = shapes.find(s => s.position !== null)
+      expect(shapeWithPos).toBeDefined()
+      const firstShapeId = shapeWithPos.name
 
       ppt.updateShapeText(firstShapeId, 'Updated Shape Header')
+      ppt.updateShapePosition(firstShapeId, {
+        x: 1500000,
+        y: 2000000,
+        width: 3000000,
+        height: 800000,
+      })
+
+      // Verify that coordinates were updated
+      let shapesAfter = ppt.getShapes()
+      let updatedShape = shapesAfter.find(s => s.name === firstShapeId)
+      expect(updatedShape.position.x).toBe(1500000)
+      expect(updatedShape.position.y).toBe(2000000)
+      expect(updatedShape.position.cx).toBe(3000000)
+      expect(updatedShape.position.cy).toBe(800000)
+
+      // Test updateTextBoxPosition
+      ppt.updateTextBoxPosition(firstShapeId, {
+        x: 1600000,
+        y: 2100000,
+        width: 3100000,
+        height: 810000,
+      })
+      shapesAfter = ppt.getShapes()
+      updatedShape = shapesAfter.find(s => s.name === firstShapeId)
+      expect(updatedShape.position.x).toBe(1600000)
+      expect(updatedShape.position.y).toBe(2100000)
+      expect(updatedShape.position.cx).toBe(3100000)
+      expect(updatedShape.position.cy).toBe(810000)
+
+      // Test updateTextBoxPosition error behavior
+      expect(() => {
+        ppt.updateTextBoxPosition('NonExistentTextBox', { x: 100 })
+      }).toThrow('Textbox "NonExistentTextBox" not found in slide 3')
+
       ppt.cloneShape(firstShapeId, 'ClonedShapeCopy', { offsetX: 1.0, offsetY: 0.5 })
       ppt.deleteShape('ClonedShapeCopy')
 

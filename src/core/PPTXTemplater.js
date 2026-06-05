@@ -1371,6 +1371,34 @@ class PPTXTemplater {
     return ValidationEngine.validateDataLabels(this, idx, chartId, options)
   }
 
+  async validateChartLabels(chartId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    if (targetIndices.length === 0) return { valid: true, errors: [], warnings: [] }
+    const idx = targetIndices[0]
+    return this.#chartManager.validateChartLabels(
+      idx,
+      chartId,
+      options,
+      this.#slideManager,
+      this.#relationshipManager
+    )
+  }
+
+  async validateSeriesNameLabels(chartId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    if (targetIndices.length === 0) return { valid: true, errors: [], warnings: [] }
+    const idx = targetIndices[0]
+    return this.#chartManager.validateSeriesNameLabels(
+      idx,
+      chartId,
+      options,
+      this.#slideManager,
+      this.#relationshipManager
+    )
+  }
+
   getCharts() {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1381,6 +1409,95 @@ class PPTXTemplater {
       )
     }
     return charts
+  }
+
+  /**
+   * Retrieves the exact coordinate positions of all data labels for a chart on the active slide.
+   * Calculates absolute layout limits in EMUs (English Metric Units).
+   *
+   * @param {string} chartId The unique chart name/id in the template slide.
+   * @returns {Promise<Array<{series: string, category: string, seriesIndex: number, categoryIndex: number, value: number, x: number, y: number, width: number, height: number}>>} An array of data label geometry objects.
+   */
+  async getChartLabelPositions(chartId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    if (targetIndices.length === 0) return []
+    const idx = targetIndices[0]
+    return this.#chartManager.getChartLabelPositions(
+      idx,
+      chartId,
+      this.#slideManager,
+      this.#relationshipManager
+    )
+  }
+
+  /**
+   * Retrieves the exact coordinate positions of all bars/columns for a chart on the active slide.
+   * Calculates absolute layout limits in EMUs (English Metric Units).
+   *
+   * @param {string} chartId The unique chart name/id in the template slide.
+   * @returns {Promise<Array<{series: string, category: string, seriesIndex: number, categoryIndex: number, value: number, x: number, y: number, width: number, height: number}>>} An array of bar geometry objects.
+   */
+  async getChartBarPositions(chartId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    if (targetIndices.length === 0) return []
+    const idx = targetIndices[0]
+    return this.#chartManager.getChartBarPositions(
+      idx,
+      chartId,
+      this.#slideManager,
+      this.#relationshipManager
+    )
+  }
+
+  /**
+   * Adds a textbox shape at a specific EMU coordinate position on targeted slides.
+   * Supports custom font styling and alignment configuration.
+   *
+   * @param {Object} options Textbox positioning and style configuration.
+   * @param {string} options.text Text content to insert in the textbox.
+   * @param {number} options.x Bounding box X offset coordinate (in EMUs).
+   * @param {number} options.y Bounding box Y offset coordinate (in EMUs).
+   * @param {number} [options.width=1200000] Bounding box width (in EMUs).
+   * @param {number} [options.height=300000] Bounding box height (in EMUs).
+   * @param {Object} [options.style] Font formatting properties (fontSize, fontFamily, color, bold, italic, align).
+   * @returns {this} The chainable presentation engine instance.
+   */
+  addTextAtPosition(options) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      const p = this.#chartManager.addTextAtPosition(idx, options, this.#slideManager)
+      this.#zipManager.addPendingPromise(p)
+    }
+    return this
+  }
+
+  /**
+   * Dynamically places textboxes next to a chart's data labels with vertical collision avoidance.
+   * Textboxes are positioned either on the left or right of the chart area, vertically aligned with their corresponding label.
+   *
+   * @param {Object} options Text alignment, naming, and position configuration.
+   * @param {string} options.chart The target chart name/id.
+   * @param {string|Function} options.text Static label text or a callback function receiving `({ series, category, value })`.
+   * @param {'left'|'right'} [options.position='left'] Alignment position relative to the chart boundaries.
+   * @param {Object} [options.style] Text styling attributes (fontSize, fontFamily, color, bold, italic, align, autoFit).
+   * @returns {this} The chainable presentation engine instance.
+   */
+  addTextNearChartLabel(options) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      const p = this.#chartManager.addTextNearChartLabel(
+        idx,
+        options,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+      this.#zipManager.addPendingPromise(p)
+    }
+    return this
   }
 
   /**
@@ -1481,6 +1598,46 @@ class PPTXTemplater {
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       this.#shapeManager.updateShapeText(idx, shapeId, text, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Updates the position and/or dimensions of an existing shape on targeted slides.
+   *
+   * @param {string} shapeId The unique shape name/id in the template slide.
+   * @param {Object} options Positioning and styling dimensions config.
+   * @param {number} [options.x] Absolute X offset coordinate (in EMUs).
+   * @param {number} [options.y] Absolute Y offset coordinate (in EMUs).
+   * @param {number} [options.width] Bounding box width (in EMUs).
+   * @param {number} [options.height] Bounding box height (in EMUs).
+   * @returns {this} The chainable presentation engine instance.
+   */
+  updateShapePosition(shapeId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#shapeManager.updateShapePosition(idx, shapeId, options, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Updates the position and/or dimensions of an existing textbox on targeted slides.
+   *
+   * @param {string} textBoxId The unique textbox shape name/id in the template slide.
+   * @param {Object} options Positioning and styling dimensions config.
+   * @param {number} [options.x] Absolute X offset coordinate (in EMUs).
+   * @param {number} [options.y] Absolute Y offset coordinate (in EMUs).
+   * @param {number} [options.width] Bounding box width (in EMUs).
+   * @param {number} [options.height] Bounding box height (in EMUs).
+   * @returns {this} The chainable presentation engine instance.
+   */
+  updateTextBoxPosition(textBoxId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#shapeManager.updateTextBoxPosition(idx, textBoxId, options, this.#slideManager)
     }
     return this
   }
