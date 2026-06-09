@@ -39,7 +39,7 @@ describe('PPTXTemplater - ZIP Validation and Debug Mode', () => {
 
     // load a fresh instance
     const badPpt = await PPTXTemplater.load(fixtureFile)
-    
+
     // Remove a critical file to simulate corruption
     badPpt.zipManager.removeFile('[Content_Types].xml')
 
@@ -54,7 +54,7 @@ describe('PPTXTemplater - ZIP Validation and Debug Mode', () => {
     }
 
     const debugPpt = await PPTXTemplater.load(fixtureFile)
-    
+
     // Should be chainable
     const returned = debugPpt.enableDebugZip()
     expect(returned).toBe(debugPpt)
