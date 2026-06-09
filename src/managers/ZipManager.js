@@ -289,6 +289,97 @@ class ZipManager {
   }
 
   /**
+   * Validates the integrity of the ZIP archive.
+   * Checks for CRC integrity, entry sizes, duplicate entries, missing critical entries, and invalid binary data.
+   *
+   * @returns {Promise<void>}
+   * @throws {PPTXError} If any validation issue is found.
+   */
+  async validateArchive() {
+    const files = this.#zip.files
+    const errors = []
+    const seenPaths = new Set()
+    const { XMLParser } = require('../parsers/XMLParser.js')
+    const parser = new XMLParser()
+
+    for (const [name, file] of Object.entries(files)) {
+      if (file.dir) continue
+
+      const lowerPath = name.toLowerCase()
+      if (seenPaths.has(lowerPath)) {
+        errors.push(`Duplicate entry found (case-insensitive): ${name}`)
+      }
+      seenPaths.add(lowerPath)
+
+      try {
+        // file.async('uint8array') forces decompression and checks CRC32 & uncompressed size
+        const content = await file.async('uint8array')
+
+        // If XML/rels file, verify it's not empty and is valid XML
+        if (name.endsWith('.xml') || name.endsWith('.rels')) {
+          const { TextDecoder } = require('util')
+          const text = new TextDecoder('utf-8').decode(content)
+          if (!text.trim()) {
+            errors.push(`XML/rels entry is empty: ${name}`)
+          } else {
+            try {
+              parser.parse(text, name)
+            } catch (xmlErr) {
+              errors.push(`Invalid XML/rels structure in ${name}: ${xmlErr.message}`)
+            }
+          }
+        }
+
+        // Verify media files (like images) are not empty and have correct magic numbers
+        if (name.startsWith('ppt/media/')) {
+          if (content.length === 0) {
+            errors.push(`Media entry is empty: ${name}`)
+          }
+          const ext = name.split('.').pop().toLowerCase()
+          if (ext === 'png') {
+            if (
+              content[0] !== 0x89 ||
+              content[1] !== 0x50 ||
+              content[2] !== 0x4e ||
+              content[3] !== 0x47
+            ) {
+              errors.push(`Invalid PNG signature in media file: ${name}`)
+            }
+          } else if (ext === 'jpg' || ext === 'jpeg') {
+            if (content[0] !== 0xff || content[1] !== 0xd8) {
+              errors.push(`Invalid JPEG signature in media file: ${name}`)
+            }
+          }
+        }
+      } catch (err) {
+        errors.push(`CRC32 or uncompressed size integrity failure on entry ${name}: ${err.message}`)
+      }
+    }
+
+    // Check for critical missing OpenXML files
+    const criticalFiles = [
+      '[Content_Types].xml',
+      '_rels/.rels',
+      'ppt/presentation.xml',
+      'ppt/_rels/presentation.xml.rels',
+    ]
+
+    for (const critical of criticalFiles) {
+      if (!this.hasFile(critical)) {
+        errors.push(`Critical OpenXML package file is missing: ${critical}`)
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new PPTXError(
+        `ZIP archive validation failed:\n${errors.map(e => `  • ${e}`).join('\n')}`
+      )
+    }
+
+    logger.info('ZIP archive integrity validation passed.')
+  }
+
+  /**
    * Returns the raw JSZip instance (for advanced use cases).
    * @returns {JSZip}
    */

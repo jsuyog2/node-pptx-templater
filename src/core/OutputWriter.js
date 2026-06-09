@@ -26,6 +26,9 @@ class OutputWriter {
   /** @private @type {ContentTypesManager} */
   #contentTypesManager
 
+  /** @type {boolean} */
+  debugZip = false
+
   /**
    * @param {ZipManager} zipManager
    * @param {ContentTypesManager} contentTypesManager
@@ -76,6 +79,11 @@ class OutputWriter {
 
     const buffer = await zipManager.toBuffer()
     logger.debug(`Generated buffer: ${(buffer.length / 1024).toFixed(1)} KB`)
+
+    if (this.debugZip) {
+      this.printDebugZip(buffer)
+    }
+
     return buffer
   }
 
@@ -94,7 +102,66 @@ class OutputWriter {
 
     await zipManager.waitForPendingWrites()
     const nodeStream = await zipManager.toStream()
+
+    if (this.debugZip) {
+      const buffer = await zipManager.toBuffer()
+      this.printDebugZip(buffer)
+    }
+
     return nodeStream
+  }
+
+  /**
+   * Parses the Central Directory of a ZIP buffer and logs debug info for every entry.
+   *
+   * @param {Buffer} buffer
+   */
+  printDebugZip(buffer) {
+    let offset = 0
+    const entries = []
+
+    while (offset < buffer.length - 46) {
+      const sig = buffer.readUInt32LE(offset)
+      if (sig === 0x02014b50) {
+        const compressionMethod = buffer.readUInt16LE(offset + 10)
+        const crc32 = buffer.readUInt32LE(offset + 16)
+        const compressedSize = buffer.readUInt32LE(offset + 20)
+        const uncompressedSize = buffer.readUInt32LE(offset + 24)
+        const fileNameLength = buffer.readUInt16LE(offset + 28)
+        const extraFieldLength = buffer.readUInt16LE(offset + 30)
+        const fileCommentLength = buffer.readUInt16LE(offset + 32)
+
+        const fileName = buffer.toString('utf8', offset + 46, offset + 46 + fileNameLength)
+
+        entries.push({
+          name: fileName,
+          compressionMethod,
+          crc32: crc32.toString(16).toLowerCase(),
+          compressedSize,
+          uncompressedSize,
+        })
+
+        offset += 46 + fileNameLength + extraFieldLength + fileCommentLength
+      } else {
+        offset++
+      }
+    }
+
+    logger.info(`--- ZIP debug output (${entries.length} entries) ---`)
+    entries.forEach(e => {
+      const methodStr =
+        e.compressionMethod === 8
+          ? 'DEFLATE'
+          : e.compressionMethod === 0
+            ? 'STORE'
+            : `UNKNOWN(${e.compressionMethod})`
+      console.log(e.name)
+      console.log(`compressed: ${e.compressedSize}`)
+      console.log(`uncompressed: ${e.uncompressedSize}`)
+      console.log(`crc: ${e.crc32}`)
+      console.log(`method: ${methodStr}`)
+    })
+    logger.info('--- End of ZIP debug output ---')
   }
 
   /**

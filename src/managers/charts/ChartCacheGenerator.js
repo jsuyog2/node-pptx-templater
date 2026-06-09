@@ -350,7 +350,9 @@ class ChartCacheGenerator {
             if (dLblTxPrMatch) {
               existingDLblTxPrs[idx] = dLblTxPrMatch[1]
             }
-            const dLblLayoutMatch = /(<c:layout>[\s\S]*?<\/c:layout>|<c:layout\/>)/.exec(dLblContent)
+            const dLblLayoutMatch = /(<c:layout>[\s\S]*?<\/c:layout>|<c:layout\/>)/.exec(
+              dLblContent
+            )
             if (dLblLayoutMatch) {
               existingDLblLayouts[idx] = dLblLayoutMatch[1]
             }

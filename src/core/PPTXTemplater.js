@@ -987,6 +987,7 @@ class PPTXTemplater {
         )
       }
     }
+    await this.validateArchive()
     await this.#outputWriter.saveToFile(filePath, this.#slideManager, this.#zipManager)
     logger.info(`Saved PPTX to ${filePath}`)
   }
@@ -998,6 +999,7 @@ class PPTXTemplater {
    */
   async toBuffer() {
     this.#assertLoaded()
+    await this.validateArchive()
     return this.#outputWriter.toBuffer(this.#slideManager, this.#zipManager)
   }
 
@@ -1008,6 +1010,7 @@ class PPTXTemplater {
    */
   async toStream() {
     this.#assertLoaded()
+    await this.validateArchive()
     return this.#outputWriter.toStream(this.#slideManager, this.#zipManager)
   }
 
@@ -1747,6 +1750,17 @@ class PPTXTemplater {
       this.#getTargetSlideIndices()[0] || 1,
       tableId
     )
+  }
+
+  async validateArchive() {
+    this.#assertLoaded()
+    await this.#zipManager.validateArchive()
+    return this
+  }
+
+  enableDebugZip() {
+    this.#outputWriter.debugZip = true
+    return this
   }
 
   validateRelationships(partPath) {
