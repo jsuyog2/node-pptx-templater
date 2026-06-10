@@ -9,12 +9,10 @@ const FIXTURE_FILE = resolve(__dirname, '../fixtures/sample.pptx')
 const TEMPLATE_FILE = resolve(__dirname, '../../templates/sample.pptx')
 
 let PPTXTemplater
-let ValidationEngine
 
 beforeAll(async () => {
   const module = await import('../../src/index.js')
   PPTXTemplater = module.PPTXTemplater
-  ValidationEngine = module.ValidationEngine
 })
 
 describe('Chart Label Inheritance and Series Name Tests', () => {

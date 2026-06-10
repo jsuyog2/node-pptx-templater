@@ -112,8 +112,6 @@ class ChartManager {
       // Chart name is inferred from file name
       const chartName = chartPath.split('/').pop().replace('.xml', '')
       this.#chartRegistry.set(chartName, { zipPath: chartPath, slideIndex: null })
-      // Pre-load the chart XML into cache so that we can read it synchronously if needed
-      await zipManager.readFile(chartPath)
     }
 
     logger.debug(`Found ${chartFiles.length} chart file(s)`)
@@ -869,7 +867,6 @@ class ChartManager {
   #findChartCoordinates(slideXml, chartId, relationshipManager, slideZipPath) {
     const gfPattern = /<p:graphicFrame>([\s\S]*?)<\/p:graphicFrame>/g
     let match
-    const escapedChartId = chartId.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
     while ((match = gfPattern.exec(slideXml)) !== null) {
       const gfContent = match[0]
       const nameMatch = /<p:cNvPr[^>]*name="([^"]+)"/.exec(gfContent)

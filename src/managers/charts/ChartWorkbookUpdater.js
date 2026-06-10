@@ -184,7 +184,7 @@ class ChartWorkbookUpdater {
   static #serializeSheetXml(sheetXml, cells) {
     // Group cells by row
     const rows = {}
-    for (const [ref, val] of Object.entries(cells)) {
+    for (const ref of Object.keys(cells)) {
       const rowMatch = /\d+$/.exec(ref)
       if (!rowMatch) continue
       const r = parseInt(rowMatch[0], 10)

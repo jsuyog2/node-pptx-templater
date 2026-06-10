@@ -162,7 +162,14 @@ const METHOD_CATEGORIES = {
   'imageManager': 'utils',
   'textManager': 'utils',
   'hyperlinkManager': 'utils',
-  'mediaManager': 'utils'
+  'mediaManager': 'utils',
+  'preload': 'utils',
+  'cache': 'utils',
+  'fromCache': 'utils',
+  'clearCache': 'utils',
+  'enablePerformanceProfile': 'utils',
+  'getPerformanceMetrics': 'utils',
+  'saveToStream': 'utils'
 };
 
 // Rich comprehensive database of methods to fill JSDoc gaps

@@ -42,6 +42,7 @@ const { OutputWriter } = require('./OutputWriter.js')
 const { TemplateEngine } = require('./TemplateEngine.js')
 const { createLogger } = require('../utils/logger.js')
 const { PPTXError } = require('../utils/errors.js')
+const { performance } = require('perf_hooks')
 
 const logger = createLogger('PPTXTemplater')
 
@@ -158,6 +159,14 @@ class PPTXTemplater {
    */
   #loaded = false
 
+  /**
+   * @private
+   * @type {Object}
+   */
+  #profiler
+
+  static #templateCache = new Map()
+
   constructor() {
     this.#xmlParser = new XMLParser()
     this.#zipManager = new ZipManager()
@@ -178,6 +187,18 @@ class PPTXTemplater {
     this.#templateEngine = new TemplateEngine(this.#xmlParser)
     this.#zOrderManager = new ZOrderManager(this.#xmlParser)
     this.#outputWriter = new OutputWriter(this.#zipManager, this.#contentTypesManager)
+
+    this.#profiler = {
+      enabled: false,
+      templateLoadMs: 0,
+      parseMs: 0,
+      chartUpdateMs: 0,
+      imageUpdateMs: 0,
+      zipGenerationMs: 0,
+      totalMs: 0,
+      memoryUsedMB: 0,
+      startTime: performance.now(),
+    }
   }
 
   /**
@@ -200,6 +221,95 @@ class PPTXTemplater {
     const engine = new PPTXTemplater()
     await engine.#initialize(source)
     return engine
+  }
+
+  static async preload(source) {
+    let key = source
+    if (Buffer.isBuffer(source)) {
+      const crypto = require('crypto')
+      key = crypto.createHash('sha256').update(source).digest('hex')
+    } else if (typeof source === 'object' && source !== null) {
+      key = JSON.stringify(source)
+    }
+
+    if (PPTXTemplater.#templateCache.has(key)) {
+      return PPTXTemplater.#templateCache.get(key)
+    }
+
+    const zipManager = new ZipManager()
+    await zipManager.load(source)
+    const files = zipManager.listFiles()
+    const cachedFiles = new Map()
+    for (const file of files) {
+      const ext = file.split('.').pop().toLowerCase()
+      const isText = ext === 'xml' || ext === 'rels' || ext === 'txt'
+      if (isText) {
+        const content = await zipManager.readFile(file)
+        cachedFiles.set(file, { type: 'text', content })
+      } else {
+        const content = await zipManager.readBinaryFile(file)
+        cachedFiles.set(file, { type: 'binary', content })
+      }
+    }
+
+    PPTXTemplater.#templateCache.set(key, cachedFiles)
+    return cachedFiles
+  }
+
+  static async cache(source) {
+    return PPTXTemplater.preload(source)
+  }
+
+  static async fromCache(source) {
+    let key = source
+    if (Buffer.isBuffer(source)) {
+      const crypto = require('crypto')
+      key = crypto.createHash('sha256').update(source).digest('hex')
+    } else if (typeof source === 'object' && source !== null) {
+      key = JSON.stringify(source)
+    }
+
+    let cachedFiles = PPTXTemplater.#templateCache.get(key)
+    if (!cachedFiles) {
+      cachedFiles = await PPTXTemplater.preload(source)
+    }
+
+    const engine = new PPTXTemplater()
+    await engine.#initializeFromCache(cachedFiles)
+    return engine
+  }
+
+  static clearCache() {
+    PPTXTemplater.#templateCache.clear()
+  }
+
+  enablePerformanceProfile() {
+    this.#profiler.enabled = true
+    this.#profiler.startTime = performance.now()
+    return this
+  }
+
+  getPerformanceMetrics() {
+    if (!this.#profiler.enabled) {
+      return {
+        enabled: false,
+        message: 'Performance profiling not enabled. Call enablePerformanceProfile() first.',
+      }
+    }
+    const endTime = performance.now()
+    this.#profiler.totalMs = endTime - this.#profiler.startTime
+    this.#profiler.memoryUsedMB = Math.round((process.memoryUsage().rss / 1024 / 1024) * 100) / 100
+
+    return {
+      enabled: true,
+      templateLoadMs: Math.round(this.#profiler.templateLoadMs * 100) / 100,
+      parseMs: Math.round(this.#profiler.parseMs * 100) / 100,
+      chartUpdateMs: Math.round(this.#profiler.chartUpdateMs * 100) / 100,
+      imageUpdateMs: Math.round(this.#profiler.imageUpdateMs * 100) / 100,
+      zipGenerationMs: Math.round(this.#profiler.zipGenerationMs * 100) / 100,
+      totalMs: Math.round(this.#profiler.totalMs * 100) / 100,
+      memoryUsedMB: this.#profiler.memoryUsedMB,
+    }
   }
 
   /**
@@ -236,10 +346,13 @@ class PPTXTemplater {
    * @param {string|Buffer} source
    */
   async #initialize(source) {
+    const t0 = performance.now()
     logger.debug(`Loading PPTX from ${typeof source === 'string' ? source : 'buffer'}`)
 
     // Load and extract the ZIP archive (PPTX is just a ZIP)
     await this.#zipManager.load(source)
+    const t1 = performance.now()
+    this.#profiler.templateLoadMs = t1 - t0
 
     // Initialize content types manager first!
     await this.#contentTypesManager.initialize(this.#zipManager)
@@ -259,8 +372,44 @@ class PPTXTemplater {
     // Deduplicate and index media files
     await this.#mediaManager.initialize(this.#zipManager)
 
+    const t2 = performance.now()
+    this.#profiler.parseMs = t2 - t1
+
     this.#loaded = true
     logger.debug(`Loaded ${this.#slideManager.slideCount} slides successfully`)
+  }
+
+  async #initializeFromCache(cachedFiles) {
+    const t0 = performance.now()
+    logger.debug('Initializing PPTX from cached template')
+
+    const clonedCache = new Map(cachedFiles)
+    await this.#zipManager.loadFromCache(clonedCache)
+    const t1 = performance.now()
+    this.#profiler.templateLoadMs = t1 - t0
+
+    // Initialize content types manager first!
+    await this.#contentTypesManager.initialize(this.#zipManager)
+
+    // Parse the core presentation relationships and structure
+    await this.#relationshipManager.initialize(this.#zipManager)
+
+    // Load all slide references from presentation.xml
+    await this.#slideManager.initialize(this.#zipManager)
+
+    // Pre-load all slide XML into cache to allow synchronous operations like replaceText()
+    await this.#slideManager.preloadAll()
+
+    // Initialize chart manager with zip context
+    await this.#chartManager.initialize(this.#zipManager)
+
+    // Deduplicate and index media files
+    await this.#mediaManager.initialize(this.#zipManager)
+
+    const t2 = performance.now()
+    this.#profiler.parseMs = t2 - t1
+
+    this.#loaded = true
   }
 
   /**
@@ -401,6 +550,7 @@ class PPTXTemplater {
    */
   updateChart(chartId, data) {
     this.#assertLoaded()
+    const t0 = performance.now()
     const targetIndices = this.#getTargetSlideIndices()
 
     for (const slideIndex of targetIndices) {
@@ -413,6 +563,7 @@ class PPTXTemplater {
       )
     }
 
+    this.#profiler.chartUpdateMs += performance.now() - t0
     logger.debug(`Updated chart "${chartId}" in ${targetIndices.length} slide(s)`)
     return this
   }
@@ -999,7 +1150,11 @@ class PPTXTemplater {
       }
     }
     await this.validateArchive()
-    await this.#outputWriter.saveToFile(filePath, this.#slideManager, this.#zipManager)
+
+    const t0 = performance.now()
+    await this.#outputWriter.saveToFile(filePath, this.#slideManager, this.#zipManager, options)
+    this.#profiler.zipGenerationMs += performance.now() - t0
+
     logger.info(`Saved PPTX to ${filePath}`)
   }
 
@@ -1040,23 +1195,64 @@ class PPTXTemplater {
   /**
    * Returns the PPTX content as a Node.js Buffer.
    *
+   * @param {Object} [options] - Save options.
    * @returns {Promise<Buffer>}
    */
-  async toBuffer() {
+  async toBuffer(options = {}) {
     this.#assertLoaded()
     await this.validateArchive()
-    return this.#outputWriter.toBuffer(this.#slideManager, this.#zipManager)
+
+    const t0 = performance.now()
+    const buffer = await this.#outputWriter.toBuffer(this.#slideManager, this.#zipManager, options)
+    this.#profiler.zipGenerationMs += performance.now() - t0
+
+    return buffer
   }
 
   /**
    * Returns the PPTX content as a readable Node.js Stream.
    *
+   * @param {Object} [options] - Save options.
    * @returns {Promise<NodeJS.ReadableStream>}
    */
-  async toStream() {
+  async toStream(options = {}) {
     this.#assertLoaded()
     await this.validateArchive()
-    return this.#outputWriter.toStream(this.#slideManager, this.#zipManager)
+
+    const t0 = performance.now()
+    const stream = await this.#outputWriter.toStream(this.#slideManager, this.#zipManager, options)
+    this.#profiler.zipGenerationMs += performance.now() - t0
+
+    return stream
+  }
+
+  /**
+   * Saves the presentation to a readable stream or pipes it to a writable stream.
+   *
+   * @param {NodeJS.WritableStream|Object} [writableOrOptions] - Writable stream to pipe to, or options object.
+   * @param {Object} [options] - Save options if writable stream was passed first.
+   * @returns {Promise<NodeJS.ReadableStream|void>}
+   */
+  async saveToStream(writableOrOptions, options = {}) {
+    this.#assertLoaded()
+    let writable = null
+    let opts = options
+    if (writableOrOptions && typeof writableOrOptions.write === 'function') {
+      writable = writableOrOptions
+    } else if (writableOrOptions) {
+      opts = writableOrOptions
+    }
+
+    const stream = await this.toStream(opts)
+    if (writable) {
+      return new Promise((resolve, reject) => {
+        stream.pipe(writable)
+        writable.on('finish', resolve)
+        writable.on('error', reject)
+        stream.on('error', reject)
+      })
+    }
+    return stream
   }
 
   // === Slide Features ===
@@ -1721,6 +1917,7 @@ class PPTXTemplater {
   // === Image Features ===
   async replaceImage(imageIdOrName, sourcePathOrBuffer) {
     this.#assertLoaded()
+    const t0 = performance.now()
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       await this.#imageManager.replaceImage(
@@ -1732,11 +1929,13 @@ class PPTXTemplater {
         this.#relationshipManager
       )
     }
+    this.#profiler.imageUpdateMs += performance.now() - t0
     return this
   }
 
   async addImage(sourcePathOrBuffer, options = {}) {
     this.#assertLoaded()
+    const t0 = performance.now()
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       await this.#imageManager.addImage(
@@ -1748,6 +1947,7 @@ class PPTXTemplater {
         this.#relationshipManager
       )
     }
+    this.#profiler.imageUpdateMs += performance.now() - t0
     return this
   }
 

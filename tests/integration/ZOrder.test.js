@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from 'vitest'
+import { describe, test, expect } from 'vitest'
 const { PPTXTemplater } = require('../../src/index.js')
 
 /**
@@ -7,7 +7,6 @@ const { PPTXTemplater } = require('../../src/index.js')
  */
 async function createTestEngine() {
   const ppt = await PPTXTemplater.create()
-  const initialCount = ppt.getInfo().slideCount
 
   ppt.addSlide({
     title: 'Test Slide',

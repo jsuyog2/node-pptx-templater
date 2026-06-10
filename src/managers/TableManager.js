@@ -67,12 +67,7 @@ class TableManager {
    * @throws {TableNotFoundError} If the table is not found.
    */
   updateTable(slideIndex, tableId, data, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
-    if (!tblObj) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
-    }
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (trs.length === 0) {
@@ -174,8 +169,7 @@ class TableManager {
 
     tblObj['a:tr'] = newRows
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
 
     const finalMerges = [...templateMerges, ...generatedMerges]
     for (const merge of finalMerges) {
@@ -204,12 +198,7 @@ class TableManager {
    * @param {SlideManager} slideManager
    */
   addTableRow(slideIndex, tableId, rowData, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
-    if (!tblObj) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
-    }
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (trs.length === 0) {
@@ -230,8 +219,7 @@ class TableManager {
 
     trs.push(newRow)
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
   }
 
   /**
@@ -243,12 +231,7 @@ class TableManager {
    * @param {SlideManager} slideManager
    */
   removeTableRow(slideIndex, tableId, rowIndex, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
-    if (!tblObj) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
-    }
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (rowIndex < 0 || rowIndex >= trs.length) {
@@ -257,8 +240,7 @@ class TableManager {
 
     trs.splice(rowIndex, 1)
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
   }
 
   /**
@@ -271,12 +253,7 @@ class TableManager {
    * @param {SlideManager} slideManager
    */
   insertTableRow(slideIndex, tableId, rowIndex, rowData, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
-    if (!tblObj) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
-    }
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (rowIndex < 0 || rowIndex > trs.length) {
@@ -302,8 +279,7 @@ class TableManager {
 
     trs.splice(rowIndex, 0, newRow)
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
   }
 
   /**
@@ -316,12 +292,7 @@ class TableManager {
    * @param {SlideManager} slideManager
    */
   cloneTableRow(slideIndex, tableId, sourceRowIndex, targetRowIndex, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
-    if (!tblObj) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
-    }
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (sourceRowIndex < 0 || sourceRowIndex >= trs.length) {
@@ -337,8 +308,7 @@ class TableManager {
 
     trs.splice(targetRowIndex, 0, newRow)
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
   }
 
   /**
@@ -353,12 +323,7 @@ class TableManager {
    * @param {SlideManager} slideManager
    */
   updateCell(slideIndex, tableId, rowIndex, colIndex, value, options = {}, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
-    if (!tblObj) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
-    }
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const row = tblObj['a:tr']?.[rowIndex]
     if (!row) {
@@ -407,8 +372,7 @@ class TableManager {
       }
     }
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
   }
 
   /**
@@ -425,9 +389,8 @@ class TableManager {
    */
   validateMergeRegion(slideIndex, tableId, startRow, startCol, endRow, endCol, slideManager) {
     const errors = []
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const tblObj = this.#findTableObj(slideObj, tableId, slideManager, slideIndex)
     if (!tblObj) {
       errors.push(`Table "${tableId}" not found in slide ${slideIndex}`)
       return { valid: false, errors }
@@ -507,9 +470,7 @@ class TableManager {
       throw new PPTXError(`Invalid merge region: ${validation.errors.join('; ')}`)
     }
 
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
     const trs = tblObj['a:tr'] || []
 
     const allTexts = []
@@ -561,8 +522,7 @@ class TableManager {
     const combinedText = allTexts.filter(t => t.trim() !== '').join('\n')
     this.#setCellTextObj(originCell, combinedText)
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
   }
 
   /**
@@ -587,9 +547,8 @@ class TableManager {
       actualEndCol = undefined
     }
 
-    const slideXml = actualSlideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
+    const slideObj = actualSlideManager.getSlideObj(slideIndex)
+    const tblObj = this.#findTableObj(slideObj, tableId, actualSlideManager, slideIndex)
     if (!tblObj) {
       throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
     }
@@ -629,8 +588,7 @@ class TableManager {
       }
     }
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    actualSlideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    actualSlideManager.markSlideObjDirty(slideIndex)
   }
 
   /**
@@ -642,9 +600,8 @@ class TableManager {
    * @returns {Array<Object>} List of merged region coordinates
    */
   getMergedCells(slideIndex, tableId, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const tblObj = this.#findTableObj(slideObj, tableId, slideManager, slideIndex)
     if (!tblObj) {
       throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
     }
@@ -759,9 +716,8 @@ class TableManager {
       slideManager
     )
 
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const tblObj = this.#findTableObj(slideObj, tableId, slideManager, slideIndex)
     if (!tblObj) return
 
     const trs = tblObj['a:tr'] || []
@@ -777,8 +733,7 @@ class TableManager {
       }
     }
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
   }
 
   /**
@@ -789,12 +744,7 @@ class TableManager {
    * @param {SlideManager} slideManager
    */
   autoFitTable(slideIndex, tableId, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const tblObj = this.#findTableObj(slideObj, tableId)
-    if (!tblObj) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
-    }
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     const gridCols = tblObj['a:tblGrid']?.['a:gridCol']
@@ -835,8 +785,7 @@ class TableManager {
       gridCols[c]['@_w'] = String(width)
     }
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
   }
 
   /**
@@ -849,10 +798,12 @@ class TableManager {
    * @param {SlideManager} slideManager
    */
   resizeTable(slideIndex, tableId, width, height, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const slideObj = slideManager.getSlideObj(slideIndex)
 
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
     if (!spTree) return
 
     let frames = spTree['p:graphicFrame'] || []
@@ -931,8 +882,7 @@ class TableManager {
       }
     }
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
   }
 
   /**
@@ -943,11 +893,13 @@ class TableManager {
    * @returns {Array<{name: string, id: string, rows: number, cols: number}>}
    */
   inspectTables(slideIndex, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const slideObj = slideManager.getSlideObj(slideIndex)
     const tables = []
 
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
     if (!spTree) return []
 
     let frames = spTree['p:graphicFrame'] || []
@@ -1064,8 +1016,16 @@ class TableManager {
   /**
    * Helper to find a table element inside a slide parsed object.
    */
-  #findTableObj(slideObj, tableId) {
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+  #findTableObj(slideObj, tableId, slideManager, slideIndex) {
+    if (slideManager && slideIndex !== undefined) {
+      const res = slideManager.getSlideTable(slideIndex, tableId)
+      return res ? res.table : null
+    }
+
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
     if (!spTree) return null
 
     let frames = spTree['p:graphicFrame'] || []
@@ -1087,6 +1047,15 @@ class TableManager {
     }
 
     return null
+  }
+
+  #getTableContext(slideIndex, tableId, slideManager) {
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const tblObj = this.#findTableObj(slideObj, tableId, slideManager, slideIndex)
+    if (!tblObj) {
+      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
+    }
+    return { slideObj, tblObj }
   }
 
   /**

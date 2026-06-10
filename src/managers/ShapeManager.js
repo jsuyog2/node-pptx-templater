@@ -31,19 +31,14 @@ class ShapeManager {
    * @param {SlideManager} slideManager
    */
   updateShapeText(slideIndex, shapeId, text, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
-    const res = this.findShapeRecursive(spTree, shapeId)
+    const res = slideManager.getSlideShape(slideIndex, shapeId)
 
     if (!res) {
       throw new PPTXError(`Shape "${shapeId}" not found in slide ${slideIndex}`)
     }
 
     this.#setShapeTextObj(res.shape, text)
-
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`Updated text for shape "${shapeId}" on slide ${slideIndex}`)
   }
 
@@ -60,10 +55,7 @@ class ShapeManager {
    * @param {SlideManager} slideManager
    */
   updateShapePosition(slideIndex, shapeId, options = {}, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
-    const res = this.findShapeRecursive(spTree, shapeId)
+    const res = slideManager.getSlideShape(slideIndex, shapeId)
 
     if (!res) {
       throw new PPTXError(`Shape "${shapeId}" not found in slide ${slideIndex}`)
@@ -108,8 +100,7 @@ class ShapeManager {
       xfrm['a:ext']['@_cy'] = '0'
     }
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`Updated position/dimensions for shape "${shapeId}" on slide ${slideIndex}`)
   }
 
@@ -146,10 +137,8 @@ class ShapeManager {
    * @param {SlideManager} slideManager
    */
   cloneShape(slideIndex, shapeId, newShapeId, options = {}, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
-    const res = this.findShapeRecursive(spTree, shapeId)
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const res = slideManager.getSlideShape(slideIndex, shapeId)
 
     if (!res) {
       throw new PPTXError(`Shape "${shapeId}" not found in slide ${slideIndex}`)
@@ -157,6 +146,11 @@ class ShapeManager {
 
     const newShape = this.#xmlParser.deepClone(res.shape)
     const cNvPr = newShape['p:nvSpPr']?.['p:cNvPr']
+
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
 
     const existingIds = this.#getAllShapeIds(spTree)
     const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 1000
@@ -204,8 +198,7 @@ class ShapeManager {
     }
     parent['p:sp'].push(newShape)
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`Cloned shape "${shapeId}" as "${newShapeId}"`)
   }
 
@@ -217,10 +210,7 @@ class ShapeManager {
    * @param {SlideManager} slideManager
    */
   deleteShape(slideIndex, shapeId, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
-    const res = this.findShapeRecursive(spTree, shapeId)
+    const res = slideManager.getSlideShape(slideIndex, shapeId)
 
     if (!res) {
       throw new PPTXError(`Shape "${shapeId}" not found in slide ${slideIndex}`)
@@ -235,8 +225,7 @@ class ShapeManager {
       }
     }
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`Deleted shape "${shapeId}" from slide ${slideIndex}`)
   }
 
@@ -248,9 +237,11 @@ class ShapeManager {
    * @returns {Array<Object>}
    */
   getShapes(slideIndex, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
 
     const shapesInfo = []
     this.#collectShapesInfo(spTree, shapesInfo)

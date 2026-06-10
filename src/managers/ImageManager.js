@@ -41,10 +41,7 @@ class ImageManager {
     mediaManager,
     relationshipManager
   ) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
-    const picRes = this.#findPicRecursive(spTree, imageIdOrName)
+    const picRes = slideManager.getSlidePic(slideIndex, imageIdOrName)
 
     if (!picRes) {
       throw new PPTXError(`Image shape "${imageIdOrName}" not found on slide ${slideIndex}`)
@@ -85,9 +82,11 @@ class ImageManager {
     relationshipManager
   ) {
     const slideInfo = slideManager.getSlideInfo(slideIndex)
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
 
     if (!spTree) {
       throw new PPTXError(`Invalid slide structure for slide ${slideIndex}`)
@@ -155,8 +154,7 @@ class ImageManager {
     }
     spTree['p:pic'].push(picObj)
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`Added image "${name}" with ID ${newId} and rId ${rId} to slide ${slideIndex}`)
   }
 
@@ -169,10 +167,7 @@ class ImageManager {
    * @param {RelationshipManager} relationshipManager
    */
   removeImage(slideIndex, imageIdOrName, slideManager, relationshipManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
-    const picRes = this.#findPicRecursive(spTree, imageIdOrName)
+    const picRes = slideManager.getSlidePic(slideIndex, imageIdOrName)
 
     if (!picRes) {
       throw new PPTXError(`Image shape "${imageIdOrName}" not found on slide ${slideIndex}`)
@@ -195,8 +190,7 @@ class ImageManager {
       relationshipManager.removeRelationship(slideInfo.zipPath, rId)
     }
 
-    const decl = this.#xmlParser.extractDeclaration(slideXml)
-    slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
+    slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`Removed image "${imageIdOrName}" from slide ${slideIndex}`)
   }
 
@@ -210,9 +204,11 @@ class ImageManager {
    */
   getImages(slideIndex, slideManager, relationshipManager) {
     const slideInfo = slideManager.getSlideInfo(slideIndex)
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
 
     const imagesInfo = []
     this.#collectImagesInfo(spTree, slideInfo.zipPath, relationshipManager, imagesInfo)

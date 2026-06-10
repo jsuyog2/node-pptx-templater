@@ -1340,22 +1340,38 @@ Saves the modified presentation XML structures directly to a folder.
 await ppt.saveToFolder('./output-template');
 ```
 
-#### `toBuffer()`
+#### `toBuffer(options = {})`
 Returns the PPTX content as a Node.js Buffer.
 
+* **Arguments**:
+  * `[options]` (`Object`): Save options.
 * **Returns**: `Promise<Buffer>` - 
 
 ```javascript
-ppt.useSlide(1).toBuffer();
+ppt.useSlide(1).toBuffer(options = {});
 ```
 
-#### `toStream()`
+#### `toStream(options = {})`
 Returns the PPTX content as a readable Node.js Stream.
 
+* **Arguments**:
+  * `[options]` (`Object`): Save options.
 * **Returns**: `Promise<NodeJS.ReadableStream>` - 
 
 ```javascript
-ppt.useSlide(1).toStream();
+ppt.useSlide(1).toStream(options = {});
+```
+
+#### `saveToStream(writableOrOptions, options = {})`
+Saves the presentation to a readable stream or pipes it to a writable stream.
+
+* **Arguments**:
+  * `[writableOrOptions]` (`NodeJS.WritableStream|Object`): Writable stream to pipe to, or options object.
+  * `[options]` (`Object`): Save options if writable stream was passed first.
+* **Returns**: `Promise<NodeJS.ReadableStream|void>` - 
+
+```javascript
+ppt.useSlide(1).saveToStream(writableOrOptions, options = {});
 ```
 
 #### `validatePresentationXml()`
@@ -1385,6 +1401,60 @@ OpenXML relationship IDs follow the format rId1, rId2, rId3, ... They must be un
 
 ```javascript
 ppt.useSlide(1).function();
+```
+
+#### `preload(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).preload(());
+```
+
+#### `cache(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).cache(());
+```
+
+#### `fromCache(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).fromCache(());
+```
+
+#### `clearCache(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).clearCache(());
+```
+
+#### `enablePerformanceProfile(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).enablePerformanceProfile(());
+```
+
+#### `getPerformanceMetrics(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).getPerformanceMetrics(());
 ```
 
 #### `fromPresentationXml(())`
@@ -1878,6 +1948,110 @@ Below are benchmark results compiled on a standard Intel Core i7 system processi
 * **Fix**: 
   1. Enable debug logging to locate the fragment: `PPTX_LOG_LEVEL=debug node app.js`.
   2. In PowerPoint, select the placeholder text box, cut it, and paste it back using the **"Keep Text Only"** option. This unifies the run.
+
+---
+
+## ⚡ Performance Optimization & Caching APIs
+
+The library provides first-class support for memory optimization, template caching, lazy loading, and streaming saves.
+
+### 1. In-Memory Template Caching (IIS & Server Environments)
+Instead of loading and parsing the PPTX ZIP structure from disk on every request, preload the template once. Subsequent templates can be instantiated from the cache in **0ms**:
+
+```javascript
+const { PPTXTemplater } = require('node-pptx-templater');
+
+// Preload templates into memory cache at server startup
+await PPTXTemplater.preload('./templates/report.pptx');
+
+// Load from cache instantly inside request handlers
+app.post('/generate-report', async (req, res) => {
+  const ppt = await PPTXTemplater.fromCache('./templates/report.pptx');
+  
+  ppt.useSlide(1).replaceText({ '{{title}}': req.body.title });
+  
+  const buffer = await ppt.toBuffer();
+  res.send(buffer);
+});
+
+// Clear cache if templates change
+PPTXTemplater.clearCache();
+```
+
+### 2. Performance Profiling
+Expose timing and memory metrics across the generation pipeline:
+
+```javascript
+const ppt = await PPTXTemplater.load('report.pptx');
+ppt.enablePerformanceProfile();
+
+// Perform modifications...
+ppt.useSlide(1).replaceText({ '{{title}}': 'Performance' });
+
+await ppt.toBuffer();
+
+// Retrieve timing statistics (in milliseconds)
+const metrics = ppt.getPerformanceMetrics();
+console.log(metrics);
+/*
+Output:
+{
+  enabled: true,
+  templateLoadMs: 12.5,
+  parseMs: 45.2,
+  chartUpdateMs: 0,
+  imageUpdateMs: 0,
+  zipGenerationMs: 65.8,
+  totalMs: 125.4,
+  memoryUsedMB: 38.45
+}
+*/
+```
+
+### 3. Configurable ZIP Compression
+Balance CPU execution time and file size when saving the presentation. Compression options support `'none' | 'fast' | 'balanced' | 'maximum'`:
+
+```javascript
+// balanced is the default (level 6 DEFLATE)
+await ppt.save('output.pptx', { compression: 'balanced' });
+
+// maximum compression (level 9 DEFLATE) - best file size, slightly slower
+await ppt.save('output.pptx', { compression: 'maximum' });
+
+// fast compression (level 1 DEFLATE) - fast packaging, good compression
+await ppt.save('output.pptx', { compression: 'fast' });
+
+// none / store (0% compression) - extremely fast, skips compression entirely
+const fastBuffer = await ppt.toBuffer({ compression: 'none' });
+```
+
+### 4. Streaming Save & Streaming Image Input
+Avoid buffering large output files in memory by saving directly to readable/writable streams. You can also pass Readable streams (like `fs.createReadStream`) directly to image APIs:
+
+```javascript
+const fs = require('fs');
+
+const ppt = await PPTXTemplater.load('report.pptx');
+
+// Stream image from file path without loading into memory buffer
+const imageStream = fs.createReadStream('large-image.png');
+await ppt.useSlide(1).replaceImage('placeholder-img', imageStream);
+
+// Stream final PPTX directly to file disk or HTTP response
+const writeStream = fs.createWriteStream('output.pptx');
+await ppt.saveToStream(writeStream);
+```
+
+---
+
+## 🌐 IIS & Windows Server Deployment Guide
+
+When deploying the library on **Windows Server** with **IIS** using `httpPlatformHandler` or `iisnode`, follow these production-ready recommendations:
+
+1. **Preload Large Templates**: Always call `await PPTXTemplater.preload(templatePath)` during application startup. This avoids high IIS request queue concurrency from competing for file handles or causing disk bottlenecks.
+2. **Use Streaming Saves**: For concurrent routes serving large PPTX outputs, use `saveToStream()` to stream data straight into the HTTP response stream rather than buffering the output as large Node buffers.
+3. **Optimize Compression**: If CPU cycles are a bottleneck on the IIS worker process, set `{ compression: 'fast' }` or `{ compression: 'none' }` on your save options.
+4. **Increase httpPlatformHandler Request Limits**: Ensure the `requestTimeout` and `maxConnections` settings in your IIS `web.config` are set appropriately to allow long-running file streaming tasks.
 
 ---
 

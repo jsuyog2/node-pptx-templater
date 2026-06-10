@@ -82,6 +82,18 @@ class ZipManager {
    */
   #removedFiles = new Set()
 
+  /**
+   * @private
+   * @type {Map<string, { type: string, content: string|Buffer|Uint8Array }>|null}
+   */
+  #cachedFiles = null
+
+  async loadFromCache(cachedFilesMap) {
+    this.#cachedFiles = cachedFilesMap
+    await this.#loadCoreProperties()
+    logger.debug(`Loaded from cache. Files: ${cachedFilesMap.size}`)
+  }
+
   async load(source) {
     try {
       const path = require('path')
@@ -221,6 +233,19 @@ class ZipManager {
       return this.#dirtyFiles.get(normalPath)
     }
 
+    if (this.#cachedFiles && this.#cachedFiles.has(normalPath)) {
+      const entry = this.#cachedFiles.get(normalPath)
+      let content
+      if (entry.type === 'text') {
+        content = entry.content
+      } else {
+        const { TextDecoder } = require('util')
+        content = new TextDecoder('utf-8').decode(entry.content)
+      }
+      this.#xmlCache.set(normalPath, content)
+      return content
+    }
+
     if (this.#isFolderMode) {
       const path = require('path')
       const fs = require('fs-extra')
@@ -234,6 +259,7 @@ class ZipManager {
       return content
     }
 
+    if (!this.#zip) return null
     const file = this.#zip.file(normalPath)
     if (!file) {
       logger.debug(`File not found in ZIP: ${normalPath}`)
@@ -256,7 +282,22 @@ class ZipManager {
     if (this.#dirtyFiles.has(normalPath)) {
       return this.#dirtyFiles.get(normalPath)
     }
-    return this.#xmlCache.get(normalPath) || null
+    if (this.#xmlCache.has(normalPath)) {
+      return this.#xmlCache.get(normalPath)
+    }
+    if (this.#cachedFiles && this.#cachedFiles.has(normalPath)) {
+      const entry = this.#cachedFiles.get(normalPath)
+      let content
+      if (entry.type === 'text') {
+        content = entry.content
+      } else {
+        const { TextDecoder } = require('util')
+        content = new TextDecoder('utf-8').decode(entry.content)
+      }
+      this.#xmlCache.set(normalPath, content)
+      return content
+    }
+    return null
   }
 
   /**
@@ -270,6 +311,10 @@ class ZipManager {
     if (this.#dirtyBinaryFiles.has(normalPath)) {
       return this.#dirtyBinaryFiles.get(normalPath)
     }
+    if (this.#cachedFiles && this.#cachedFiles.has(normalPath)) {
+      const entry = this.#cachedFiles.get(normalPath)
+      return entry.content
+    }
     if (this.#isFolderMode) {
       const path = require('path')
       const fs = require('fs-extra')
@@ -277,6 +322,7 @@ class ZipManager {
       if (!(await fs.pathExists(diskPath))) return null
       return fs.readFile(diskPath)
     }
+    if (!this.#zip) return null
     const file = this.#zip.file(normalPath)
     if (!file) return null
     return file.async('uint8array')
@@ -354,10 +400,11 @@ class ZipManager {
     const normalPath = zipPath.replace(/\\/g, '/')
     if (this.#removedFiles.has(normalPath)) return false
     if (this.#dirtyFiles.has(normalPath) || this.#dirtyBinaryFiles.has(normalPath)) return true
+    if (this.#cachedFiles && this.#cachedFiles.has(normalPath)) return true
     if (this.#isFolderMode) {
       return this.#folderFiles.has(normalPath)
     }
-    return this.#zip.file(normalPath) !== null
+    return this.#zip && this.#zip.file(normalPath) !== null
   }
 
   /**
@@ -367,6 +414,14 @@ class ZipManager {
    * @returns {string[]} Array of matching file paths.
    */
   listFiles(prefix = '') {
+    if (this.#cachedFiles) {
+      const allFiles = new Set([
+        ...this.#cachedFiles.keys(),
+        ...this.#dirtyFiles.keys(),
+        ...this.#dirtyBinaryFiles.keys(),
+      ])
+      return Array.from(allFiles).filter(f => !this.#removedFiles.has(f) && f.startsWith(prefix))
+    }
     if (this.#isFolderMode) {
       const allFiles = new Set([
         ...this.#folderFiles,
@@ -375,6 +430,7 @@ class ZipManager {
       ])
       return Array.from(allFiles).filter(f => !this.#removedFiles.has(f) && f.startsWith(prefix))
     }
+    if (!this.#zip) return []
     return Object.keys(this.#zip.files).filter(f => !this.#zip.files[f].dir && f.startsWith(prefix))
   }
 
@@ -384,23 +440,43 @@ class ZipManager {
    *
    * @returns {Promise<Buffer>} Compressed PPTX as a Buffer.
    */
-  async toBuffer() {
+  async toBuffer(options = {}) {
     await this.#ensureZipForExport()
-    return this.#zip.generateAsync({
-      type: 'nodebuffer',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 },
-    })
+    const zipOptions = this.#getZipOptions(options)
+    return this.#zip.generateAsync(zipOptions)
   }
 
-  async toStream() {
+  async toStream(options = {}) {
     await this.#ensureZipForExport()
-    return this.#zip.generateNodeStream({
+    const zipOptions = this.#getZipOptions(options)
+    zipOptions.streamFiles = true
+    return this.#zip.generateNodeStream(zipOptions)
+  }
+
+  #getZipOptions(options = {}) {
+    const compression = options.compression || 'balanced'
+    let method = 'DEFLATE'
+    let level = 6
+
+    if (compression === 'none' || compression === 'store') {
+      method = 'STORE'
+      level = 0
+    } else if (compression === 'fast') {
+      method = 'DEFLATE'
+      level = 1
+    } else if (compression === 'balanced') {
+      method = 'DEFLATE'
+      level = 6
+    } else if (compression === 'maximum') {
+      method = 'DEFLATE'
+      level = 9
+    }
+
+    return {
       type: 'nodebuffer',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 },
-      streamFiles: true,
-    })
+      compression: method,
+      compressionOptions: method === 'DEFLATE' ? { level } : undefined,
+    }
   }
 
   /**
@@ -593,6 +669,36 @@ class ZipManager {
     const fs = require('fs-extra')
 
     const zip = new JSZip()
+
+    if (this.#cachedFiles) {
+      // 1. Read all files from cache (that are not removed)
+      for (const [relPath, entry] of this.#cachedFiles.entries()) {
+        if (this.#removedFiles.has(relPath)) continue
+
+        if (this.#dirtyFiles.has(relPath)) {
+          zip.file(relPath, this.#dirtyFiles.get(relPath))
+        } else if (this.#dirtyBinaryFiles.has(relPath)) {
+          zip.file(relPath, this.#dirtyBinaryFiles.get(relPath))
+        } else {
+          zip.file(relPath, entry.content)
+        }
+      }
+
+      // 2. Write any new files that were added (and not already in cache)
+      for (const [relPath, content] of this.#dirtyFiles.entries()) {
+        if (!this.#cachedFiles.has(relPath) && !this.#removedFiles.has(relPath)) {
+          zip.file(relPath, content)
+        }
+      }
+      for (const [relPath, data] of this.#dirtyBinaryFiles.entries()) {
+        if (!this.#cachedFiles.has(relPath) && !this.#removedFiles.has(relPath)) {
+          zip.file(relPath, data)
+        }
+      }
+
+      this.#zip = zip
+      return zip
+    }
 
     // 1. Read all files from the original folder structure (that are not removed)
     for (const relPath of this.#folderFiles) {

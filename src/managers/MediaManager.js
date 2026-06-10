@@ -40,8 +40,28 @@ const { createHash } = require('crypto')
 const { createLogger } = require('../utils/logger.js')
 const { PPTXError } = require('../utils/errors.js')
 const fsExtra = require('fs-extra')
+const fs = require('fs')
 
 const logger = createLogger('MediaManager')
+
+function getFileHash(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha1')
+    const stream = fs.createReadStream(filePath)
+    stream.on('data', chunk => hash.update(chunk))
+    stream.on('end', () => resolve(hash.digest('hex')))
+    stream.on('error', reject)
+  })
+}
+
+function streamToBuffer(stream) {
+  return new Promise((resolve, reject) => {
+    const chunks = []
+    stream.on('data', chunk => chunks.push(chunk))
+    stream.on('end', () => resolve(Buffer.concat(chunks)))
+    stream.on('error', reject)
+  })
+}
 
 /**
  * Extension to MIME type mapping.
@@ -106,30 +126,37 @@ class MediaManager {
     this.#zipManager = zipManager
     const mediaFiles = zipManager.listFiles('ppt/media/')
 
-    // Index all existing media files by content hash for deduplication
-    await Promise.all(
-      mediaFiles.map(async mediaPath => {
-        const data = await zipManager.readBinaryFile(mediaPath)
+    // Register all existing media files without loading/hashing them yet
+    for (const mediaPath of mediaFiles) {
+      const ext = mediaPath.split('.').pop().toLowerCase()
+      const mimeType = EXT_TO_MIME[ext] || 'application/octet-stream'
+
+      const mediaInfo = { zipPath: mediaPath, hash: null, mimeType, size: null }
+      this.#mediaRegistry.set(mediaPath, mediaInfo)
+
+      // Track the highest media ID to avoid collisions
+      const numMatch = /\d+/.exec(mediaPath.split('/').pop())
+      if (numMatch) {
+        const num = parseInt(numMatch[0], 10)
+        if (num >= this.#nextMediaId) this.#nextMediaId = num + 1
+      }
+    }
+
+    logger.debug(`Registered ${this.#mediaRegistry.size} media file(s) (lazy loading enabled)`)
+  }
+
+  async #ensureAllMediaHashed() {
+    for (const [mediaPath, mediaInfo] of this.#mediaRegistry.entries()) {
+      if (mediaInfo.hash === null) {
+        const data = await this.#zipManager.readBinaryFile(mediaPath)
         if (data) {
           const hash = this.#hashBytes(data)
-          const ext = mediaPath.split('.').pop().toLowerCase()
-          const mimeType = EXT_TO_MIME[ext] || 'application/octet-stream'
-
-          const mediaInfo = { zipPath: mediaPath, hash, mimeType, size: data.length }
+          mediaInfo.hash = hash
+          mediaInfo.size = data.length
           this.#mediaHashIndex.set(hash, mediaPath)
-          this.#mediaRegistry.set(mediaPath, mediaInfo)
-
-          // Track the highest media ID to avoid collisions
-          const numMatch = /\d+/.exec(mediaPath.split('/').pop())
-          if (numMatch) {
-            const num = parseInt(numMatch[0], 10)
-            if (num >= this.#nextMediaId) this.#nextMediaId = num + 1
-          }
         }
-      })
-    )
-
-    logger.debug(`Indexed ${this.#mediaRegistry.size} media file(s)`)
+      }
+    }
   }
 
   /**
@@ -152,41 +179,130 @@ class MediaManager {
   async embedImage(source, mimeType) {
     let data
     let ext
+    let hash
+    let size
+    const isStream = source && typeof source.on === 'function' && typeof source.pipe === 'function'
+    let streamForZip = null
 
-    if (typeof source === 'string') {
+    if (isStream) {
+      if (source.path) {
+        // It's a file stream (fs.createReadStream)
+        const filePath = source.path
+        hash = await getFileHash(filePath)
+        ext = filePath.split('.').pop().toLowerCase()
+        mimeType = mimeType || EXT_TO_MIME[ext] || 'image/png'
+
+        // Check for duplicate (content-addressable dedup)
+        if (this.#mediaHashIndex.has(hash)) {
+          const existingPath = this.#mediaHashIndex.get(hash)
+          logger.debug(`Reusing existing media: ${existingPath} (hash: ${hash.substring(0, 8)}...)`)
+          return existingPath
+        }
+
+        // Ensure all media from template is hashed to check for duplicates
+        await this.#ensureAllMediaHashed()
+
+        if (this.#mediaHashIndex.has(hash)) {
+          const existingPath = this.#mediaHashIndex.get(hash)
+          logger.debug(`Reusing existing media: ${existingPath} (hash: ${hash.substring(0, 8)}...)`)
+          return existingPath
+        }
+
+        const stat = await fsExtra.stat(filePath)
+        size = stat.size
+        streamForZip = fs.createReadStream(filePath)
+      } else {
+        // Generic stream - we must buffer it to hash and reuse
+        data = await streamToBuffer(source)
+        hash = this.#hashBytes(data)
+        ext = this.#detectExtension(data)
+        mimeType = mimeType || EXT_TO_MIME[ext] || 'image/png'
+        size = data.length
+
+        // Check for duplicate (content-addressable dedup)
+        if (this.#mediaHashIndex.has(hash)) {
+          const existingPath = this.#mediaHashIndex.get(hash)
+          logger.debug(`Reusing existing media: ${existingPath} (hash: ${hash.substring(0, 8)}...)`)
+          return existingPath
+        }
+
+        // Ensure all media from template is hashed to check for duplicates
+        await this.#ensureAllMediaHashed()
+
+        if (this.#mediaHashIndex.has(hash)) {
+          const existingPath = this.#mediaHashIndex.get(hash)
+          logger.debug(`Reusing existing media: ${existingPath} (hash: ${hash.substring(0, 8)}...)`)
+          return existingPath
+        }
+      }
+    } else if (typeof source === 'string') {
       // Load from file path
-      data = await fsExtra.readFile(source)
+      hash = await getFileHash(source)
       ext = source.split('.').pop().toLowerCase()
       mimeType = mimeType || EXT_TO_MIME[ext] || 'image/png'
+
+      if (this.#mediaHashIndex.has(hash)) {
+        const existingPath = this.#mediaHashIndex.get(hash)
+        logger.debug(`Reusing existing media: ${existingPath} (hash: ${hash.substring(0, 8)}...)`)
+        return existingPath
+      }
+
+      // Ensure all media from template is hashed to check for duplicates
+      await this.#ensureAllMediaHashed()
+
+      if (this.#mediaHashIndex.has(hash)) {
+        const existingPath = this.#mediaHashIndex.get(hash)
+        logger.debug(`Reusing existing media: ${existingPath} (hash: ${hash.substring(0, 8)}...)`)
+        return existingPath
+      }
+
+      const stat = await fsExtra.stat(source)
+      size = stat.size
+      streamForZip = fs.createReadStream(source)
     } else if (Buffer.isBuffer(source) || source instanceof Uint8Array) {
       data = source
-      // Detect format from magic bytes
       ext = this.#detectExtension(data)
       mimeType = mimeType || EXT_TO_MIME[ext] || 'image/png'
-    } else {
-      throw new PPTXError('embedImage: source must be a file path string or Buffer')
-    }
+      hash = this.#hashBytes(data)
+      size = data.length
 
-    // Check for duplicate (content-addressable dedup)
-    const hash = this.#hashBytes(data)
-    if (this.#mediaHashIndex.has(hash)) {
-      const existingPath = this.#mediaHashIndex.get(hash)
-      logger.debug(`Reusing existing media: ${existingPath} (hash: ${hash.substring(0, 8)}...)`)
-      return existingPath
+      if (this.#mediaHashIndex.has(hash)) {
+        const existingPath = this.#mediaHashIndex.get(hash)
+        logger.debug(`Reusing existing media: ${existingPath} (hash: ${hash.substring(0, 8)}...)`)
+        return existingPath
+      }
+
+      // Ensure all media from template is hashed to check for duplicates
+      await this.#ensureAllMediaHashed()
+
+      if (this.#mediaHashIndex.has(hash)) {
+        const existingPath = this.#mediaHashIndex.get(hash)
+        logger.debug(`Reusing existing media: ${existingPath} (hash: ${hash.substring(0, 8)}...)`)
+        return existingPath
+      }
+    } else {
+      throw new PPTXError(
+        'embedImage: source must be a file path string, Buffer, or Readable Stream'
+      )
     }
 
     // Create a new media file
     const mediaId = this.#nextMediaId++
     const zipPath = `ppt/media/image${mediaId}.${ext}`
 
-    this.#zipManager.writeBinaryFile(zipPath, data)
+    if (streamForZip) {
+      this.#zipManager.writeBinaryFile(zipPath, streamForZip)
+    } else {
+      this.#zipManager.writeBinaryFile(zipPath, data)
+    }
+
     this.#mediaHashIndex.set(hash, zipPath)
-    this.#mediaRegistry.set(zipPath, { zipPath, hash, mimeType, size: data.length })
+    this.#mediaRegistry.set(zipPath, { zipPath, hash, mimeType, size })
 
     // Register content type
     this.#registerContentType(ext, mimeType)
 
-    logger.debug(`Embedded new media: ${zipPath} (${data.length} bytes)`)
+    logger.debug(`Embedded new media: ${zipPath} (${size} bytes)`)
     return zipPath
   }
 

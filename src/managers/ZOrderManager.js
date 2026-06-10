@@ -2,13 +2,8 @@
  * @fileoverview ZOrderManager - Handles slide element Z-order (layer stacking) operations.
  */
 
-const { createLogger } = require('../utils/logger.js')
 const { PPTXError } = require('../utils/errors.js')
 const { Z_ORDER_SYMBOL } = require('../parsers/XMLParser.js')
-
-const logger = createLogger('ZOrderManager')
-
-const drawingTags = new Set(['p:sp', 'p:pic', 'p:graphicFrame', 'p:grpSp', 'p:cxnSp'])
 
 function detectElementType(tag, item) {
   if (tag === 'p:sp') {

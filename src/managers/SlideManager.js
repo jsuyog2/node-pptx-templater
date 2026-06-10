@@ -72,6 +72,12 @@ class SlideManager {
   #slideXmlCache = new Map()
 
   /**
+   * Slide states: maps 1-based index → state object.
+   * @private @type {Map<number, Object>}
+   */
+  #slideStates = new Map()
+
+  /**
    * Custom tags: maps tag → array of 1-based indices.
    * @private @type {Map<string, number[]>}
    */
@@ -177,6 +183,16 @@ class SlideManager {
       }
 
       this.#slides.set(slideIndex, slideInfo)
+      this.#slideStates.set(slideIndex, {
+        xmlStr: null,
+        xmlObj: null,
+        dirty: false,
+        indexBuilt: false,
+        shapeMap: new Map(),
+        picMap: new Map(),
+        tableMap: new Map(),
+        chartMap: new Map(),
+      })
       slideIndex++
     }
 
@@ -237,9 +253,27 @@ class SlideManager {
   getSlideXml(slideIndex) {
     this.#assertSlideExists(slideIndex)
     const info = this.#slides.get(slideIndex)
+    const state = this.#slideStates.get(slideIndex)
 
-    if (this.#slideXmlCache.has(info.zipPath)) {
-      return this.#slideXmlCache.get(info.zipPath)
+    if (state.dirty && state.xmlObj) {
+      const decl = this.#xmlParser.extractDeclaration(
+        state.xmlStr || '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      )
+      state.xmlStr = this.#xmlParser.build(state.xmlObj, decl)
+      this.#zipManager.writeFile(info.zipPath, state.xmlStr)
+      this.#slideXmlCache.set(info.zipPath, state.xmlStr)
+      state.dirty = false
+    }
+
+    if (state.xmlStr) {
+      return state.xmlStr
+    }
+
+    const cached = this.#zipManager.readCachedFile(info.zipPath)
+    if (cached) {
+      state.xmlStr = cached
+      this.#slideXmlCache.set(info.zipPath, cached)
+      return cached
     }
 
     // This is sync because we pre-load; async callers should use getSlideXmlAsync
@@ -255,14 +289,16 @@ class SlideManager {
   async getSlideXmlAsync(slideIndex) {
     this.#assertSlideExists(slideIndex)
     const info = this.#slides.get(slideIndex)
+    const state = this.#slideStates.get(slideIndex)
 
-    if (!this.#slideXmlCache.has(info.zipPath)) {
+    if (!state.xmlStr) {
       const xml = await this.#zipManager.readFile(info.zipPath)
       if (!xml) throw new SlideNotFoundError(`Slide ${slideIndex} XML not found at ${info.zipPath}`)
+      state.xmlStr = xml
       this.#slideXmlCache.set(info.zipPath, xml)
     }
 
-    return this.#slideXmlCache.get(info.zipPath)
+    return state.xmlStr
   }
 
   /**
@@ -274,6 +310,13 @@ class SlideManager {
   setSlideXml(slideIndex, xml) {
     this.#assertSlideExists(slideIndex)
     const info = this.#slides.get(slideIndex)
+    const state = this.#slideStates.get(slideIndex)
+
+    state.xmlStr = xml
+    state.xmlObj = null
+    state.dirty = false
+    state.indexBuilt = false
+
     this.#slideXmlCache.set(info.zipPath, xml)
     this.#zipManager.writeFile(info.zipPath, xml)
   }
@@ -360,6 +403,16 @@ class SlideManager {
     }
 
     this.#slides.set(newIndex, slideInfo)
+    this.#slideStates.set(newIndex, {
+      xmlStr: slideXml,
+      xmlObj: null,
+      dirty: false,
+      indexBuilt: false,
+      shapeMap: new Map(),
+      picMap: new Map(),
+      tableMap: new Map(),
+      chartMap: new Map(),
+    })
 
     // Update presentation.xml sldIdLst
     this.#addSlideToPresentation(rId, newSlideId)
@@ -424,6 +477,16 @@ class SlideManager {
     }
 
     this.#slides.set(newIndex, slideInfo)
+    this.#slideStates.set(newIndex, {
+      xmlStr: sourceXml,
+      xmlObj: null,
+      dirty: false,
+      indexBuilt: false,
+      shapeMap: new Map(),
+      picMap: new Map(),
+      tableMap: new Map(),
+      chartMap: new Map(),
+    })
     this.#addSlideToPresentation(rId, newSlideId)
     this.#registerSlideContentType(slideFileName)
 
@@ -448,6 +511,7 @@ class SlideManager {
 
     // Remove from cache
     this.#slideXmlCache.delete(info.zipPath)
+    this.#slideStates.delete(slideIndex)
 
     // Remove relationship from presentation.xml
     this.#relationshipManager.removeRelationship('ppt/presentation.xml', info.relationshipId)
@@ -479,13 +543,18 @@ class SlideManager {
     }
 
     const slidesCopy = new Map(this.#slides)
+    const statesCopy = new Map(this.#slideStates)
     this.#slides.clear()
+    this.#slideStates.clear()
 
     order.forEach((oldIndex, newPos) => {
       const info = slidesCopy.get(oldIndex)
       if (!info) throw new SlideNotFoundError(`Slide ${oldIndex} not found`)
       info.index = newPos + 1
       this.#slides.set(newPos + 1, info)
+
+      const state = statesCopy.get(oldIndex)
+      this.#slideStates.set(newPos + 1, state)
     })
 
     // Rebuild presentation sldIdLst
@@ -741,6 +810,16 @@ class SlideManager {
     }
 
     this.#slides.set(newIndex, slideInfo)
+    this.#slideStates.set(newIndex, {
+      xmlStr: slideXml,
+      xmlObj: null,
+      dirty: false,
+      indexBuilt: false,
+      shapeMap: new Map(),
+      picMap: new Map(),
+      tableMap: new Map(),
+      chartMap: new Map(),
+    })
 
     // Add entry in presentation.xml sldIdLst
     this.#addSlideToPresentation(rId, newSlideId)
@@ -917,9 +996,17 @@ class SlideManager {
   #reindexSlides() {
     const sorted = Array.from(this.#slides.entries()).sort(([a], [b]) => a - b)
     this.#slides.clear()
+
+    const sortedStates = Array.from(this.#slideStates.entries()).sort(([a], [b]) => a - b)
+    this.#slideStates.clear()
+
     sorted.forEach(([, info], i) => {
       info.index = i + 1
       this.#slides.set(i + 1, info)
+    })
+
+    sortedStates.forEach(([, state], i) => {
+      this.#slideStates.set(i + 1, state)
     })
   }
 
@@ -1043,6 +1130,162 @@ class SlideManager {
         `Slide ${index} does not exist. Total slides: ${this.#slides.size}`
       )
     }
+  }
+
+  getSlideObj(slideIndex) {
+    this.#assertSlideExists(slideIndex)
+    const state = this.#slideStates.get(slideIndex)
+
+    if (!state.xmlObj) {
+      const xml = this.getSlideXml(slideIndex)
+      const info = this.#slides.get(slideIndex)
+      state.xmlObj = this.#xmlParser.parse(xml, info.zipPath.split('/').pop())
+      state.indexBuilt = false
+    }
+
+    if (!state.indexBuilt) {
+      state.shapeMap.clear()
+      state.picMap.clear()
+      state.tableMap.clear()
+      state.chartMap.clear()
+
+      const spTree =
+        state.xmlObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+        state.xmlObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+        state.xmlObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+
+      this.#buildSlideIndexRecursive(
+        spTree,
+        state.shapeMap,
+        state.picMap,
+        state.tableMap,
+        state.chartMap
+      )
+      state.indexBuilt = true
+    }
+
+    return state.xmlObj
+  }
+
+  #buildSlideIndexRecursive(container, shapeMap, picMap, tableMap, chartMap) {
+    if (!container) return
+
+    // Shapes
+    let shapes = container['p:sp'] || []
+    if (!Array.isArray(shapes)) shapes = [shapes]
+    for (const shape of shapes) {
+      const cNvPr = shape?.['p:nvSpPr']?.['p:cNvPr']
+      if (cNvPr) {
+        const name = cNvPr['@_name']
+        const id = String(cNvPr['@_id'])
+        const entry = { shape, parent: container, type: 'sp' }
+        if (name) shapeMap.set(name, entry)
+        if (id) shapeMap.set(id, entry)
+      }
+    }
+
+    // Pictures
+    let pics = container['p:pic'] || []
+    if (!Array.isArray(pics)) pics = [pics]
+    for (const pic of pics) {
+      const cNvPr = pic?.['p:nvPicPr']?.['p:cNvPr']
+      if (cNvPr) {
+        const name = cNvPr['@_name']
+        const id = String(cNvPr['@_id'])
+        const embedId = pic?.['p:blipFill']?.['a:blip']?.['@_r:embed']
+        const entry = { pic, parent: container, type: 'pic' }
+        if (name) picMap.set(name, entry)
+        if (id) picMap.set(id, entry)
+        if (embedId) picMap.set(embedId, entry)
+      }
+    }
+
+    // Graphic frames
+    let frames = container['p:graphicFrame'] || []
+    if (!Array.isArray(frames)) frames = [frames]
+    for (const frame of frames) {
+      const cNvPr = frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
+      const name = cNvPr ? cNvPr['@_name'] : null
+      const id = cNvPr ? String(cNvPr['@_id']) : null
+
+      const tbl = frame?.['a:graphic']?.['a:graphicData']?.['a:tbl']
+      if (tbl) {
+        const entry = { table: tbl, frame, parent: container, type: 'table' }
+        if (name) tableMap.set(name, entry)
+        if (id) tableMap.set(id, entry)
+      }
+
+      const chart = frame?.['a:graphic']?.['a:graphicData']?.['c:chart']
+      if (chart) {
+        const embedId = chart['@_r:id']
+        const entry = { chart, frame, parent: container, type: 'chart' }
+        if (name) chartMap.set(name, entry)
+        if (id) chartMap.set(id, entry)
+        if (embedId) chartMap.set(embedId, entry)
+      }
+    }
+
+    // Groups
+    let groups = container['p:grpSp'] || []
+    if (!Array.isArray(groups)) groups = [groups]
+    for (const group of groups) {
+      const cNvPr = group?.['p:nvGrpSpPr']?.['p:cNvPr']
+      if (cNvPr) {
+        const name = cNvPr['@_name']
+        const id = String(cNvPr['@_id'])
+        const entry = { shape: group, parent: container, type: 'grpSp' }
+        if (name) shapeMap.set(name, entry)
+        if (id) shapeMap.set(id, entry)
+      }
+      this.#buildSlideIndexRecursive(group, shapeMap, picMap, tableMap, chartMap)
+    }
+  }
+
+  flush() {
+    for (const [index, state] of this.#slideStates) {
+      if (state.dirty && state.xmlObj) {
+        this.getSlideXml(index)
+      }
+    }
+  }
+
+  markSlideObjDirty(slideIndex) {
+    this.#assertSlideExists(slideIndex)
+    const state = this.#slideStates.get(slideIndex)
+    state.dirty = true
+    state.indexBuilt = false
+  }
+
+  getSlideShape(slideIndex, shapeId) {
+    this.getSlideObj(slideIndex)
+    return this.#slideStates.get(slideIndex).shapeMap.get(String(shapeId)) || null
+  }
+
+  getSlidePic(slideIndex, picId) {
+    this.getSlideObj(slideIndex)
+    const state = this.#slideStates.get(slideIndex)
+    if (picId === 'first') {
+      return Array.from(state.picMap.values())[0] || null
+    }
+    return state.picMap.get(String(picId)) || null
+  }
+
+  getSlideTable(slideIndex, tableId) {
+    this.getSlideObj(slideIndex)
+    const state = this.#slideStates.get(slideIndex)
+    if (tableId === 'first') {
+      return Array.from(state.tableMap.values())[0] || null
+    }
+    return state.tableMap.get(String(tableId)) || null
+  }
+
+  getSlideChart(slideIndex, chartId) {
+    this.getSlideObj(slideIndex)
+    const state = this.#slideStates.get(slideIndex)
+    if (chartId === 'first') {
+      return Array.from(state.chartMap.values())[0] || null
+    }
+    return state.chartMap.get(String(chartId)) || null
   }
 }
 

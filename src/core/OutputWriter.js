@@ -47,9 +47,9 @@ class OutputWriter {
    * @param {ZipManager} zipManager
    * @returns {Promise<void>}
    */
-  async saveToFile(filePath, slideManager, zipManager) {
+  async saveToFile(filePath, slideManager, zipManager, options = {}) {
     try {
-      const buffer = await this.toBuffer(slideManager, zipManager)
+      const buffer = await this.toBuffer(slideManager, zipManager, options)
       const dir = path.dirname(filePath)
       await ensureDir(dir)
       await writeFile(filePath, buffer)
@@ -61,13 +61,6 @@ class OutputWriter {
   }
 
   /**
-   * Returns the PPTX as a Node.js Buffer.
-   *
-   * @param {SlideManager} slideManager
-   * @param {ZipManager} zipManager
-   * @returns {Promise<Buffer>}
-   */
-  /**
    * Flushes all pending changes from all managers into the ZipManager.
    *
    * @param {SlideManager} slideManager
@@ -75,6 +68,9 @@ class OutputWriter {
    * @returns {Promise<void>}
    */
   async flush(slideManager, zipManager) {
+    if (slideManager && typeof slideManager.flush === 'function') {
+      slideManager.flush()
+    }
     await this.#flushAllSlides(slideManager, zipManager)
     this.#contentTypesManager.flush(zipManager)
     await zipManager.waitForPendingWrites()
@@ -85,12 +81,13 @@ class OutputWriter {
    *
    * @param {SlideManager} slideManager
    * @param {ZipManager} zipManager
+   * @param {Object} [options]
    * @returns {Promise<Buffer>}
    */
-  async toBuffer(slideManager, zipManager) {
+  async toBuffer(slideManager, zipManager, options = {}) {
     await this.flush(slideManager, zipManager)
 
-    const buffer = await zipManager.toBuffer()
+    const buffer = await zipManager.toBuffer(options)
     logger.debug(`Generated buffer: ${(buffer.length / 1024).toFixed(1)} KB`)
 
     if (this.debugZip) {
@@ -105,14 +102,15 @@ class OutputWriter {
    *
    * @param {SlideManager} slideManager
    * @param {ZipManager} zipManager
+   * @param {Object} [options]
    * @returns {Promise<Readable>}
    */
-  async toStream(slideManager, zipManager) {
+  async toStream(slideManager, zipManager, options = {}) {
     await this.flush(slideManager, zipManager)
-    const nodeStream = await zipManager.toStream()
+    const nodeStream = await zipManager.toStream(options)
 
     if (this.debugZip) {
-      const buffer = await zipManager.toBuffer()
+      const buffer = await zipManager.toBuffer(options)
       this.printDebugZip(buffer)
     }
 

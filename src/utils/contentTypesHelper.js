@@ -70,10 +70,9 @@ class ContentTypesHelper {
    */
   addMediaDefault(zipManager, extension, mimeType) {
     this.#updateQueue = this.#updateQueue.then(async () => {
-      const xmlFile = zipManager.rawZip.file('[Content_Types].xml')
-      if (!xmlFile) return
+      const content = await zipManager.readFile('[Content_Types].xml')
+      if (!content) return
 
-      const content = await xmlFile.async('text')
       const entry = `Extension="${extension}" ContentType="${mimeType}"`
       if (!content.includes(entry)) {
         const updated = content.replace('</Types>', `  <Default ${entry}/>\n</Types>`)
@@ -92,12 +91,11 @@ class ContentTypesHelper {
    */
   #addOverride(zipManager, partName, contentType) {
     this.#updateQueue = this.#updateQueue.then(async () => {
-      const xmlFile = zipManager.rawZip.file('[Content_Types].xml')
-      if (!xmlFile) {
+      const content = await zipManager.readFile('[Content_Types].xml')
+      if (!content) {
         logger.warn('[Content_Types].xml not found')
         return
       }
-      const content = await xmlFile.async('text')
       const entry = `PartName="${partName}"`
       if (!content.includes(entry)) {
         const override = `<Override PartName="${partName}" ContentType="${contentType}"/>`
@@ -115,12 +113,11 @@ class ContentTypesHelper {
    */
   #removeOverride(zipManager, partName) {
     this.#updateQueue = this.#updateQueue.then(async () => {
-      const xmlFile = zipManager.rawZip.file('[Content_Types].xml')
-      if (!xmlFile) {
+      const content = await zipManager.readFile('[Content_Types].xml')
+      if (!content) {
         logger.warn('[Content_Types].xml not found')
         return
       }
-      const content = await xmlFile.async('text')
       const regex = new RegExp(`<Override[^>]*PartName="${partName}"[^>]*/>\\s*`, 'g')
       if (regex.test(content)) {
         const updated = content.replace(regex, '')

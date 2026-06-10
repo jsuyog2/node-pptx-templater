@@ -7,12 +7,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const FIXTURE_FILE = resolve(__dirname, '../fixtures/sample.pptx')
 
 let PPTXTemplater
-let ValidationEngine
 
 beforeAll(async () => {
   const module = await import('../../src/index.js')
   PPTXTemplater = module.PPTXTemplater
-  ValidationEngine = module.ValidationEngine
 })
 
 describe('Chart Data Labels Integration Tests', () => {
