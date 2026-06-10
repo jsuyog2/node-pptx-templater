@@ -388,8 +388,8 @@ class ZipManager {
     await this.#ensureZipForExport()
     return this.#zip.generateAsync({
       type: 'nodebuffer',
-      compression: 'STORE',
-      compressionOptions: { level: 0 },
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
     })
   }
 
@@ -397,8 +397,8 @@ class ZipManager {
     await this.#ensureZipForExport()
     return this.#zip.generateNodeStream({
       type: 'nodebuffer',
-      compression: 'STORE',
-      compressionOptions: { level: 0 },
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
       streamFiles: true,
     })
   }
