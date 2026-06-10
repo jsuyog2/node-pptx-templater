@@ -53,32 +53,140 @@ class ZipManager {
   #coreProperties = new Map()
 
   /**
-   * Loads a PPTX file from a path or Buffer.
-   *
-   * @param {string|Buffer} source - File path or Buffer.
-   * @returns {Promise<void>}
-   * @throws {PPTXError} If the file cannot be read or parsed as a ZIP.
+   * @private
+   * @type {boolean}
    */
+  #isFolderMode = false
+
+  /**
+   * @private
+   * @type {string|null}
+   */
+  #folderRoot = null
+
+  /**
+   * @private
+   * @type {Set<string>}
+   */
+  #folderFiles = new Set()
+
+  /**
+   * @private
+   * @type {Map<string, Buffer|Uint8Array>}
+   */
+  #dirtyBinaryFiles = new Map()
+
+  /**
+   * @private
+   * @type {Set<string>}
+   */
+  #removedFiles = new Set()
+
   async load(source) {
     try {
-      let data
-      if (typeof source === 'string') {
-        logger.debug(`Reading file: ${source}`)
-        data = await fsExtra.readFile(source)
-      } else if (Buffer.isBuffer(source) || source instanceof Uint8Array) {
-        data = source
-      } else {
-        throw new PPTXError(
-          `Invalid source type: ${typeof source}. Expected string path or Buffer.`
-        )
+      const path = require('path')
+      const fs = require('fs-extra')
+
+      let isFolder = false
+      let rootDir = null
+      let presentationPath = null
+
+      if (typeof source === 'object' && source !== null && (source.presentation || source.root)) {
+        isFolder = true
+        presentationPath = source.presentation
+        rootDir = source.root
+      } else if (typeof source === 'string') {
+        try {
+          const stat = fs.statSync(source)
+          if (stat.isDirectory()) {
+            isFolder = true
+            rootDir = source
+          } else if (source.endsWith('.xml')) {
+            isFolder = true
+            presentationPath = source
+          }
+        } catch (e) {
+          if (source.endsWith('.xml')) {
+            isFolder = true
+            presentationPath = source
+          }
+        }
       }
 
-      this.#zip = await JSZip.loadAsync(data)
-      await this.#loadCoreProperties()
-      logger.debug(`ZIP loaded successfully. Files: ${Object.keys(this.#zip.files).length}`)
+      if (isFolder) {
+        this.#isFolderMode = true
+
+        // Resolve presentationPath and rootDir
+        if (presentationPath && !rootDir) {
+          const resolvedPresentation = path.resolve(presentationPath)
+          const dir = path.dirname(resolvedPresentation)
+          if (path.basename(dir).toLowerCase() === 'ppt') {
+            rootDir = path.dirname(dir)
+          } else {
+            rootDir = dir
+          }
+        } else if (rootDir && !presentationPath) {
+          const candidates = [
+            path.join(rootDir, 'ppt/presentation.xml'),
+            path.join(rootDir, 'presentation.xml'),
+          ]
+          for (const cand of candidates) {
+            if (fs.existsSync(cand)) {
+              presentationPath = cand
+              break
+            }
+          }
+          if (!presentationPath) {
+            presentationPath = path.join(rootDir, 'ppt/presentation.xml')
+          }
+        }
+
+        this.#folderRoot = path.resolve(rootDir)
+        logger.debug(`Loading from uncompressed OpenXML folder: ${this.#folderRoot}`)
+
+        // Populate #folderFiles recursively
+        const getFiles = async (dir, baseDir) => {
+          const results = []
+          if (!(await fs.pathExists(dir))) return results
+          const list = await fs.readdir(dir)
+          for (const file of list) {
+            const filePath = path.join(dir, file)
+            const stat = await fs.stat(filePath)
+            if (stat && stat.isDirectory()) {
+              results.push(...(await getFiles(filePath, baseDir)))
+            } else {
+              const rel = path.relative(baseDir, filePath).replace(/\\/g, '/')
+              results.push(rel)
+            }
+          }
+          return results
+        }
+
+        const files = await getFiles(this.#folderRoot, this.#folderRoot)
+        this.#folderFiles = new Set(files)
+
+        await this.#loadCoreProperties()
+        logger.debug(`Folder loaded successfully. Files: ${this.#folderFiles.size}`)
+      } else {
+        let data
+        if (typeof source === 'string') {
+          logger.debug(`Reading file: ${source}`)
+          data = await fsExtra.readFile(source)
+        } else if (Buffer.isBuffer(source) || source instanceof Uint8Array) {
+          data = source
+        } else {
+          throw new PPTXError(
+            `Invalid source type: ${typeof source}. Expected string path or Buffer.`
+          )
+        }
+
+        this.#zip = await JSZip.loadAsync(data)
+        await this.#loadCoreProperties()
+        logger.debug(`ZIP loaded successfully. Files: ${Object.keys(this.#zip.files).length}`)
+      }
     } catch (err) {
       if (err instanceof PPTXError) throw err
-      throw new PPTXError(`Failed to load PPTX: ${err.message}`, err)
+      throw new PPTXError(`Failed to load template: ${err.message}`, err)
     }
   }
 
@@ -113,6 +221,19 @@ class ZipManager {
       return this.#dirtyFiles.get(normalPath)
     }
 
+    if (this.#isFolderMode) {
+      const path = require('path')
+      const fs = require('fs-extra')
+      const diskPath = path.join(this.#folderRoot, normalPath)
+      if (!(await fs.pathExists(diskPath))) {
+        logger.debug(`File not found in folder: ${normalPath}`)
+        return null
+      }
+      const content = await fs.readFile(diskPath, 'utf8')
+      this.#xmlCache.set(normalPath, content)
+      return content
+    }
+
     const file = this.#zip.file(normalPath)
     if (!file) {
       logger.debug(`File not found in ZIP: ${normalPath}`)
@@ -125,6 +246,20 @@ class ZipManager {
   }
 
   /**
+   * Synchronously reads a cached text file.
+   *
+   * @param {string} zipPath - Path within the ZIP.
+   * @returns {string|null} Cached content or null.
+   */
+  readCachedFile(zipPath) {
+    const normalPath = zipPath.replace(/\\/g, '/')
+    if (this.#dirtyFiles.has(normalPath)) {
+      return this.#dirtyFiles.get(normalPath)
+    }
+    return this.#xmlCache.get(normalPath) || null
+  }
+
+  /**
    * Reads a binary file from the ZIP archive.
    *
    * @param {string} zipPath - Path within the ZIP.
@@ -132,36 +267,39 @@ class ZipManager {
    */
   async readBinaryFile(zipPath) {
     const normalPath = zipPath.replace(/\\/g, '/')
+    if (this.#dirtyBinaryFiles.has(normalPath)) {
+      return this.#dirtyBinaryFiles.get(normalPath)
+    }
+    if (this.#isFolderMode) {
+      const path = require('path')
+      const fs = require('fs-extra')
+      const diskPath = path.join(this.#folderRoot, normalPath)
+      if (!(await fs.pathExists(diskPath))) return null
+      return fs.readFile(diskPath)
+    }
     const file = this.#zip.file(normalPath)
     if (!file) return null
     return file.async('uint8array')
   }
 
-  /**
-   * Writes (or overwrites) a text file in the ZIP archive.
-   * Changes are buffered and applied when generating the output ZIP.
-   *
-   * @param {string} zipPath - Path within the ZIP.
-   * @param {string} content - UTF-8 string content.
-   */
   writeFile(zipPath, content) {
     const normalPath = zipPath.replace(/\\/g, '/')
     this.#dirtyFiles.set(normalPath, content)
     this.#xmlCache.set(normalPath, content)
-    // Also write to the underlying JSZip object
-    this.#zip.file(normalPath, content)
+    this.#removedFiles.delete(normalPath)
+    if (this.#zip) {
+      this.#zip.file(normalPath, content)
+    }
     logger.debug(`Queued write: ${normalPath}`)
   }
 
-  /**
-   * Writes a binary file to the ZIP archive.
-   *
-   * @param {string} zipPath - Path within the ZIP.
-   * @param {Buffer|Uint8Array} data - Binary data.
-   */
   writeBinaryFile(zipPath, data) {
     const normalPath = zipPath.replace(/\\/g, '/')
-    this.#zip.file(normalPath, data)
+    this.#dirtyBinaryFiles.set(normalPath, data)
+    this.#removedFiles.delete(normalPath)
+    if (this.#zip) {
+      this.#zip.file(normalPath, data)
+    }
     logger.debug(`Queued binary write: ${normalPath}`)
   }
 
@@ -197,9 +335,13 @@ class ZipManager {
    */
   removeFile(zipPath) {
     const normalPath = zipPath.replace(/\\/g, '/')
-    this.#zip.remove(normalPath)
+    this.#removedFiles.add(normalPath)
     this.#xmlCache.delete(normalPath)
     this.#dirtyFiles.delete(normalPath)
+    this.#dirtyBinaryFiles.delete(normalPath)
+    if (this.#zip) {
+      this.#zip.remove(normalPath)
+    }
   }
 
   /**
@@ -210,6 +352,11 @@ class ZipManager {
    */
   hasFile(zipPath) {
     const normalPath = zipPath.replace(/\\/g, '/')
+    if (this.#removedFiles.has(normalPath)) return false
+    if (this.#dirtyFiles.has(normalPath) || this.#dirtyBinaryFiles.has(normalPath)) return true
+    if (this.#isFolderMode) {
+      return this.#folderFiles.has(normalPath)
+    }
     return this.#zip.file(normalPath) !== null
   }
 
@@ -220,6 +367,14 @@ class ZipManager {
    * @returns {string[]} Array of matching file paths.
    */
   listFiles(prefix = '') {
+    if (this.#isFolderMode) {
+      const allFiles = new Set([
+        ...this.#folderFiles,
+        ...this.#dirtyFiles.keys(),
+        ...this.#dirtyBinaryFiles.keys(),
+      ])
+      return Array.from(allFiles).filter(f => !this.#removedFiles.has(f) && f.startsWith(prefix))
+    }
     return Object.keys(this.#zip.files).filter(f => !this.#zip.files[f].dir && f.startsWith(prefix))
   }
 
@@ -230,6 +385,7 @@ class ZipManager {
    * @returns {Promise<Buffer>} Compressed PPTX as a Buffer.
    */
   async toBuffer() {
+    await this.#ensureZipForExport()
     return this.#zip.generateAsync({
       type: 'nodebuffer',
       compression: 'STORE',
@@ -237,12 +393,8 @@ class ZipManager {
     })
   }
 
-  /**
-   * Generates the final ZIP archive as a readable Stream.
-   *
-   * @returns {Promise<NodeJS.ReadableStream>}
-   */
   async toStream() {
+    await this.#ensureZipForExport()
     return this.#zip.generateNodeStream({
       type: 'nodebuffer',
       compression: 'STORE',
@@ -296,6 +448,7 @@ class ZipManager {
    * @throws {PPTXError} If any validation issue is found.
    */
   async validateArchive() {
+    await this.#ensureZipForExport()
     const files = this.#zip.files
     const errors = []
     const seenPaths = new Set()
@@ -383,6 +536,95 @@ class ZipManager {
    * Returns the raw JSZip instance (for advanced use cases).
    * @returns {JSZip}
    */
+  /**
+   * Saves the presentation to a folder structure on the filesystem.
+   *
+   * @param {string} destPath - Target directory path.
+   * @returns {Promise<void>}
+   */
+  async toFolder(destPath) {
+    const path = require('path')
+    const fs = require('fs-extra')
+    await fs.ensureDir(destPath)
+
+    if (this.#isFolderMode) {
+      const allFiles = new Set([
+        ...this.#folderFiles,
+        ...this.#dirtyFiles.keys(),
+        ...this.#dirtyBinaryFiles.keys(),
+      ])
+
+      for (const relPath of allFiles) {
+        if (this.#removedFiles.has(relPath)) {
+          const targetPath = path.join(destPath, relPath)
+          await fs.remove(targetPath)
+          continue
+        }
+
+        const targetPath = path.join(destPath, relPath)
+        await fs.ensureDir(path.dirname(targetPath))
+
+        if (this.#dirtyFiles.has(relPath)) {
+          await fs.writeFile(targetPath, this.#dirtyFiles.get(relPath), 'utf8')
+        } else if (this.#dirtyBinaryFiles.has(relPath)) {
+          await fs.writeFile(targetPath, this.#dirtyBinaryFiles.get(relPath))
+        } else {
+          const srcPath = path.join(this.#folderRoot, relPath)
+          await fs.copy(srcPath, targetPath)
+        }
+      }
+    } else {
+      const files = this.#zip.files
+      for (const [name, file] of Object.entries(files)) {
+        if (file.dir) continue
+        const targetPath = path.join(destPath, name)
+        await fs.ensureDir(path.dirname(targetPath))
+        const buffer = await file.async('nodebuffer')
+        await fs.writeFile(targetPath, buffer)
+      }
+    }
+  }
+
+  async #ensureZipForExport() {
+    if (this.#zip) return this.#zip
+
+    const JSZip = require('jszip')
+    const path = require('path')
+    const fs = require('fs-extra')
+
+    const zip = new JSZip()
+
+    // 1. Read all files from the original folder structure (that are not removed)
+    for (const relPath of this.#folderFiles) {
+      if (this.#removedFiles.has(relPath)) continue
+
+      if (this.#dirtyFiles.has(relPath)) {
+        zip.file(relPath, this.#dirtyFiles.get(relPath))
+      } else if (this.#dirtyBinaryFiles.has(relPath)) {
+        zip.file(relPath, this.#dirtyBinaryFiles.get(relPath))
+      } else {
+        const diskPath = path.join(this.#folderRoot, relPath)
+        const data = await fs.readFile(diskPath)
+        zip.file(relPath, data)
+      }
+    }
+
+    // 2. Write any new files that were added (and not already in folderFiles)
+    for (const [relPath, content] of this.#dirtyFiles.entries()) {
+      if (!this.#folderFiles.has(relPath) && !this.#removedFiles.has(relPath)) {
+        zip.file(relPath, content)
+      }
+    }
+    for (const [relPath, data] of this.#dirtyBinaryFiles.entries()) {
+      if (!this.#folderFiles.has(relPath) && !this.#removedFiles.has(relPath)) {
+        zip.file(relPath, data)
+      }
+    }
+
+    this.#zip = zip
+    return zip
+  }
+
   get rawZip() {
     return this.#zip
   }

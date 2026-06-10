@@ -67,15 +67,28 @@ class OutputWriter {
    * @param {ZipManager} zipManager
    * @returns {Promise<Buffer>}
    */
-  async toBuffer(slideManager, zipManager) {
-    // Ensure all slides are flushed to the ZIP
+  /**
+   * Flushes all pending changes from all managers into the ZipManager.
+   *
+   * @param {SlideManager} slideManager
+   * @param {ZipManager} zipManager
+   * @returns {Promise<void>}
+   */
+  async flush(slideManager, zipManager) {
     await this.#flushAllSlides(slideManager, zipManager)
-
-    // Flush Content Types safely
     this.#contentTypesManager.flush(zipManager)
-
-    // Wait for any queued asynchronous writes (like content types, media hashing)
     await zipManager.waitForPendingWrites()
+  }
+
+  /**
+   * Returns the PPTX as a Node.js Buffer.
+   *
+   * @param {SlideManager} slideManager
+   * @param {ZipManager} zipManager
+   * @returns {Promise<Buffer>}
+   */
+  async toBuffer(slideManager, zipManager) {
+    await this.flush(slideManager, zipManager)
 
     const buffer = await zipManager.toBuffer()
     logger.debug(`Generated buffer: ${(buffer.length / 1024).toFixed(1)} KB`)
@@ -95,12 +108,7 @@ class OutputWriter {
    * @returns {Promise<Readable>}
    */
   async toStream(slideManager, zipManager) {
-    await this.#flushAllSlides(slideManager, zipManager)
-
-    // Flush Content Types safely
-    this.#contentTypesManager.flush(zipManager)
-
-    await zipManager.waitForPendingWrites()
+    await this.flush(slideManager, zipManager)
     const nodeStream = await zipManager.toStream()
 
     if (this.debugZip) {
@@ -182,58 +190,54 @@ class OutputWriter {
       }
     }
 
-    // Change this block to await the process completely
     if (zipManager.hasFile('docProps/app.xml')) {
-      // AWAIT this process entirely before exiting the function!
-      await zipManager.rawZip
-        .file('docProps/app.xml')
-        .async('text')
-        .then(content => {
-          const parser = new XMLParser()
-          const appObj = parser.parse(content, 'app.xml')
-          const properties = appObj.Properties
+      const content = await zipManager.readFile('docProps/app.xml')
+      if (content) {
+        const parser = new XMLParser()
+        const appObj = parser.parse(content, 'app.xml')
+        const properties = appObj.Properties
 
-          if (properties) {
-            properties.Slides = info.length
+        if (properties) {
+          properties.Slides = info.length
 
-            let oldSlideTitlesCount = 0
-            const variants = properties.HeadingPairs?.['vt:vector']?.['vt:variant']
-            if (Array.isArray(variants)) {
-              for (let i = 0; i < variants.length; i++) {
-                if (variants[i]['vt:lpstr'] === 'Slide Titles') {
-                  const countVar = variants[i + 1]
-                  if (countVar) {
-                    oldSlideTitlesCount = parseInt(countVar['vt:i4'], 10) || 0
-                    countVar['vt:i4'] = info.length
-                  }
-                  break
+          let oldSlideTitlesCount = 0
+          const variants = properties.HeadingPairs?.['vt:vector']?.['vt:variant']
+          if (Array.isArray(variants)) {
+            for (let i = 0; i < variants.length; i++) {
+              if (variants[i]['vt:lpstr'] === 'Slide Titles') {
+                const countVar = variants[i + 1]
+                if (countVar) {
+                  oldSlideTitlesCount = parseInt(countVar['vt:i4'], 10) || 0
+                  countVar['vt:i4'] = info.length
                 }
+                break
               }
             }
-
-            const titlesVector = properties.TitlesOfParts?.['vt:vector']
-            if (titlesVector) {
-              let lpstrs = titlesVector['vt:lpstr']
-              if (lpstrs) {
-                if (!Array.isArray(lpstrs)) lpstrs = [lpstrs]
-                if (oldSlideTitlesCount > 0 && lpstrs.length >= oldSlideTitlesCount) {
-                  lpstrs = lpstrs.slice(0, lpstrs.length - oldSlideTitlesCount)
-                }
-                const newSlideTitles = info.map(slide => slide.title || `Slide ${slide.index}`)
-                lpstrs.push(...newSlideTitles)
-
-                titlesVector['vt:lpstr'] = lpstrs
-                titlesVector['@_size'] = String(lpstrs.length)
-              }
-            }
-
-            const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            const updatedXml = parser.build(appObj, declaration)
-
-            // Writing it safely here now that the function block is strictly sequential
-            zipManager.writeFile('docProps/app.xml', updatedXml)
           }
-        })
+
+          const titlesVector = properties.TitlesOfParts?.['vt:vector']
+          if (titlesVector) {
+            let lpstrs = titlesVector['vt:lpstr']
+            if (lpstrs) {
+              if (!Array.isArray(lpstrs)) lpstrs = [lpstrs]
+              if (oldSlideTitlesCount > 0 && lpstrs.length >= oldSlideTitlesCount) {
+                lpstrs = lpstrs.slice(0, lpstrs.length - oldSlideTitlesCount)
+              }
+              const newSlideTitles = info.map(slide => slide.title || `Slide ${slide.index}`)
+              lpstrs.push(...newSlideTitles)
+
+              titlesVector['vt:lpstr'] = lpstrs
+              titlesVector['@_size'] = String(lpstrs.length)
+            }
+          }
+
+          const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          const updatedXml = parser.build(appObj, declaration)
+
+          // Writing it safely here now that the function block is strictly sequential
+          zipManager.writeFile('docProps/app.xml', updatedXml)
+        }
+      }
     }
 
     logger.debug(`Flushed ${info.length} slide(s) to ZIP`)

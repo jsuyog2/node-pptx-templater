@@ -112,6 +112,67 @@ async function generateReport() {
 generateReport().catch(console.error);
 ```
 
+## 📂 PowerPoint XML Folder Templates
+
+Instead of loading and saving standard compiled `.pptx` ZIP files, the library natively supports working with uncompressed PowerPoint OpenXML directories. This is extremely useful for server environments and development setups, bypassing ZIP compression/decompression overhead and resolving relationships relative to the unzipped structure.
+
+### 1. Load from XML Folder Template
+
+You can load a template directly from a folder directory or `presentation.xml` entry point:
+
+```javascript
+const { PPTXTemplater, PPTXTemplate } = require('node-pptx-templater');
+
+// Load using the directory root path (auto-detects ppt/presentation.xml)
+const ppt = await PPTXTemplater.load('./monthly-template-folder');
+
+// Load using fromPresentationXml with a configuration object
+const ppt2 = await PPTXTemplate.fromPresentationXml({
+  presentation: './ppt/presentation.xml',
+  root: './template'
+});
+```
+
+### 2. Save/Export directly to XML Folder
+
+You can export the modified presentation back to an uncompressed folder structure on disk:
+
+```javascript
+await ppt.saveToFolder('./output-template-folder');
+```
+
+This generates:
+```text
+output-template-folder/
+├── [Content_Types].xml
+├── _rels/
+├── ppt/
+│   ├── presentation.xml
+│   ├── _rels/
+│   ├── slides/
+│   ├── slideLayouts/
+│   ├── slideMasters/
+│   └── theme/
+└── docProps/
+```
+
+### 3. Folder Mode Performance Benefits
+
+Our benchmark results compare standard ZIP-based templates with uncompressed XML folder workflows:
+* **Concurrency Throughput**: Up to **1.4x faster** under parallel request stress due to eliminated ZIP compression CPU locks.
+* **Heap Memory Footprint**: Reduces memory overhead by avoiding full in-memory ZIP archives.
+
+### 4. Validation
+
+Ensure XML directory templates are correct and contain no orphan relations:
+
+```javascript
+const report = await ppt.validatePresentationXml();
+if (!report.valid) {
+  console.error('Errors found:', report.errors);
+}
+```
+
 ---
 
 ## 📋 OpenXML Presentation Architecture
@@ -1245,6 +1306,40 @@ Saves the modified PPTX to a file on disk.
 ppt.useSlide(1).saveToFile(filePath, options = {});
 ```
 
+#### `save(filePath, options = {})`
+Saves the presentation. Equivalent to saveToFile.
+
+* **Arguments**:
+  * `filePath` (`string`): Output file path.
+  * `[options]` (`Object`): Save options.
+* **Returns**: `Promise<void>` - 
+
+```javascript
+await ppt.save('output.pptx');
+```
+
+#### `saveXml(folderPath)`
+Saves the modified presentation XML structures directly to a folder.
+
+* **Arguments**:
+  * `folderPath` (`string`): Target directory path.
+* **Returns**: `Promise<void>` - 
+
+```javascript
+ppt.useSlide(1).saveXml(folderPath);
+```
+
+#### `saveToFolder(folderPath)`
+Saves the modified presentation XML structures directly to a folder.
+
+* **Arguments**:
+  * `folderPath` (`string`): Target directory path.
+* **Returns**: `Promise<void>` - 
+
+```javascript
+await ppt.saveToFolder('./output-template');
+```
+
 #### `toBuffer()`
 Returns the PPTX content as a Node.js Buffer.
 
@@ -1261,6 +1356,16 @@ Returns the PPTX content as a readable Node.js Stream.
 
 ```javascript
 ppt.useSlide(1).toStream();
+```
+
+#### `validatePresentationXml()`
+Performs validation specifically on PowerPoint XML folder contents/relationships.
+
+* **Returns**: `Promise<{valid: boolean, errors: string[], warnings: string[]` - 
+
+```javascript
+const report = await ppt.validatePresentationXml();
+if (!report.valid) console.error(report.errors);
 ```
 
 #### `slideCount()`
@@ -1280,6 +1385,15 @@ OpenXML relationship IDs follow the format rId1, rId2, rId3, ... They must be un
 
 ```javascript
 ppt.useSlide(1).function();
+```
+
+#### `fromPresentationXml(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+const ppt = await PPTXTemplate.fromPresentationXml('./template-folder');
 ```
 
 #### `validatePresentation(())`
@@ -1307,6 +1421,24 @@ Delegates core actions to slide element sub-managers.
 
 ```javascript
 ppt.useSlide(1).validateTable(());
+```
+
+#### `validateArchive(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).validateArchive(());
+```
+
+#### `enableDebugZip(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+ppt.useSlide(1).enableDebugZip(());
 ```
 
 #### `validateRelationships(())`

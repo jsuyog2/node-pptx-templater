@@ -19,7 +19,7 @@ const { PPTXTemplater } = require('../src/index.js')
 const { existsSync } = require('fs')
 const { resolve } = require('path')
 
-const TEMPLATE_PATH = resolve(__dirname, '../templates/sample.pptx')
+const TEMPLATE_PATH = resolve(__dirname, '../templates/sample/[Content_Types].xml')
 const OUTPUT_PATH = resolve(__dirname, '../examples/output/basic-output.pptx')
 
 async function main() {

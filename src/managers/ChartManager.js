@@ -303,10 +303,9 @@ class ChartManager {
       const rels = relationshipManager.getRelationshipsByType(chartZipPath, REL_TYPES.PACKAGE)
       for (const rel of rels) {
         const xlsxPath = relationshipManager.resolveTarget(chartZipPath, rel.target)
-        const xlsxData = this.#zipManager.rawZip.file(xlsxPath)
-        if (xlsxData) {
+        const buffer = await this.#zipManager.readBinaryFile(xlsxPath)
+        if (buffer) {
           console.log(`Found embedded workbook: ${xlsxPath}`)
-          const buffer = await xlsxData.async('nodebuffer')
           const updatedXlsx = await ChartWorkbookUpdater.updateWorkbook(buffer, cleanNumericData)
           if (updatedXlsx) {
             console.log(`Writing updated workbook to: ${xlsxPath}, size: ${updatedXlsx.length}`)
@@ -573,9 +572,8 @@ class ChartManager {
           const rels = relationshipManager.getRelationshipsByType(chartZipPath, REL_TYPES.PACKAGE)
           for (const rel of rels) {
             const xlsxPath = relationshipManager.resolveTarget(chartZipPath, rel.target)
-            const xlsxData = this.#zipManager.rawZip.file(xlsxPath)
-            if (xlsxData) {
-              const buffer = await xlsxData.async('nodebuffer')
+            const buffer = await this.#zipManager.readBinaryFile(xlsxPath)
+            if (buffer) {
               const zip = await JSZip.loadAsync(buffer)
               const sheetFile = zip.file('xl/worksheets/sheet1.xml')
               if (sheetFile) {
@@ -656,9 +654,8 @@ class ChartManager {
       const rels = relationshipManager.getRelationshipsByType(chartZipPath, REL_TYPES.PACKAGE)
       for (const rel of rels) {
         const xlsxPath = relationshipManager.resolveTarget(chartZipPath, rel.target)
-        const xlsxData = this.#zipManager.rawZip.file(xlsxPath)
-        if (xlsxData) {
-          const buffer = await xlsxData.async('nodebuffer')
+        const buffer = await this.#zipManager.readBinaryFile(xlsxPath)
+        if (buffer) {
           const workbookData = {
             categories,
             series: series.map((ser, idx) => {
@@ -697,31 +694,11 @@ class ChartManager {
   getChartType(slideIndex, chartId, slideManager, relationshipManager) {
     const chartInfo = this.findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
     if (!chartInfo) return 'unknown'
-    const cachedXml = this.#zipManager.rawZip.file(chartInfo.zipPath)
-    if (!cachedXml) return 'unknown'
-    // Read synchronously from rawZip since we preloaded all charts
-    const fileData = this.#zipManager.rawZip.file(chartInfo.zipPath)
-    if (!fileData) return 'unknown'
-    // We can't do async inside synchronous getChartType, but wait: we preloaded them!
-    // Since it's preloaded, it is in #xmlCache of zipManager.
-    // Let's see if we can get it from xmlCache
-    const path = chartInfo.zipPath.replace(/\\/g, '/')
-    const xml = this.#zipManager.hasFile(path)
-      ? this.#zipManager.rawZip.file(path).async('text')
-      : null
-    // Actually, we can return the detected type from the file's text.
-    // Wait, is getChartType needed? We can make it async or use cached xml.
-    // Let's implement it asynchronously to be 100% correct, or read from cache!
-    // Let's see:
-    const xmlText = this.#zipManager.rawZip.file(path)
-      ? String(this.#zipManager.rawZip.file(path)._data)
-      : ''
-    // Wait, JSZip's internal _data might not be fully text. Let's make getChartTypeAsync or just read the cache.
-    // Since they were all loaded into cache during initialization:
-    const xmlFromCache = this.#zipManager.rawZip.file(path)
-      ? this.#zipManager.rawZip.file(path).name
-      : '' // wait, let's just make it async or check xmlCache
-    return 'bar' // fallback or default for type check, or we can make it async!
+    const cachedXml = this.#zipManager.readCachedFile(chartInfo.zipPath)
+    if (cachedXml) {
+      return this.#detectChartType(cachedXml)
+    }
+    return 'unknown'
   }
 
   async getChartTypeAsync(slideIndex, chartId, slideManager, relationshipManager) {

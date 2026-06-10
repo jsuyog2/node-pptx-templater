@@ -61,6 +61,7 @@ const {
 
 module.exports = {
   PPTXTemplater,
+  PPTXTemplate: PPTXTemplater,
   ZipManager,
   XMLParser,
   Z_ORDER_SYMBOL,

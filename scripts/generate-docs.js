@@ -127,13 +127,20 @@ const METHOD_CATEGORIES = {
   // Utilities & Core
   'load': 'utils',
   'create': 'utils',
+  'fromPresentationXml': 'utils',
   'getInfo': 'utils',
   'validate': 'utils',
   'repair': 'utils',
+  'save': 'utils',
   'saveToFile': 'utils',
+  'saveXml': 'utils',
+  'saveToFolder': 'utils',
   'toBuffer': 'utils',
   'toStream': 'utils',
+  'validatePresentationXml': 'utils',
   'validatePresentation': 'utils',
+  'validateArchive': 'utils',
+  'enableDebugZip': 'utils',
   'validateSlide': 'utils',
   'validateTable': 'utils',
   'validateRelationships': 'utils',
@@ -481,6 +488,50 @@ const API_METADATA_EXTENSIONS = {
       basic: `const ppt = await PPTXTemplater.load('./my_template.pptx');`,
       advanced: `const buffer = fs.readFileSync('template.pptx');\nconst ppt = await PPTXTemplater.load(buffer);`,
       production: `async function generateFromS3(s3Buffer) {\n  try {\n    const ppt = await PPTXTemplater.load(s3Buffer);\n    // Perform operations\n    return await ppt.toBuffer();\n  } catch (err) {\n    console.error('Error reading template from S3:', err);\n    throw err;\n  }\n}`
+    }
+  },
+  fromPresentationXml: {
+    edgeCases: 'The directory root must contain valid OpenXML structural subdirectories like ppt/ and _rels/. If presentation.xml cannot be found under the resolved root, it throws PPTXError.',
+    errorHandling: 'Throws PPTXError if the XML files are broken or if critical parts are missing.',
+    related: ['load', 'saveToFolder', 'validatePresentationXml'],
+    xmlImpact: 'Reads XML files directly from disk without decompressing a ZIP file.',
+    examples: {
+      basic: `const ppt = await PPTXTemplate.fromPresentationXml('./template-folder');`,
+      advanced: `const ppt = await PPTXTemplate.fromPresentationXml({\n  presentation: './ppt/presentation.xml',\n  root: './template'\n});`,
+      production: `// Load flat XML template from server filesystem\ntry {\n  const ppt = await PPTXTemplater.fromPresentationXml({\n    presentation: '/var/www/templates/ppt/presentation.xml',\n    root: '/var/www/templates'\n  });\n  // Modify and save\n  await ppt.save('/var/www/output/result.pptx');\n} catch (err) {\n  console.error('Failed to load XML presentation:', err);\n}`
+    }
+  },
+  save: {
+    edgeCases: 'Identical to saveToFile. Saves the modified PPTX to a file path.',
+    errorHandling: 'Throws PPTXError if the file write fails.',
+    related: ['saveToFile', 'saveToFolder'],
+    xmlImpact: 'Serializes presentation XML structure and packages all elements into target ZIP package on disk.',
+    examples: {
+      basic: `await ppt.save('output.pptx');`,
+      advanced: `await ppt.save('output.pptx', { strict: true });`,
+      production: `await ppt.save('/path/to/output.pptx');`
+    }
+  },
+  saveToFolder: {
+    edgeCases: 'Ensures the output directory exists, creating parent directories if needed. Overwrites any existing files in that folder.',
+    errorHandling: 'Throws PPTXError if the folder cannot be written to or if the filesystem is read-only.',
+    related: ['saveXml', 'fromPresentationXml', 'saveToFile'],
+    xmlImpact: 'Writes the modified OpenXML files and resources directly to disk in their uncompressed folder structure.',
+    examples: {
+      basic: `await ppt.saveToFolder('./output-template');`,
+      advanced: `await ppt.saveXml('./output-template'); // Alias method`,
+      production: `try {\n  await ppt.saveToFolder('/var/www/output-template');\n  console.log('Saved uncompressed presentation files to disk');\n} catch (err) {\n  console.error('Failed to save to folder:', err);\n}`
+    }
+  },
+  validatePresentationXml: {
+    edgeCases: 'Performs deep structural relationship verification of folders. Ignores external URLs.',
+    errorHandling: 'Returns a validation report object { valid: boolean, errors: string[], warnings: string[] }.',
+    related: ['validatePresentation', 'validateArchive', 'fromPresentationXml'],
+    xmlImpact: 'Dry-runs verification of content types overrides, slide layouts, and master configurations.',
+    examples: {
+      basic: `const report = await ppt.validatePresentationXml();\nif (!report.valid) console.error(report.errors);`,
+      advanced: `const report = await ppt.validatePresentationXml();\nexpect(report.valid).toBe(true);`,
+      production: `const check = await ppt.validatePresentationXml();\nif (!check.valid) {\n  throw new Error('Presentation XML validation failed:\\n' + check.errors.join('\\n'));\n}`
     }
   }
 };

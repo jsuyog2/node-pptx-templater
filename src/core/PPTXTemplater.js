@@ -203,6 +203,17 @@ class PPTXTemplater {
   }
 
   /**
+   * Loads a template from a PowerPoint XML Presentation format.
+   *
+   * @static
+   * @param {string|Object} options - Path to presentation.xml, folder root, or configuration object.
+   * @returns {Promise<PPTXTemplater>} Initialized engine instance.
+   */
+  static async fromPresentationXml(options) {
+    return PPTXTemplater.load(options)
+  }
+
+  /**
    * Creates a new blank PPTX from scratch.
    *
    * @static
@@ -993,6 +1004,40 @@ class PPTXTemplater {
   }
 
   /**
+   * Saves the presentation. Equivalent to saveToFile.
+   *
+   * @param {string} filePath - Output file path.
+   * @param {Object} [options] - Save options.
+   * @returns {Promise<void>}
+   */
+  async save(filePath, options = {}) {
+    return this.saveToFile(filePath, options)
+  }
+
+  /**
+   * Saves the modified presentation XML structures directly to a folder.
+   *
+   * @param {string} folderPath - Target directory path.
+   * @returns {Promise<void>}
+   */
+  async saveXml(folderPath) {
+    this.#assertLoaded()
+    await this.#outputWriter.flush(this.#slideManager, this.#zipManager)
+    await this.#zipManager.toFolder(folderPath)
+    logger.info(`Saved XML presentation to folder ${folderPath}`)
+  }
+
+  /**
+   * Saves the modified presentation XML structures directly to a folder.
+   *
+   * @param {string} folderPath - Target directory path.
+   * @returns {Promise<void>}
+   */
+  async saveToFolder(folderPath) {
+    return this.saveXml(folderPath)
+  }
+
+  /**
    * Returns the PPTX content as a Node.js Buffer.
    *
    * @returns {Promise<Buffer>}
@@ -1736,6 +1781,94 @@ class PPTXTemplater {
   async validatePresentation() {
     this.#assertLoaded()
     return await ValidationEngine.validatePresentation(this)
+  }
+
+  /**
+   * Performs validation specifically on PowerPoint XML folder contents/relationships.
+   *
+   * @returns {Promise<{valid: boolean, errors: string[], warnings: string[]}>} Validation report.
+   */
+  async validatePresentationXml() {
+    this.#assertLoaded()
+    const errors = []
+    const warnings = []
+
+    try {
+      const presResult = await this.validatePresentation()
+      errors.push(...presResult.errors)
+      warnings.push(...presResult.warnings)
+    } catch (err) {
+      errors.push(`Presentation validation error: ${err.message}`)
+    }
+
+    try {
+      await this.validateArchive()
+    } catch (err) {
+      errors.push(err.message)
+    }
+
+    if (this.#zipManager.hasFile('[Content_Types].xml')) {
+      try {
+        const ctXml = await this.#zipManager.readFile('[Content_Types].xml')
+        const ctObj = this.#xmlParser.parse(ctXml, '[Content_Types].xml')
+        const overrides = ctObj?.Types?.Override || []
+        const overrideList = Array.isArray(overrides) ? overrides : [overrides]
+
+        for (const override of overrideList) {
+          const partName = override['@_PartName']
+          const contentType = override['@_ContentType']
+          if (partName && contentType) {
+            const cleanPath = partName.startsWith('/') ? partName.substring(1) : partName
+            if (!this.#zipManager.hasFile(cleanPath)) {
+              errors.push(`Content types override refers to missing file: ${cleanPath}`)
+            }
+          }
+        }
+      } catch (err) {
+        errors.push(`Invalid [Content_Types].xml structure: ${err.message}`)
+      }
+    } else {
+      errors.push('Missing [Content_Types].xml')
+    }
+
+    const slideInfo = this.#slideManager.getAllSlideInfo()
+    for (const slide of slideInfo) {
+      const rels = this.#relationshipManager.getRelationships(slide.zipPath)
+      const layoutRel = rels.find(
+        r =>
+          r.type ===
+          'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout'
+      )
+      if (layoutRel) {
+        const layoutPath = this.#relationshipManager.resolveTarget(slide.zipPath, layoutRel.target)
+        if (!this.#zipManager.hasFile(layoutPath)) {
+          errors.push(`Slide ${slide.index} refers to missing slideLayout: ${layoutPath}`)
+        } else {
+          const layoutRels = this.#relationshipManager.getRelationships(layoutPath)
+          const masterRel = layoutRels.find(
+            r =>
+              r.type ===
+              'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster'
+          )
+          if (masterRel) {
+            const masterPath = this.#relationshipManager.resolveTarget(layoutPath, masterRel.target)
+            if (!this.#zipManager.hasFile(masterPath)) {
+              errors.push(`Slide layout ${layoutPath} refers to missing slideMaster: ${masterPath}`)
+            }
+          } else {
+            warnings.push(`Slide layout ${layoutPath} has no slideMaster relationship`)
+          }
+        }
+      } else {
+        errors.push(`Slide ${slide.index} has no slideLayout relationship`)
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    }
   }
 
   async validateSlide(slideIndex) {
