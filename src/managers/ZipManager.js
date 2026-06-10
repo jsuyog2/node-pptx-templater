@@ -232,8 +232,8 @@ class ZipManager {
   async toBuffer() {
     return this.#zip.generateAsync({
       type: 'nodebuffer',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 },
+      compression: 'STORE',
+      compressionOptions: { level: 0 },
     })
   }
 
@@ -245,8 +245,8 @@ class ZipManager {
   async toStream() {
     return this.#zip.generateNodeStream({
       type: 'nodebuffer',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 },
+      compression: 'STORE',
+      compressionOptions: { level: 0 },
       streamFiles: true,
     })
   }
