@@ -40,6 +40,10 @@ const METHOD_CATEGORIES = {
   'autoFitTable': 'tables',
   'resizeTable': 'tables',
   'getTables': 'tables',
+  'addCellShape': 'tables',
+  'updateCellShape': 'tables',
+  'removeCellShape': 'tables',
+  'getCellShape': 'tables',
 
   // Charts
   'updateChart': 'charts',
@@ -100,6 +104,11 @@ const METHOD_CATEGORIES = {
   'getImages': 'images',
 
   // Shapes
+  'addShape': 'shapes',
+  'updateShape': 'shapes',
+  'removeShape': 'shapes',
+  'getShape': 'shapes',
+  'validateShape': 'shapes',
   'updateShapeText': 'shapes',
   'updateShapePosition': 'shapes',
   'updateTextBoxPosition': 'shapes',
@@ -228,6 +237,42 @@ const API_METADATA_EXTENSIONS = {
       basic: `ppt.useSlide(1).removeTableRow('data-table', 2);`,
       advanced: `// Delete the second row (index 1)\nppt.useSlide(1).removeTableRow('data-table', 1);`,
       production: `const tables = ppt.getTables();\nconst targetTable = tables.find(t => t.id === 'user-table');\nif (targetTable && targetTable.rows > 5) {\n  ppt.removeTableRow('user-table', targetTable.rows - 1);\n}`
+    }
+  },
+  addCellShape: {
+    edgeCases: 'Index must fall within table bounds. Coordinates outside structural table dimensions align relative to cell borders.',
+    errorHandling: 'Validates cell index before inserting.',
+    related: ['updateCellShape', 'removeCellShape', 'getCellShape'],
+    xmlImpact: 'Appends a `<p:sp>` shape node aligned to cell EMUs.',
+    examples: {
+      basic: `await ppt.addCellShape('Table', 1, 2, { type: 'circle', fill: '#10B981' });`
+    }
+  },
+  updateCellShape: {
+    edgeCases: 'Target shape index must exist in cell.',
+    errorHandling: 'Throws PPTXError if shapeIndex is missing.',
+    related: ['addCellShape', 'removeCellShape'],
+    xmlImpact: 'Updates target `<p:sp>` attributes inside the slide XML.',
+    examples: {
+      basic: `await ppt.updateCellShape('Table', 1, 2, 0, { fill: '#EF4444' });`
+    }
+  },
+  removeCellShape: {
+    edgeCases: 'Shape must exist in cell.',
+    errorHandling: 'Throws PPTXError if shape is not found.',
+    related: ['addCellShape', 'updateCellShape'],
+    xmlImpact: 'Deletes `<p:sp>` shape node from the slide XML.',
+    examples: {
+      basic: `await ppt.removeCellShape('Table', 1, 2, 0);`
+    }
+  },
+  getCellShape: {
+    edgeCases: 'Retrieves details of shape in table cell.',
+    errorHandling: 'Returns null if shape is not found.',
+    related: ['addCellShape', 'updateCellShape', 'removeCellShape'],
+    xmlImpact: 'None (read-only query).',
+    examples: {
+      basic: `const shape = ppt.getCellShape('Table', 1, 2, 0);`
     }
   },
 
@@ -425,6 +470,61 @@ const API_METADATA_EXTENSIONS = {
       basic: `ppt.useSlide(1).updateTextBoxPosition('TextBox 2', { x: 1000000, y: 1500000 });`,
       advanced: `ppt.updateTextBoxPosition('TextBox 2', {\n  x: 2000000,\n  y: 3000000,\n  width: 4000000,\n  height: 500000\n});`,
       production: `// Relocate a textbox dynamically based on slide width\nconst slideWidth = 12192000;\nppt.useSlide(1).updateTextBoxPosition('StatusBox', {\n  x: slideWidth - 3000000,\n  width: 2500000\n});`
+    }
+  },
+  addShape: {
+    edgeCases: 'Dimensions/coordinates are converted where 1 pixel ≈ 9525 EMUs. Supports shapes: rectangle, square, circle, ellipse, roundedRectangle.',
+    errorHandling: 'Throws PPTXError if validation fails or target slide structure is invalid.',
+    related: ['updateShape', 'removeShape', 'getShape', 'validateShape'],
+    xmlImpact: 'Creates and appends a `<p:sp>` shape tree node under `<p:spTree>` and updates Z-ordering list.',
+    examples: {
+      basic: `await ppt.useSlide(1).addShape({\n  type: 'rectangle',\n  id: 'sales-box',\n  x: 100,\n  y: 100,\n  width: 200,\n  height: 100,\n  fill: '#2563EB'\n});`,
+      advanced: `// Create rounded rectangle with text and gradient fill\nawait ppt.addShape({\n  type: 'roundedRectangle',\n  id: 'card',\n  x: 100,\n  y: 100,\n  width: 300,\n  height: 120,\n  borderRadius: 20,\n  fill: {\n    type: 'gradient',\n    colors: ['#2563EB', '#7C3AED']\n  },\n  text: 'Revenue Growth',\n  textStyle: { fontSize: 18, bold: true, color: '#FFFFFF', align: 'center' }\n});`,
+      production: `// Dynamically add card shapes on slide\nfor (const [i, metric] of metrics.entries()) {\n  await ppt.addShape({\n    type: 'roundedRectangle',\n    id: \`metric-card-\${i}\`,\n    x: 50 + i * 250,\n    y: 150,\n    width: 200,\n    height: 120,\n    borderRadius: 10,\n    fill: '#FFFFFF',\n    border: { color: '#E2E8F0', width: 2 },\n    text: metric.name + '\\n' + metric.value,\n    textStyle: { fontSize: 14, color: '#1E293B', align: 'center' }\n  });\n}`
+    }
+  },
+  updateShape: {
+    edgeCases: 'Dimensions/coordinates are converted where 1 pixel ≈ 9525 EMUs. Properties not specified are preserved.',
+    errorHandling: 'Throws PPTXError if shape target is not found on targeted slide index.',
+    related: ['addShape', 'removeShape', 'getShape'],
+    xmlImpact: 'Updates shape geometry attributes, fills, borders, text body values, or shadows in slide XML in-place.',
+    examples: {
+      basic: `await ppt.useSlide(1).updateShape('sales-box', { fill: '#10B981' });`,
+      advanced: `await ppt.updateShape('sales-box', {\n  x: 200,\n  y: 300,\n  width: 400,\n  height: 120,\n  border: { color: '#EF4444', width: 3 },\n  text: 'Updated Revenue'\n});`,
+      production: `// Toggle alert shapes color based on performance threshold\nif (growthRate < 0) {\n  await ppt.updateShape('AlertBox', {\n    fill: '#EF4444',\n    text: 'Critical Drop Detected'\n  });\n} else {\n  await ppt.updateShape('AlertBox', {\n    fill: '#10B981',\n    text: 'Stable Growth'\n  });\n}`
+    }
+  },
+  removeShape: {
+    edgeCases: 'Removes target shape by shape ID or template name across slide canvas. Synchronizes Z-order list.',
+    errorHandling: 'Throws PPTXError if target shape is not found on the slide.',
+    related: ['addShape', 'updateShape', 'deleteShape'],
+    xmlImpact: 'Deletes `<p:sp>` element from the shape tree and filters its ID out of the Z-ordering list.',
+    examples: {
+      basic: `await ppt.useSlide(1).removeShape('sales-box');`,
+      advanced: `await ppt.removeShape('sales-box');`,
+      production: `// Remove template shapes if option is disabled\nif (!showDashboardKPIs) {\n  const kpiIds = ['KpiCard1', 'KpiCard2', 'KpiCard3'];\n  for (const id of kpiIds) {\n    try {\n      await ppt.removeShape(id);\n    } catch (e) {\n      // Shape not present\n    }\n  }\n}`
+    }
+  },
+  getShape: {
+    edgeCases: 'Returns shape details mapping EMU back to pixel coordinates. Preset geometries mapped back to user-facing types.',
+    errorHandling: 'Returns null if the shape cannot be found.',
+    related: ['addShape', 'updateShape', 'getShapes'],
+    xmlImpact: 'Reads XML shape nodes and coordinates to return JS representation.',
+    examples: {
+      basic: `const shape = ppt.getShape('sales-box');`,
+      advanced: `const shape = ppt.useSlide(1).getShape('sales-box');\nif (shape) {\n  console.log(\`Shape is at x:\${shape.x}, y:\${shape.y}\`);\n}`,
+      production: `// Auto-align shapes dynamically\nconst card = ppt.getShape('BaseCard');\nif (card) {\n  await ppt.addShape({\n    type: 'rectangle',\n    id: 'AdjacentCard',\n    x: card.x + card.width + 20,\n    y: card.y,\n    width: card.width,\n    height: card.height\n  });\n}`
+    }
+  },
+  validateShape: {
+    edgeCases: 'Validates configuration parameters without modifying document. Checks shape types, colors, and dimensions.',
+    errorHandling: 'Returns array of validation error strings. Empty array means configuration is valid.',
+    related: ['addShape', 'updateShape'],
+    xmlImpact: 'None. Does not touch slide XML.',
+    examples: {
+      basic: `const errors = ppt.validateShape(shapeOptions);`,
+      advanced: `const errors = ppt.validateShape({\n  id: 'card',\n  type: 'rectangle',\n  fill: 'red' // Invalid format\n});\nif (errors.length > 0) {\n  console.error('Errors:', errors);\n}`,
+      production: `// Run configuration validation check before addition\nconst config = getShapeConfig();\nconst errors = ppt.validateShape(config);\nif (errors.length === 0) {\n  await ppt.addShape(config);\n} else {\n  throw new Error('Config invalid: ' + errors.join(', '));\n}`
     }
   },
 

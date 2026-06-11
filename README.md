@@ -243,6 +243,63 @@ ppt.useSlide(1).updateTable('summary-table', [
 ]);
 ```
 
+#### `addCellShape(tableId, rowIndex, colIndex, options)`
+Dynamically adds a shape inside a table cell based on cell coordinates.
+
+* **Arguments**:
+  * `tableId` (`string`): Table name or shape ID.
+  * `rowIndex` (`number`): 0-based row index.
+  * `colIndex` (`number`): 0-based column index.
+  * `options` (`Object`): Shape configuration options.
+* **Returns**: `this` - The chainable presentation templater instance.
+
+```javascript
+await ppt.addCellShape('Table', 1, 2, { type: 'circle', fill: '#10B981' });
+```
+
+#### `updateCellShape(tableId, rowIndex, colIndex, shapeIndex, options)`
+Updates an existing shape inside a table cell.
+
+* **Arguments**:
+  * `tableId` (`string`): Table name or shape ID.
+  * `rowIndex` (`number`): 0-based row index.
+  * `colIndex` (`number`): 0-based column index.
+  * `shapeIndex` (`number`): 0-based shape index in the cell.
+  * `options` (`Object`): Shape configuration properties to update.
+* **Returns**: `this` - The chainable presentation templater instance.
+
+```javascript
+await ppt.updateCellShape('Table', 1, 2, 0, { fill: '#EF4444' });
+```
+
+#### `removeCellShape(tableId, rowIndex, colIndex, shapeIndex)`
+Removes a shape from a table cell.
+
+* **Arguments**:
+  * `tableId` (`string`): Table name or shape ID.
+  * `rowIndex` (`number`): 0-based row index.
+  * `colIndex` (`number`): 0-based column index.
+  * `shapeIndex` (`number`): 0-based shape index in the cell.
+* **Returns**: `this` - The chainable presentation templater instance.
+
+```javascript
+await ppt.removeCellShape('Table', 1, 2, 0);
+```
+
+#### `getCellShape(tableId, rowIndex, colIndex, shapeIndex)`
+Discovers and retrieves details of an existing cell shape on the targeted slide.
+
+* **Arguments**:
+  * `tableId` (`string`): Table name or shape ID.
+  * `rowIndex` (`number`): 0-based row index.
+  * `colIndex` (`number`): 0-based column index.
+  * `shapeIndex` (`number`): 0-based shape index in the cell.
+* **Returns**: `Object|null` - Shape details object, or null if not found.
+
+```javascript
+const shape = ppt.getCellShape('Table', 1, 2, 0);
+```
+
 #### `addTableRow(())`
 Delegates core actions to slide element sub-managers.
 
@@ -1014,6 +1071,70 @@ Updates the position and/or dimensions of an existing textbox on targeted slides
 
 ```javascript
 ppt.useSlide(1).updateTextBoxPosition('TextBox 2', { x: 1000000, y: 1500000 });
+```
+
+#### `validateShape(options)`
+Validates shape options configuration.
+
+* **Arguments**:
+  * `options` (`Object`): 
+* **Returns**: `string[]` - List of validation error messages.
+
+```javascript
+const errors = ppt.validateShape(shapeOptions);
+```
+
+#### `addShape(options)`
+Adds a new shape dynamically to the targeted slide(s).
+
+* **Arguments**:
+  * `options` (`Object`): 
+* **Returns**: `this` - The chainable presentation templater instance.
+
+```javascript
+await ppt.useSlide(1).addShape({
+  type: 'rectangle',
+  id: 'sales-box',
+  x: 100,
+  y: 100,
+  width: 200,
+  height: 100,
+  fill: '#2563EB'
+});
+```
+
+#### `updateShape(shapeId, options)`
+Updates an existing shape in-place.
+
+* **Arguments**:
+  * `shapeId` (`string`): 
+  * `options` (`Object`): 
+* **Returns**: `this` - The chainable presentation templater instance.
+
+```javascript
+await ppt.useSlide(1).updateShape('sales-box', { fill: '#10B981' });
+```
+
+#### `removeShape(shapeId)`
+Removes a shape from the targeted slide(s).
+
+* **Arguments**:
+  * `shapeId` (`string`): 
+* **Returns**: `this` - The chainable presentation templater instance.
+
+```javascript
+await ppt.useSlide(1).removeShape('sales-box');
+```
+
+#### `getShape(shapeId)`
+Discovers and retrieves details of an existing shape on the targeted slides.
+
+* **Arguments**:
+  * `shapeId` (`string`): 
+* **Returns**: `Object|null` - Shape details object, or null if not found.
+
+```javascript
+const shape = ppt.getShape('sales-box');
 ```
 
 #### `updateShapeText(())`

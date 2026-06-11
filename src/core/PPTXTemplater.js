@@ -588,7 +588,7 @@ class PPTXTemplater {
     const targetIndices = this.#getTargetSlideIndices()
 
     for (const slideIndex of targetIndices) {
-      this.#tableManager.updateTable(slideIndex, tableId, rows, this.#slideManager)
+      this.#tableManager.updateTable(slideIndex, tableId, rows, this.#slideManager, this.#shapeManager)
     }
 
     logger.debug(`Updated table "${tableId}" in ${targetIndices.length} slide(s)`)
@@ -1912,6 +1912,185 @@ class PPTXTemplater {
       shapes.push(...this.#shapeManager.getShapes(idx, this.#slideManager))
     }
     return shapes
+  }
+
+  /**
+   * Validates shape options configuration.
+   *
+   * @param {Object} options Shape creation/update options.
+   * @returns {string[]} List of validation error messages.
+   */
+  validateShape(options) {
+    return this.#shapeManager.validateShape(options)
+  }
+
+  /**
+   * Adds a new shape dynamically to the targeted slide(s).
+   *
+   * @param {Object} options Shape configuration options.
+   * @returns {this} The chainable presentation templater instance.
+   */
+  async addShape(options) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#shapeManager.addShape(idx, options, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Updates an existing shape in-place.
+   *
+   * @param {string} shapeId Shape ID or template name to update.
+   * @param {Object} options Configuration properties to update.
+   * @returns {this} The chainable presentation templater instance.
+   */
+  async updateShape(shapeId, options) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#shapeManager.updateShape(idx, shapeId, options, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Removes a shape from the targeted slide(s).
+   *
+   * @param {string} shapeId Shape ID or template name to remove.
+   * @returns {this} The chainable presentation templater instance.
+   */
+  async removeShape(shapeId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#shapeManager.removeShape(idx, shapeId, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Discovers and retrieves details of an existing shape on the targeted slides.
+   *
+   * @param {string} shapeId Shape ID or template name to locate.
+   * @returns {Object|null} Shape details object, or null if not found.
+   */
+  getShape(shapeId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      const shape = this.#shapeManager.getShape(idx, shapeId, this.#slideManager)
+      if (shape) return shape
+    }
+    return null
+  }
+
+  /**
+   * Dynamically adds a shape inside a table cell based on cell coordinates.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} colIndex - 0-based column index.
+   * @param {Object} options - Shape configuration options.
+   * @returns {this} The chainable presentation templater instance.
+   */
+  async addCellShape(tableId, rowIndex, colIndex, options) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#tableManager.addCellShape(
+        idx,
+        tableId,
+        rowIndex,
+        colIndex,
+        options,
+        this.#slideManager,
+        this.#shapeManager
+      )
+    }
+    return this
+  }
+
+  /**
+   * Updates an existing shape inside a table cell.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} colIndex - 0-based column index.
+   * @param {number} shapeIndex - 0-based shape index in the cell.
+   * @param {Object} options - Shape configuration properties to update.
+   * @returns {this} The chainable presentation templater instance.
+   */
+  async updateCellShape(tableId, rowIndex, colIndex, shapeIndex, options) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#tableManager.updateCellShape(
+        idx,
+        tableId,
+        rowIndex,
+        colIndex,
+        shapeIndex,
+        options,
+        this.#slideManager,
+        this.#shapeManager
+      )
+    }
+    return this
+  }
+
+  /**
+   * Removes a shape from a table cell.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} colIndex - 0-based column index.
+   * @param {number} shapeIndex - 0-based shape index in the cell.
+   * @returns {this} The chainable presentation templater instance.
+   */
+  async removeCellShape(tableId, rowIndex, colIndex, shapeIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#tableManager.removeCellShape(
+        idx,
+        tableId,
+        rowIndex,
+        colIndex,
+        shapeIndex,
+        this.#slideManager,
+        this.#shapeManager
+      )
+    }
+    return this
+  }
+
+  /**
+   * Discovers and retrieves details of an existing cell shape on the targeted slide.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} colIndex - 0-based column index.
+   * @param {number} shapeIndex - 0-based shape index in the cell.
+   * @returns {Object|null} Shape details object, or null if not found.
+   */
+  getCellShape(tableId, rowIndex, colIndex, shapeIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      const shape = this.#tableManager.getCellShape(
+        idx,
+        tableId,
+        rowIndex,
+        colIndex,
+        shapeIndex,
+        this.#slideManager,
+        this.#shapeManager
+      )
+      if (shape) return shape
+    }
+    return null
   }
 
   // === Image Features ===

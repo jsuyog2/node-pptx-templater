@@ -66,8 +66,8 @@ class TableManager {
    * @param {SlideManager} slideManager
    * @throws {TableNotFoundError} If the table is not found.
    */
-  updateTable(slideIndex, tableId, data, slideManager) {
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+  updateTable(slideIndex, tableId, data, slideManager, shapeManager) {
+    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (trs.length === 0) {
@@ -77,12 +77,14 @@ class TableManager {
 
     let rowsData = []
     let templateMerges = []
+    let cellShapes = null
 
     if (Array.isArray(data)) {
       rowsData = data
     } else if (data && typeof data === 'object') {
       rowsData = data.rows || []
       templateMerges = data.merge || []
+      cellShapes = data.cellShapes || null
     }
 
     const headerTemplate = trs[0]
@@ -91,80 +93,112 @@ class TableManager {
     const newRows = []
     const generatedMerges = []
 
-    for (let i = 0; i < rowsData.length; i++) {
-      const template = i === 0 ? headerTemplate : trs[i] || dataTemplate
-      const newRow = this.#xmlParser.deepClone(template)
-      this.#updateRowId(newRow)
+    const headerNames = (trs[0]['a:tc'] || []).map(cell => this.#getCellText(cell).trim())
+    const isObjectRows = rowsData.length > 0 && !Array.isArray(rowsData[0]) && typeof rowsData[0] === 'object'
 
-      const tcs = newRow['a:tc'] || []
-      const rowData = rowsData[i]
+    if (isObjectRows) {
+      // 1. Keep/clone the header row
+      const headerRow = this.#xmlParser.deepClone(headerTemplate)
+      this.#updateRowId(headerRow)
+      newRows.push(headerRow)
 
-      for (let j = 0; j < tcs.length; j++) {
-        const rawCell = rowData && rowData[j] !== undefined ? rowData[j] : ''
-        let val = ''
-        let cellOptions = {}
+      // 2. Map objects to data rows
+      for (let i = 0; i < rowsData.length; i++) {
+        const newRow = this.#xmlParser.deepClone(dataTemplate)
+        this.#updateRowId(newRow)
 
-        if (tcs[j]['@_hMerge']) delete tcs[j]['@_hMerge']
-        if (tcs[j]['@_vMerge']) delete tcs[j]['@_vMerge']
-        if (tcs[j]['@_gridSpan']) delete tcs[j]['@_gridSpan']
-        if (tcs[j]['@_rowSpan']) delete tcs[j]['@_rowSpan']
+        const tcs = newRow['a:tc'] || []
+        const rowObj = rowsData[i]
 
-        if (rawCell && typeof rawCell === 'object') {
-          val = rawCell.value !== undefined ? rawCell.value : ''
-          const rowSpan = parseInt(rawCell.rowSpan || 1, 10)
-          const colSpan = parseInt(rawCell.colSpan || rawCell.gridSpan || 1, 10)
-          if (rowSpan > 1 || colSpan > 1) {
-            generatedMerges.push({
-              startRow: i,
-              startCol: j,
-              endRow: i + rowSpan - 1,
-              endCol: j + colSpan - 1,
-            })
-          }
-          cellOptions = rawCell
-        } else {
-          val = String(rawCell)
-        }
-
-        this.#setCellTextObj(tcs[j], val)
-
-        // Apply style properties if specified on the cell object
-        if (cellOptions.fill) {
-          if (!tcs[j]['a:tcPr']) tcs[j]['a:tcPr'] = {}
-          tcs[j]['a:tcPr']['a:solidFill'] = {
-            'a:srgbClr': { '@_val': cellOptions.fill },
-          }
-        }
-
-        if (cellOptions.align) {
-          const txBody = tcs[j]['a:txBody']
-          if (txBody && txBody['a:p']) {
-            const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-            for (const p of paras) {
-              if (!p['a:pPr']) p['a:pPr'] = {}
-              p['a:pPr']['@_algn'] = cellOptions.align
+        for (let j = 0; j < tcs.length; j++) {
+          const headerName = headerNames[j]
+          let rawCell = undefined
+          if (headerName) {
+            if (rowObj[headerName] !== undefined) {
+              rawCell = rowObj[headerName]
+            } else if (rowObj[headerName.toLowerCase()] !== undefined) {
+              rawCell = rowObj[headerName.toLowerCase()]
             }
           }
-        }
-
-        if (cellOptions.fontSize) {
-          const sizeVal = cellOptions.fontSize * 100
-          const txBody = tcs[j]['a:txBody']
-          if (txBody && txBody['a:p']) {
-            const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-            for (const p of paras) {
-              if (p['a:r']) {
-                const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-                for (const r of runs) {
-                  if (!r['a:rPr']) r['a:rPr'] = {}
-                  r['a:rPr']['@_sz'] = String(sizeVal)
-                }
-              }
-            }
+          if (rawCell === undefined && rowObj[j] !== undefined) {
+            rawCell = rowObj[j]
           }
+          if (rawCell === undefined) {
+            rawCell = ''
+          }
+
+          let val = ''
+          let cellOptions = {}
+
+          if (tcs[j]['@_hMerge']) delete tcs[j]['@_hMerge']
+          if (tcs[j]['@_vMerge']) delete tcs[j]['@_vMerge']
+          if (tcs[j]['@_gridSpan']) delete tcs[j]['@_gridSpan']
+          if (tcs[j]['@_rowSpan']) delete tcs[j]['@_rowSpan']
+
+          if (rawCell && typeof rawCell === 'object') {
+            val = rawCell.value !== undefined ? rawCell.value : ''
+            const rowSpan = parseInt(rawCell.rowSpan || 1, 10)
+            const colSpan = parseInt(rawCell.colSpan || rawCell.gridSpan || 1, 10)
+            if (rowSpan > 1 || colSpan > 1) {
+              generatedMerges.push({
+                startRow: i + 1,
+                startCol: j,
+                endRow: i + 1 + rowSpan - 1,
+                endCol: j + colSpan - 1,
+              })
+            }
+            cellOptions = rawCell
+          } else {
+            val = String(rawCell)
+          }
+
+          this.#setCellTextObj(tcs[j], val)
+          this.#applyCellOptions(tcs[j], cellOptions)
         }
+        newRows.push(newRow)
       }
-      newRows.push(newRow)
+    } else {
+      // 2D array mapping
+      for (let i = 0; i < rowsData.length; i++) {
+        const template = i === 0 ? headerTemplate : trs[i] || dataTemplate
+        const newRow = this.#xmlParser.deepClone(template)
+        this.#updateRowId(newRow)
+
+        const tcs = newRow['a:tc'] || []
+        const rowData = rowsData[i]
+
+        for (let j = 0; j < tcs.length; j++) {
+          const rawCell = rowData && rowData[j] !== undefined ? rowData[j] : ''
+          let val = ''
+          let cellOptions = {}
+
+          if (tcs[j]['@_hMerge']) delete tcs[j]['@_hMerge']
+          if (tcs[j]['@_vMerge']) delete tcs[j]['@_vMerge']
+          if (tcs[j]['@_gridSpan']) delete tcs[j]['@_gridSpan']
+          if (tcs[j]['@_rowSpan']) delete tcs[j]['@_rowSpan']
+
+          if (rawCell && typeof rawCell === 'object') {
+            val = rawCell.value !== undefined ? rawCell.value : ''
+            const rowSpan = parseInt(rawCell.rowSpan || 1, 10)
+            const colSpan = parseInt(rawCell.colSpan || rawCell.gridSpan || 1, 10)
+            if (rowSpan > 1 || colSpan > 1) {
+              generatedMerges.push({
+                startRow: i,
+                startCol: j,
+                endRow: i + rowSpan - 1,
+                endCol: j + colSpan - 1,
+              })
+            }
+            cellOptions = rawCell
+          } else {
+            val = String(rawCell)
+          }
+
+          this.#setCellTextObj(tcs[j], val)
+          this.#applyCellOptions(tcs[j], cellOptions)
+        }
+        newRows.push(newRow)
+      }
     }
 
     tblObj['a:tr'] = newRows
@@ -181,6 +215,21 @@ class TableManager {
         merge.endRow,
         merge.endCol,
         slideManager
+      )
+    }
+
+    if (cellShapes) {
+      this.#processCellShapes(
+        slideIndex,
+        tableId,
+        resolvedTableId,
+        rowsData,
+        isObjectRows,
+        cellShapes,
+        slideManager,
+        shapeManager,
+        tblObj,
+        frameObj
       )
     }
 
@@ -1051,11 +1100,595 @@ class TableManager {
 
   #getTableContext(slideIndex, tableId, slideManager) {
     const slideObj = slideManager.getSlideObj(slideIndex)
-    const tblObj = this.#findTableObj(slideObj, tableId, slideManager, slideIndex)
-    if (!tblObj) {
+    const res = slideManager.getSlideTable(slideIndex, tableId)
+    if (!res || !res.table) {
       throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
     }
-    return { slideObj, tblObj }
+    const cNvPr = res.frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
+    const resolvedTableId = cNvPr ? cNvPr['@_name'] || String(cNvPr['@_id']) : tableId
+    return { slideObj, tblObj: res.table, frameObj: res.frame, resolvedTableId }
+  }
+
+  #applyCellOptions(cellObj, cellOptions) {
+    if (cellOptions.fill) {
+      if (!cellObj['a:tcPr']) cellObj['a:tcPr'] = {}
+      cellObj['a:tcPr']['a:solidFill'] = {
+        'a:srgbClr': { '@_val': cellOptions.fill },
+      }
+    }
+
+    if (cellOptions.align) {
+      const txBody = cellObj['a:txBody']
+      if (txBody && txBody['a:p']) {
+        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+        for (const p of paras) {
+          if (!p['a:pPr']) p['a:pPr'] = {}
+          p['a:pPr']['@_algn'] = cellOptions.align
+        }
+      }
+    }
+
+    if (cellOptions.fontSize) {
+      const sizeVal = cellOptions.fontSize * 100
+      const txBody = cellObj['a:txBody']
+      if (txBody && txBody['a:p']) {
+        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+        for (const p of paras) {
+          if (p['a:r']) {
+            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+            for (const r of runs) {
+              if (!r['a:rPr']) r['a:rPr'] = {}
+              r['a:rPr']['@_sz'] = String(sizeVal)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  #expandCellShape(config, cellBounds) {
+    const cellLeft_px = cellBounds.left / 9525
+    const cellTop_px = cellBounds.top / 9525
+    const cellWidth_px = cellBounds.width / 9525
+    const cellHeight_px = cellBounds.height / 9525
+
+    if (config.type === 'progressBar') {
+      const value = config.value !== undefined ? config.value : 0
+      const max = config.max !== undefined ? config.max : 100
+      const fill = config.fill || '#3B82F6'
+      const bgFill = config.backgroundFill || '#E5E7EB'
+      const pbHeight = config.height !== undefined ? config.height : 8
+      const pbWidth = config.width !== undefined ? config.width : (cellWidth_px - 10)
+
+      const pbX = cellLeft_px + (config.x !== undefined ? config.x : (cellWidth_px - pbWidth) / 2)
+      const pbY = cellTop_px + (config.y !== undefined ? config.y : (cellHeight_px - pbHeight) / 2)
+
+      const shapes = []
+      shapes.push({
+        type: 'roundedRectangle',
+        fill: bgFill,
+        x: pbX,
+        y: pbY,
+        width: pbWidth,
+        height: pbHeight,
+        borderRadius: pbHeight / 2,
+        zIndex: config.zIndex
+      })
+
+      const pct = Math.min(1, Math.max(0, value / max))
+      if (pct > 0) {
+        const filledWidth = pbWidth * pct
+        shapes.push({
+          type: 'roundedRectangle',
+          fill: fill,
+          x: pbX,
+          y: pbY,
+          width: filledWidth,
+          height: pbHeight,
+          borderRadius: pbHeight / 2,
+          zIndex: (config.zIndex || 0) + 1
+        })
+      }
+      return shapes
+    }
+
+    if (config.type === 'badge') {
+      const text = String(config.text !== undefined ? config.text : '')
+      const fontSize = config.textStyle?.fontSize || 10
+      const textWidth = text.length * fontSize * 0.6
+      const paddingX = 12
+      const badgeWidth = config.width !== undefined ? config.width : (textWidth + paddingX * 2)
+      const badgeHeight = config.height !== undefined ? config.height : (fontSize + 12)
+
+      const x = cellLeft_px + (config.x !== undefined ? config.x : (cellWidth_px - badgeWidth) / 2)
+      const y = cellTop_px + (config.y !== undefined ? config.y : (cellHeight_px - badgeHeight) / 2)
+
+      return [{
+        type: 'roundedRectangle',
+        fill: config.fill || '#10B981',
+        borderRadius: badgeHeight / 2,
+        x: x,
+        y: y,
+        width: badgeWidth,
+        height: badgeHeight,
+        text: text,
+        textStyle: {
+          color: config.textStyle?.color || '#FFFFFF',
+          fontSize: fontSize,
+          bold: config.textStyle?.bold !== undefined ? config.textStyle.bold : true,
+          align: 'center'
+        },
+        border: config.border,
+        transparency: config.transparency,
+        shadow: config.shadow,
+        rotation: config.rotation,
+        zIndex: config.zIndex
+      }]
+    }
+
+    if (config.type === 'icon') {
+      const size = config.size || 16
+      const iconFill = config.fill
+      const fontSize = Math.round(size * 0.8)
+
+      let baseConfig = null
+      switch (config.icon) {
+        case 'check':
+          baseConfig = {
+            type: 'rectangle',
+            fill: 'none',
+            border: null,
+            width: size,
+            height: size,
+            text: '✔',
+            textStyle: {
+              color: iconFill || '#10B981',
+              bold: true,
+              fontSize: fontSize,
+              align: 'center'
+            }
+          }
+          break
+        case 'cross':
+          baseConfig = {
+            type: 'rectangle',
+            fill: 'none',
+            border: null,
+            width: size,
+            height: size,
+            text: '✘',
+            textStyle: {
+              color: iconFill || '#EF4444',
+              bold: true,
+              fontSize: fontSize,
+              align: 'center'
+            }
+          }
+          break
+        case 'warning':
+          baseConfig = {
+            type: 'triangle',
+            fill: iconFill || '#F59E0B',
+            border: null,
+            width: size,
+            height: size,
+            text: '!',
+            textStyle: {
+              color: '#FFFFFF',
+              bold: true,
+              fontSize: Math.round(fontSize * 0.7),
+              align: 'center'
+            }
+          }
+          break
+        case 'info':
+          baseConfig = {
+            type: 'circle',
+            fill: iconFill || '#3B82F6',
+            border: null,
+            radius: size / 2,
+            text: 'i',
+            textStyle: {
+              color: '#FFFFFF',
+              bold: true,
+              fontSize: Math.round(fontSize * 0.7),
+              align: 'center'
+            }
+          }
+          break
+        case 'star':
+          baseConfig = {
+            type: 'star5',
+            fill: iconFill || '#FBBF24',
+            border: null,
+            width: size,
+            height: size
+          }
+          break
+        case 'up':
+          baseConfig = {
+            type: 'upArrow',
+            fill: iconFill || '#10B981',
+            border: null,
+            width: size,
+            height: size
+          }
+          break
+        case 'down':
+          baseConfig = {
+            type: 'downArrow',
+            fill: iconFill || '#EF4444',
+            border: null,
+            width: size,
+            height: size
+          }
+          break
+        case 'arrow-right':
+          baseConfig = {
+            type: 'rightArrow',
+            fill: iconFill || '#3B82F6',
+            border: null,
+            width: size,
+            height: size
+          }
+          break
+        case 'arrow-left':
+          baseConfig = {
+            type: 'leftArrow',
+            fill: iconFill || '#3B82F6',
+            border: null,
+            width: size,
+            height: size
+          }
+          break
+        default:
+          return []
+      }
+
+      const x = cellLeft_px + (config.x !== undefined ? config.x : (cellWidth_px - size) / 2)
+      const y = cellTop_px + (config.y !== undefined ? config.y : (cellHeight_px - size) / 2)
+
+      baseConfig.x = x
+      baseConfig.y = y
+      baseConfig.zIndex = config.zIndex
+      if (config.border) baseConfig.border = config.border
+      if (config.transparency !== undefined) baseConfig.transparency = config.transparency
+      if (config.shadow !== undefined) baseConfig.shadow = config.shadow
+      if (config.rotation !== undefined) baseConfig.rotation = config.rotation
+
+      return [baseConfig]
+    }
+
+    const shapeWidth = config.width !== undefined ? config.width : (config.size !== undefined ? config.size : (config.radius !== undefined ? config.radius * 2 : 12))
+    const shapeHeight = config.height !== undefined ? config.height : (config.size !== undefined ? config.size : (config.radius !== undefined ? config.radius * 2 : 12))
+
+    let shapeLeft = cellLeft_px
+    let shapeTop = cellTop_px
+
+    if (config.position === 'center') {
+      shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2
+      shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2
+    } else if (config.position === 'left') {
+      shapeLeft = cellLeft_px + 5
+      shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2
+    } else if (config.position === 'right') {
+      shapeLeft = cellLeft_px + cellWidth_px - shapeWidth - 5
+      shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2
+    } else if (config.position === 'top') {
+      shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2
+      shapeTop = cellTop_px + 5
+    } else if (config.position === 'bottom') {
+      shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2
+      shapeTop = cellTop_px + cellHeight_px - shapeHeight - 5
+    } else {
+      if (config.x === undefined && config.y === undefined) {
+        shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2
+        shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2
+      }
+    }
+
+    if (config.x !== undefined) {
+      shapeLeft += config.x
+    }
+    if (config.y !== undefined) {
+      shapeTop += config.y
+    }
+
+    const expanded = Object.assign({}, config, {
+      x: shapeLeft,
+      y: shapeTop
+    })
+
+    if (expanded.type === 'circle' && expanded.radius === undefined) {
+      expanded.radius = shapeWidth / 2
+    }
+    if (expanded.type === 'square' && expanded.size === undefined) {
+      expanded.size = shapeWidth
+    }
+
+    return [expanded]
+  }
+
+  #processCellShapes(slideIndex, tableId, resolvedTableId, rowsData, isObjectRows, cellShapes, slideManager, shapeManager, tblObj, frameObj) {
+    if (!cellShapes || !shapeManager) return
+
+    const shapes = shapeManager.getShapes(slideIndex, slideManager)
+    const prefixToDelete = `cellshape_${resolvedTableId}_`
+    const existingNames = shapes
+      .map(s => s.name)
+      .filter(name => name && name.startsWith(prefixToDelete))
+
+    for (const name of existingNames) {
+      try {
+        shapeManager.deleteShape(slideIndex, name, slideManager)
+      } catch (err) {
+        logger.warn(`Failed to delete existing cell shape "${name}": ${err.message}`)
+      }
+    }
+
+    const xfrm = frameObj['p:xfrm']
+    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
+    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
+
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
+
+    const trsArr = tblObj['a:tr'] || []
+    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+
+    const getCellBounds = (r, c) => {
+      const parent = this.getMergeParent(slideIndex, tableId, r, c, slideManager)
+      const pr = parent.row
+      const pc = parent.col
+
+      let cellLeft = tableX
+      for (let idx = 0; idx < pc; idx++) {
+        cellLeft += colWidths[idx] || 0
+      }
+
+      let cellTop = tableY
+      for (let idx = 0; idx < pr; idx++) {
+        cellTop += rowHeights[idx] || 0
+      }
+
+      const parentCell = trsArr[pr]?.['a:tc']?.[pc]
+      const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
+      const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
+
+      let cellWidth = 0
+      for (let idx = 0; idx < gridSpan; idx++) {
+        cellWidth += colWidths[pc + idx] || 0
+      }
+
+      let cellHeight = 0
+      for (let idx = 0; idx < rowSpan; idx++) {
+        cellHeight += rowHeights[pr + idx] || 0
+      }
+
+      return {
+        left: cellLeft,
+        top: cellTop,
+        width: cellWidth,
+        height: cellHeight
+      }
+    }
+
+    const shapesToCreate = []
+    const headerNames = (trsArr[0]?.['a:tc'] || []).map(cell => this.#getCellText(cell).trim())
+
+    for (let i = 0; i < rowsData.length; i++) {
+      const rowData = rowsData[i]
+      const finalRowIndex = isObjectRows ? i + 1 : i
+
+      const numCols = trsArr[finalRowIndex]?.['a:tc']?.length || 0
+      for (let j = 0; j < numCols; j++) {
+        const headerName = headerNames[j]
+        let shapeFn = null
+
+        if (headerName) {
+          shapeFn = cellShapes[headerName] || cellShapes[headerName.toLowerCase()]
+        }
+        if (!shapeFn) {
+          shapeFn = cellShapes[j]
+        }
+
+        if (typeof shapeFn !== 'function') continue
+
+        let configs = shapeFn(rowData, i)
+        if (!configs) continue
+
+        if (!Array.isArray(configs)) {
+          configs = [configs]
+        }
+
+        configs.forEach((config, shapeIdx) => {
+          shapesToCreate.push({
+            config,
+            rowIndex: finalRowIndex,
+            colIndex: j,
+            shapeIndex: shapeIdx
+          })
+        })
+      }
+    }
+
+    shapesToCreate.sort((a, b) => (a.config.zIndex || 0) - (b.config.zIndex || 0))
+
+    shapesToCreate.forEach((item) => {
+      const bounds = getCellBounds(item.rowIndex, item.colIndex)
+      const expandedConfigs = this.#expandCellShape(item.config, bounds)
+
+      expandedConfigs.forEach((expandedConfig, expIdx) => {
+        const finalShapeIndex = expandedConfigs.length > 1 ? `${item.shapeIndex}_${expIdx}` : item.shapeIndex
+        expandedConfig.id = `cellshape_${resolvedTableId}_${item.rowIndex}_${item.colIndex}_${finalShapeIndex}`
+
+        shapeManager.addShape(slideIndex, expandedConfig, slideManager)
+      })
+    })
+  }
+
+  addCellShape(slideIndex, tableId, rowIndex, colIndex, options, slideManager, shapeManager) {
+    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
+
+    const xfrm = frameObj['p:xfrm']
+    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
+    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
+
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
+
+    const trsArr = tblObj['a:tr'] || []
+    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+
+    const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    const pr = parent.row
+    const pc = parent.col
+
+    let cellLeft = tableX
+    for (let idx = 0; idx < pc; idx++) {
+      cellLeft += colWidths[idx] || 0
+    }
+
+    let cellTop = tableY
+    for (let idx = 0; idx < pr; idx++) {
+      cellTop += rowHeights[idx] || 0
+    }
+
+    const parentCell = trsArr[pr]?.['a:tc']?.[pc]
+    const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
+    const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
+
+    let cellWidth = 0
+    for (let idx = 0; idx < gridSpan; idx++) {
+      cellWidth += colWidths[pc + idx] || 0
+    }
+
+    let cellHeight = 0
+    for (let idx = 0; idx < rowSpan; idx++) {
+      cellHeight += rowHeights[pr + idx] || 0
+    }
+
+    const bounds = { left: cellLeft, top: cellTop, width: cellWidth, height: cellHeight }
+
+    const shapes = shapeManager.getShapes(slideIndex, slideManager)
+    const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_`
+    let maxShapeIndex = -1
+    for (const s of shapes) {
+      if (s.name && s.name.startsWith(prefix)) {
+        const remaining = s.name.slice(prefix.length)
+        const parts = remaining.split('_')
+        const idxVal = parseInt(parts[0], 10)
+        if (!isNaN(idxVal) && idxVal > maxShapeIndex) {
+          maxShapeIndex = idxVal
+        }
+      }
+    }
+    const nextShapeIndex = maxShapeIndex + 1
+
+    const expandedConfigs = this.#expandCellShape(options, bounds)
+
+    expandedConfigs.forEach((expandedConfig, expIdx) => {
+      const finalShapeIndex = expandedConfigs.length > 1 ? `${nextShapeIndex}_${expIdx}` : nextShapeIndex
+      expandedConfig.id = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${finalShapeIndex}`
+
+      shapeManager.addShape(slideIndex, expandedConfig, slideManager)
+    })
+  }
+
+  updateCellShape(slideIndex, tableId, rowIndex, colIndex, shapeIndex, options, slideManager, shapeManager) {
+    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
+
+    const shapes = shapeManager.getShapes(slideIndex, slideManager)
+    const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
+    const matchingShapes = shapes.filter(s => s.name && (s.name === prefix || s.name.startsWith(prefix + '_')))
+
+    if (matchingShapes.length === 0) {
+      throw new PPTXError(`Cell shape "${shapeIndex}" not found in cell (${rowIndex}, ${colIndex})`)
+    }
+
+    for (const s of matchingShapes) {
+      shapeManager.deleteShape(slideIndex, s.name, slideManager)
+    }
+
+    const xfrm = frameObj['p:xfrm']
+    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
+    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
+
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
+
+    const trsArr = tblObj['a:tr'] || []
+    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+
+    const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    const pr = parent.row
+    const pc = parent.col
+
+    let cellLeft = tableX
+    for (let idx = 0; idx < pc; idx++) {
+      cellLeft += colWidths[idx] || 0
+    }
+
+    let cellTop = tableY
+    for (let idx = 0; idx < pr; idx++) {
+      cellTop += rowHeights[idx] || 0
+    }
+
+    const parentCell = trsArr[pr]?.['a:tc']?.[pc]
+    const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
+    const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
+
+    let cellWidth = 0
+    for (let idx = 0; idx < gridSpan; idx++) {
+      cellWidth += colWidths[pc + idx] || 0
+    }
+
+    let cellHeight = 0
+    for (let idx = 0; idx < rowSpan; idx++) {
+      cellHeight += rowHeights[pr + idx] || 0
+    }
+
+    const bounds = { left: cellLeft, top: cellTop, width: cellWidth, height: cellHeight }
+
+    const expandedConfigs = this.#expandCellShape(options, bounds)
+
+    expandedConfigs.forEach((expandedConfig, expIdx) => {
+      const finalShapeIndex = expandedConfigs.length > 1 ? `${shapeIndex}_${expIdx}` : shapeIndex
+      expandedConfig.id = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${finalShapeIndex}`
+
+      shapeManager.addShape(slideIndex, expandedConfig, slideManager)
+    })
+  }
+
+  removeCellShape(slideIndex, tableId, rowIndex, colIndex, shapeIndex, slideManager, shapeManager) {
+    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
+
+    const shapes = shapeManager.getShapes(slideIndex, slideManager)
+    const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
+    const matchingShapes = shapes.filter(s => s.name && (s.name === prefix || s.name.startsWith(prefix + '_')))
+
+    if (matchingShapes.length === 0) {
+      throw new PPTXError(`Cell shape "${shapeIndex}" not found in cell (${rowIndex}, ${colIndex})`)
+    }
+
+    for (const s of matchingShapes) {
+      shapeManager.deleteShape(slideIndex, s.name, slideManager)
+    }
+  }
+
+  getCellShape(slideIndex, tableId, rowIndex, colIndex, shapeIndex, slideManager, shapeManager) {
+    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
+
+    const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
+    const shapes = shapeManager.getShapes(slideIndex, slideManager)
+    const primaryShape = shapes.find(s => s.name === prefix || s.name === `${prefix}_0` || s.name === `${prefix}_1`)
+
+    if (!primaryShape) return null
+
+    return shapeManager.getShape(slideIndex, primaryShape.name, slideManager)
   }
 
   /**

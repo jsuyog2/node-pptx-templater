@@ -102,6 +102,8 @@ async function main() {
       ['Bob', { value: 'Alice', align: 'ctr' }, 'Designer', 'Product'],
     ])
 
+    ppt.addCellShape('Table2', 1, 2, { type: 'rectangle', fill: '#10B981', x: 10, y: 15, width: 25, height: 15 });
+
     ppt.mergeCells('Table2', 0, 0, 0, 1)
     ppt.mergeCells('Table2', 1, 0, 1, 1)
 
