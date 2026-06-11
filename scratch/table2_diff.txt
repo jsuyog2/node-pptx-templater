@@ -1,0 +1,4039 @@
+Line 9:
+- <a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{35E3E8B1-0F8F-21B7-8778-C85AAC9FC14C}">
++ <a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{35E3E8B1-0F8F-21B7-8778-C85AAC9FC14C}"/>
+
+Line 10:
+- </a16:creationId>
++ </a:ext>
+
+Line 11:
+- </a:ext>
++ </a:extLst>
+
+Line 12:
+- </a:extLst>
++ </p:cNvPr>
+
+Line 13:
+- </p:cNvPr>
++ <p:cNvGrpSpPr/>
+
+Line 14:
+- <p:cNvGrpSpPr>
++ <p:nvPr/>
+
+Line 15:
+- </p:cNvGrpSpPr>
++ </p:nvGrpSpPr>
+
+Line 16:
+- <p:nvPr>
++ <p:grpSpPr>
+
+Line 17:
+- </p:nvPr>
++ <a:xfrm>
+
+Line 18:
+- </p:nvGrpSpPr>
++ <a:off x="0" y="0"/>
+
+Line 19:
+- <p:grpSpPr>
++ <a:ext cx="0" cy="0"/>
+
+Line 20:
+- <a:xfrm>
++ <a:chOff x="0" y="0"/>
+
+Line 21:
+- <a:off x="0" y="0">
++ <a:chExt cx="0" cy="0"/>
+
+Line 22:
+- </a:off>
++ </a:xfrm>
+
+Line 23:
+- <a:ext cx="0" cy="0">
++ </p:grpSpPr>
+
+Line 24:
+- </a:ext>
++ <p:sp>
+
+Line 25:
+- <a:chOff x="0" y="0">
++ <p:nvSpPr>
+
+Line 26:
+- </a:chOff>
++ <p:cNvPr id="2" name="Title">
+
+Line 27:
+- <a:chExt cx="0" cy="0">
++ <a:extLst>
+
+Line 28:
+- </a:chExt>
++ <a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}">
+
+Line 29:
+- </a:xfrm>
++ <a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{575379B8-A7CD-0FC4-F298-F0138A4305F7}"/>
+
+Line 30:
+- </p:grpSpPr>
++ </a:ext>
+
+Line 31:
+- <p:sp>
++ </a:extLst>
+
+Line 32:
+- <p:nvSpPr>
++ </p:cNvPr>
+
+Line 33:
+- <p:cNvPr id="2" name="Title">
++ <p:cNvSpPr>
+
+Line 34:
+- <a:extLst>
++ <a:spLocks noGrp="1"/>
+
+Line 35:
+- <a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}">
++ </p:cNvSpPr>
+
+Line 36:
+- <a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{575379B8-A7CD-0FC4-F298-F0138A4305F7}">
++ <p:nvPr>
+
+Line 37:
+- </a16:creationId>
++ <p:ph type="title"/>
+
+Line 38:
+- </a:ext>
++ </p:nvPr>
+
+Line 39:
+- </a:extLst>
++ </p:nvSpPr>
+
+Line 40:
+- </p:cNvPr>
++ <p:spPr/>
+
+Line 41:
+- <p:cNvSpPr>
++ <p:txBody>
+
+Line 42:
+- <a:spLocks noGrp="1">
++ <a:bodyPr/>
+
+Line 43:
+- </a:spLocks>
++ <a:lstStyle/>
+
+Line 44:
+- </p:cNvSpPr>
++ <a:p>
+
+Line 45:
+- <p:nvPr>
++ <a:r>
+
+Line 46:
+- <p:ph type="title">
++ <a:rPr lang="en-US" dirty="0"/>
+
+Line 47:
+- </p:ph>
++ <a:t>
+
+Line 48:
+- </p:nvPr>
++ Hello {{title}}</a:t>
+
+Line 49:
+- </p:nvSpPr>
++ </a:r>
+
+Line 50:
+- <p:spPr>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 51:
+- </p:spPr>
++ </a:p>
+
+Line 52:
+- <p:txBody>
++ </p:txBody>
+
+Line 53:
+- <a:bodyPr>
++ </p:sp>
+
+Line 54:
+- </a:bodyPr>
++ <p:graphicFrame>
+
+Line 55:
+- <a:lstStyle>
++ <p:nvGraphicFramePr>
+
+Line 56:
+- </a:lstStyle>
++ <p:cNvPr id="5" name="Table">
+
+Line 57:
+- <a:p>
++ <a:extLst>
+
+Line 58:
+- <a:r>
++ <a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}">
+
+Line 59:
+- <a:rPr lang="en-US" dirty="0">
++ <a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{861163FF-7B9E-FFA7-1ED8-2BD3B6F3F851}"/>
+
+Line 60:
+- </a:rPr>
++ </a:ext>
+
+Line 61:
+- <a:t>
++ </a:extLst>
+
+Line 62:
+- Hello {{title}}</a:t>
++ </p:cNvPr>
+
+Line 63:
+- </a:r>
++ <p:cNvGraphicFramePr>
+
+Line 64:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ <a:graphicFrameLocks noGrp="1"/>
+
+Line 65:
+- </a:endParaRPr>
++ </p:cNvGraphicFramePr>
+
+Line 66:
+- </a:p>
++ <p:nvPr>
+
+Line 67:
+- </p:txBody>
++ <p:ph idx="1"/>
+
+Line 68:
+- </p:sp>
++ <p:extLst>
+
+Line 69:
+- <p:graphicFrame>
++ <p:ext uri="{D42A27DB-BD31-4B8C-83A1-F6EECF244321}">
+
+Line 70:
+- <p:nvGraphicFramePr>
++ <p14:modId xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" val="143244436"/>
+
+Line 71:
+- <p:cNvPr id="5" name="Table">
++ </p:ext>
+
+Line 72:
+- <a:extLst>
++ </p:extLst>
+
+Line 73:
+- <a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}">
++ </p:nvPr>
+
+Line 74:
+- <a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{861163FF-7B9E-FFA7-1ED8-2BD3B6F3F851}">
++ </p:nvGraphicFramePr>
+
+Line 75:
+- </a16:creationId>
++ <p:xfrm>
+
+Line 76:
+- </a:ext>
++ <a:off x="838200" y="1825625"/>
+
+Line 77:
+- </a:extLst>
++ <a:ext cx="10515600" cy="741680"/>
+
+Line 78:
+- </p:cNvPr>
++ </p:xfrm>
+
+Line 79:
+- <p:cNvGraphicFramePr>
++ <a:graphic>
+
+Line 80:
+- <a:graphicFrameLocks noGrp="1">
++ <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">
+
+Line 81:
+- </a:graphicFrameLocks>
++ <a:tbl>
+
+Line 82:
+- </p:cNvGraphicFramePr>
++ <a:tblPr firstRow="1" bandRow="1">
+
+Line 83:
+- <p:nvPr>
++ <a:tableStyleId>
+
+Line 84:
+- <p:ph idx="1">
++ {5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId>
+
+Line 85:
+- </p:ph>
++ </a:tblPr>
+
+Line 86:
+- <p:extLst>
++ <a:tblGrid>
+
+Line 87:
+- <p:ext uri="{D42A27DB-BD31-4B8C-83A1-F6EECF244321}">
++ <a:gridCol w="2103120">
+
+Line 88:
+- <p14:modId xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" val="143244436">
++ <a:extLst>
+
+Line 89:
+- </p14:modId>
++ <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
+
+Line 90:
+- </p:ext>
++ <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1526623959"/>
+
+Line 91:
+- </p:extLst>
++ </a:ext>
+
+Line 92:
+- </p:nvPr>
++ </a:extLst>
+
+Line 93:
+- </p:nvGraphicFramePr>
++ </a:gridCol>
+
+Line 94:
+- <p:xfrm>
++ <a:gridCol w="2103120">
+
+Line 95:
+- <a:off x="838200" y="1825625">
++ <a:extLst>
+
+Line 96:
+- </a:off>
++ <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
+
+Line 97:
+- <a:ext cx="10515600" cy="741680">
++ <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2988579106"/>
+
+Line 99:
+- </p:xfrm>
++ </a:extLst>
+
+Line 100:
+- <a:graphic>
++ </a:gridCol>
+
+Line 101:
+- <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">
++ <a:gridCol w="2103120">
+
+Line 102:
+- <a:tbl>
++ <a:extLst>
+
+Line 103:
+- <a:tblPr firstRow="1" bandRow="1">
++ <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
+
+Line 104:
+- <a:tableStyleId>
++ <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1994860425"/>
+
+Line 105:
+- {5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId>
++ </a:ext>
+
+Line 106:
+- </a:tblPr>
++ </a:extLst>
+
+Line 107:
+- <a:tblGrid>
++ </a:gridCol>
+
+Line 111:
+- <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1526623959">
++ <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="3533840823"/>
+
+Line 112:
+- </a16:colId>
++ </a:ext>
+
+Line 113:
+- </a:ext>
++ </a:extLst>
+
+Line 114:
+- </a:extLst>
++ </a:gridCol>
+
+Line 115:
+- </a:gridCol>
++ <a:gridCol w="2103120">
+
+Line 116:
+- <a:gridCol w="2103120">
++ <a:extLst>
+
+Line 117:
+- <a:extLst>
++ <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
+
+Line 118:
+- <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
++ <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1604916882"/>
+
+Line 119:
+- <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2988579106">
++ </a:ext>
+
+Line 120:
+- </a16:colId>
++ </a:extLst>
+
+Line 121:
+- </a:ext>
++ </a:gridCol>
+
+Line 122:
+- </a:extLst>
++ </a:tblGrid>
+
+Line 123:
+- </a:gridCol>
++ <a:tr h="370840">
+
+Line 124:
+- <a:gridCol w="2103120">
++ <a:tc>
+
+Line 125:
+- <a:extLst>
++ <a:txBody>
+
+Line 126:
+- <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
++ <a:bodyPr/>
+
+Line 127:
+- <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1994860425">
++ <a:lstStyle/>
+
+Line 128:
+- </a16:colId>
++ <a:p>
+
+Line 129:
+- </a:ext>
++ <a:r>
+
+Line 130:
+- </a:extLst>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 131:
+- </a:gridCol>
++ <a:t>
+
+Line 132:
+- <a:gridCol w="2103120">
++ A</a:t>
+
+Line 133:
+- <a:extLst>
++ </a:r>
+
+Line 134:
+- <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
++ </a:p>
+
+Line 135:
+- <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="3533840823">
++ </a:txBody>
+
+Line 136:
+- </a16:colId>
++ <a:tcPr/>
+
+Line 137:
+- </a:ext>
++ </a:tc>
+
+Line 138:
+- </a:extLst>
++ <a:tc>
+
+Line 139:
+- </a:gridCol>
++ <a:txBody>
+
+Line 140:
+- <a:gridCol w="2103120">
++ <a:bodyPr/>
+
+Line 141:
+- <a:extLst>
++ <a:lstStyle/>
+
+Line 142:
+- <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
++ <a:p>
+
+Line 143:
+- <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1604916882">
++ <a:r>
+
+Line 144:
+- </a16:colId>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 145:
+- </a:ext>
++ <a:t>
+
+Line 146:
+- </a:extLst>
++ V</a:t>
+
+Line 147:
+- </a:gridCol>
++ </a:r>
+
+Line 148:
+- </a:tblGrid>
++ </a:p>
+
+Line 149:
+- <a:tr h="370840">
++ </a:txBody>
+
+Line 150:
+- <a:tc>
++ <a:tcPr/>
+
+Line 151:
+- <a:txBody>
++ </a:tc>
+
+Line 152:
+- <a:bodyPr>
++ <a:tc>
+
+Line 153:
+- </a:bodyPr>
++ <a:txBody>
+
+Line 154:
+- <a:lstStyle>
++ <a:bodyPr/>
+
+Line 155:
+- </a:lstStyle>
++ <a:lstStyle/>
+
+Line 158:
+- <a:rPr lang="en-IN" dirty="0">
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 159:
+- </a:rPr>
++ <a:t>
+
+Line 160:
+- <a:t>
++ B</a:t>
+
+Line 161:
+- A</a:t>
++ </a:r>
+
+Line 162:
+- </a:r>
++ </a:p>
+
+Line 163:
+- </a:p>
++ </a:txBody>
+
+Line 164:
+- </a:txBody>
++ <a:tcPr/>
+
+Line 165:
+- <a:tcPr>
++ </a:tc>
+
+Line 166:
+- </a:tcPr>
++ <a:tc>
+
+Line 167:
+- </a:tc>
++ <a:txBody>
+
+Line 168:
+- <a:tc>
++ <a:bodyPr/>
+
+Line 169:
+- <a:txBody>
++ <a:lstStyle/>
+
+Line 170:
+- <a:bodyPr>
++ <a:p>
+
+Line 171:
+- </a:bodyPr>
++ <a:r>
+
+Line 172:
+- <a:lstStyle>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 173:
+- </a:lstStyle>
++ <a:t>
+
+Line 174:
+- <a:p>
++ C</a:t>
+
+Line 175:
+- <a:r>
++ </a:r>
+
+Line 176:
+- <a:rPr lang="en-IN" dirty="0">
++ </a:p>
+
+Line 177:
+- </a:rPr>
++ </a:txBody>
+
+Line 178:
+- <a:t>
++ <a:tcPr/>
+
+Line 179:
+- V</a:t>
++ </a:tc>
+
+Line 180:
+- </a:r>
++ <a:tc>
+
+Line 181:
+- </a:p>
++ <a:txBody>
+
+Line 182:
+- </a:txBody>
++ <a:bodyPr/>
+
+Line 183:
+- <a:tcPr>
++ <a:lstStyle/>
+
+Line 184:
+- </a:tcPr>
++ <a:p>
+
+Line 185:
+- </a:tc>
++ <a:r>
+
+Line 186:
+- <a:tc>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 187:
+- <a:txBody>
++ <a:t>
+
+Line 188:
+- <a:bodyPr>
++ D</a:t>
+
+Line 189:
+- </a:bodyPr>
++ </a:r>
+
+Line 190:
+- <a:lstStyle>
++ </a:p>
+
+Line 191:
+- </a:lstStyle>
++ </a:txBody>
+
+Line 192:
+- <a:p>
++ <a:tcPr/>
+
+Line 193:
+- <a:r>
++ </a:tc>
+
+Line 194:
+- <a:rPr lang="en-IN" dirty="0">
++ <a:extLst>
+
+Line 195:
+- </a:rPr>
++ <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
+
+Line 196:
+- <a:t>
++ <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1869212938"/>
+
+Line 197:
+- B</a:t>
++ </a:ext>
+
+Line 198:
+- </a:r>
++ </a:extLst>
+
+Line 199:
+- </a:p>
++ </a:tr>
+
+Line 200:
+- </a:txBody>
++ <a:tr h="370840">
+
+Line 201:
+- <a:tcPr>
++ <a:tc>
+
+Line 202:
+- </a:tcPr>
++ <a:txBody>
+
+Line 203:
+- </a:tc>
++ <a:bodyPr/>
+
+Line 204:
+- <a:tc>
++ <a:lstStyle/>
+
+Line 205:
+- <a:txBody>
++ <a:p>
+
+Line 206:
+- <a:bodyPr>
++ <a:r>
+
+Line 207:
+- </a:bodyPr>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 208:
+- <a:lstStyle>
++ <a:t>
+
+Line 209:
+- </a:lstStyle>
++ 100</a:t>
+
+Line 210:
+- <a:p>
++ </a:r>
+
+Line 211:
+- <a:r>
++ </a:p>
+
+Line 212:
+- <a:rPr lang="en-IN" dirty="0">
++ </a:txBody>
+
+Line 213:
+- </a:rPr>
++ <a:tcPr/>
+
+Line 214:
+- <a:t>
++ </a:tc>
+
+Line 215:
+- C</a:t>
++ <a:tc>
+
+Line 216:
+- </a:r>
++ <a:txBody>
+
+Line 217:
+- </a:p>
++ <a:bodyPr/>
+
+Line 218:
+- </a:txBody>
++ <a:lstStyle/>
+
+Line 219:
+- <a:tcPr>
++ <a:p>
+
+Line 220:
+- </a:tcPr>
++ <a:r>
+
+Line 221:
+- </a:tc>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 222:
+- <a:tc>
++ <a:t>
+
+Line 223:
+- <a:txBody>
++ 23</a:t>
+
+Line 224:
+- <a:bodyPr>
++ </a:r>
+
+Line 225:
+- </a:bodyPr>
++ </a:p>
+
+Line 226:
+- <a:lstStyle>
++ </a:txBody>
+
+Line 227:
+- </a:lstStyle>
++ <a:tcPr/>
+
+Line 228:
+- <a:p>
++ </a:tc>
+
+Line 229:
+- <a:r>
++ <a:tc>
+
+Line 230:
+- <a:rPr lang="en-IN" dirty="0">
++ <a:txBody>
+
+Line 231:
+- </a:rPr>
++ <a:bodyPr/>
+
+Line 232:
+- <a:t>
++ <a:lstStyle/>
+
+Line 233:
+- D</a:t>
++ <a:p>
+
+Line 234:
+- </a:r>
++ <a:r>
+
+Line 235:
+- </a:p>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 236:
+- </a:txBody>
++ <a:t>
+
+Line 237:
+- <a:tcPr>
++ 24</a:t>
+
+Line 238:
+- </a:tcPr>
++ </a:r>
+
+Line 239:
+- </a:tc>
++ </a:p>
+
+Line 240:
+- <a:extLst>
++ </a:txBody>
+
+Line 241:
+- <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
++ <a:tcPr/>
+
+Line 242:
+- <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1869212938">
++ </a:tc>
+
+Line 243:
+- </a16:rowId>
++ <a:tc>
+
+Line 244:
+- </a:ext>
++ <a:txBody>
+
+Line 245:
+- </a:extLst>
++ <a:bodyPr/>
+
+Line 246:
+- </a:tr>
++ <a:lstStyle/>
+
+Line 247:
+- <a:tr h="370840">
++ <a:p>
+
+Line 248:
+- <a:tc>
++ <a:r>
+
+Line 249:
+- <a:txBody>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 250:
+- <a:bodyPr>
++ <a:t>
+
+Line 251:
+- </a:bodyPr>
++ 34</a:t>
+
+Line 252:
+- <a:lstStyle>
++ </a:r>
+
+Line 253:
+- </a:lstStyle>
++ </a:p>
+
+Line 254:
+- <a:p>
++ </a:txBody>
+
+Line 255:
+- <a:r>
++ <a:tcPr/>
+
+Line 256:
+- <a:rPr lang="en-IN" dirty="0">
++ </a:tc>
+
+Line 257:
+- </a:rPr>
++ <a:tc>
+
+Line 258:
+- <a:t>
++ <a:txBody>
+
+Line 259:
+- 100</a:t>
++ <a:bodyPr/>
+
+Line 260:
+- </a:r>
++ <a:lstStyle/>
+
+Line 261:
+- </a:p>
++ <a:p>
+
+Line 262:
+- </a:txBody>
++ <a:r>
+
+Line 263:
+- <a:tcPr>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 264:
+- </a:tcPr>
++ <a:t>
+
+Line 265:
+- </a:tc>
++ 53</a:t>
+
+Line 266:
+- <a:tc>
++ </a:r>
+
+Line 267:
+- <a:txBody>
++ </a:p>
+
+Line 268:
+- <a:bodyPr>
++ </a:txBody>
+
+Line 269:
+- </a:bodyPr>
++ <a:tcPr/>
+
+Line 270:
+- <a:lstStyle>
++ </a:tc>
+
+Line 271:
+- </a:lstStyle>
++ <a:extLst>
+
+Line 272:
+- <a:p>
++ <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
+
+Line 273:
+- <a:r>
++ <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2673184772"/>
+
+Line 274:
+- <a:rPr lang="en-IN" dirty="0">
++ </a:ext>
+
+Line 275:
+- </a:rPr>
++ </a:extLst>
+
+Line 276:
+- <a:t>
++ </a:tr>
+
+Line 277:
+- 23</a:t>
++ </a:tbl>
+
+Line 278:
+- </a:r>
++ </a:graphicData>
+
+Line 279:
+- </a:p>
++ </a:graphic>
+
+Line 280:
+- </a:txBody>
++ </p:graphicFrame>
+
+Line 281:
+- <a:tcPr>
++ <p:sp>
+
+Line 282:
+- </a:tcPr>
++ <p:nvSpPr>
+
+Line 283:
+- </a:tc>
++ <p:cNvPr id="3" name="TextBox 2">
+
+Line 284:
+- <a:tc>
++ <a:extLst>
+
+Line 285:
+- <a:txBody>
++ <a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}">
+
+Line 286:
+- <a:bodyPr>
++ <a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{61BEA5E1-63B7-D019-B728-2339B40B412A}"/>
+
+Line 287:
+- </a:bodyPr>
++ </a:ext>
+
+Line 288:
+- <a:lstStyle>
++ </a:extLst>
+
+Line 289:
+- </a:lstStyle>
++ </p:cNvPr>
+
+Line 290:
+- <a:p>
++ <p:cNvSpPr txBox="1"/>
+
+Line 291:
+- <a:r>
++ <p:nvPr/>
+
+Line 292:
+- <a:rPr lang="en-IN" dirty="0">
++ </p:nvSpPr>
+
+Line 293:
+- </a:rPr>
++ <p:spPr>
+
+Line 294:
+- <a:t>
++ <a:xfrm>
+
+Line 295:
+- 24</a:t>
++ <a:off x="2121408" y="3931920"/>
+
+Line 296:
+- </a:r>
++ <a:ext cx="3621024" cy="369332"/>
+
+Line 297:
+- </a:p>
++ </a:xfrm>
+
+Line 298:
+- </a:txBody>
++ <a:prstGeom prst="rect">
+
+Line 299:
+- <a:tcPr>
++ <a:avLst/>
+
+Line 300:
+- </a:tcPr>
++ </a:prstGeom>
+
+Line 301:
+- </a:tc>
++ <a:noFill/>
+
+Line 302:
+- <a:tc>
++ </p:spPr>
+
+Line 303:
+- <a:txBody>
++ <p:txBody>
+
+Line 304:
+- <a:bodyPr>
++ <a:bodyPr wrap="square" rtlCol="0">
+
+Line 305:
+- </a:bodyPr>
++ <a:spAutoFit/>
+
+Line 306:
+- <a:lstStyle>
++ </a:bodyPr>
+
+Line 307:
+- </a:lstStyle>
++ <a:lstStyle/>
+
+Line 310:
+- <a:rPr lang="en-IN" dirty="0">
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 311:
+- </a:rPr>
++ <a:t>
+
+Line 312:
+- <a:t>
++ Google</a:t>
+
+Line 313:
+- 34</a:t>
++ </a:r>
+
+Line 314:
+- </a:r>
++ </a:p>
+
+Line 315:
+- </a:p>
++ </p:txBody>
+
+Line 316:
+- </a:txBody>
++ </p:sp>
+
+Line 317:
+- <a:tcPr>
++ <p:graphicFrame>
+
+Line 318:
+- </a:tcPr>
++ <p:nvGraphicFramePr>
+
+Line 319:
+- </a:tc>
++ <p:cNvPr id="7" name="Table2">
+
+Line 320:
+- <a:tc>
++ <a:extLst>
+
+Line 321:
+- <a:txBody>
++ <a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}">
+
+Line 322:
+- <a:bodyPr>
++ <a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{9C93AABA-0485-1183-C414-51383DDB1C75}"/>
+
+Line 323:
+- </a:bodyPr>
++ </a:ext>
+
+Line 324:
+- <a:lstStyle>
++ </a:extLst>
+
+Line 325:
+- </a:lstStyle>
++ </p:cNvPr>
+
+Line 326:
+- <a:p>
++ <p:cNvGraphicFramePr>
+
+Line 327:
+- <a:r>
++ <a:graphicFrameLocks/>
+
+Line 328:
+- <a:rPr lang="en-IN" dirty="0">
++ </p:cNvGraphicFramePr>
+
+Line 329:
+- </a:rPr>
++ <p:nvPr>
+
+Line 330:
+- <a:t>
++ <p:extLst>
+
+Line 331:
+- 53</a:t>
++ <p:ext uri="{D42A27DB-BD31-4B8C-83A1-F6EECF244321}">
+
+Line 332:
+- </a:r>
++ <p14:modId xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" val="2059184740"/>
+
+Line 333:
+- </a:p>
++ </p:ext>
+
+Line 334:
+- </a:txBody>
++ </p:extLst>
+
+Line 335:
+- <a:tcPr>
++ </p:nvPr>
+
+Line 336:
+- </a:tcPr>
++ </p:nvGraphicFramePr>
+
+Line 337:
+- </a:tc>
++ <p:xfrm>
+
+Line 338:
+- <a:extLst>
++ <a:off x="838200" y="5028956"/>
+
+Line 339:
+- <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
++ <a:ext cx="10515600" cy="1112520"/>
+
+Line 340:
+- <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2673184772">
++ </p:xfrm>
+
+Line 341:
+- </a16:rowId>
++ <a:graphic>
+
+Line 342:
+- </a:ext>
++ <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">
+
+Line 343:
+- </a:extLst>
++ <a:tbl>
+
+Line 344:
+- </a:tr>
++ <a:tblPr firstRow="1" bandRow="1">
+
+Line 345:
+- </a:tbl>
++ <a:tableStyleId>
+
+Line 346:
+- </a:graphicData>
++ {5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId>
+
+Line 347:
+- </a:graphic>
++ </a:tblPr>
+
+Line 348:
+- </p:graphicFrame>
++ <a:tblGrid>
+
+Line 349:
+- <p:sp>
++ <a:gridCol w="2103120">
+
+Line 350:
+- <p:nvSpPr>
++ <a:extLst>
+
+Line 351:
+- <p:cNvPr id="3" name="TextBox 2">
++ <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
+
+Line 352:
+- <a:extLst>
++ <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1526623959"/>
+
+Line 353:
+- <a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}">
++ </a:ext>
+
+Line 354:
+- <a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{61BEA5E1-63B7-D019-B728-2339B40B412A}">
++ </a:extLst>
+
+Line 355:
+- </a16:creationId>
++ </a:gridCol>
+
+Line 356:
+- </a:ext>
++ <a:gridCol w="2103120">
+
+Line 357:
+- </a:extLst>
++ <a:extLst>
+
+Line 358:
+- </p:cNvPr>
++ <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
+
+Line 359:
+- <p:cNvSpPr txBox="1">
++ <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1036110465"/>
+
+Line 360:
+- </p:cNvSpPr>
++ </a:ext>
+
+Line 361:
+- <p:nvPr>
++ </a:extLst>
+
+Line 362:
+- </p:nvPr>
++ </a:gridCol>
+
+Line 363:
+- </p:nvSpPr>
++ <a:gridCol w="2103120">
+
+Line 364:
+- <p:spPr>
++ <a:extLst>
+
+Line 365:
+- <a:xfrm>
++ <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
+
+Line 366:
+- <a:off x="2121408" y="3931920">
++ <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1994860425"/>
+
+Line 367:
+- </a:off>
++ </a:ext>
+
+Line 368:
+- <a:ext cx="3621024" cy="369332">
++ </a:extLst>
+
+Line 369:
+- </a:ext>
++ </a:gridCol>
+
+Line 370:
+- </a:xfrm>
++ <a:gridCol w="2103120">
+
+Line 371:
+- <a:prstGeom prst="rect">
++ <a:extLst>
+
+Line 372:
+- <a:avLst>
++ <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
+
+Line 373:
+- </a:avLst>
++ <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="3533840823"/>
+
+Line 374:
+- </a:prstGeom>
++ </a:ext>
+
+Line 375:
+- <a:noFill>
++ </a:extLst>
+
+Line 376:
+- </a:noFill>
++ </a:gridCol>
+
+Line 377:
+- </p:spPr>
++ <a:gridCol w="2103120">
+
+Line 378:
+- <p:txBody>
++ <a:extLst>
+
+Line 379:
+- <a:bodyPr wrap="square" rtlCol="0">
++ <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
+
+Line 380:
+- <a:spAutoFit>
++ <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1604916882"/>
+
+Line 381:
+- </a:spAutoFit>
++ </a:ext>
+
+Line 382:
+- </a:bodyPr>
++ </a:extLst>
+
+Line 383:
+- <a:lstStyle>
++ </a:gridCol>
+
+Line 384:
+- </a:lstStyle>
++ </a:tblGrid>
+
+Line 385:
+- <a:p>
++ <a:tr h="370840">
+
+Line 386:
+- <a:r>
++ <a:tc gridSpan="2">
+
+Line 387:
+- <a:rPr lang="en-IN" dirty="0">
++ <a:txBody>
+
+Line 388:
+- </a:rPr>
++ <a:bodyPr/>
+
+Line 389:
+- <a:t>
++ <a:lstStyle/>
+
+Line 390:
+- Google</a:t>
++ <a:p>
+
+Line 391:
+- </a:r>
++ <a:pPr algn="ctr"/>
+
+Line 392:
+- </a:p>
++ <a:r>
+
+Line 393:
+- </p:txBody>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 394:
+- </p:sp>
++ <a:t>
+
+Line 395:
+- <p:graphicFrame>
++ test</a:t>
+
+Line 396:
+- <p:nvGraphicFramePr>
++ </a:r>
+
+Line 397:
+- <p:cNvPr id="7" name="Table2">
++ </a:p>
+
+Line 398:
+- <a:extLst>
++ </a:txBody>
+
+Line 399:
+- <a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}">
++ <a:tcPr/>
+
+Line 400:
+- <a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{9C93AABA-0485-1183-C414-51383DDB1C75}">
++ </a:tc>
+
+Line 401:
+- </a16:creationId>
++ <a:tc hMerge="1">
+
+Line 402:
+- </a:ext>
++ <a:txBody>
+
+Line 403:
+- </a:extLst>
++ <a:bodyPr/>
+
+Line 404:
+- </p:cNvPr>
++ <a:lstStyle/>
+
+Line 405:
+- <p:cNvGraphicFramePr>
++ <a:p>
+
+Line 406:
+- <a:graphicFrameLocks>
++ <a:endParaRPr lang="en-IN"/>
+
+Line 407:
+- </a:graphicFrameLocks>
++ </a:p>
+
+Line 408:
+- </p:cNvGraphicFramePr>
++ </a:txBody>
+
+Line 409:
+- <p:nvPr>
++ <a:tcPr/>
+
+Line 410:
+- <p:extLst>
++ </a:tc>
+
+Line 411:
+- <p:ext uri="{D42A27DB-BD31-4B8C-83A1-F6EECF244321}">
++ <a:tc>
+
+Line 412:
+- <p14:modId xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" val="2059184740">
++ <a:txBody>
+
+Line 413:
+- </p14:modId>
++ <a:bodyPr/>
+
+Line 414:
+- </p:ext>
++ <a:lstStyle/>
+
+Line 415:
+- </p:extLst>
++ <a:p>
+
+Line 416:
+- </p:nvPr>
++ <a:pPr algn="ctr"/>
+
+Line 417:
+- </p:nvGraphicFramePr>
++ <a:r>
+
+Line 418:
+- <p:xfrm>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 419:
+- <a:off x="838200" y="5028956">
++ <a:t>
+
+Line 420:
+- </a:off>
++ B</a:t>
+
+Line 421:
+- <a:ext cx="10515600" cy="1112520">
++ </a:r>
+
+Line 422:
+- </a:ext>
++ </a:p>
+
+Line 423:
+- </p:xfrm>
++ </a:txBody>
+
+Line 424:
+- <a:graphic>
++ <a:tcPr/>
+
+Line 425:
+- <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">
++ </a:tc>
+
+Line 426:
+- <a:tbl>
++ <a:tc>
+
+Line 427:
+- <a:tblPr firstRow="1" bandRow="1">
++ <a:txBody>
+
+Line 428:
+- <a:tableStyleId>
++ <a:bodyPr/>
+
+Line 429:
+- {5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId>
++ <a:lstStyle/>
+
+Line 430:
+- </a:tblPr>
++ <a:p>
+
+Line 431:
+- <a:tblGrid>
++ <a:pPr algn="ctr"/>
+
+Line 432:
+- <a:gridCol w="2103120">
++ <a:r>
+
+Line 433:
+- <a:extLst>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 434:
+- <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
++ <a:t>
+
+Line 435:
+- <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1526623959">
++ C</a:t>
+
+Line 436:
+- </a16:colId>
++ </a:r>
+
+Line 437:
+- </a:ext>
++ </a:p>
+
+Line 438:
+- </a:extLst>
++ </a:txBody>
+
+Line 439:
+- </a:gridCol>
++ <a:tcPr/>
+
+Line 440:
+- <a:gridCol w="2103120">
++ </a:tc>
+
+Line 441:
+- <a:extLst>
++ <a:tc>
+
+Line 442:
+- <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
++ <a:txBody>
+
+Line 443:
+- <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1036110465">
++ <a:bodyPr/>
+
+Line 444:
+- </a16:colId>
++ <a:lstStyle/>
+
+Line 445:
+- </a:ext>
++ <a:p>
+
+Line 446:
+- </a:extLst>
++ <a:pPr algn="ctr"/>
+
+Line 447:
+- </a:gridCol>
++ <a:r>
+
+Line 448:
+- <a:gridCol w="2103120">
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 449:
+- <a:extLst>
++ <a:t>
+
+Line 450:
+- <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
++ D</a:t>
+
+Line 451:
+- <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1994860425">
++ </a:r>
+
+Line 452:
+- </a16:colId>
++ </a:p>
+
+Line 453:
+- </a:ext>
++ </a:txBody>
+
+Line 454:
+- </a:extLst>
++ <a:tcPr/>
+
+Line 455:
+- </a:gridCol>
++ </a:tc>
+
+Line 456:
+- <a:gridCol w="2103120">
++ <a:extLst>
+
+Line 457:
+- <a:extLst>
++ <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
+
+Line 458:
+- <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
++ <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1869212938"/>
+
+Line 459:
+- <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="3533840823">
++ </a:ext>
+
+Line 460:
+- </a16:colId>
++ </a:extLst>
+
+Line 461:
+- </a:ext>
++ </a:tr>
+
+Line 462:
+- </a:extLst>
++ <a:tr h="370840">
+
+Line 463:
+- </a:gridCol>
++ <a:tc gridSpan="2">
+
+Line 464:
+- <a:gridCol w="2103120">
++ <a:txBody>
+
+Line 465:
+- <a:extLst>
++ <a:bodyPr/>
+
+Line 466:
+- <a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}">
++ <a:lstStyle/>
+
+Line 467:
+- <a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1604916882">
++ <a:p>
+
+Line 468:
+- </a16:colId>
++ <a:pPr algn="ctr"/>
+
+Line 469:
+- </a:ext>
++ <a:r>
+
+Line 470:
+- </a:extLst>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 471:
+- </a:gridCol>
++ <a:t>
+
+Line 472:
+- </a:tblGrid>
++ 100</a:t>
+
+Line 473:
+- <a:tr h="370840">
++ </a:r>
+
+Line 474:
+- <a:tc gridSpan="2">
++ </a:p>
+
+Line 475:
+- <a:txBody>
++ </a:txBody>
+
+Line 476:
+- <a:bodyPr>
++ <a:tcPr/>
+
+Line 477:
+- </a:bodyPr>
++ </a:tc>
+
+Line 478:
+- <a:lstStyle>
++ <a:tc hMerge="1">
+
+Line 479:
+- </a:lstStyle>
++ <a:txBody>
+
+Line 480:
+- <a:p>
++ <a:bodyPr/>
+
+Line 481:
+- <a:pPr algn="ctr">
++ <a:lstStyle/>
+
+Line 482:
+- </a:pPr>
++ <a:p>
+
+Line 483:
+- <a:r>
++ <a:endParaRPr lang="en-IN"/>
+
+Line 484:
+- <a:rPr lang="en-IN" dirty="0">
++ </a:p>
+
+Line 485:
+- </a:rPr>
++ </a:txBody>
+
+Line 486:
+- <a:t>
++ <a:tcPr/>
+
+Line 487:
+- test</a:t>
++ </a:tc>
+
+Line 488:
+- </a:r>
++ <a:tc>
+
+Line 489:
+- </a:p>
++ <a:txBody>
+
+Line 490:
+- </a:txBody>
++ <a:bodyPr/>
+
+Line 491:
+- <a:tcPr>
++ <a:lstStyle/>
+
+Line 492:
+- </a:tcPr>
++ <a:p>
+
+Line 493:
+- </a:tc>
++ <a:pPr algn="ctr"/>
+
+Line 494:
+- <a:tc hMerge="1">
++ <a:r>
+
+Line 495:
+- <a:txBody>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 496:
+- <a:bodyPr>
++ <a:t>
+
+Line 497:
+- </a:bodyPr>
++ 24</a:t>
+
+Line 498:
+- <a:lstStyle>
++ </a:r>
+
+Line 499:
+- </a:lstStyle>
++ </a:p>
+
+Line 500:
+- <a:p>
++ </a:txBody>
+
+Line 501:
+- <a:endParaRPr lang="en-IN">
++ <a:tcPr/>
+
+Line 502:
+- </a:endParaRPr>
++ </a:tc>
+
+Line 503:
+- </a:p>
++ <a:tc>
+
+Line 504:
+- </a:txBody>
++ <a:txBody>
+
+Line 505:
+- <a:tcPr>
++ <a:bodyPr/>
+
+Line 506:
+- </a:tcPr>
++ <a:lstStyle/>
+
+Line 507:
+- </a:tc>
++ <a:p>
+
+Line 508:
+- <a:tc>
++ <a:pPr algn="ctr"/>
+
+Line 509:
+- <a:txBody>
++ <a:r>
+
+Line 510:
+- <a:bodyPr>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 511:
+- </a:bodyPr>
++ <a:t>
+
+Line 512:
+- <a:lstStyle>
++ 34</a:t>
+
+Line 513:
+- </a:lstStyle>
++ </a:r>
+
+Line 514:
+- <a:p>
++ </a:p>
+
+Line 515:
+- <a:pPr algn="ctr">
++ </a:txBody>
+
+Line 516:
+- </a:pPr>
++ <a:tcPr/>
+
+Line 517:
+- <a:r>
++ </a:tc>
+
+Line 518:
+- <a:rPr lang="en-IN" dirty="0">
++ <a:tc>
+
+Line 519:
+- </a:rPr>
++ <a:txBody>
+
+Line 520:
+- <a:t>
++ <a:bodyPr/>
+
+Line 521:
+- B</a:t>
++ <a:lstStyle/>
+
+Line 522:
+- </a:r>
++ <a:p>
+
+Line 523:
+- </a:p>
++ <a:pPr algn="ctr"/>
+
+Line 524:
+- </a:txBody>
++ <a:r>
+
+Line 525:
+- <a:tcPr>
++ <a:rPr lang="en-IN" dirty="0"/>
+
+Line 526:
+- </a:tcPr>
++ <a:t>
+
+Line 527:
+- </a:tc>
++ 53</a:t>
+
+Line 528:
+- <a:tc>
++ </a:r>
+
+Line 529:
+- <a:txBody>
++ </a:p>
+
+Line 530:
+- <a:bodyPr>
++ </a:txBody>
+
+Line 531:
+- </a:bodyPr>
++ <a:tcPr/>
+
+Line 532:
+- <a:lstStyle>
++ </a:tc>
+
+Line 533:
+- </a:lstStyle>
++ <a:extLst>
+
+Line 534:
+- <a:p>
++ <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
+
+Line 535:
+- <a:pPr algn="ctr">
++ <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2673184772"/>
+
+Line 536:
+- </a:pPr>
++ </a:ext>
+
+Line 537:
+- <a:r>
++ </a:extLst>
+
+Line 538:
+- <a:rPr lang="en-IN" dirty="0">
++ </a:tr>
+
+Line 539:
+- </a:rPr>
++ <a:tr h="370840">
+
+Line 540:
+- <a:t>
++ <a:tc>
+
+Line 541:
+- C</a:t>
++ <a:txBody>
+
+Line 542:
+- </a:r>
++ <a:bodyPr/>
+
+Line 543:
+- </a:p>
++ <a:lstStyle/>
+
+Line 544:
+- </a:txBody>
++ <a:p>
+
+Line 545:
+- <a:tcPr>
++ <a:pPr algn="ctr"/>
+
+Line 546:
+- </a:tcPr>
++ <a:r>
+
+Line 547:
+- </a:tc>
++ <a:rPr lang="en-US" dirty="0"/>
+
+Line 548:
+- <a:tc>
++ <a:t>
+
+Line 549:
+- <a:txBody>
++ 55</a:t>
+
+Line 550:
+- <a:bodyPr>
++ </a:r>
+
+Line 551:
+- </a:bodyPr>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 552:
+- <a:lstStyle>
++ </a:p>
+
+Line 553:
+- </a:lstStyle>
++ </a:txBody>
+
+Line 554:
+- <a:p>
++ <a:tcPr/>
+
+Line 555:
+- <a:pPr algn="ctr">
++ </a:tc>
+
+Line 556:
+- </a:pPr>
++ <a:tc>
+
+Line 557:
+- <a:r>
++ <a:txBody>
+
+Line 558:
+- <a:rPr lang="en-IN" dirty="0">
++ <a:bodyPr/>
+
+Line 559:
+- </a:rPr>
++ <a:lstStyle/>
+
+Line 560:
+- <a:t>
++ <a:p>
+
+Line 561:
+- D</a:t>
++ <a:pPr algn="ctr"/>
+
+Line 562:
+- </a:r>
++ <a:r>
+
+Line 563:
+- </a:p>
++ <a:rPr lang="en-US" dirty="0"/>
+
+Line 564:
+- </a:txBody>
++ <a:t>
+
+Line 565:
+- <a:tcPr>
++ 45</a:t>
+
+Line 566:
+- </a:tcPr>
++ </a:r>
+
+Line 567:
+- </a:tc>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 568:
+- <a:extLst>
++ </a:p>
+
+Line 569:
+- <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
++ </a:txBody>
+
+Line 570:
+- <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1869212938">
++ <a:tcPr/>
+
+Line 571:
+- </a16:rowId>
++ </a:tc>
+
+Line 572:
+- </a:ext>
++ <a:tc>
+
+Line 573:
+- </a:extLst>
++ <a:txBody>
+
+Line 574:
+- </a:tr>
++ <a:bodyPr/>
+
+Line 575:
+- <a:tr h="370840">
++ <a:lstStyle/>
+
+Line 576:
+- <a:tc gridSpan="2">
++ <a:p>
+
+Line 577:
+- <a:txBody>
++ <a:pPr algn="ctr"/>
+
+Line 578:
+- <a:bodyPr>
++ <a:r>
+
+Line 579:
+- </a:bodyPr>
++ <a:rPr lang="en-US" dirty="0" err="1"/>
+
+Line 580:
+- <a:lstStyle>
++ <a:t>
+
+Line 581:
+- </a:lstStyle>
++ qqqwet</a:t>
+
+Line 582:
+- <a:p>
++ </a:r>
+
+Line 583:
+- <a:pPr algn="ctr">
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 584:
+- </a:pPr>
++ </a:p>
+
+Line 585:
+- <a:r>
++ </a:txBody>
+
+Line 586:
+- <a:rPr lang="en-IN" dirty="0">
++ <a:tcPr/>
+
+Line 587:
+- </a:rPr>
++ </a:tc>
+
+Line 588:
+- <a:t>
++ <a:tc>
+
+Line 589:
+- 100</a:t>
++ <a:txBody>
+
+Line 590:
+- </a:r>
++ <a:bodyPr/>
+
+Line 591:
+- </a:p>
++ <a:lstStyle/>
+
+Line 592:
+- </a:txBody>
++ <a:p>
+
+Line 593:
+- <a:tcPr>
++ <a:pPr algn="ctr"/>
+
+Line 594:
+- </a:tcPr>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 595:
+- </a:tc>
++ </a:p>
+
+Line 596:
+- <a:tc hMerge="1">
++ </a:txBody>
+
+Line 597:
+- <a:txBody>
++ <a:tcPr/>
+
+Line 598:
+- <a:bodyPr>
++ </a:tc>
+
+Line 599:
+- </a:bodyPr>
++ <a:tc>
+
+Line 600:
+- <a:lstStyle>
++ <a:txBody>
+
+Line 601:
+- </a:lstStyle>
++ <a:bodyPr/>
+
+Line 602:
+- <a:p>
++ <a:lstStyle/>
+
+Line 603:
+- <a:endParaRPr lang="en-IN">
++ <a:p>
+
+Line 604:
+- </a:endParaRPr>
++ <a:pPr algn="ctr"/>
+
+Line 605:
+- </a:p>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 606:
+- </a:txBody>
++ </a:p>
+
+Line 607:
+- <a:tcPr>
++ </a:txBody>
+
+Line 608:
+- </a:tcPr>
++ <a:tcPr/>
+
+Line 610:
+- <a:tc>
++ <a:extLst>
+
+Line 611:
+- <a:txBody>
++ <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
+
+Line 612:
+- <a:bodyPr>
++ <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2462398921"/>
+
+Line 613:
+- </a:bodyPr>
++ </a:ext>
+
+Line 614:
+- <a:lstStyle>
++ </a:extLst>
+
+Line 615:
+- </a:lstStyle>
++ </a:tr>
+
+Line 616:
+- <a:p>
++ <a:tr h="370840">
+
+Line 617:
+- <a:pPr algn="ctr">
++ <a:tc rowSpan="2">
+
+Line 618:
+- </a:pPr>
++ <a:txBody>
+
+Line 619:
+- <a:r>
++ <a:bodyPr/>
+
+Line 620:
+- <a:rPr lang="en-IN" dirty="0">
++ <a:lstStyle/>
+
+Line 621:
+- </a:rPr>
++ <a:p>
+
+Line 622:
+- <a:t>
++ <a:pPr algn="ctr"/>
+
+Line 623:
+- 24</a:t>
++ <a:r>
+
+Line 624:
+- </a:r>
++ <a:rPr lang="en-US" dirty="0"/>
+
+Line 625:
+- </a:p>
++ <a:t>
+
+Line 626:
+- </a:txBody>
++ Bob</a:t>
+
+Line 627:
+- <a:tcPr>
++ </a:r>
+
+Line 628:
+- </a:tcPr>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 629:
+- </a:tc>
++ </a:p>
+
+Line 630:
+- <a:tc>
++ </a:txBody>
+
+Line 631:
+- <a:txBody>
++ <a:tcPr/>
+
+Line 632:
+- <a:bodyPr>
++ </a:tc>
+
+Line 633:
+- </a:bodyPr>
++ <a:tc rowSpan="2">
+
+Line 634:
+- <a:lstStyle>
++ <a:txBody>
+
+Line 635:
+- </a:lstStyle>
++ <a:bodyPr/>
+
+Line 636:
+- <a:p>
++ <a:lstStyle/>
+
+Line 637:
+- <a:pPr algn="ctr">
++ <a:p>
+
+Line 638:
+- </a:pPr>
++ <a:pPr algn="ctr"/>
+
+Line 639:
+- <a:r>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 640:
+- <a:rPr lang="en-IN" dirty="0">
++ </a:p>
+
+Line 641:
+- </a:rPr>
++ </a:txBody>
+
+Line 642:
+- <a:t>
++ <a:tcPr/>
+
+Line 643:
+- 34</a:t>
++ </a:tc>
+
+Line 644:
+- </a:r>
++ <a:tc rowSpan="2">
+
+Line 645:
+- </a:p>
++ <a:txBody>
+
+Line 646:
+- </a:txBody>
++ <a:bodyPr/>
+
+Line 647:
+- <a:tcPr>
++ <a:lstStyle/>
+
+Line 648:
+- </a:tcPr>
++ <a:p>
+
+Line 649:
+- </a:tc>
++ <a:pPr algn="ctr"/>
+
+Line 650:
+- <a:tc>
++ <a:r>
+
+Line 651:
+- <a:txBody>
++ <a:rPr lang="en-US" dirty="0" err="1"/>
+
+Line 652:
+- <a:bodyPr>
++ <a:t>
+
+Line 653:
+- </a:bodyPr>
++ Designer</a:t>
+
+Line 654:
+- <a:lstStyle>
++ </a:r>
+
+Line 655:
+- </a:lstStyle>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 656:
+- <a:p>
++ </a:p>
+
+Line 657:
+- <a:pPr algn="ctr">
++ </a:txBody>
+
+Line 658:
+- </a:pPr>
++ <a:tcPr/>
+
+Line 659:
+- <a:r>
++ </a:tc>
+
+Line 660:
+- <a:rPr lang="en-IN" dirty="0">
++ <a:tc>
+
+Line 661:
+- </a:rPr>
++ <a:txBody>
+
+Line 662:
+- <a:t>
++ <a:bodyPr/>
+
+Line 663:
+- 53</a:t>
++ <a:lstStyle/>
+
+Line 664:
+- </a:r>
++ <a:p>
+
+Line 665:
+- </a:p>
++ <a:pPr algn="ctr"/>
+
+Line 666:
+- </a:txBody>
++ <a:r>
+
+Line 667:
+- <a:tcPr>
++ <a:t>
+
+Line 668:
+- </a:tcPr>
++ Product</a:t>
+
+Line 669:
+- </a:tc>
++ </a:r>
+
+Line 670:
+- <a:extLst>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 671:
+- <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
++ </a:p>
+
+Line 672:
+- <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2673184772">
++ </a:txBody>
+
+Line 673:
+- </a16:rowId>
++ <a:tcPr/>
+
+Line 674:
+- </a:ext>
++ </a:tc>
+
+Line 675:
+- </a:extLst>
++ <a:tc rowSpan="2">
+
+Line 676:
+- </a:tr>
++ <a:txBody>
+
+Line 677:
+- <a:tr h="370840">
++ <a:bodyPr/>
+
+Line 678:
+- <a:tc>
++ <a:lstStyle/>
+
+Line 679:
+- <a:txBody>
++ <a:p>
+
+Line 680:
+- <a:bodyPr>
++ <a:pPr algn="ctr"/>
+
+Line 681:
+- </a:bodyPr>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 682:
+- <a:lstStyle>
++ </a:p>
+
+Line 683:
+- </a:lstStyle>
++ </a:txBody>
+
+Line 684:
+- <a:p>
++ <a:tcPr/>
+
+Line 685:
+- <a:pPr algn="ctr">
++ </a:tc>
+
+Line 686:
+- </a:pPr>
++ <a:extLst>
+
+Line 687:
+- <a:r>
++ <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
+
+Line 688:
+- <a:rPr lang="en-US" dirty="0">
++ <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1485906831"/>
+
+Line 689:
+- </a:rPr>
++ </a:ext>
+
+Line 690:
+- <a:t>
++ </a:extLst>
+
+Line 691:
+- 55</a:t>
++ </a:tr>
+
+Line 692:
+- </a:r>
++ <a:tr h="370840">
+
+Line 693:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ <a:tc vMerge="1">
+
+Line 694:
+- </a:endParaRPr>
++ <a:txBody>
+
+Line 695:
+- </a:p>
++ <a:bodyPr/>
+
+Line 696:
+- </a:txBody>
++ <a:lstStyle/>
+
+Line 697:
+- <a:tcPr>
++ <a:p>
+
+Line 698:
+- </a:tcPr>
++ <a:pPr algn="ctr"/>
+
+Line 699:
+- </a:tc>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 700:
+- <a:tc>
++ </a:p>
+
+Line 701:
+- <a:txBody>
++ </a:txBody>
+
+Line 702:
+- <a:bodyPr>
++ <a:tcPr/>
+
+Line 703:
+- </a:bodyPr>
++ </a:tc>
+
+Line 704:
+- <a:lstStyle>
++ <a:tc vMerge="1">
+
+Line 705:
+- </a:lstStyle>
++ <a:txBody>
+
+Line 706:
+- <a:p>
++ <a:bodyPr/>
+
+Line 707:
+- <a:pPr algn="ctr">
++ <a:lstStyle/>
+
+Line 708:
+- </a:pPr>
++ <a:p>
+
+Line 709:
+- <a:r>
++ <a:pPr algn="ctr"/>
+
+Line 710:
+- <a:rPr lang="en-US" dirty="0">
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 711:
+- </a:rPr>
++ </a:p>
+
+Line 712:
+- <a:t>
++ </a:txBody>
+
+Line 713:
+- 45</a:t>
++ <a:tcPr/>
+
+Line 714:
+- </a:r>
++ </a:tc>
+
+Line 715:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ <a:tc vMerge="1">
+
+Line 716:
+- </a:endParaRPr>
++ <a:txBody>
+
+Line 717:
+- </a:p>
++ <a:bodyPr/>
+
+Line 718:
+- </a:txBody>
++ <a:lstStyle/>
+
+Line 719:
+- <a:tcPr>
++ <a:p>
+
+Line 720:
+- </a:tcPr>
++ <a:pPr algn="ctr"/>
+
+Line 721:
+- </a:tc>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 722:
+- <a:tc>
++ </a:p>
+
+Line 723:
+- <a:txBody>
++ </a:txBody>
+
+Line 724:
+- <a:bodyPr>
++ <a:tcPr/>
+
+Line 725:
+- </a:bodyPr>
++ </a:tc>
+
+Line 726:
+- <a:lstStyle>
++ <a:tc>
+
+Line 727:
+- </a:lstStyle>
++ <a:txBody>
+
+Line 728:
+- <a:p>
++ <a:bodyPr/>
+
+Line 729:
+- <a:pPr algn="ctr">
++ <a:lstStyle/>
+
+Line 730:
+- </a:pPr>
++ <a:p>
+
+Line 731:
+- <a:r>
++ <a:pPr algn="ctr"/>
+
+Line 732:
+- <a:rPr lang="en-US" dirty="0" err="1">
++ <a:r>
+
+Line 733:
+- </a:rPr>
++ <a:t>
+
+Line 734:
+- <a:t>
++ Value</a:t>
+
+Line 735:
+- qqqwet</a:t>
++ </a:r>
+
+Line 736:
+- </a:r>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 737:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ </a:p>
+
+Line 738:
+- </a:endParaRPr>
++ </a:txBody>
+
+Line 739:
+- </a:p>
++ <a:tcPr/>
+
+Line 740:
+- </a:txBody>
++ </a:tc>
+
+Line 741:
+- <a:tcPr>
++ <a:tc vMerge="1">
+
+Line 742:
+- </a:tcPr>
++ <a:txBody>
+
+Line 743:
+- </a:tc>
++ <a:bodyPr/>
+
+Line 744:
+- <a:tc>
++ <a:lstStyle/>
+
+Line 745:
+- <a:txBody>
++ <a:p>
+
+Line 746:
+- <a:bodyPr>
++ <a:pPr algn="ctr"/>
+
+Line 747:
+- </a:bodyPr>
++ <a:endParaRPr lang="en-IN" dirty="0"/>
+
+Line 748:
+- <a:lstStyle>
++ </a:p>
+
+Line 749:
+- </a:lstStyle>
++ </a:txBody>
+
+Line 750:
+- <a:p>
++ <a:tcPr/>
+
+Line 751:
+- <a:pPr algn="ctr">
++ </a:tc>
+
+Line 752:
+- </a:pPr>
++ <a:extLst>
+
+Line 753:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
+
+Line 754:
+- </a:endParaRPr>
++ <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1494706229"/>
+
+Line 755:
+- </a:p>
++ </a:ext>
+
+Line 756:
+- </a:txBody>
++ </a:extLst>
+
+Line 757:
+- <a:tcPr>
++ </a:tr>
+
+Line 758:
+- </a:tcPr>
++ </a:tbl>
+
+Line 759:
+- </a:tc>
++ </a:graphicData>
+
+Line 760:
+- <a:tc>
++ </a:graphic>
+
+Line 761:
+- <a:txBody>
++ </p:graphicFrame>
+
+Line 762:
+- <a:bodyPr>
++ </p:spTree>
+
+Line 763:
+- </a:bodyPr>
++ <p:extLst>
+
+Line 764:
+- <a:lstStyle>
++ <p:ext uri="{BB962C8B-B14F-4D97-AF65-F5344CB8AC3E}">
+
+Line 765:
+- </a:lstStyle>
++ <p14:creationId xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" val="3046703408"/>
+
+Line 766:
+- <a:p>
++ </p:ext>
+
+Line 767:
+- <a:pPr algn="ctr">
++ </p:extLst>
+
+Line 768:
+- </a:pPr>
++ </p:cSld>
+
+Line 769:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ <p:clrMapOvr>
+
+Line 770:
+- </a:endParaRPr>
++ <a:masterClrMapping/>
+
+Line 771:
+- </a:p>
++ </p:clrMapOvr>
+
+Line 772:
+- </a:txBody>
++ </p:sld>
+
+Line 773:
+- <a:tcPr>
++ 
+
+Line 774:
+- </a:tcPr>
++ 
+
+Line 775:
+- </a:tc>
++ 
+
+Line 776:
+- <a:extLst>
++ 
+
+Line 777:
+- <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
++ 
+
+Line 778:
+- <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2462398921">
++ 
+
+Line 779:
+- </a16:rowId>
++ 
+
+Line 780:
+- </a:ext>
++ 
+
+Line 781:
+- </a:extLst>
++ 
+
+Line 782:
+- </a:tr>
++ 
+
+Line 783:
+- <a:tr h="370840">
++ 
+
+Line 784:
+- <a:tc rowSpan="2">
++ 
+
+Line 785:
+- <a:txBody>
++ 
+
+Line 786:
+- <a:bodyPr>
++ 
+
+Line 787:
+- </a:bodyPr>
++ 
+
+Line 788:
+- <a:lstStyle>
++ 
+
+Line 789:
+- </a:lstStyle>
++ 
+
+Line 790:
+- <a:p>
++ 
+
+Line 791:
+- <a:pPr algn="ctr">
++ 
+
+Line 792:
+- </a:pPr>
++ 
+
+Line 793:
+- <a:r>
++ 
+
+Line 794:
+- <a:rPr lang="en-US" dirty="0">
++ 
+
+Line 795:
+- </a:rPr>
++ 
+
+Line 796:
+- <a:t>
++ 
+
+Line 797:
+- Bob</a:t>
++ 
+
+Line 798:
+- </a:r>
++ 
+
+Line 799:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ 
+
+Line 800:
+- </a:endParaRPr>
++ 
+
+Line 801:
+- </a:p>
++ 
+
+Line 802:
+- </a:txBody>
++ 
+
+Line 803:
+- <a:tcPr>
++ 
+
+Line 804:
+- </a:tcPr>
++ 
+
+Line 805:
+- </a:tc>
++ 
+
+Line 806:
+- <a:tc rowSpan="2">
++ 
+
+Line 807:
+- <a:txBody>
++ 
+
+Line 808:
+- <a:bodyPr>
++ 
+
+Line 809:
+- </a:bodyPr>
++ 
+
+Line 810:
+- <a:lstStyle>
++ 
+
+Line 811:
+- </a:lstStyle>
++ 
+
+Line 812:
+- <a:p>
++ 
+
+Line 813:
+- <a:pPr algn="ctr">
++ 
+
+Line 814:
+- </a:pPr>
++ 
+
+Line 815:
+- <a:r>
++ 
+
+Line 816:
+- <a:rPr lang="en-US" dirty="0">
++ 
+
+Line 817:
+- </a:rPr>
++ 
+
+Line 818:
+- <a:t>
++ 
+
+Line 819:
+- </a:t>
++ 
+
+Line 820:
+- </a:r>
++ 
+
+Line 821:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ 
+
+Line 822:
+- </a:endParaRPr>
++ 
+
+Line 823:
+- </a:p>
++ 
+
+Line 824:
+- </a:txBody>
++ 
+
+Line 825:
+- <a:tcPr>
++ 
+
+Line 826:
+- </a:tcPr>
++ 
+
+Line 827:
+- </a:tc>
++ 
+
+Line 828:
+- <a:tc rowSpan="2">
++ 
+
+Line 829:
+- <a:txBody>
++ 
+
+Line 830:
+- <a:bodyPr>
++ 
+
+Line 831:
+- </a:bodyPr>
++ 
+
+Line 832:
+- <a:lstStyle>
++ 
+
+Line 833:
+- </a:lstStyle>
++ 
+
+Line 834:
+- <a:p>
++ 
+
+Line 835:
+- <a:pPr algn="ctr">
++ 
+
+Line 836:
+- </a:pPr>
++ 
+
+Line 837:
+- <a:r>
++ 
+
+Line 838:
+- <a:rPr lang="en-US" dirty="0" err="1">
++ 
+
+Line 839:
+- </a:rPr>
++ 
+
+Line 840:
+- <a:t>
++ 
+
+Line 841:
+- Designer</a:t>
++ 
+
+Line 842:
+- </a:r>
++ 
+
+Line 843:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ 
+
+Line 844:
+- </a:endParaRPr>
++ 
+
+Line 845:
+- </a:p>
++ 
+
+Line 846:
+- </a:txBody>
++ 
+
+Line 847:
+- <a:tcPr>
++ 
+
+Line 848:
+- </a:tcPr>
++ 
+
+Line 849:
+- </a:tc>
++ 
+
+Line 850:
+- <a:tc>
++ 
+
+Line 851:
+- <a:txBody>
++ 
+
+Line 852:
+- <a:bodyPr>
++ 
+
+Line 853:
+- </a:bodyPr>
++ 
+
+Line 854:
+- <a:lstStyle>
++ 
+
+Line 855:
+- </a:lstStyle>
++ 
+
+Line 856:
+- <a:p>
++ 
+
+Line 857:
+- <a:pPr algn="ctr">
++ 
+
+Line 858:
+- </a:pPr>
++ 
+
+Line 859:
+- <a:r>
++ 
+
+Line 860:
+- <a:t>
++ 
+
+Line 861:
+- Product</a:t>
++ 
+
+Line 862:
+- </a:r>
++ 
+
+Line 863:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ 
+
+Line 864:
+- </a:endParaRPr>
++ 
+
+Line 865:
+- </a:p>
++ 
+
+Line 866:
+- </a:txBody>
++ 
+
+Line 867:
+- <a:tcPr>
++ 
+
+Line 868:
+- </a:tcPr>
++ 
+
+Line 869:
+- </a:tc>
++ 
+
+Line 870:
+- <a:tc rowSpan="2">
++ 
+
+Line 871:
+- <a:txBody>
++ 
+
+Line 872:
+- <a:bodyPr>
++ 
+
+Line 873:
+- </a:bodyPr>
++ 
+
+Line 874:
+- <a:lstStyle>
++ 
+
+Line 875:
+- </a:lstStyle>
++ 
+
+Line 876:
+- <a:p>
++ 
+
+Line 877:
+- <a:pPr algn="ctr">
++ 
+
+Line 878:
+- </a:pPr>
++ 
+
+Line 879:
+- <a:r>
++ 
+
+Line 880:
+- <a:t>
++ 
+
+Line 881:
+- </a:t>
++ 
+
+Line 882:
+- </a:r>
++ 
+
+Line 883:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ 
+
+Line 884:
+- </a:endParaRPr>
++ 
+
+Line 885:
+- </a:p>
++ 
+
+Line 886:
+- </a:txBody>
++ 
+
+Line 887:
+- <a:tcPr>
++ 
+
+Line 888:
+- </a:tcPr>
++ 
+
+Line 889:
+- </a:tc>
++ 
+
+Line 890:
+- <a:extLst>
++ 
+
+Line 891:
+- <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
++ 
+
+Line 892:
+- <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1485906831">
++ 
+
+Line 893:
+- </a16:rowId>
++ 
+
+Line 894:
+- </a:ext>
++ 
+
+Line 895:
+- </a:extLst>
++ 
+
+Line 896:
+- </a:tr>
++ 
+
+Line 897:
+- <a:tr h="370840">
++ 
+
+Line 898:
+- <a:tc vMerge="1">
++ 
+
+Line 899:
+- <a:txBody>
++ 
+
+Line 900:
+- <a:bodyPr>
++ 
+
+Line 901:
+- </a:bodyPr>
++ 
+
+Line 902:
+- <a:lstStyle>
++ 
+
+Line 903:
+- </a:lstStyle>
++ 
+
+Line 904:
+- <a:p>
++ 
+
+Line 905:
+- <a:pPr algn="ctr">
++ 
+
+Line 906:
+- </a:pPr>
++ 
+
+Line 907:
+- <a:r>
++ 
+
+Line 908:
+- <a:rPr lang="en-US" dirty="0">
++ 
+
+Line 909:
+- </a:rPr>
++ 
+
+Line 910:
+- <a:t>
++ 
+
+Line 911:
+- </a:t>
++ 
+
+Line 912:
+- </a:r>
++ 
+
+Line 913:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ 
+
+Line 914:
+- </a:endParaRPr>
++ 
+
+Line 915:
+- </a:p>
++ 
+
+Line 916:
+- </a:txBody>
++ 
+
+Line 917:
+- <a:tcPr>
++ 
+
+Line 918:
+- </a:tcPr>
++ 
+
+Line 919:
+- </a:tc>
++ 
+
+Line 920:
+- <a:tc vMerge="1">
++ 
+
+Line 921:
+- <a:txBody>
++ 
+
+Line 922:
+- <a:bodyPr>
++ 
+
+Line 923:
+- </a:bodyPr>
++ 
+
+Line 924:
+- <a:lstStyle>
++ 
+
+Line 925:
+- </a:lstStyle>
++ 
+
+Line 926:
+- <a:p>
++ 
+
+Line 927:
+- <a:pPr algn="ctr">
++ 
+
+Line 928:
+- </a:pPr>
++ 
+
+Line 929:
+- <a:r>
++ 
+
+Line 930:
+- <a:rPr lang="en-US" dirty="0">
++ 
+
+Line 931:
+- </a:rPr>
++ 
+
+Line 932:
+- <a:t>
++ 
+
+Line 933:
+- </a:t>
++ 
+
+Line 934:
+- </a:r>
++ 
+
+Line 935:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ 
+
+Line 936:
+- </a:endParaRPr>
++ 
+
+Line 937:
+- </a:p>
++ 
+
+Line 938:
+- </a:txBody>
++ 
+
+Line 939:
+- <a:tcPr>
++ 
+
+Line 940:
+- </a:tcPr>
++ 
+
+Line 941:
+- </a:tc>
++ 
+
+Line 942:
+- <a:tc vMerge="1">
++ 
+
+Line 943:
+- <a:txBody>
++ 
+
+Line 944:
+- <a:bodyPr>
++ 
+
+Line 945:
+- </a:bodyPr>
++ 
+
+Line 946:
+- <a:lstStyle>
++ 
+
+Line 947:
+- </a:lstStyle>
++ 
+
+Line 948:
+- <a:p>
++ 
+
+Line 949:
+- <a:pPr algn="ctr">
++ 
+
+Line 950:
+- </a:pPr>
++ 
+
+Line 951:
+- <a:r>
++ 
+
+Line 952:
+- <a:rPr lang="en-US" dirty="0" err="1">
++ 
+
+Line 953:
+- </a:rPr>
++ 
+
+Line 954:
+- <a:t>
++ 
+
+Line 955:
+- </a:t>
++ 
+
+Line 956:
+- </a:r>
++ 
+
+Line 957:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ 
+
+Line 958:
+- </a:endParaRPr>
++ 
+
+Line 959:
+- </a:p>
++ 
+
+Line 960:
+- </a:txBody>
++ 
+
+Line 961:
+- <a:tcPr>
++ 
+
+Line 962:
+- </a:tcPr>
++ 
+
+Line 963:
+- </a:tc>
++ 
+
+Line 964:
+- <a:tc>
++ 
+
+Line 965:
+- <a:txBody>
++ 
+
+Line 966:
+- <a:bodyPr>
++ 
+
+Line 967:
+- </a:bodyPr>
++ 
+
+Line 968:
+- <a:lstStyle>
++ 
+
+Line 969:
+- </a:lstStyle>
++ 
+
+Line 970:
+- <a:p>
++ 
+
+Line 971:
+- <a:pPr algn="ctr">
++ 
+
+Line 972:
+- </a:pPr>
++ 
+
+Line 973:
+- <a:r>
++ 
+
+Line 974:
+- <a:t>
++ 
+
+Line 975:
+- Value</a:t>
++ 
+
+Line 976:
+- </a:r>
++ 
+
+Line 977:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ 
+
+Line 978:
+- </a:endParaRPr>
++ 
+
+Line 979:
+- </a:p>
++ 
+
+Line 980:
+- </a:txBody>
++ 
+
+Line 981:
+- <a:tcPr>
++ 
+
+Line 982:
+- </a:tcPr>
++ 
+
+Line 983:
+- </a:tc>
++ 
+
+Line 984:
+- <a:tc vMerge="1">
++ 
+
+Line 985:
+- <a:txBody>
++ 
+
+Line 986:
+- <a:bodyPr>
++ 
+
+Line 987:
+- </a:bodyPr>
++ 
+
+Line 988:
+- <a:lstStyle>
++ 
+
+Line 989:
+- </a:lstStyle>
++ 
+
+Line 990:
+- <a:p>
++ 
+
+Line 991:
+- <a:pPr algn="ctr">
++ 
+
+Line 992:
+- </a:pPr>
++ 
+
+Line 993:
+- <a:r>
++ 
+
+Line 994:
+- <a:t>
++ 
+
+Line 995:
+- </a:t>
++ 
+
+Line 996:
+- </a:r>
++ 
+
+Line 997:
+- <a:endParaRPr lang="en-IN" dirty="0">
++ 
+
+Line 998:
+- </a:endParaRPr>
++ 
+
+Line 999:
+- </a:p>
++ 
+
+Line 1000:
+- </a:txBody>
++ 
+
+Line 1001:
+- <a:tcPr>
++ 
+
+Line 1002:
+- </a:tcPr>
++ 
+
+Line 1003:
+- </a:tc>
++ 
+
+Line 1004:
+- <a:extLst>
++ 
+
+Line 1005:
+- <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
++ 
+
+Line 1006:
+- <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1494706229">
++ 
+
+Line 1007:
+- </a16:rowId>
++ 
+
+Line 1008:
+- </a:ext>
++ 
+
+Line 1009:
+- </a:extLst>
++ 
+
+Line 1010:
+- </a:tr>
++ 
+
+Line 1011:
+- </a:tbl>
++ 
+
+Line 1012:
+- </a:graphicData>
++ 
+
+Line 1013:
+- </a:graphic>
++ 
+
+Line 1014:
+- </p:graphicFrame>
++ 
+
+Line 1015:
+- </p:spTree>
++ 
+
+Line 1016:
+- <p:extLst>
++ 
+
+Line 1017:
+- <p:ext uri="{BB962C8B-B14F-4D97-AF65-F5344CB8AC3E}">
++ 
+
+Line 1018:
+- <p14:creationId xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" val="3046703408">
++ 
+
+Line 1019:
+- </p14:creationId>
++ 
+
+Line 1020:
+- </p:ext>
++ 
+
+Line 1021:
+- </p:extLst>
++ 
+
+Line 1022:
+- </p:cSld>
++ 
+
+Line 1023:
+- <p:clrMapOvr>
++ 
+
+Line 1024:
+- <a:masterClrMapping>
++ 
+
+Line 1025:
+- </a:masterClrMapping>
++ 
+
+Line 1026:
+- </p:clrMapOvr>
++ 
+
+Line 1027:
+- </p:sld>
++ 

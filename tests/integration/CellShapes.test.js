@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { existsSync } from 'fs'
@@ -248,6 +248,105 @@ describe('Table Cell Shapes Integration Tests', () => {
     // Retrieve the shape in the merged cell
     const shape = ppt.getCellShape('Table', 1, 0, 0)
     expect(shape).not.toBeNull()
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
+
+  it('should support dynamic row height calculation, boundary constraints, and helper APIs', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    // 1. Get initial bounds of the cell
+    const initialBounds = ppt.getCellBounds('Table', 1, 1)
+    expect(initialBounds).not.toBeNull()
+    expect(initialBounds.width).toBeGreaterThan(0)
+    expect(initialBounds.height).toBeGreaterThan(0)
+
+    // 2. Perform table update with very long text in column A to trigger row height expansion
+    ppt.updateTable('Table', {
+      rows: [
+        {
+          A: 'This is an extremely long paragraph text that will definitely wrap to multiple lines given normal slide column widths. It should force the row height to expand dynamically.',
+          V: 'Active',
+          B: 50,
+        },
+      ],
+      cellShapes: {
+        V: () => ({
+          type: 'circle',
+          fill: '#10B981',
+          width: '50%', // percentage width
+          height: 10,
+          position: 'middle-right',
+        }),
+        B: () => ({
+          type: 'square',
+          fill: '#3B82F6',
+          size: 15,
+          x: 1000, // excessively large offset to test cell boundary constraint
+          y: 1000,
+        }),
+      },
+    })
+
+    // 3. Verify that row height has expanded
+    const newBounds = ppt.getCellBounds('Table', 1, 1)
+    expect(newBounds.height).toBeGreaterThan(initialBounds.height)
+
+    // 4. Verify cell position helper
+    const cellPos = ppt.getCellPosition('Table', 1, 1)
+    expect(cellPos).not.toBeNull()
+    expect(cellPos.row).toBe(1)
+    expect(cellPos.column).toBe(1)
+    expect(cellPos.x).toBe(newBounds.x)
+    expect(cellPos.y).toBe(newBounds.y)
+
+    // 5. Verify percentage width shape is placed and scaled relative to cell width
+    const shapeV = ppt.getCellShape('Table', 1, 1, 0)
+    expect(shapeV).not.toBeNull()
+    expect(shapeV.width).toBe(Math.round(newBounds.width * 0.5))
+
+    // 6. Verify cell boundaries constraint on shape B (which had x: 1000, y: 1000)
+    const shapeB = ppt.getCellShape('Table', 1, 2, 0)
+    expect(shapeB).not.toBeNull()
+
+    const cellBoundsB = ppt.getCellBounds('Table', 1, 2)
+    // Shape B's right edge should be exactly at cell bounds right edge
+    expect(shapeB.x + shapeB.width).toBeLessThanOrEqual(cellBoundsB.x + cellBoundsB.width)
+    expect(shapeB.y + shapeB.height).toBeLessThanOrEqual(cellBoundsB.y + cellBoundsB.height)
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
+
+  it('should support 9 position presets and custom alignment configurations', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    const presets = [
+      'top-left',
+      'top-center',
+      'top-right',
+      'middle-left',
+      'center',
+      'middle-right',
+      'bottom-left',
+      'bottom-center',
+      'bottom-right',
+    ]
+
+    for (let i = 0; i < presets.length; i++) {
+      await ppt.addCellShape('Table', 1, 1, {
+        type: 'circle',
+        fill: '#EF4444',
+        width: 10,
+        height: 10,
+        position: presets[i],
+      })
+      const shape = ppt.getCellShape('Table', 1, 1, i)
+      expect(shape).not.toBeNull()
+    }
 
     const report = await ppt.validatePresentation()
     expect(report.valid).toBe(true)

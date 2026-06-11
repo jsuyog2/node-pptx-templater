@@ -44,6 +44,9 @@ const METHOD_CATEGORIES = {
   'updateCellShape': 'tables',
   'removeCellShape': 'tables',
   'getCellShape': 'tables',
+  'getCellBounds': 'tables',
+  'getCellPosition': 'tables',
+  'getTableRows': 'tables',
 
   // Charts
   'updateChart': 'charts',
@@ -178,7 +181,9 @@ const METHOD_CATEGORIES = {
   'clearCache': 'utils',
   'enablePerformanceProfile': 'utils',
   'getPerformanceMetrics': 'utils',
-  'saveToStream': 'utils'
+  'saveToStream': 'utils',
+  'extractPptx': 'utils',
+  'buildPptx': 'utils'
 };
 
 // Rich comprehensive database of methods to fill JSDoc gaps
@@ -273,6 +278,37 @@ const API_METADATA_EXTENSIONS = {
     xmlImpact: 'None (read-only query).',
     examples: {
       basic: `const shape = ppt.getCellShape('Table', 1, 2, 0);`
+    }
+  },
+  getCellBounds: {
+    edgeCases: 'Returns null if the slide table cannot be resolved or slide selection is empty.',
+    errorHandling: 'Gracefully logs and returns null if row or column indices exceed boundaries.',
+    related: ['getCellPosition', 'updateTable'],
+    xmlImpact: 'Reads table coordinates and layout properties. No write impact on slide XML.',
+    examples: {
+      basic: `const bounds = ppt.getCellBounds('summary-table', 1, 1);`,
+      advanced: `const { x, y, width, height } = ppt.getCellBounds('summary-table', 1, 1);`
+    }
+  },
+  getCellPosition: {
+    edgeCases: 'Returns null if the slide table cannot be resolved.',
+    errorHandling: 'Returns null if row or column indices exceed boundaries.',
+    related: ['getCellBounds', 'updateTable'],
+    xmlImpact: 'Reads cell positioning data in pixels. No write impact on slide XML.',
+    examples: {
+      basic: `const pos = ppt.getCellPosition('summary-table', 1, 1);`,
+      advanced: `const { row, column, x, y } = ppt.getCellPosition('summary-table', 1, 1);`
+    }
+  },
+  getTableRows: {
+    edgeCases: 'If tableId is not found, throws TableNotFoundError. Merged cells automatically resolve to their parent cell value.',
+    errorHandling: 'Throws TableNotFoundError if table is not found, or PPTXError if slide selection is empty.',
+    related: ['updateTable', 'addTableRow'],
+    xmlImpact: 'Reads XML table data structure. No write impact on slide XML.',
+    examples: {
+      basic: `const rows = await ppt.getTableRows('SalesTable');`,
+      advanced: `const rows = await ppt.getTableRows('SalesTable', { raw: true });`,
+      production: `const data = await ppt.getTableRows('SalesTable', { includeMetadata: true });\nconsole.log(\`RowCount: \${data.rowCount}, ColCount: \${data.columnCount}\`);`
     }
   },
 
@@ -639,6 +675,25 @@ const API_METADATA_EXTENSIONS = {
       basic: `const report = await ppt.validatePresentationXml();\nif (!report.valid) console.error(report.errors);`,
       advanced: `const report = await ppt.validatePresentationXml();\nexpect(report.valid).toBe(true);`,
       production: `const check = await ppt.validatePresentationXml();\nif (!check.valid) {\n  throw new Error('Presentation XML validation failed:\\n' + check.errors.join('\\n'));\n}`
+    }
+  },
+  extractPptx: {
+    edgeCases: 'If source PPTX does not exist, throws PPTXError. Overwrites output path only if options.overwrite is true.',
+    errorHandling: 'Throws PPTXError if critical parts are missing or if output folder is not empty (and overwrite is not set).',
+    related: ['buildPptx', 'load', 'saveToFolder'],
+    xmlImpact: 'Extracts entire zipped PPTX package to filesystem unzipped folder template.',
+    examples: {
+      basic: `await PPTXTemplater.extractPptx('sample.pptx', './extracted');`,
+      advanced: `await PPTXTemplater.extractPptx('sample.pptx', './extracted', { overwrite: true });`
+    }
+  },
+  buildPptx: {
+    edgeCases: 'If source folder is missing critical OpenXML parts, throws PPTXError.',
+    errorHandling: 'Throws PPTXError if template root structure is invalid.',
+    related: ['extractPptx', 'load', 'saveToFile'],
+    xmlImpact: 'Zips and packages OpenXML folder template back into a zipped PPTX archive.',
+    examples: {
+      basic: `await PPTXTemplater.buildPptx('./extracted', 'output.pptx');`
     }
   }
 };
@@ -1062,6 +1117,7 @@ function generateSearchIndex(apis) {
     { id: 'learningpaths', title: 'Learning Paths', type: 'concept', category: 'Getting Started', desc: 'Onboarding guides tailored by experience levels.' },
     { id: 'code-sandbox', title: 'Interactive Showcase Sandbox', type: 'concept', category: 'Concepts', desc: 'Interactive code play space showing PowerPoint editing in real-time.' },
     { id: 'table-merging', title: 'Table Cell Merging', type: 'concept', category: 'Concepts', desc: 'Spans and cell merges details inside DrawingML grids.' },
+    { id: 'cell-shapes', title: 'Table Cell Shapes', type: 'concept', category: 'Concepts', desc: 'Dynamic cell shapes, progress bars, badges, status indicators, and row-growth aware layouts.' },
     { id: 'chart-engine', title: 'Excel Chart Update', type: 'concept', category: 'Concepts', desc: 'Caching updates in spreadsheets backing PowerPoint charts.' },
     { id: 'zorder', title: 'Z-Order & Layers', type: 'concept', category: 'Concepts', desc: 'Stack sorting and layers indices order.' },
     { id: 'data-labels', title: 'Chart Data Labels', type: 'concept', category: 'Concepts', desc: 'Custom text, styling, alignment, and Value From Cells for charts.' },
@@ -1998,6 +2054,7 @@ async function main() {
           <ul class="space-y-1">
             <li><a href="#code-sandbox" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Interactive Showcase</a></li>
             <li><a href="#table-merging" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Table Cell Merging</a></li>
+            <li><a href="#cell-shapes" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Table Cell Shapes</a></li>
             <li><a href="#chart-engine" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Excel Chart Update</a></li>
             <li><a href="#zorder" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Z-Order &amp; Layers</a></li>
           </ul>
@@ -2236,6 +2293,64 @@ main().catch(err => console.error(err));</code><button class="copy-btn absolute 
   ['Data', { value: 'Span 2 Cols', colSpan: 2 }],
   ['Data', 'Data', { value: 'Span 2 Rows', rowSpan: 2 }]
 ]);</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Table Cell Shapes Section -->
+      <section id="cell-shapes" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Table Cell Shapes</h1>
+        <p class="text-sm text-gray-300 font-light">The cell shape engine dynamically creates and positions shapes (like indicators, progress bars, badges, and icons) inside table cells. It simulates text wrapping and paragraph layout to calculate row expansion, anchoring shapes relative to the actual cell boundaries.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Cell Relative Positioning</h4>
+            <p class="text-xs text-gray-400">Coordinates are relative to the cell's top-left corner in pixels rather than slide coordinates. Offsets are automatically constrained within cell boundaries to prevent escaping.</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">await ppt.addCellShape('Table', 1, 2, {
+  type: 'circle',
+  x: 10,
+  y: 10,
+  width: 15,
+  height: 15,
+  anchor: 'cell' // Default
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
+          
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Dynamic Row Height &amp; Wrapped Text Support</h4>
+            <p class="text-xs text-gray-400">Automatically recalculates cell dimensions when long paragraphs or wrapped texts expand row heights, keeping shapes aligned with cell flow.</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">ppt.updateTable('Table', {
+  rows: [
+    { A: 'Very long wrapped text...', V: 'Active' }
+  ],
+  cellShapes: {
+    V: () => ({
+      type: 'progressBar',
+      value: 75,
+      position: 'middle-right'
+    })
+  }
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Cell Alignment Modes &amp; Presets</h4>
+            <p class="text-xs text-gray-400">Position shapes automatically using 9 standard presets or explicit <code>alignX</code> / <code>alignY</code> alignment anchors:</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">await ppt.addCellShape('Table', 1, 1, {
+  type: 'badge',
+  text: 'NEW',
+  position: 'bottom-center' // 9 alignment options
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
+
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Merged Cell Support &amp; Helpers</h4>
+            <p class="text-xs text-gray-400">Correctly maps cell boundaries for cells spanned with <code>rowSpan</code> and <code>colSpan</code>. Retrieve final coordinates via helpers:</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">// Get final cell bounds and position in pixels
+const bounds = ppt.getCellBounds('Table', 1, 1);
+const pos = ppt.getCellPosition('Table', 1, 1);</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
           </div>
         </div>
       </section>

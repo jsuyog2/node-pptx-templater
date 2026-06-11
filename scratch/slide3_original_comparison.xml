@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""><a:extLst><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{35E3E8B1-0F8F-21B7-8778-C85AAC9FC14C}"></a16:creationId></a:ext></a:extLst></p:cNvPr><p:cNvGrpSpPr></p:cNvGrpSpPr><p:nvPr></p:nvPr></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"></a:off><a:ext cx="0" cy="0"></a:ext><a:chOff x="0" y="0"></a:chOff><a:chExt cx="0" cy="0"></a:chExt></a:xfrm></p:grpSpPr><p:sp><p:nvSpPr><p:cNvPr id="2" name="Title"><a:extLst><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{575379B8-A7CD-0FC4-F298-F0138A4305F7}"></a16:creationId></a:ext></a:extLst></p:cNvPr><p:cNvSpPr><a:spLocks noGrp="1"></a:spLocks></p:cNvSpPr><p:nvPr><p:ph type="title"></p:ph></p:nvPr></p:nvSpPr><p:spPr></p:spPr><p:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-US" dirty="0"></a:rPr><a:t>Hello {{title}}</a:t></a:r><a:endParaRPr lang="en-IN" dirty="0"></a:endParaRPr></a:p></p:txBody></p:sp><p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="5" name="Table"><a:extLst><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{861163FF-7B9E-FFA7-1ED8-2BD3B6F3F851}"></a16:creationId></a:ext></a:extLst></p:cNvPr><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"></a:graphicFrameLocks></p:cNvGraphicFramePr><p:nvPr><p:ph idx="1"></p:ph><p:extLst><p:ext uri="{D42A27DB-BD31-4B8C-83A1-F6EECF244321}"><p14:modId xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" val="143244436"></p14:modId></p:ext></p:extLst></p:nvPr></p:nvGraphicFramePr><p:xfrm><a:off x="838200" y="1825625"></a:off><a:ext cx="10515600" cy="741680"></a:ext></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="1" bandRow="1"><a:tableStyleId>{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId></a:tblPr><a:tblGrid><a:gridCol w="2103120"><a:extLst><a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}"><a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1526623959"></a16:colId></a:ext></a:extLst></a:gridCol><a:gridCol w="2103120"><a:extLst><a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}"><a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2988579106"></a16:colId></a:ext></a:extLst></a:gridCol><a:gridCol w="2103120"><a:extLst><a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}"><a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1994860425"></a16:colId></a:ext></a:extLst></a:gridCol><a:gridCol w="2103120"><a:extLst><a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}"><a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="3533840823"></a16:colId></a:ext></a:extLst></a:gridCol><a:gridCol w="2103120"><a:extLst><a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}"><a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1604916882"></a16:colId></a:ext></a:extLst></a:gridCol></a:tblGrid>
+  <a:tr h="370840">
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>A</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>V</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>B</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>C</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>D</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc><a:extLst><a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}"><a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1869212938"></a16:rowId></a:ext></a:extLst></a:tr>
+
+  <a:tr h="370840">
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>100</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>23</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>24</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>34</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>53</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc><a:extLst><a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}"><a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2673184772"></a16:rowId></a:ext></a:extLst></a:tr>
+
+  <a:tr h="370840">
+    <a:tc rowSpan="2"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>Bob</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc rowSpan="2"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t></a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc rowSpan="2"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>     Designer</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>Product</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc rowSpan="2"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t></a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc><a:extLst><a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}"><a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="786789443"></a16:rowId></a:ext></a:extLst></a:tr>
+
+  <a:tr h="370840">
+    <a:tc vMerge="1"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t></a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc vMerge="1"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t></a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc vMerge="1"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t></a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>Value</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc vMerge="1"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t></a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc><a:extLst><a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}"><a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1855087077"></a16:rowId></a:ext></a:extLst></a:tr>
+</a:tbl></a:graphicData></a:graphic></p:graphicFrame><p:sp><p:nvSpPr><p:cNvPr id="3" name="TextBox 2"><a:extLst><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{61BEA5E1-63B7-D019-B728-2339B40B412A}"></a16:creationId></a:ext></a:extLst></p:cNvPr><p:cNvSpPr txBox="1"></p:cNvSpPr><p:nvPr></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x="2121408" y="3931920"></a:off><a:ext cx="3621024" cy="369332"></a:ext></a:xfrm><a:prstGeom prst="rect"><a:avLst></a:avLst></a:prstGeom><a:noFill></a:noFill></p:spPr><p:txBody><a:bodyPr wrap="square" rtlCol="0"><a:spAutoFit></a:spAutoFit></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>Google</a:t></a:r></a:p></p:txBody></p:sp><p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="7" name="Table2"><a:extLst><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{9C93AABA-0485-1183-C414-51383DDB1C75}"></a16:creationId></a:ext></a:extLst></p:cNvPr><p:cNvGraphicFramePr><a:graphicFrameLocks></a:graphicFrameLocks></p:cNvGraphicFramePr><p:nvPr><p:extLst><p:ext uri="{D42A27DB-BD31-4B8C-83A1-F6EECF244321}"><p14:modId xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" val="2059184740"></p14:modId></p:ext></p:extLst></p:nvPr></p:nvGraphicFramePr><p:xfrm><a:off x="838200" y="5028956"></a:off><a:ext cx="10515600" cy="1112520"></a:ext></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="1" bandRow="1"><a:tableStyleId>{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId></a:tblPr><a:tblGrid><a:gridCol w="2103120"><a:extLst><a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}"><a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1526623959"></a16:colId></a:ext></a:extLst></a:gridCol><a:gridCol w="2103120"><a:extLst><a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}"><a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1036110465"></a16:colId></a:ext></a:extLst></a:gridCol><a:gridCol w="2103120"><a:extLst><a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}"><a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1994860425"></a16:colId></a:ext></a:extLst></a:gridCol><a:gridCol w="2103120"><a:extLst><a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}"><a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="3533840823"></a16:colId></a:ext></a:extLst></a:gridCol><a:gridCol w="2103120"><a:extLst><a:ext uri="{9D8B030D-6E8A-4147-A177-3AD203B41FA5}"><a16:colId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1604916882"></a16:colId></a:ext></a:extLst></a:gridCol></a:tblGrid>
+  <a:tr h="370840">
+    <a:tc gridSpan="2"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>test</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc hMerge="1"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:endParaRPr lang="en-IN"></a:endParaRPr></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>B</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>C</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>D</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc><a:extLst><a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}"><a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="1869212938"></a16:rowId></a:ext></a:extLst></a:tr>
+
+  <a:tr h="370840">
+    <a:tc gridSpan="2"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>100</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc hMerge="1"><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:endParaRPr lang="en-IN"></a:endParaRPr></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>24</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>34</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:r><a:rPr lang="en-IN" dirty="0"></a:rPr><a:t>53</a:t></a:r></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc><a:extLst><a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}"><a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2673184772"></a16:rowId></a:ext></a:extLst></a:tr>
+
+  <a:tr h="370840">
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:r><a:rPr lang="en-US" dirty="0"></a:rPr><a:t>55</a:t></a:r><a:endParaRPr lang="en-IN" dirty="0"></a:endParaRPr></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:r><a:rPr lang="en-US" dirty="0"></a:rPr><a:t>45</a:t></a:r><a:endParaRPr lang="en-IN" dirty="0"></a:endParaRPr></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:r><a:rPr lang="en-US" dirty="0" err="1"></a:rPr><a:t>qqqwet</a:t></a:r><a:endParaRPr lang="en-IN" dirty="0"></a:endParaRPr></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:endParaRPr lang="en-IN" dirty="0"></a:endParaRPr></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc>
+    <a:tc><a:txBody><a:bodyPr></a:bodyPr><a:lstStyle></a:lstStyle><a:p><a:pPr algn="ctr"></a:pPr><a:endParaRPr lang="en-IN" dirty="0"></a:endParaRPr></a:p></a:txBody>
+    <a:tcPr></a:tcPr></a:tc><a:extLst><a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}"><a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="2462398921"></a16:rowId></a:ext></a:extLst></a:tr>
+</a:tbl></a:graphicData></a:graphic></p:graphicFrame></p:spTree><p:extLst><p:ext uri="{BB962C8B-B14F-4D97-AF65-F5344CB8AC3E}"><p14:creationId xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" val="3046703408"></p14:creationId></p:ext></p:extLst></p:cSld><p:clrMapOvr><a:masterClrMapping></a:masterClrMapping></p:clrMapOvr></p:sld>

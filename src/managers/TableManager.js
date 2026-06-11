@@ -223,6 +223,8 @@ class TableManager {
       )
     }
 
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
+
     if (cellShapes) {
       this.#processCellShapes(
         slideIndex,
@@ -251,7 +253,7 @@ class TableManager {
    * @param {string[]} rowData
    * @param {SlideManager} slideManager
    */
-  addTableRow(slideIndex, tableId, rowData, slideManager) {
+  addTableRow(slideIndex, tableId, rowData, slideManager, options = {}) {
     const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
@@ -260,18 +262,69 @@ class TableManager {
     }
 
     const lastRow = trs[trs.length - 1]
-    const newRow = this.#xmlParser.deepClone(lastRow)
-    this.#updateRowId(newRow)
+    const numCols = lastRow['a:tc']?.length || 0
 
-    const tcs = newRow['a:tc'] || []
-    for (let j = 0; j < tcs.length; j++) {
-      this.#setCellTextObj(tcs[j], rowData[j] !== undefined ? rowData[j] : '')
-      // Clear any merged indicators for the new row by default
-      if (tcs[j]['@_hMerge']) delete tcs[j]['@_hMerge']
-      if (tcs[j]['@_vMerge']) delete tcs[j]['@_vMerge']
+    // Compute target generated height
+    const heights = []
+    for (let c = 0; c < numCols; c++) {
+      heights.push(this.#getNestedHeight(rowData[c]))
+    }
+    const targetHeight = Math.max(1, ...heights)
+
+    // Expand each column value to targetHeight
+    const expandedCols = []
+    const strategy = options.mergeStrategy || 'auto'
+    for (let c = 0; c < numCols; c++) {
+      let colCells = this.#expandCellVal(rowData[c], targetHeight)
+      if (strategy === 'none') {
+        for (let i = 0; i < colCells.length; i++) {
+          if (colCells[i].vMerge) {
+            colCells[i] = { value: '', rowSpan: 1 }
+          } else {
+            colCells[i].rowSpan = 1
+          }
+        }
+      } else if (strategy === 'auto') {
+        colCells = this.#applyAutoMerge(colCells)
+      }
+      expandedCols.push(colCells)
     }
 
-    trs.push(newRow)
+    // Clone and append rows
+    for (let r = 0; r < targetHeight; r++) {
+      const newRow = this.#xmlParser.deepClone(lastRow)
+      this.#updateRowId(newRow)
+
+      const tcs = newRow['a:tc'] || []
+      for (let c = 0; c < numCols; c++) {
+        const cellDef = expandedCols[c][r]
+        const tcObj = tcs[c]
+
+        // Clear any previous merge attributes
+        if (tcObj['@_hMerge']) delete tcObj['@_hMerge']
+        if (tcObj['@_vMerge']) delete tcObj['@_vMerge']
+        if (tcObj['@_gridSpan']) delete tcObj['@_gridSpan']
+        if (tcObj['@_rowSpan']) delete tcObj['@_rowSpan']
+
+        if (cellDef.vMerge) {
+          tcObj['@_vMerge'] = '1'
+          this.#setCellTextObj(tcObj, '')
+        } else {
+          let text = cellDef.value
+          let cellOpts = {}
+          if (cellDef.value && typeof cellDef.value === 'object') {
+            text = cellDef.value.value !== undefined ? cellDef.value.value : ''
+            cellOpts = cellDef.value
+          }
+          this.#setCellTextObj(tcObj, text)
+          if (cellDef.rowSpan && cellDef.rowSpan > 1 && strategy !== 'none') {
+            tcObj['@_rowSpan'] = String(cellDef.rowSpan)
+          }
+          this.#applyCellOptions(tcObj, cellOpts)
+        }
+      }
+      trs.push(newRow)
+    }
 
     slideManager.markSlideObjDirty(slideIndex)
   }
@@ -740,6 +793,68 @@ class TableManager {
     return { row, col }
   }
 
+  getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager) {
+    const { tblObj, frameObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
+
+    const xfrm = frameObj['p:xfrm']
+    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
+    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
+
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
+
+    const trsArr = tblObj['a:tr'] || []
+    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+
+    const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    const pr = parent.row
+    const pc = parent.col
+
+    let cellLeft = tableX
+    for (let idx = 0; idx < pc; idx++) {
+      cellLeft += colWidths[idx] || 0
+    }
+
+    let cellTop = tableY
+    for (let idx = 0; idx < pr; idx++) {
+      cellTop += rowHeights[idx] || 0
+    }
+
+    const parentCell = trsArr[pr]?.['a:tc']?.[pc]
+    const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
+    const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
+
+    let cellWidth = 0
+    for (let idx = 0; idx < gridSpan; idx++) {
+      cellWidth += colWidths[pc + idx] || 0
+    }
+
+    let cellHeight = 0
+    for (let idx = 0; idx < rowSpan; idx++) {
+      cellHeight += rowHeights[pr + idx] || 0
+    }
+
+    return {
+      x: Math.round(cellLeft / 9525),
+      y: Math.round(cellTop / 9525),
+      width: Math.round(cellWidth / 9525),
+      height: Math.round(cellHeight / 9525),
+    }
+  }
+
+  getCellPosition(slideIndex, tableId, rowIndex, colIndex, slideManager) {
+    const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    return {
+      row: rowIndex,
+      column: colIndex,
+      x: bounds.x,
+      y: bounds.y,
+    }
+  }
+
   /**
    * Splits a merged region containing cell (row, col).
    */
@@ -1152,45 +1267,226 @@ class TableManager {
   }
 
   #expandCellShape(config, cellBounds) {
-    const cellLeft_px = cellBounds.left / 9525
-    const cellTop_px = cellBounds.top / 9525
-    const cellWidth_px = cellBounds.width / 9525
-    const cellHeight_px = cellBounds.height / 9525
+    const cellLeft_px = Math.round(cellBounds.left / 9525)
+    const cellTop_px = Math.round(cellBounds.top / 9525)
+    const cellWidth_px = Math.round(cellBounds.width / 9525)
+    const cellHeight_px = Math.round(cellBounds.height / 9525)
 
+    const parseLength = (val, maxVal) => {
+      if (typeof val === 'string' && val.endsWith('%')) {
+        return (parseFloat(val) / 100) * maxVal
+      }
+      return val !== undefined ? parseFloat(val) : undefined
+    }
+
+    const isCellAnchored = config.anchor !== 'slide'
+
+    // 1. Determine bounding box width and height
+    let shapeWidth
+    let shapeHeight
+
+    if (config.type === 'progressBar') {
+      shapeHeight = parseLength(config.height !== undefined ? config.height : 8, cellHeight_px)
+      shapeWidth = parseLength(
+        config.width !== undefined ? config.width : cellWidth_px - 10,
+        cellWidth_px
+      )
+    } else if (config.type === 'badge') {
+      const text = String(config.text !== undefined ? config.text : '')
+      const fontSize = config.textStyle?.fontSize || 10
+      const textWidth = text.length * fontSize * 0.6
+      const paddingX = 12
+      shapeWidth =
+        parseLength(config.width, cellWidth_px) !== undefined
+          ? parseLength(config.width, cellWidth_px)
+          : textWidth + paddingX * 2
+      shapeHeight =
+        parseLength(config.height, cellHeight_px) !== undefined
+          ? parseLength(config.height, cellHeight_px)
+          : fontSize + 12
+    } else if (config.type === 'icon') {
+      const size = parseLength(
+        config.size !== undefined ? config.size : 16,
+        Math.min(cellWidth_px, cellHeight_px)
+      )
+      shapeWidth = size
+      shapeHeight = size
+    } else {
+      shapeWidth = parseLength(config.width, cellWidth_px)
+      if (shapeWidth === undefined) {
+        const sizeVal = parseLength(config.size, Math.min(cellWidth_px, cellHeight_px))
+        if (sizeVal !== undefined) {
+          shapeWidth = sizeVal
+        } else {
+          const radiusVal = parseLength(config.radius, Math.min(cellWidth_px, cellHeight_px) / 2)
+          if (radiusVal !== undefined) {
+            shapeWidth = radiusVal * 2
+          } else {
+            shapeWidth = 12 // default
+          }
+        }
+      }
+
+      shapeHeight = parseLength(config.height, cellHeight_px)
+      if (shapeHeight === undefined) {
+        const sizeVal = parseLength(config.size, Math.min(cellWidth_px, cellHeight_px))
+        if (sizeVal !== undefined) {
+          shapeHeight = sizeVal
+        } else {
+          const radiusVal = parseLength(config.radius, Math.min(cellWidth_px, cellHeight_px) / 2)
+          if (radiusVal !== undefined) {
+            shapeHeight = radiusVal * 2
+          } else {
+            shapeHeight = 12 // default
+          }
+        }
+      }
+    }
+
+    // 2. Determine alignment settings
+    let alignX = config.alignX
+    let alignY = config.alignY
+
+    if (config.position) {
+      switch (config.position) {
+        case 'top-left':
+          if (!alignX) alignX = 'left'
+          if (!alignY) alignY = 'top'
+          break
+        case 'top-center':
+        case 'top':
+          if (!alignX) alignX = 'center'
+          if (!alignY) alignY = 'top'
+          break
+        case 'top-right':
+          if (!alignX) alignX = 'right'
+          if (!alignY) alignY = 'top'
+          break
+        case 'middle-left':
+        case 'left':
+          if (!alignX) alignX = 'left'
+          if (!alignY) alignY = 'middle'
+          break
+        case 'center':
+        case 'middle-center':
+          if (!alignX) alignX = 'center'
+          if (!alignY) alignY = 'middle'
+          break
+        case 'middle-right':
+        case 'right':
+          if (!alignX) alignX = 'right'
+          if (!alignY) alignY = 'middle'
+          break
+        case 'bottom-left':
+          if (!alignX) alignX = 'left'
+          if (!alignY) alignY = 'bottom'
+          break
+        case 'bottom-center':
+        case 'bottom':
+          if (!alignX) alignX = 'center'
+          if (!alignY) alignY = 'bottom'
+          break
+        case 'bottom-right':
+          if (!alignX) alignX = 'right'
+          if (!alignY) alignY = 'bottom'
+          break
+      }
+    }
+
+    if (alignX && !alignY && config.y === undefined) {
+      alignY = 'middle'
+    }
+    if (alignY && !alignX && config.x === undefined) {
+      alignX = 'center'
+    }
+
+    if (!alignX && !alignY && config.x === undefined && config.y === undefined) {
+      alignX = 'center'
+      alignY = 'middle'
+    }
+
+    // 3. Compute coordinates
+    let shapeLeft = cellLeft_px
+    let shapeTop = cellTop_px
+
+    if (isCellAnchored) {
+      if (alignX === 'left') {
+        shapeLeft = cellLeft_px + (config.x !== undefined ? config.x : 5)
+      } else if (alignX === 'center') {
+        shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2 + (config.x || 0)
+      } else if (alignX === 'right') {
+        shapeLeft =
+          cellLeft_px + cellWidth_px - shapeWidth - (config.x !== undefined ? config.x : 5)
+      } else {
+        shapeLeft =
+          cellLeft_px + (config.x !== undefined ? config.x : (cellWidth_px - shapeWidth) / 2)
+      }
+
+      if (alignY === 'top') {
+        shapeTop = cellTop_px + (config.y !== undefined ? config.y : 5)
+      } else if (alignY === 'middle') {
+        shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2 + (config.y || 0)
+      } else if (alignY === 'bottom') {
+        shapeTop =
+          cellTop_px + cellHeight_px - shapeHeight - (config.y !== undefined ? config.y : 5)
+      } else {
+        shapeTop =
+          cellTop_px + (config.y !== undefined ? config.y : (cellHeight_px - shapeHeight) / 2)
+      }
+
+      // 4. Boundary Constraints Validation/Enforcement
+      if (shapeWidth > cellWidth_px) {
+        shapeLeft = cellLeft_px
+      } else {
+        shapeLeft = Math.max(
+          cellLeft_px,
+          Math.min(shapeLeft, cellLeft_px + cellWidth_px - shapeWidth)
+        )
+      }
+
+      if (shapeHeight > cellHeight_px) {
+        shapeTop = cellTop_px
+      } else {
+        shapeTop = Math.max(
+          cellTop_px,
+          Math.min(shapeTop, cellTop_px + cellHeight_px - shapeHeight)
+        )
+      }
+    } else {
+      shapeLeft = config.x || 0
+      shapeTop = config.y || 0
+    }
+
+    // 5. Expand individual sub-elements / custom shapes
     if (config.type === 'progressBar') {
       const value = config.value !== undefined ? config.value : 0
       const max = config.max !== undefined ? config.max : 100
       const fill = config.fill || '#3B82F6'
       const bgFill = config.backgroundFill || '#E5E7EB'
-      const pbHeight = config.height !== undefined ? config.height : 8
-      const pbWidth = config.width !== undefined ? config.width : cellWidth_px - 10
-
-      const pbX = cellLeft_px + (config.x !== undefined ? config.x : (cellWidth_px - pbWidth) / 2)
-      const pbY = cellTop_px + (config.y !== undefined ? config.y : (cellHeight_px - pbHeight) / 2)
 
       const shapes = []
       shapes.push({
         type: 'roundedRectangle',
         fill: bgFill,
-        x: pbX,
-        y: pbY,
-        width: pbWidth,
-        height: pbHeight,
-        borderRadius: pbHeight / 2,
+        x: shapeLeft,
+        y: shapeTop,
+        width: shapeWidth,
+        height: shapeHeight,
+        borderRadius: shapeHeight / 2,
         zIndex: config.zIndex,
       })
 
       const pct = Math.min(1, Math.max(0, value / max))
       if (pct > 0) {
-        const filledWidth = pbWidth * pct
+        const filledWidth = shapeWidth * pct
         shapes.push({
           type: 'roundedRectangle',
           fill: fill,
-          x: pbX,
-          y: pbY,
+          x: shapeLeft,
+          y: shapeTop,
           width: filledWidth,
-          height: pbHeight,
-          borderRadius: pbHeight / 2,
+          height: shapeHeight,
+          borderRadius: shapeHeight / 2,
           zIndex: (config.zIndex || 0) + 1,
         })
       }
@@ -1200,23 +1496,15 @@ class TableManager {
     if (config.type === 'badge') {
       const text = String(config.text !== undefined ? config.text : '')
       const fontSize = config.textStyle?.fontSize || 10
-      const textWidth = text.length * fontSize * 0.6
-      const paddingX = 12
-      const badgeWidth = config.width !== undefined ? config.width : textWidth + paddingX * 2
-      const badgeHeight = config.height !== undefined ? config.height : fontSize + 12
-
-      const x = cellLeft_px + (config.x !== undefined ? config.x : (cellWidth_px - badgeWidth) / 2)
-      const y = cellTop_px + (config.y !== undefined ? config.y : (cellHeight_px - badgeHeight) / 2)
-
       return [
         {
           type: 'roundedRectangle',
           fill: config.fill || '#10B981',
-          borderRadius: badgeHeight / 2,
-          x: x,
-          y: y,
-          width: badgeWidth,
-          height: badgeHeight,
+          borderRadius: shapeHeight / 2,
+          x: shapeLeft,
+          y: shapeTop,
+          width: shapeWidth,
+          height: shapeHeight,
           text: text,
           textStyle: {
             color: config.textStyle?.color || '#FFFFFF',
@@ -1234,9 +1522,8 @@ class TableManager {
     }
 
     if (config.type === 'icon') {
-      const size = config.size || 16
       const iconFill = config.fill
-      const fontSize = Math.round(size * 0.8)
+      const fontSize = Math.round(shapeWidth * 0.8)
 
       let baseConfig = null
       switch (config.icon) {
@@ -1245,8 +1532,8 @@ class TableManager {
             type: 'rectangle',
             fill: 'none',
             border: null,
-            width: size,
-            height: size,
+            width: shapeWidth,
+            height: shapeHeight,
             text: '✔',
             textStyle: {
               color: iconFill || '#10B981',
@@ -1261,8 +1548,8 @@ class TableManager {
             type: 'rectangle',
             fill: 'none',
             border: null,
-            width: size,
-            height: size,
+            width: shapeWidth,
+            height: shapeHeight,
             text: '✘',
             textStyle: {
               color: iconFill || '#EF4444',
@@ -1277,8 +1564,8 @@ class TableManager {
             type: 'triangle',
             fill: iconFill || '#F59E0B',
             border: null,
-            width: size,
-            height: size,
+            width: shapeWidth,
+            height: shapeHeight,
             text: '!',
             textStyle: {
               color: '#FFFFFF',
@@ -1293,7 +1580,7 @@ class TableManager {
             type: 'circle',
             fill: iconFill || '#3B82F6',
             border: null,
-            radius: size / 2,
+            radius: shapeWidth / 2,
             text: 'i',
             textStyle: {
               color: '#FFFFFF',
@@ -1308,8 +1595,8 @@ class TableManager {
             type: 'star5',
             fill: iconFill || '#FBBF24',
             border: null,
-            width: size,
-            height: size,
+            width: shapeWidth,
+            height: shapeHeight,
           }
           break
         case 'up':
@@ -1317,8 +1604,8 @@ class TableManager {
             type: 'upArrow',
             fill: iconFill || '#10B981',
             border: null,
-            width: size,
-            height: size,
+            width: shapeWidth,
+            height: shapeHeight,
           }
           break
         case 'down':
@@ -1326,8 +1613,8 @@ class TableManager {
             type: 'downArrow',
             fill: iconFill || '#EF4444',
             border: null,
-            width: size,
-            height: size,
+            width: shapeWidth,
+            height: shapeHeight,
           }
           break
         case 'arrow-right':
@@ -1335,8 +1622,8 @@ class TableManager {
             type: 'rightArrow',
             fill: iconFill || '#3B82F6',
             border: null,
-            width: size,
-            height: size,
+            width: shapeWidth,
+            height: shapeHeight,
           }
           break
         case 'arrow-left':
@@ -1344,19 +1631,16 @@ class TableManager {
             type: 'leftArrow',
             fill: iconFill || '#3B82F6',
             border: null,
-            width: size,
-            height: size,
+            width: shapeWidth,
+            height: shapeHeight,
           }
           break
         default:
           return []
       }
 
-      const x = cellLeft_px + (config.x !== undefined ? config.x : (cellWidth_px - size) / 2)
-      const y = cellTop_px + (config.y !== undefined ? config.y : (cellHeight_px - size) / 2)
-
-      baseConfig.x = x
-      baseConfig.y = y
+      baseConfig.x = shapeLeft
+      baseConfig.y = shapeTop
       baseConfig.zIndex = config.zIndex
       if (config.border) baseConfig.border = config.border
       if (config.transparency !== undefined) baseConfig.transparency = config.transparency
@@ -1366,58 +1650,11 @@ class TableManager {
       return [baseConfig]
     }
 
-    const shapeWidth =
-      config.width !== undefined
-        ? config.width
-        : config.size !== undefined
-          ? config.size
-          : config.radius !== undefined
-            ? config.radius * 2
-            : 12
-    const shapeHeight =
-      config.height !== undefined
-        ? config.height
-        : config.size !== undefined
-          ? config.size
-          : config.radius !== undefined
-            ? config.radius * 2
-            : 12
-
-    let shapeLeft = cellLeft_px
-    let shapeTop = cellTop_px
-
-    if (config.position === 'center') {
-      shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2
-      shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2
-    } else if (config.position === 'left') {
-      shapeLeft = cellLeft_px + 5
-      shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2
-    } else if (config.position === 'right') {
-      shapeLeft = cellLeft_px + cellWidth_px - shapeWidth - 5
-      shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2
-    } else if (config.position === 'top') {
-      shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2
-      shapeTop = cellTop_px + 5
-    } else if (config.position === 'bottom') {
-      shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2
-      shapeTop = cellTop_px + cellHeight_px - shapeHeight - 5
-    } else {
-      if (config.x === undefined && config.y === undefined) {
-        shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2
-        shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2
-      }
-    }
-
-    if (config.x !== undefined) {
-      shapeLeft += config.x
-    }
-    if (config.y !== undefined) {
-      shapeTop += config.y
-    }
-
     const expanded = Object.assign({}, config, {
       x: shapeLeft,
       y: shapeTop,
+      width: shapeWidth,
+      height: shapeHeight,
     })
 
     if (expanded.type === 'circle' && expanded.radius === undefined) {
@@ -1457,6 +1694,8 @@ class TableManager {
         logger.warn(`Failed to delete existing cell shape "${name}": ${err.message}`)
       }
     }
+
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
 
     const xfrm = frameObj['p:xfrm']
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
@@ -1561,12 +1800,77 @@ class TableManager {
     })
   }
 
+  getTableRows(slideIndex, tableId, options = {}, slideManager) {
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = tblObj['a:tr'] || []
+    if (trs.length === 0) {
+      return options.includeMetadata
+        ? { rows: [], rowCount: 0, columnCount: 0, mergedCells: [] }
+        : []
+    }
+
+    const numRows = trs.length
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const numCols = gridColsArr.length
+
+    // Extract all raw cell text, resolving merges to their parent's text
+    const matrix = []
+    for (let r = 0; r < numRows; r++) {
+      const rowCells = []
+      for (let c = 0; c < numCols; c++) {
+        const parent = this.getMergeParent(slideIndex, tableId, r, c, slideManager)
+        const cell = trs[parent.row]?.['a:tc']?.[parent.col]
+        const text = cell ? this.#getCellText(cell) : ''
+        rowCells.push(text)
+      }
+      matrix.push(rowCells)
+    }
+
+    // Header names are extracted from the first row (index 0)
+    const headerNames = matrix[0].map((hText, cIdx) => {
+      const cleaned = hText.trim()
+      return cleaned || `column${cIdx + 1}`
+    })
+
+    // Compute the data rows (excluding the header row at index 0)
+    const dataRows = matrix.slice(1)
+
+    let rowsResult = []
+    if (options.raw) {
+      rowsResult = dataRows
+    } else {
+      for (const rowCells of dataRows) {
+        const rowObj = {}
+        for (let c = 0; c < numCols; c++) {
+          const key = headerNames[c]
+          rowObj[key] = rowCells[c] || ''
+        }
+        rowsResult.push(rowObj)
+      }
+    }
+
+    if (options.includeMetadata) {
+      const mergedCells = this.getMergedCells(slideIndex, tableId, slideManager)
+      return {
+        rows: rowsResult,
+        rowCount: numRows,
+        columnCount: numCols,
+        mergedCells,
+      }
+    }
+
+    return rowsResult
+  }
+
   addCellShape(slideIndex, tableId, rowIndex, colIndex, options, slideManager, shapeManager) {
     const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
       slideIndex,
       tableId,
       slideManager
     )
+
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
 
     const xfrm = frameObj['p:xfrm']
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
@@ -1650,6 +1954,8 @@ class TableManager {
       tableId,
       slideManager
     )
+
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
@@ -1784,6 +2090,297 @@ class TableManager {
         },
       }
     }
+  }
+
+  #calculateRowHeights(slideIndex, tableId, slideManager, tblObj) {
+    const trsArr = tblObj['a:tr'] || []
+    if (trsArr.length === 0) return []
+
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
+
+    const numRows = trsArr.length
+    const numCols = colWidths.length
+
+    // Initialize rowHeights with original height or 0
+    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+
+    // Helper to get paragraph font size
+    const getParagraphFontSize = p => {
+      let maxSz = 14 // default 14pt
+      if (p['a:pPr']?.['a:defRPr']?.['@_sz']) {
+        maxSz = parseInt(p['a:pPr']['a:defRPr']['@_sz'], 10) / 100
+      }
+      if (p['a:r']) {
+        const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+        for (const r of runs) {
+          if (r['a:rPr']?.['@_sz']) {
+            const szVal = parseInt(r['a:rPr']['@_sz'], 10) / 100
+            if (szVal > maxSz) {
+              maxSz = szVal
+            }
+          }
+        }
+      }
+      return maxSz
+    }
+
+    // Helper to wrap text
+    const wrapText = (text, availWidth_px, fontSize) => {
+      const charWidth = fontSize * 0.65
+      const words = text.split(/(\s+)/)
+      let linesCount = 0
+      let currentLineLen = 0
+
+      for (const word of words) {
+        if (!word) continue
+        const wordWidth = word.length * charWidth
+        if (wordWidth > availWidth_px) {
+          if (currentLineLen > 0) {
+            linesCount++
+            currentLineLen = 0
+          }
+          let remainingWidth = wordWidth
+          while (remainingWidth > 0) {
+            linesCount++
+            remainingWidth -= availWidth_px
+          }
+        } else {
+          if (currentLineLen + wordWidth > availWidth_px) {
+            linesCount++
+            currentLineLen = word.trim() ? wordWidth : 0
+          } else {
+            currentLineLen += wordWidth
+          }
+        }
+      }
+      if (currentLineLen > 0 || linesCount === 0) {
+        linesCount++
+      }
+      return linesCount
+    }
+
+    // Helper to get cell margins
+    const getCellMargins = cell => {
+      const tcPr = cell['a:tcPr']
+      const marL = tcPr?.['@_marL'] !== undefined ? parseInt(tcPr['@_marL'], 10) : 91440
+      const marR = tcPr?.['@_marR'] !== undefined ? parseInt(tcPr['@_marR'], 10) : 91440
+      const marT = tcPr?.['@_marT'] !== undefined ? parseInt(tcPr['@_marT'], 10) : 45720
+      const marB = tcPr?.['@_marB'] !== undefined ? parseInt(tcPr['@_marB'], 10) : 45720
+      return { marL, marR, marT, marB }
+    }
+
+    // Calculate required height for each cell
+    const cellHeights = Array.from({ length: numRows }, () => new Array(numCols).fill(0))
+
+    for (let r = 0; r < numRows; r++) {
+      const row = trsArr[r]
+      const tcs = row['a:tc'] || []
+      for (let c = 0; c < numCols; c++) {
+        const cell = tcs[c]
+        if (!cell || cell['@_hMerge'] || cell['@_vMerge']) continue
+
+        const parent = this.getMergeParent(slideIndex, tableId, r, c, slideManager)
+        const gridSpan = cell['@_gridSpan'] ? parseInt(cell['@_gridSpan'], 10) : 1
+
+        // Calculate cell width
+        let cellWidth = 0
+        for (let idx = 0; idx < gridSpan; idx++) {
+          cellWidth += colWidths[parent.col + idx] || 0
+        }
+
+        const { marL, marR, marT, marB } = getCellMargins(cell)
+        const availWidth = cellWidth - marL - marR
+        const availWidth_px = Math.max(1, availWidth / 9525)
+
+        // Calculate text height
+        const txBody = cell['a:txBody']
+        let textHeight_emu = 0
+        if (txBody) {
+          const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+          for (const p of paras) {
+            const fontSize = getParagraphFontSize(p)
+            let pText = ''
+            if (p['a:r']) {
+              const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+              for (const r of runs) {
+                if (r['a:t']) {
+                  pText += String(r['a:t'])
+                }
+              }
+            }
+
+            const linesCount = wrapText(pText, availWidth_px, fontSize)
+            const lineHeight_emu = fontSize * 20780 // 1.4 line height multiplier
+
+            let pHeight_emu = linesCount * lineHeight_emu
+            if (p['a:pPr']?.['a:spcBef']?.['a:spcPts']?.['@_val']) {
+              pHeight_emu += parseInt(p['a:pPr']['a:spcBef']['a:spcPts']['@_val'], 10) * 127
+            }
+            if (p['a:pPr']?.['a:spcAft']?.['a:spcPts']?.['@_val']) {
+              pHeight_emu += parseInt(p['a:pPr']['a:spcAft']['a:spcPts']['@_val'], 10) * 127
+            }
+            textHeight_emu += pHeight_emu
+          }
+        }
+
+        const totalCellHeight_emu = marT + marB + textHeight_emu
+        cellHeights[r][c] = totalCellHeight_emu
+      }
+    }
+
+    // Now resolve row heights based on required cell heights
+    // First, non-vertically-merged cells define row heights directly
+    for (let r = 0; r < numRows; r++) {
+      let maxCellHeight = rowHeights[r] // Start with original template height as floor
+      const row = trsArr[r]
+      const tcs = row['a:tc'] || []
+      for (let c = 0; c < numCols; c++) {
+        const cell = tcs[c]
+        if (!cell || cell['@_vMerge'] || cell['@_hMerge']) continue
+        const rowSpan = cell['@_rowSpan'] ? parseInt(cell['@_rowSpan'], 10) : 1
+        if (rowSpan === 1) {
+          if (cellHeights[r][c] > maxCellHeight) {
+            maxCellHeight = cellHeights[r][c]
+          }
+        }
+      }
+      rowHeights[r] = maxCellHeight
+    }
+
+    // Next, adjust for vertically merged cells (rowSpan > 1)
+    for (let r = 0; r < numRows; r++) {
+      const row = trsArr[r]
+      const tcs = row['a:tc'] || []
+      for (let c = 0; c < numCols; c++) {
+        const cell = tcs[c]
+        if (!cell || cell['@_vMerge'] || cell['@_hMerge']) continue
+        const rowSpan = cell['@_rowSpan'] ? parseInt(cell['@_rowSpan'], 10) : 1
+        if (rowSpan > 1) {
+          const reqHeight = cellHeights[r][c]
+          // Sum currently allocated row heights for spanned rows
+          let currentSpanHeight = 0
+          for (let idx = 0; idx < rowSpan; idx++) {
+            currentSpanHeight += rowHeights[r + idx] || 0
+          }
+          if (reqHeight > currentSpanHeight) {
+            // Distribute the extra required height equally across all spanned rows
+            const diff = reqHeight - currentSpanHeight
+            const extraPerRow = Math.ceil(diff / rowSpan)
+            for (let idx = 0; idx < rowSpan; idx++) {
+              rowHeights[r + idx] += extraPerRow
+            }
+          }
+        }
+      }
+    }
+
+    // Update row heights in XML
+    for (let r = 0; r < numRows; r++) {
+      trsArr[r]['@_h'] = String(rowHeights[r])
+    }
+
+    return rowHeights
+  }
+
+  #getNestedHeight(val) {
+    if (Array.isArray(val)) {
+      if (val.length === 0) return 1
+      return val.reduce((sum, item) => sum + this.#getNestedHeight(item), 0)
+    }
+    return 1
+  }
+
+  #expandCellVal(val, targetHeight) {
+    if (!Array.isArray(val)) {
+      const res = []
+      res.push({ value: val !== undefined ? val : '', rowSpan: targetHeight })
+      for (let i = 1; i < targetHeight; i++) {
+        res.push({ vMerge: true })
+      }
+      return res
+    }
+
+    if (val.length === 0) {
+      const res = []
+      res.push({ value: '', rowSpan: targetHeight })
+      for (let i = 1; i < targetHeight; i++) {
+        res.push({ vMerge: true })
+      }
+      return res
+    }
+
+    const itemHeights = val.map(item => this.#getNestedHeight(item))
+    const currentSum = itemHeights.reduce((a, b) => a + b, 0)
+
+    const allocatedHeights = []
+    let remaining = targetHeight
+    for (let i = 0; i < val.length; i++) {
+      const share = Math.round((itemHeights[i] / currentSum) * targetHeight)
+      allocatedHeights.push(share)
+      remaining -= share
+    }
+
+    if (remaining !== 0) {
+      let idx = 0
+      while (remaining > 0) {
+        allocatedHeights[idx % allocatedHeights.length]++
+        remaining--
+        idx++
+      }
+      while (remaining < 0) {
+        let reduced = false
+        for (let i = 0; i < allocatedHeights.length; i++) {
+          const actualIdx = (idx + i) % allocatedHeights.length
+          if (allocatedHeights[actualIdx] > 1) {
+            allocatedHeights[actualIdx]--
+            remaining++
+            reduced = true
+            break
+          }
+        }
+        if (!reduced) break
+        idx++
+      }
+    }
+
+    const result = []
+    for (let i = 0; i < val.length; i++) {
+      result.push(...this.#expandCellVal(val[i], allocatedHeights[i]))
+    }
+    return result
+  }
+
+  #applyAutoMerge(cells) {
+    const result = [...cells]
+    let i = 0
+    while (i < result.length) {
+      const cell = result[i]
+      if (cell.vMerge) {
+        i++
+        continue
+      }
+      let count = 1
+      let j = i + 1
+      while (
+        j < result.length &&
+        !result[j].vMerge &&
+        result[j].value === cell.value &&
+        cell.value !== ''
+      ) {
+        count++
+        j++
+      }
+      if (count > 1) {
+        cell.rowSpan = count
+        for (let k = i + 1; k < j; k++) {
+          result[k] = { vMerge: true }
+        }
+      }
+      i = j
+    }
+    return result
   }
 
   #generateRandomUint32() {

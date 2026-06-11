@@ -341,6 +341,89 @@ class PPTXTemplater {
   }
 
   /**
+   * Extracts a PPTX file into an unzipped OpenXML folder structure.
+   *
+   * @static
+   * @param {string} pptxPath - Path to the source PPTX file.
+   * @param {string} outputPath - Path to the destination folder.
+   * @param {Object} [options] - Options (e.g. { overwrite: true }).
+   * @returns {Promise<void>}
+   */
+  static async extractPptx(pptxPath, outputPath, options = {}) {
+    const fs = require('fs-extra')
+    const path = require('path')
+
+    const resolvedPptx = path.resolve(pptxPath)
+    const resolvedOut = path.resolve(outputPath)
+
+    if (!fs.existsSync(resolvedPptx)) {
+      throw new PPTXError(`Source PPTX file not found: ${pptxPath}`)
+    }
+
+    if (fs.existsSync(resolvedOut)) {
+      const stats = fs.statSync(resolvedOut)
+      if (stats.isFile()) {
+        throw new PPTXError(`Destination is a file: ${outputPath}`)
+      }
+      const files = fs.readdirSync(resolvedOut)
+      if (files.length > 0 && !options.overwrite) {
+        throw new PPTXError(
+          `Destination directory "${outputPath}" is not empty. Set overwrite: true to overwrite.`
+        )
+      }
+    } else {
+      await fs.ensureDir(resolvedOut)
+    }
+
+    const engine = await PPTXTemplater.load(resolvedPptx)
+    await engine.#zipManager.toFolder(resolvedOut)
+
+    // Validation
+    const criticalParts = ['ppt/presentation.xml', 'ppt/slides', 'ppt/_rels', '[Content_Types].xml']
+
+    for (const part of criticalParts) {
+      const p = path.join(resolvedOut, part)
+      if (!fs.existsSync(p)) {
+        throw new PPTXError(`Extracted structure is missing critical part: ${part}`)
+      }
+    }
+  }
+
+  /**
+   * Rebuilds a PPTX file from an unzipped OpenXML folder structure.
+   *
+   * @static
+   * @param {string} folderPath - Path to the source folder structure.
+   * @param {string} pptxPath - Path to the destination PPTX file.
+   * @returns {Promise<void>}
+   */
+  static async buildPptx(folderPath, pptxPath) {
+    const fs = require('fs-extra')
+    const path = require('path')
+
+    const resolvedFolder = path.resolve(folderPath)
+    const resolvedPptx = path.resolve(pptxPath)
+
+    if (!fs.existsSync(resolvedFolder)) {
+      throw new PPTXError(`Source folder not found: ${folderPath}`)
+    }
+
+    // Validation of the source folder
+    const criticalParts = ['ppt/presentation.xml', 'ppt/slides', 'ppt/_rels', '[Content_Types].xml']
+
+    for (const part of criticalParts) {
+      const p = path.join(resolvedFolder, part)
+      if (!fs.existsSync(p)) {
+        throw new PPTXError(`Source folder is missing critical OpenXML part: ${part}`)
+      }
+    }
+
+    const engine = await PPTXTemplater.load(resolvedFolder)
+    await fs.ensureDir(path.dirname(resolvedPptx))
+    await engine.saveToFile(resolvedPptx)
+  }
+
+  /**
    * Initializes the engine by loading a PPTX file/buffer.
    * @private
    * @param {string|Buffer} source
@@ -1297,11 +1380,21 @@ class PPTXTemplater {
   }
 
   // === Table Features ===
-  addTableRow(tableId, rowData) {
+  getTableRows(tableId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    if (targetIndices.length === 0) {
+      throw new PPTXError('No slides active/loaded')
+    }
+    const idx = targetIndices[0]
+    return this.#tableManager.getTableRows(idx, tableId, options, this.#slideManager)
+  }
+
+  addTableRow(tableId, rowData, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
-      this.#tableManager.addTableRow(idx, tableId, rowData, this.#slideManager)
+      this.#tableManager.addTableRow(idx, tableId, rowData, this.#slideManager, options)
     }
     return this
   }
@@ -2095,6 +2188,66 @@ class PPTXTemplater {
         this.#shapeManager
       )
       if (shape) return shape
+    }
+    return null
+  }
+
+  /**
+   * Retrieves final rendered bounds of a table cell in pixels.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} colIndex - 0-based column index.
+   * @returns {Object|null} Cell bounds { x, y, width, height } in pixels, or null.
+   */
+  getCellBounds(tableId, rowIndex, colIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      try {
+        const bounds = this.#tableManager.getCellBounds(
+          idx,
+          tableId,
+          rowIndex,
+          colIndex,
+          this.#slideManager
+        )
+        if (bounds) return bounds
+      } catch (err) {
+        logger.debug(
+          `Could not get cell bounds for table ${tableId} on slide ${idx}: ${err.message}`
+        )
+      }
+    }
+    return null
+  }
+
+  /**
+   * Retrieves final rendered position of a table cell in pixels.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} colIndex - 0-based column index.
+   * @returns {Object|null} Cell position { row, column, x, y } in pixels, or null.
+   */
+  getCellPosition(tableId, rowIndex, colIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      try {
+        const pos = this.#tableManager.getCellPosition(
+          idx,
+          tableId,
+          rowIndex,
+          colIndex,
+          this.#slideManager
+        )
+        if (pos) return pos
+      } catch (err) {
+        logger.debug(
+          `Could not get cell position for table ${tableId} on slide ${idx}: ${err.message}`
+        )
+      }
     }
     return null
   }

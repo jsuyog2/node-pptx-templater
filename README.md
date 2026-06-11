@@ -173,6 +173,22 @@ if (!report.valid) {
 }
 ```
 
+### 5. PPTX Extraction & Rebuilding Utilities
+
+You can programmatically extract standard zipped `.pptx` archives into OpenXML folder templates or compile them back. Target directories are created automatically:
+
+#### Extract PPTX to Folder Template
+```javascript
+const { PPTXTemplate } = require('node-pptx-templater');
+
+await PPTXTemplate.extractPptx('./sample.pptx', './output/template', { overwrite: true });
+```
+
+#### Rebuild PPTX from Folder Template
+```javascript
+await PPTXTemplate.buildPptx('./templates/sample', './output.pptx');
+```
+
 ---
 
 ## 📋 OpenXML Presentation Architecture
@@ -205,6 +221,95 @@ PPTXForge parses the XML structure, identifies layout boundaries, merges text no
 
 ### Preventing PPTX "Repair Presentation" Warnings
 Naively duplicating rows in slide tables can leave duplicate `rowId` values or break cell mappings, causing PowerPoint to crash or prompt a repair screen. PPTXForge automatically re-allocates unique `rowId` hashes and formats `gridSpan` / `rowSpan` coordinates in compliance with standard Office OpenXML (OOXML) regulations.
+
+---
+
+## 📊 Reading Table Data & JSON Extraction
+
+PPTXForge allows you to read table data from your template and return it as structured JSON objects or raw arrays. This is extremely useful for reverse-engineering data or verifying layouts.
+
+### 1. Object-Based Extraction (Default)
+By default, the first row is treated as headers, and subsequent rows are returned as objects keyed by header names. Merged cells automatically resolve to their parent cell's value:
+```javascript
+const rows = await ppt.getTableRows('SalesTable');
+// Returns:
+// [
+//   { region: 'North', sales: '1200', growth: '15%' },
+//   { region: 'South', sales: '1800', growth: '22%' }
+// ]
+```
+
+### 2. Raw Extraction
+Return a raw 2D array of string values (excluding the header row) by passing `{ raw: true }`:
+```javascript
+const rows = await ppt.getTableRows('SalesTable', { raw: true });
+// Returns:
+// [
+//   ['North', '1200', '15%'],
+//   ['South', '1800', '22%']
+// ]
+```
+
+### 3. Including Table Metadata
+Pass `{ includeMetadata: true }` to retrieve row counts, column counts, and the list of merged cell ranges alongside the rows:
+```javascript
+const result = await ppt.getTableRows('SalesTable', { includeMetadata: true });
+// Returns:
+// {
+//   rows: [...],
+//   rowCount: 10,
+//   columnCount: 5,
+//   mergedCells: [ { startRow: 1, startCol: 0, endRow: 2, endCol: 0 }, ... ]
+// }
+```
+
+---
+
+## 📈 Nested Table Rows & Rowspan Support
+
+When building financial sheets, invoices, or hierarchical dashboards, you often need to stack multiple rows vertically inside a single column while spanning cells in other columns. PPTXForge supports nested arrays in `addTableRow()` to automatically handle:
+- Proportional height scaling.
+- Vertical merge (`vMerge`) and row span (`rowSpan`) generation.
+- Dynamic layout adjustments.
+
+### 1. Vertical Row Nesting Example
+```javascript
+await ppt.addTableRow('Table1', [
+  'Region',
+  ['Sales', '1200'],
+  ['Growth', '15%']
+]);
+```
+Generates:
+```text
++---------+---------+---------+
+| Region  | Sales   | Growth  |
+|         | 1200    | 15%     |
++---------+---------+---------+
+```
+
+### 2. Deep Nesting Example
+```javascript
+await ppt.addTableRow('Table1', [
+  'Parent',
+  [
+    'Child 1',
+    'Child 2',
+    'Child 3'
+  ]
+]);
+```
+Generates 3 sub-rows where column 0 automatically spans all 3 rows.
+
+### 3. Merge Strategies
+Configure merge behavior via `options.mergeStrategy`:
+- `'auto'` (default): Creates structural merges from nested arrays, and additionally merges consecutive duplicate values in the same column.
+- `'rowspan'`: Creates structural rowspan/merges strictly from the nested array structure.
+- `'none'`: Pads columns to match the target generated height but does not merge cells (leaving them as individual cells).
+
+```javascript
+await ppt.addTableRow('Table1', data, { mergeStrategy: 'rowspan' });
+```
 
 ---
 
@@ -298,6 +403,41 @@ Discovers and retrieves details of an existing cell shape on the targeted slide.
 
 ```javascript
 const shape = ppt.getCellShape('Table', 1, 2, 0);
+```
+
+#### `getCellBounds(tableId, rowIndex, colIndex)`
+Retrieves final rendered bounds of a table cell in pixels.
+
+* **Arguments**:
+  * `tableId` (`string`): Table name or shape ID.
+  * `rowIndex` (`number`): 0-based row index.
+  * `colIndex` (`number`): 0-based column index.
+* **Returns**: `Object|null` - Cell bounds { x, y, width, height } in pixels, or null.
+
+```javascript
+const bounds = ppt.getCellBounds('summary-table', 1, 1);
+```
+
+#### `getCellPosition(tableId, rowIndex, colIndex)`
+Retrieves final rendered position of a table cell in pixels.
+
+* **Arguments**:
+  * `tableId` (`string`): Table name or shape ID.
+  * `rowIndex` (`number`): 0-based row index.
+  * `colIndex` (`number`): 0-based column index.
+* **Returns**: `Object|null` - Cell position { row, column, x, y } in pixels, or null.
+
+```javascript
+const pos = ppt.getCellPosition('summary-table', 1, 1);
+```
+
+#### `getTableRows(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+const rows = await ppt.getTableRows('SalesTable');
 ```
 
 #### `addTableRow(())`
@@ -1585,6 +1725,24 @@ Delegates core actions to slide element sub-managers.
 
 ```javascript
 const ppt = await PPTXTemplate.fromPresentationXml('./template-folder');
+```
+
+#### `extractPptx(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+await PPTXTemplater.extractPptx('sample.pptx', './extracted');
+```
+
+#### `buildPptx(())`
+Delegates core actions to slide element sub-managers.
+
+* **Returns**: `PPTXTemplater` - The fluent engine instance.
+
+```javascript
+await PPTXTemplater.buildPptx('./extracted', 'output.pptx');
 ```
 
 #### `validatePresentation(())`

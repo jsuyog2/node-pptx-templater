@@ -19,10 +19,15 @@ const { PPTXTemplater } = require('../src/index.js')
 const { existsSync } = require('fs')
 const { resolve } = require('path')
 
-const TEMPLATE_PATH = resolve(__dirname, '../templates/sample/[Content_Types].xml')
+const TEMPLATE_PATH = resolve(__dirname, '../templates/sample/[Content_Types].xml');
+const TEMPLATE_PATH_PPTX = resolve(__dirname, '../templates/sample.pptx');
 const OUTPUT_PATH = resolve(__dirname, '../examples/output/basic-output.pptx')
+const OUTPUT_PATH_EXTRACTION = resolve(__dirname, '../templates/sample')
 
 async function main() {
+  if (existsSync(TEMPLATE_PATH_PPTX)) {
+    await PPTXTemplater.extractPptx(TEMPLATE_PATH_PPTX, OUTPUT_PATH_EXTRACTION, { overwrite: true });
+  }
   // Check if template exists
   if (!existsSync(TEMPLATE_PATH)) {
     console.log('ℹ Template file not found at:', TEMPLATE_PATH)
@@ -84,12 +89,27 @@ async function main() {
       sourceSlide: 2,
       targetSlide: 1,
     })
+    const rows = await ppt.getTableRows('Table');
+    console.log(rows);
 
     ppt.updateTable('Table', [
       ['Name', '', 'Role', 'Dept'],
-      ['Alice', '', 'Engineer', 'Platform'],
-      ['Bob', '', 'Designer', 'Product'],
+      [
+        'Alice',
+        '',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        'Platform',
+      ],
+      ['Bob', '', '     Designer', 'Product'],
     ])
+    ppt.addTableRow('Table', ['Bob', '', '     Designer', ['Product', 'Value']])
+    ppt.addCellShape('Table', 2, 2, {
+      type: 'rectangle',
+      fill: '#10B981',
+      x: 10,
+      width: 25,
+      height: 15,
+    })
 
     // merge all cells of first column with all cells of second col
     ppt.mergeCells('Table', 0, 0, 0, 1)
@@ -102,7 +122,14 @@ async function main() {
       ['Bob', { value: 'Alice', align: 'ctr' }, 'Designer', 'Product'],
     ])
 
-    ppt.addCellShape('Table2', 1, 2, { type: 'rectangle', fill: '#10B981', x: 10, y: 15, width: 25, height: 15 });
+    ppt.addCellShape('Table2', 1, 2, {
+      type: 'rectangle',
+      fill: '#10B981',
+      x: 10,
+      y: 15,
+      width: 25,
+      height: 15,
+    })
 
     ppt.mergeCells('Table2', 0, 0, 0, 1)
     ppt.mergeCells('Table2', 1, 0, 1, 1)

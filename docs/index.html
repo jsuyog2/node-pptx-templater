@@ -105,7 +105,7 @@
         </defs>
       </svg>
       <span class="font-title font-extrabold text-lg text-white tracking-wide">node-pptx-templater</span>
-      <span class="bg-brand-500/10 text-brand-400 text-[10px] px-2.5 py-0.5 rounded-full font-semibold border border-brand-500/20">v1.0.19</span>
+      <span class="bg-brand-500/10 text-brand-400 text-[10px] px-2.5 py-0.5 rounded-full font-semibold border border-brand-500/20">v1.0.20</span>
     </div>
     
     <div class="flex items-center gap-5 relative">
@@ -150,6 +150,7 @@
           <ul class="space-y-1">
             <li><a href="#code-sandbox" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Interactive Showcase</a></li>
             <li><a href="#table-merging" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Table Cell Merging</a></li>
+            <li><a href="#cell-shapes" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Table Cell Shapes</a></li>
             <li><a href="#chart-engine" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Excel Chart Update</a></li>
             <li><a href="#zorder" class="nav-item block px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-md transition-colors font-medium">Z-Order &amp; Layers</a></li>
           </ul>
@@ -188,6 +189,12 @@
             <li><a href="#method-removeCellShape" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">removeCellShape()</a></li>
           
             <li><a href="#method-getCellShape" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">getCellShape()</a></li>
+          
+            <li><a href="#method-getCellBounds" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">getCellBounds()</a></li>
+          
+            <li><a href="#method-getCellPosition" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">getCellPosition()</a></li>
+          
+            <li><a href="#method-getTableRows" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">getTableRows()</a></li>
           
             <li><a href="#method-addTableRow" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">addTableRow()</a></li>
           
@@ -510,6 +517,10 @@
           
             <li><a href="#method-fromPresentationXml" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">fromPresentationXml()</a></li>
           
+            <li><a href="#method-extractPptx" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">extractPptx()</a></li>
+          
+            <li><a href="#method-buildPptx" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">buildPptx()</a></li>
+          
             <li><a href="#method-validatePresentation" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">validatePresentation()</a></li>
           
             <li><a href="#method-validateSlide" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">validateSlide()</a></li>
@@ -770,6 +781,64 @@ main().catch(err => console.error(err));</code><button class="copy-btn absolute 
   ['Data', { value: 'Span 2 Cols', colSpan: 2 }],
   ['Data', 'Data', { value: 'Span 2 Rows', rowSpan: 2 }]
 ]);</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Table Cell Shapes Section -->
+      <section id="cell-shapes" class="doc-section space-y-6 hidden">
+        <h1 class="font-title text-4xl font-extrabold text-white">Table Cell Shapes</h1>
+        <p class="text-sm text-gray-300 font-light">The cell shape engine dynamically creates and positions shapes (like indicators, progress bars, badges, and icons) inside table cells. It simulates text wrapping and paragraph layout to calculate row expansion, anchoring shapes relative to the actual cell boundaries.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Cell Relative Positioning</h4>
+            <p class="text-xs text-gray-400">Coordinates are relative to the cell's top-left corner in pixels rather than slide coordinates. Offsets are automatically constrained within cell boundaries to prevent escaping.</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">await ppt.addCellShape('Table', 1, 2, {
+  type: 'circle',
+  x: 10,
+  y: 10,
+  width: 15,
+  height: 15,
+  anchor: 'cell' // Default
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
+          
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Dynamic Row Height &amp; Wrapped Text Support</h4>
+            <p class="text-xs text-gray-400">Automatically recalculates cell dimensions when long paragraphs or wrapped texts expand row heights, keeping shapes aligned with cell flow.</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">ppt.updateTable('Table', {
+  rows: [
+    { A: 'Very long wrapped text...', V: 'Active' }
+  ],
+  cellShapes: {
+    V: () => ({
+      type: 'progressBar',
+      value: 75,
+      position: 'middle-right'
+    })
+  }
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Cell Alignment Modes &amp; Presets</h4>
+            <p class="text-xs text-gray-400">Position shapes automatically using 9 standard presets or explicit <code>alignX</code> / <code>alignY</code> alignment anchors:</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">await ppt.addCellShape('Table', 1, 1, {
+  type: 'badge',
+  text: 'NEW',
+  position: 'bottom-center' // 9 alignment options
+});</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
+          </div>
+
+          <div class="p-5 bg-slate-900/30 border border-white/5 rounded-2xl space-y-2">
+            <h4 class="font-title font-bold text-white text-base">Merged Cell Support &amp; Helpers</h4>
+            <p class="text-xs text-gray-400">Correctly maps cell boundaries for cells spanned with <code>rowSpan</code> and <code>colSpan</code>. Retrieve final coordinates via helpers:</p>
+            <pre class="relative group"><code class="language-javascript block p-3 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs">// Get final cell bounds and position in pixels
+const bounds = ppt.getCellBounds('Table', 1, 1);
+const pos = ppt.getCellPosition('Table', 1, 1);</code><button class="copy-btn absolute top-3.5 right-3.5 text-xs bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded transition-all">Copy</button></pre>
           </div>
         </div>
       </section>
@@ -1355,6 +1424,226 @@ ppt.useSlide(3)
             <div>
               <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
               <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto"></code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method getCellBounds Card -->
+        <div id="method-getCellBounds" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getCellBounds</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              getCellBounds(tableId, rowIndex, colIndex)
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Retrieves final rendered bounds of a table cell in pixels.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Returns null if the slide table cannot be resolved or slide selection is empty.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Reads table coordinates and layout properties. No write impact on slide XML.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableId</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300">Table name or shape ID.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">rowIndex</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300">0-based row index.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">colIndex</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300">0-based column index.</td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">Object|null</span>
+            <span class="text-gray-300">Cell bounds { x, y, width, height } in pixels, or null.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const bounds = ppt.getCellBounds(&#039;summary-table&#039;, 1, 1);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const { x, y, width, height } = ppt.getCellBounds(&#039;summary-table&#039;, 1, 1);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto"></code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method getCellPosition Card -->
+        <div id="method-getCellPosition" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getCellPosition</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              getCellPosition(tableId, rowIndex, colIndex)
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Retrieves final rendered position of a table cell in pixels.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>Returns null if the slide table cannot be resolved.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Reads cell positioning data in pixels. No write impact on slide XML.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableId</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300">Table name or shape ID.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">rowIndex</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300">0-based row index.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">colIndex</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300">0-based column index.</td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">Object|null</span>
+            <span class="text-gray-300">Cell position { row, column, x, y } in pixels, or null.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const pos = ppt.getCellPosition(&#039;summary-table&#039;, 1, 1);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const { row, column, x, y } = ppt.getCellPosition(&#039;summary-table&#039;, 1, 1);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto"></code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method getTableRows Card -->
+        <div id="method-getTableRows" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getTableRows</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              getTableRows(())
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Delegates core actions to slide element sub-managers.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>If tableId is not found, throws TableNotFoundError. Merged cells automatically resolve to their parent cell value.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Reads XML table data structure. No write impact on slide XML.</p>
+            </div>
+          </div>
+          
+          
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">PPTXTemplater</span>
+            <span class="text-gray-300">The fluent engine instance.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const rows = await ppt.getTableRows(&#039;SalesTable&#039;);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const rows = await ppt.getTableRows(&#039;SalesTable&#039;, { raw: true });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const data = await ppt.getTableRows(&#039;SalesTable&#039;, { includeMetadata: true });
+console.log(`RowCount: ${data.rowCount}, ColCount: ${data.columnCount}`);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
           </div>
         
@@ -9524,6 +9813,108 @@ try {
 } catch (err) {
   console.error(&#039;Failed to load XML presentation:&#039;, err);
 }</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method extractPptx Card -->
+        <div id="method-extractPptx" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">extractPptx</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              extractPptx(())
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Delegates core actions to slide element sub-managers.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>If source PPTX does not exist, throws PPTXError. Overwrites output path only if options.overwrite is true.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Extracts entire zipped PPTX package to filesystem unzipped folder template.</p>
+            </div>
+          </div>
+          
+          
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">PPTXTemplater</span>
+            <span class="text-gray-300">The fluent engine instance.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">await PPTXTemplater.extractPptx(&#039;sample.pptx&#039;, &#039;./extracted&#039;);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">await PPTXTemplater.extractPptx(&#039;sample.pptx&#039;, &#039;./extracted&#039;, { overwrite: true });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto"></code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method buildPptx Card -->
+        <div id="method-buildPptx" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">buildPptx</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              buildPptx(())
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Delegates core actions to slide element sub-managers.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>If source folder is missing critical OpenXML parts, throws PPTXError.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Zips and packages OpenXML folder template back into a zipped PPTX archive.</p>
+            </div>
+          </div>
+          
+          
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">PPTXTemplater</span>
+            <span class="text-gray-300">The fluent engine instance.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">await PPTXTemplater.buildPptx(&#039;./extracted&#039;, &#039;output.pptx&#039;);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto"></code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto"></code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
           </div>
         
