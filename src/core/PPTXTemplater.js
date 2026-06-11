@@ -588,7 +588,13 @@ class PPTXTemplater {
     const targetIndices = this.#getTargetSlideIndices()
 
     for (const slideIndex of targetIndices) {
-      this.#tableManager.updateTable(slideIndex, tableId, rows, this.#slideManager, this.#shapeManager)
+      this.#tableManager.updateTable(
+        slideIndex,
+        tableId,
+        rows,
+        this.#slideManager,
+        this.#shapeManager
+      )
     }
 
     logger.debug(`Updated table "${tableId}" in ${targetIndices.length} slide(s)`)

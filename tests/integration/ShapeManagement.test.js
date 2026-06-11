@@ -45,7 +45,9 @@ describe('Shape Management Integration Tests', () => {
       width: 100,
       height: 50,
     })
-    expect(errors3).toContain('Unsupported shape type: "hexagon". Supported types are: rectangle, square, circle, ellipse, roundedRectangle, triangle, star5, upArrow, downArrow, leftArrow, rightArrow.')
+    expect(errors3).toContain(
+      'Unsupported shape type: "hexagon". Supported types are: rectangle, square, circle, ellipse, roundedRectangle, triangle, star5, upArrow, downArrow, leftArrow, rightArrow.'
+    )
 
     // Invalid square dimensions
     const errors4 = ppt.validateShape({

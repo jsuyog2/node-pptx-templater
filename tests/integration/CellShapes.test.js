@@ -23,24 +23,24 @@ describe('Table Cell Shapes Integration Tests', () => {
     ppt.updateTable('Table', {
       rows: [
         { A: 'John', V: 'Active', B: 25 },
-        { A: 'Mike', V: 'Inactive', B: -10 }
+        { A: 'Mike', V: 'Inactive', B: -10 },
       ],
       cellShapes: {
-        V: (row) => ({
+        V: row => ({
           type: 'circle',
           fill: row.V === 'Active' ? '#10B981' : '#EF4444',
           width: 12,
           height: 12,
           position: 'left',
-          x: 2
+          x: 2,
         }),
-        B: (row) => ({
+        B: row => ({
           type: 'icon',
           icon: row.B > 0 ? 'up' : 'down',
           size: 14,
-          position: 'right'
-        })
-      }
+          position: 'right',
+        }),
+      },
     })
 
     // Verify shapes exist via getCellShape
@@ -70,7 +70,7 @@ describe('Table Cell Shapes Integration Tests', () => {
       fill: '#FBBF24',
       width: 15,
       height: 15,
-      position: 'center'
+      position: 'center',
     })
 
     const newStar = ppt.getCellShape('Table', 1, 0, 0)
@@ -82,7 +82,7 @@ describe('Table Cell Shapes Integration Tests', () => {
       type: 'triangle',
       fill: '#EF4444',
       width: 10,
-      height: 10
+      height: 10,
     })
 
     const updatedStar = ppt.getCellShape('Table', 1, 0, 0)
@@ -106,22 +106,22 @@ describe('Table Cell Shapes Integration Tests', () => {
     ppt.updateTable('Table', {
       rows: [
         { A: 'Project Alpha', V: 75, B: 'Ongoing' },
-        { A: 'Project Beta', V: 0, B: 'Stalled' }
+        { A: 'Project Beta', V: 0, B: 'Stalled' },
       ],
       cellShapes: {
-        V: (row) => ({
+        V: row => ({
           type: 'progressBar',
           value: row.V,
           max: 100,
           fill: '#10B981',
-          backgroundFill: '#E5E7EB'
+          backgroundFill: '#E5E7EB',
         }),
-        B: (row) => ({
+        B: row => ({
           type: 'badge',
           text: row.B,
-          fill: '#3B82F6'
-        })
-      }
+          fill: '#3B82F6',
+        }),
+      },
     })
 
     // Progress bar generates multiple shapes: background and filled foreground
@@ -153,9 +153,7 @@ describe('Table Cell Shapes Integration Tests', () => {
     ppt.useSlide(3)
 
     ppt.updateTable('Table', {
-      rows: [
-        { A: 'Layer test', V: 'OK' }
-      ],
+      rows: [{ A: 'Layer test', V: 'OK' }],
       cellShapes: {
         V: () => [
           {
@@ -163,17 +161,17 @@ describe('Table Cell Shapes Integration Tests', () => {
             fill: '#E5E7EB',
             zIndex: 1,
             width: 20,
-            height: 20
+            height: 20,
           },
           {
             type: 'circle',
             fill: '#EF4444',
             zIndex: 2,
             width: 10,
-            height: 10
-          }
-        ]
-      }
+            height: 10,
+          },
+        ],
+      },
     })
 
     // Verify both shapes exist in cell (1, 1)
@@ -197,11 +195,11 @@ describe('Table Cell Shapes Integration Tests', () => {
     ppt.updateTable('Table', {
       rows: [
         { A: 'Alice', V: 'Active' },
-        { A: 'Bob', V: 'Inactive' }
+        { A: 'Bob', V: 'Inactive' },
       ],
       cellShapes: {
-        V: (row) => row.V === 'Active' ? { type: 'circle', fill: '#10B981' } : null
-      }
+        V: row => (row.V === 'Active' ? { type: 'circle', fill: '#10B981' } : null),
+      },
     })
 
     // Alice cell has circle
@@ -213,11 +211,11 @@ describe('Table Cell Shapes Integration Tests', () => {
     ppt.updateTable('Table', {
       rows: [
         { A: 'Alice', V: 'Inactive' },
-        { A: 'Bob', V: 'Inactive' }
+        { A: 'Bob', V: 'Inactive' },
       ],
       cellShapes: {
-        V: (row) => row.V === 'Active' ? { type: 'circle', fill: '#10B981' } : null
-      }
+        V: row => (row.V === 'Active' ? { type: 'circle', fill: '#10B981' } : null),
+      },
     })
 
     // Alice cell should now have NO shape
@@ -235,19 +233,16 @@ describe('Table Cell Shapes Integration Tests', () => {
     ppt.mergeCells('Table', 1, 0, 1, 1)
 
     ppt.updateTable('Table', {
-      rows: [
-        { A: 'Header' },
-        { A: 'Merged Row Data' }
-      ],
+      rows: [{ A: 'Header' }, { A: 'Merged Row Data' }],
       cellShapes: {
         A: () => ({
           type: 'circle',
           fill: '#3B82F6',
           width: 10,
           height: 10,
-          position: 'center'
-        })
-      }
+          position: 'center',
+        }),
+      },
     })
 
     // Retrieve the shape in the merged cell

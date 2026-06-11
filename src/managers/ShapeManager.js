@@ -454,7 +454,7 @@ class ShapeManager {
       'upArrow',
       'downArrow',
       'leftArrow',
-      'rightArrow'
+      'rightArrow',
     ]
     if (!options.type) {
       errors.push('Shape type is missing.')
@@ -472,14 +472,22 @@ class ShapeManager {
         errors.push('Square "size" must be a positive number.')
       }
     } else if (options.type === 'circle') {
-      if (options.radius === undefined || typeof options.radius !== 'number' || options.radius <= 0) {
+      if (
+        options.radius === undefined ||
+        typeof options.radius !== 'number' ||
+        options.radius <= 0
+      ) {
         errors.push('Circle "radius" must be a positive number.')
       }
     } else if (options.type) {
       if (options.width === undefined || typeof options.width !== 'number' || options.width <= 0) {
         errors.push(`${options.type} "width" must be a positive number.`)
       }
-      if (options.height === undefined || typeof options.height !== 'number' || options.height <= 0) {
+      if (
+        options.height === undefined ||
+        typeof options.height !== 'number' ||
+        options.height <= 0
+      ) {
         errors.push(`${options.type} "height" must be a positive number.`)
       }
     }
@@ -491,7 +499,7 @@ class ShapeManager {
       errors.push('Shape coordinate "y" must be a number.')
     }
 
-    const isValidHexColor = (color) => {
+    const isValidHexColor = color => {
       if (typeof color !== 'string') return false
       return /^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(color)
     }
@@ -610,14 +618,7 @@ class ShapeManager {
     } else if (type === 'roundedRectangle') {
       preset = 'roundRect'
     } else if (
-      [
-        'triangle',
-        'star5',
-        'upArrow',
-        'downArrow',
-        'leftArrow',
-        'rightArrow'
-      ].includes(type)
+      ['triangle', 'star5', 'upArrow', 'downArrow', 'leftArrow', 'rightArrow'].includes(type)
     ) {
       preset = type
     }
@@ -735,7 +736,7 @@ class ShapeManager {
 
       const lines = String(options.text).split(/\r?\n/)
       const paragraphsXml = lines
-        .map((line) => {
+        .map(line => {
           return `<a:p>
           ${alignAttr}
           <a:r>
@@ -848,14 +849,9 @@ class ShapeManager {
       else if (options.type === 'circle' || options.type === 'ellipse') preset = 'ellipse'
       else if (options.type === 'roundedRectangle') preset = 'roundRect'
       else if (
-        [
-          'triangle',
-          'star5',
-          'upArrow',
-          'downArrow',
-          'leftArrow',
-          'rightArrow'
-        ].includes(options.type)
+        ['triangle', 'star5', 'upArrow', 'downArrow', 'leftArrow', 'rightArrow'].includes(
+          options.type
+        )
       ) {
         preset = options.type
       }
@@ -1002,7 +998,7 @@ class ShapeManager {
 
       const lines = String(textVal).split(/\r?\n/)
       const paragraphsXml = lines
-        .map((line) => {
+        .map(line => {
           return `<a:p>
           ${alignAttr}
           <a:r>
@@ -1115,16 +1111,7 @@ function mapPresetToType(preset, w, h) {
   if (preset === 'roundRect') {
     return 'roundedRectangle'
   }
-  if (
-    [
-      'triangle',
-      'star5',
-      'upArrow',
-      'downArrow',
-      'leftArrow',
-      'rightArrow'
-    ].includes(preset)
-  ) {
+  if (['triangle', 'star5', 'upArrow', 'downArrow', 'leftArrow', 'rightArrow'].includes(preset)) {
     return preset
   }
   return 'rectangle'

@@ -67,7 +67,11 @@ class TableManager {
    * @throws {TableNotFoundError} If the table is not found.
    */
   updateTable(slideIndex, tableId, data, slideManager, shapeManager) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
 
     const trs = tblObj['a:tr'] || []
     if (trs.length === 0) {
@@ -94,7 +98,8 @@ class TableManager {
     const generatedMerges = []
 
     const headerNames = (trs[0]['a:tc'] || []).map(cell => this.#getCellText(cell).trim())
-    const isObjectRows = rowsData.length > 0 && !Array.isArray(rowsData[0]) && typeof rowsData[0] === 'object'
+    const isObjectRows =
+      rowsData.length > 0 && !Array.isArray(rowsData[0]) && typeof rowsData[0] === 'object'
 
     if (isObjectRows) {
       // 1. Keep/clone the header row
@@ -1158,7 +1163,7 @@ class TableManager {
       const fill = config.fill || '#3B82F6'
       const bgFill = config.backgroundFill || '#E5E7EB'
       const pbHeight = config.height !== undefined ? config.height : 8
-      const pbWidth = config.width !== undefined ? config.width : (cellWidth_px - 10)
+      const pbWidth = config.width !== undefined ? config.width : cellWidth_px - 10
 
       const pbX = cellLeft_px + (config.x !== undefined ? config.x : (cellWidth_px - pbWidth) / 2)
       const pbY = cellTop_px + (config.y !== undefined ? config.y : (cellHeight_px - pbHeight) / 2)
@@ -1172,7 +1177,7 @@ class TableManager {
         width: pbWidth,
         height: pbHeight,
         borderRadius: pbHeight / 2,
-        zIndex: config.zIndex
+        zIndex: config.zIndex,
       })
 
       const pct = Math.min(1, Math.max(0, value / max))
@@ -1186,7 +1191,7 @@ class TableManager {
           width: filledWidth,
           height: pbHeight,
           borderRadius: pbHeight / 2,
-          zIndex: (config.zIndex || 0) + 1
+          zIndex: (config.zIndex || 0) + 1,
         })
       }
       return shapes
@@ -1197,33 +1202,35 @@ class TableManager {
       const fontSize = config.textStyle?.fontSize || 10
       const textWidth = text.length * fontSize * 0.6
       const paddingX = 12
-      const badgeWidth = config.width !== undefined ? config.width : (textWidth + paddingX * 2)
-      const badgeHeight = config.height !== undefined ? config.height : (fontSize + 12)
+      const badgeWidth = config.width !== undefined ? config.width : textWidth + paddingX * 2
+      const badgeHeight = config.height !== undefined ? config.height : fontSize + 12
 
       const x = cellLeft_px + (config.x !== undefined ? config.x : (cellWidth_px - badgeWidth) / 2)
       const y = cellTop_px + (config.y !== undefined ? config.y : (cellHeight_px - badgeHeight) / 2)
 
-      return [{
-        type: 'roundedRectangle',
-        fill: config.fill || '#10B981',
-        borderRadius: badgeHeight / 2,
-        x: x,
-        y: y,
-        width: badgeWidth,
-        height: badgeHeight,
-        text: text,
-        textStyle: {
-          color: config.textStyle?.color || '#FFFFFF',
-          fontSize: fontSize,
-          bold: config.textStyle?.bold !== undefined ? config.textStyle.bold : true,
-          align: 'center'
+      return [
+        {
+          type: 'roundedRectangle',
+          fill: config.fill || '#10B981',
+          borderRadius: badgeHeight / 2,
+          x: x,
+          y: y,
+          width: badgeWidth,
+          height: badgeHeight,
+          text: text,
+          textStyle: {
+            color: config.textStyle?.color || '#FFFFFF',
+            fontSize: fontSize,
+            bold: config.textStyle?.bold !== undefined ? config.textStyle.bold : true,
+            align: 'center',
+          },
+          border: config.border,
+          transparency: config.transparency,
+          shadow: config.shadow,
+          rotation: config.rotation,
+          zIndex: config.zIndex,
         },
-        border: config.border,
-        transparency: config.transparency,
-        shadow: config.shadow,
-        rotation: config.rotation,
-        zIndex: config.zIndex
-      }]
+      ]
     }
 
     if (config.type === 'icon') {
@@ -1245,8 +1252,8 @@ class TableManager {
               color: iconFill || '#10B981',
               bold: true,
               fontSize: fontSize,
-              align: 'center'
-            }
+              align: 'center',
+            },
           }
           break
         case 'cross':
@@ -1261,8 +1268,8 @@ class TableManager {
               color: iconFill || '#EF4444',
               bold: true,
               fontSize: fontSize,
-              align: 'center'
-            }
+              align: 'center',
+            },
           }
           break
         case 'warning':
@@ -1277,8 +1284,8 @@ class TableManager {
               color: '#FFFFFF',
               bold: true,
               fontSize: Math.round(fontSize * 0.7),
-              align: 'center'
-            }
+              align: 'center',
+            },
           }
           break
         case 'info':
@@ -1292,8 +1299,8 @@ class TableManager {
               color: '#FFFFFF',
               bold: true,
               fontSize: Math.round(fontSize * 0.7),
-              align: 'center'
-            }
+              align: 'center',
+            },
           }
           break
         case 'star':
@@ -1302,7 +1309,7 @@ class TableManager {
             fill: iconFill || '#FBBF24',
             border: null,
             width: size,
-            height: size
+            height: size,
           }
           break
         case 'up':
@@ -1311,7 +1318,7 @@ class TableManager {
             fill: iconFill || '#10B981',
             border: null,
             width: size,
-            height: size
+            height: size,
           }
           break
         case 'down':
@@ -1320,7 +1327,7 @@ class TableManager {
             fill: iconFill || '#EF4444',
             border: null,
             width: size,
-            height: size
+            height: size,
           }
           break
         case 'arrow-right':
@@ -1329,7 +1336,7 @@ class TableManager {
             fill: iconFill || '#3B82F6',
             border: null,
             width: size,
-            height: size
+            height: size,
           }
           break
         case 'arrow-left':
@@ -1338,7 +1345,7 @@ class TableManager {
             fill: iconFill || '#3B82F6',
             border: null,
             width: size,
-            height: size
+            height: size,
           }
           break
         default:
@@ -1359,8 +1366,22 @@ class TableManager {
       return [baseConfig]
     }
 
-    const shapeWidth = config.width !== undefined ? config.width : (config.size !== undefined ? config.size : (config.radius !== undefined ? config.radius * 2 : 12))
-    const shapeHeight = config.height !== undefined ? config.height : (config.size !== undefined ? config.size : (config.radius !== undefined ? config.radius * 2 : 12))
+    const shapeWidth =
+      config.width !== undefined
+        ? config.width
+        : config.size !== undefined
+          ? config.size
+          : config.radius !== undefined
+            ? config.radius * 2
+            : 12
+    const shapeHeight =
+      config.height !== undefined
+        ? config.height
+        : config.size !== undefined
+          ? config.size
+          : config.radius !== undefined
+            ? config.radius * 2
+            : 12
 
     let shapeLeft = cellLeft_px
     let shapeTop = cellTop_px
@@ -1396,7 +1417,7 @@ class TableManager {
 
     const expanded = Object.assign({}, config, {
       x: shapeLeft,
-      y: shapeTop
+      y: shapeTop,
     })
 
     if (expanded.type === 'circle' && expanded.radius === undefined) {
@@ -1409,7 +1430,18 @@ class TableManager {
     return [expanded]
   }
 
-  #processCellShapes(slideIndex, tableId, resolvedTableId, rowsData, isObjectRows, cellShapes, slideManager, shapeManager, tblObj, frameObj) {
+  #processCellShapes(
+    slideIndex,
+    tableId,
+    resolvedTableId,
+    rowsData,
+    isObjectRows,
+    cellShapes,
+    slideManager,
+    shapeManager,
+    tblObj,
+    frameObj
+  ) {
     if (!cellShapes || !shapeManager) return
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
@@ -1470,7 +1502,7 @@ class TableManager {
         left: cellLeft,
         top: cellTop,
         width: cellWidth,
-        height: cellHeight
+        height: cellHeight,
       }
     }
 
@@ -1507,7 +1539,7 @@ class TableManager {
             config,
             rowIndex: finalRowIndex,
             colIndex: j,
-            shapeIndex: shapeIdx
+            shapeIndex: shapeIdx,
           })
         })
       }
@@ -1515,12 +1547,13 @@ class TableManager {
 
     shapesToCreate.sort((a, b) => (a.config.zIndex || 0) - (b.config.zIndex || 0))
 
-    shapesToCreate.forEach((item) => {
+    shapesToCreate.forEach(item => {
       const bounds = getCellBounds(item.rowIndex, item.colIndex)
       const expandedConfigs = this.#expandCellShape(item.config, bounds)
 
       expandedConfigs.forEach((expandedConfig, expIdx) => {
-        const finalShapeIndex = expandedConfigs.length > 1 ? `${item.shapeIndex}_${expIdx}` : item.shapeIndex
+        const finalShapeIndex =
+          expandedConfigs.length > 1 ? `${item.shapeIndex}_${expIdx}` : item.shapeIndex
         expandedConfig.id = `cellshape_${resolvedTableId}_${item.rowIndex}_${item.colIndex}_${finalShapeIndex}`
 
         shapeManager.addShape(slideIndex, expandedConfig, slideManager)
@@ -1529,7 +1562,11 @@ class TableManager {
   }
 
   addCellShape(slideIndex, tableId, rowIndex, colIndex, options, slideManager, shapeManager) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
 
     const xfrm = frameObj['p:xfrm']
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
@@ -1590,19 +1627,35 @@ class TableManager {
     const expandedConfigs = this.#expandCellShape(options, bounds)
 
     expandedConfigs.forEach((expandedConfig, expIdx) => {
-      const finalShapeIndex = expandedConfigs.length > 1 ? `${nextShapeIndex}_${expIdx}` : nextShapeIndex
+      const finalShapeIndex =
+        expandedConfigs.length > 1 ? `${nextShapeIndex}_${expIdx}` : nextShapeIndex
       expandedConfig.id = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${finalShapeIndex}`
 
       shapeManager.addShape(slideIndex, expandedConfig, slideManager)
     })
   }
 
-  updateCellShape(slideIndex, tableId, rowIndex, colIndex, shapeIndex, options, slideManager, shapeManager) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
+  updateCellShape(
+    slideIndex,
+    tableId,
+    rowIndex,
+    colIndex,
+    shapeIndex,
+    options,
+    slideManager,
+    shapeManager
+  ) {
+    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
-    const matchingShapes = shapes.filter(s => s.name && (s.name === prefix || s.name.startsWith(prefix + '_')))
+    const matchingShapes = shapes.filter(
+      s => s.name && (s.name === prefix || s.name.startsWith(prefix + '_'))
+    )
 
     if (matchingShapes.length === 0) {
       throw new PPTXError(`Cell shape "${shapeIndex}" not found in cell (${rowIndex}, ${colIndex})`)
@@ -1668,7 +1721,9 @@ class TableManager {
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
-    const matchingShapes = shapes.filter(s => s.name && (s.name === prefix || s.name.startsWith(prefix + '_')))
+    const matchingShapes = shapes.filter(
+      s => s.name && (s.name === prefix || s.name.startsWith(prefix + '_'))
+    )
 
     if (matchingShapes.length === 0) {
       throw new PPTXError(`Cell shape "${shapeIndex}" not found in cell (${rowIndex}, ${colIndex})`)
@@ -1684,7 +1739,9 @@ class TableManager {
 
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
-    const primaryShape = shapes.find(s => s.name === prefix || s.name === `${prefix}_0` || s.name === `${prefix}_1`)
+    const primaryShape = shapes.find(
+      s => s.name === prefix || s.name === `${prefix}_0` || s.name === `${prefix}_1`
+    )
 
     if (!primaryShape) return null
 
