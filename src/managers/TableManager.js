@@ -1719,6 +1719,56 @@ class TableManager {
     }
 
     // 2. Determine alignment settings
+    let alignX = config.alignX
+    let alignY = config.alignY
+
+    if (config.position) {
+      switch (config.position) {
+        case 'top-left':
+          if (!alignX) alignX = 'left'
+          if (!alignY) alignY = 'top'
+          break
+        case 'top-center':
+        case 'top':
+          if (!alignX) alignX = 'center'
+          if (!alignY) alignY = 'top'
+          break
+        case 'top-right':
+          if (!alignX) alignX = 'right'
+          if (!alignY) alignY = 'top'
+          break
+        case 'middle-left':
+        case 'left':
+          if (!alignX) alignX = 'left'
+          if (!alignY) alignY = 'middle'
+          break
+        case 'center':
+        case 'middle-center':
+          if (!alignX) alignX = 'center'
+          if (!alignY) alignY = 'middle'
+          break
+        case 'middle-right':
+        case 'right':
+          if (!alignX) alignX = 'right'
+          if (!alignY) alignY = 'middle'
+          break
+        case 'bottom-left':
+          if (!alignX) alignX = 'left'
+          if (!alignY) alignY = 'bottom'
+          break
+        case 'bottom-center':
+        case 'bottom':
+          if (!alignX) alignX = 'center'
+          if (!alignY) alignY = 'bottom'
+          break
+        case 'bottom-right':
+          if (!alignX) alignX = 'right'
+          if (!alignY) alignY = 'bottom'
+          break
+      }
+    }
+
+    // 2. Determine alignment settings
     let alignX = undefined
     let alignY = undefined
 
@@ -2075,6 +2125,54 @@ class TableManager {
       }
     }
 
+    const xfrm = frameObj['p:xfrm']
+    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
+    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
+
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
+
+    const trsArr = tblObj['a:tr'] || []
+    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+
+    const getCellBounds = (r, c) => {
+      const parent = this.getMergeParent(slideIndex, tableId, r, c, slideManager)
+      const pr = parent.row
+      const pc = parent.col
+
+      let cellLeft = tableX
+      for (let idx = 0; idx < pc; idx++) {
+        cellLeft += colWidths[idx] || 0
+      }
+
+      let cellTop = tableY
+      for (let idx = 0; idx < pr; idx++) {
+        cellTop += rowHeights[idx] || 0
+      }
+
+      const parentCell = trsArr[pr]?.['a:tc']?.[pc]
+      const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
+      const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
+
+      let cellWidth = 0
+      for (let idx = 0; idx < gridSpan; idx++) {
+        cellWidth += colWidths[pc + idx] || 0
+      }
+
+      let cellHeight = 0
+      for (let idx = 0; idx < rowSpan; idx++) {
+        cellHeight += rowHeights[pr + idx] || 0
+      }
+
+      return {
+        left: cellLeft,
+        top: cellTop,
+        width: cellWidth,
+        height: cellHeight,
+      }
+    }
+
     const shapesToCreate = []
     const headerNames = (tblObj['a:tr']?.[0]?.['a:tc'] || []).map(cell =>
       this.#getCellText(cell).trim()
@@ -2204,7 +2302,45 @@ class TableManager {
   }
 
   addCellShape(slideIndex, tableId, rowIndex, colIndex, options, slideManager, shapeManager) {
-    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
+
+    const xfrm = frameObj['p:xfrm']
+    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
+    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
+
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
+
+    const trsArr = tblObj['a:tr'] || []
+    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+
+    const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    const pr = parent.row
+    const pc = parent.col
+
+    let cellLeft = tableX
+    for (let idx = 0; idx < pc; idx++) {
+      cellLeft += colWidths[idx] || 0
+    }
+
+    let cellTop = tableY
+    for (let idx = 0; idx < pr; idx++) {
+      cellTop += rowHeights[idx] || 0
+    }
+
+    const parentCell = trsArr[pr]?.['a:tc']?.[pc]
+    const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
+    const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
+
+    let cellWidth = 0
+    for (let idx = 0; idx < gridSpan; idx++) {
+      cellWidth += colWidths[pc + idx] || 0
+    }
 
     const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
     if (!bounds) {
@@ -2259,7 +2395,11 @@ class TableManager {
     slideManager,
     shapeManager
   ) {
-    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`

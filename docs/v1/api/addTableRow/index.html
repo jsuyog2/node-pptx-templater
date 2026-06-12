@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>addTableRow() API Method - node-pptx-templater</title>
-  <meta name="description" content="Appends one or more rows to a table. Supports flat arrays, nested arrays for rowspan-merged cells, and **Shape Cell** configuration objects that insert a graphic indicator directly inside a cell. ### Shape Cell Object Instead of a string value you may pass an object with the following keys: | Key | Type | Default | Description | |-----|------|---------|-------------| | `type` | `string` | **required** | Shape preset: `&#039;circle&#039;`, `&#039;square&#039;`, `&#039;rectangle&#039;`, `&#039;triangle&#039;`, `&#039;diamond&#039;`, `&#039;hexagon&#039;`, `&#039;line&#039;`. | | `text` | `string` | `&#039;&#039;` | Optional label rendered next to the shape. | | `color` | `string` | `&#039;#4CAF50&#039;` | Fill colour of the shape (hex). | | `width` | `number` | `14` | Shape width in points. | | `height` | `number` | `14` | Shape height in points. | | `position` | `string` | `&#039;center&#039;` | Alignment inside the cell: `&#039;center&#039;`, `&#039;left&#039;`, `&#039;right&#039;`, `&#039;top&#039;`, `&#039;bottom&#039;`, `&#039;top-left&#039;`, `&#039;top-right&#039;`, `&#039;bottom-left&#039;`, `&#039;bottom-right&#039;`. | | `offsetX` | `number` | `0` | Additional horizontal offset from the resolved anchor (pt). | | `offsetY` | `number` | `0` | Additional vertical offset from the resolved anchor (pt). | The shape is added as a floating overlay anchored to the cell; the table dimensions (row heights, column widths) are **never mutated**. a plain string, a nested array (rowspan), or a Shape Cell configuration object. `&#039;rowspan&#039;` creates OpenXML vertical spans, `&#039;auto&#039;` merges identical adjacent values, `&#039;none&#039;` expands nested arrays into multiple flat rows.">
+  <meta name="description" content="Appends one or more rows to a table. Supports flat arrays and nested arrays for rowspan-merged cells. `&#039;rowspan&#039;` creates OpenXML vertical spans, `&#039;auto&#039;` merges identical adjacent values, `&#039;none&#039;` expands nested arrays into multiple flat rows.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/addTableRow/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,7 +21,7 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Appends one or more rows to a table. Supports flat arrays, nested arrays for rowspan-merged cells, and **Shape Cell** configuration objects that insert a graphic indicator directly inside a cell. ### Shape Cell Object Instead of a string value you may pass an object with the following keys: | Key | Type | Default | Description | |-----|------|---------|-------------| | `type` | `string` | **required** | Shape preset: `&#039;circle&#039;`, `&#039;square&#039;`, `&#039;rectangle&#039;`, `&#039;triangle&#039;`, `&#039;diamond&#039;`, `&#039;hexagon&#039;`, `&#039;line&#039;`. | | `text` | `string` | `&#039;&#039;` | Optional label rendered next to the shape. | | `color` | `string` | `&#039;#4CAF50&#039;` | Fill colour of the shape (hex). | | `width` | `number` | `14` | Shape width in points. | | `height` | `number` | `14` | Shape height in points. | | `position` | `string` | `&#039;center&#039;` | Alignment inside the cell: `&#039;center&#039;`, `&#039;left&#039;`, `&#039;right&#039;`, `&#039;top&#039;`, `&#039;bottom&#039;`, `&#039;top-left&#039;`, `&#039;top-right&#039;`, `&#039;bottom-left&#039;`, `&#039;bottom-right&#039;`. | | `offsetX` | `number` | `0` | Additional horizontal offset from the resolved anchor (pt). | | `offsetY` | `number` | `0` | Additional vertical offset from the resolved anchor (pt). | The shape is added as a floating overlay anchored to the cell; the table dimensions (row heights, column widths) are **never mutated**. a plain string, a nested array (rowspan), or a Shape Cell configuration object. `&#039;rowspan&#039;` creates OpenXML vertical spans, `&#039;auto&#039;` merges identical adjacent values, `&#039;none&#039;` expands nested arrays into multiple flat rows.</p>
+    <p><strong>Description:</strong> Appends one or more rows to a table. Supports flat arrays and nested arrays for rowspan-merged cells. `&#039;rowspan&#039;` creates OpenXML vertical spans, `&#039;auto&#039;` merges identical adjacent values, `&#039;none&#039;` expands nested arrays into multiple flat rows.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
     
       <h3>Parameters</h3>
@@ -43,8 +43,8 @@
           
             <tr>
               <td><strong>rowData</strong></td>
-              <td><code>Array&lt;string|Array&lt;string&gt;|Object&gt;</code></td>
-              <td>Row data. Each element may be</td>
+              <td><code>Array&lt;string|Array&lt;string&gt;&gt;</code></td>
+              <td>Row data. Nested arrays create rowspan cells.</td>
             </tr>
           
             <tr>
@@ -76,19 +76,7 @@
       <pre><code>// Simple flat row
 ppt.addTableRow(&#039;SalesTable&#039;, [&#039;North&#039;, &#039;1200&#039;, &#039;15%&#039;]);
 // Nested row with rowspan
-ppt.addTableRow(&#039;SalesTable&#039;, [&#039;Region&#039;, [&#039;Q1&#039;, &#039;Q2&#039;], &#039;$5K&#039;], { mergeStrategy: &#039;rowspan&#039; });
-// KPI indicator – green circle placed in the cell centre, no label
-await ppt.addTableRow(&#039;StatusTable&#039;, [
-&#039;Alice&#039;,
-&#039;Engineering&#039;,
-{ type: &#039;circle&#039;, color: &#039;#4CAF50&#039;, width: 12, height: 12, position: &#039;center&#039; },
-]);
-// Status badge – shape with accompanying text label, aligned to the left
-await ppt.addTableRow(&#039;StatusTable&#039;, [
-&#039;Bob&#039;,
-&#039;Design&#039;,
-{ type: &#039;circle&#039;, color: &#039;#F44336&#039;, text: &#039;Blocked&#039;, position: &#039;left&#039; },
-]);</code></pre>
+ppt.addTableRow(&#039;SalesTable&#039;, [&#039;Region&#039;, [&#039;Q1&#039;, &#039;Q2&#039;], &#039;$5K&#039;], { mergeStrategy: &#039;rowspan&#039; });</code></pre>
     
   
     </div>

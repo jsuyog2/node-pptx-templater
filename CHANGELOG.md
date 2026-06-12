@@ -5,22 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.3] - 2026-06-22
-
-### Fixed
-
-- **Layout Preservation in `addCellShape()`**: Fixed a critical layout bug where querying cell bounds or adding cell shapes dynamically (via `addCellShape()` or `updateCellShape()`) mutated table row heights inside the XML. The sizing/positioning logic now runs in a layout-only mode, keeping the table XML completely untouched and respecting original template custom row heights.
-
-## [1.1.2] - 2026-06-22
-
-### Fixed
-
-- **Slide Link Relationships Target Paths**: Fixed PowerPoint "Repair Mode" errors when adding slide-to-slide hyperlinks (via `addSlideLink` or `addImageLink`). The relative target path resolves correctly to the sibling filename `slideX.xml` instead of using the redundant parent prefix `../slides/slideX.xml` (which exited and re-entered the same directory, violating PowerPoint's relative path resolution rules).
-
-### Added
-
-- **Redundant Traversal Validation**: Added automated check in `ValidationEngine` to identify and error on redundant relative path traversals inside relationship files (e.g. referencing `../slides/slideX.xml` from a source slide file already located in `ppt/slides/`).
-
 ## [1.1.0] - 2026-06-12
 
 ### Added

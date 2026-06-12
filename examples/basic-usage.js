@@ -89,39 +89,18 @@ async function main() {
       sourceSlide: 2,
       targetSlide: 1,
     })
-    // const rows = await ppt.getTableRows('Table')
-    // console.log(rows)
+    const rows = await ppt.getTableRows('Table')
+    console.log(rows)
 
-    // ppt.updateTable('Table', [
-    //   ['Name', '', 'Role', 'Dept'],
-    //   [
-    //     'Alice',
-    //     '',
-    //     'The 1',
-    //     'Platform',
-    //   ],
-    //   [
-    //     '',
-    //     '',
-    //     'The 2',
-    //     'Platform',
-    //   ],
-    //   ['Bob', '', '     Designer', 'Product'],
-    // ])
-    // ppt.addTableRow('Table', ['Bob', '', '     Designer', ['Product', 'Value']])
-    ppt.addTableRow('Table', [
-      'Bob',
-      '',
-      'The final implementation should allow users to build highly visual dashboards and reports.',
-      'Value',
-      'Product',
-      {
-        type: 'circle',
-        color: '#af4c4cff',
-        width: 12,
-        height: 12,
-        position: 'center',
-      },
+    ppt.updateTable('Table', [
+      ['Name', '', 'Role', 'Dept'],
+      [
+        'Alice',
+        '',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        'Platform',
+      ],
+      ['Bob', '', '     Designer', 'Product'],
     ])
     ppt.addTableRow('Table', [
       '',

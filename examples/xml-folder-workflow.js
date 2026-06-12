@@ -25,9 +25,6 @@ const WORK_FOLDER = path.join(__dirname, 'output/pptx-extracted')
 const OUTPUT_REBUILT = path.join(__dirname, 'output/xml-folder-rebuilt.pptx')
 
 async function main() {
-  // Clean up any previous run's directory
-  await fs.remove(WORK_FOLDER)
-
   // 1. Extract PPTX to a folder of XML files
   await PPTXTemplater.extractPptx(TEMPLATE, WORK_FOLDER)
   console.log(`✓ Extracted PPTX to: ${WORK_FOLDER}`)

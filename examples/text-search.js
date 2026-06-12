@@ -47,8 +47,8 @@ async function main() {
 
   // 5. Update a specific named text shape
   ppt.useSlide(1)
-  ppt.updateText('Title', 'node-pptx-templater v1.1.0')
-  console.log('✓ Updated "Title" shape text')
+  ppt.updateText('Title 1', 'node-pptx-templater v1.1.0')
+  console.log('✓ Updated "Title 1" shape text')
 
   await ppt.saveToFile(OUTPUT)
   console.log('✓ Done:', OUTPUT)

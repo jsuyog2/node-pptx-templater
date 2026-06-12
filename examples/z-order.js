@@ -39,7 +39,7 @@ async function main() {
     width: 1828800,
     height: 457200,
     fill: '#3B82F6',
-    id: 'layer-shape-A',
+    name: 'layer-shape-A',
   })
   await ppt.addShape({
     type: 'rectangle',
@@ -48,7 +48,7 @@ async function main() {
     width: 1828800,
     height: 457200,
     fill: '#EF4444',
-    id: 'layer-shape-B',
+    name: 'layer-shape-B',
   })
   console.log('✓ Added two overlapping shapes')
 
