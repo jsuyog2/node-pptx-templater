@@ -40,7 +40,7 @@ const { ZOrderManager } = require('../managers/ZOrderManager.js')
 const { ValidationEngine } = require('./ValidationEngine.js')
 const { OutputWriter } = require('./OutputWriter.js')
 const { TemplateEngine } = require('./TemplateEngine.js')
-const { createLogger } = require('../utils/logger.js')
+const { createLogger, setGlobalLogLevel } = require('../utils/logger.js')
 const { PPTXError } = require('../utils/errors.js')
 const { performance } = require('perf_hooks')
 
@@ -217,12 +217,46 @@ class PPTXTemplater {
    * const buffer = fs.readFileSync('./template.pptx');
    * const ppt = await PPTXTemplater.load(buffer);
    */
-  static async load(source) {
+  static async load(source, options = {}) {
+    if (options.logLevel) {
+      setGlobalLogLevel(options.logLevel)
+    }
     const engine = new PPTXTemplater()
     await engine.#initialize(source)
     return engine
   }
 
+  /**
+   * Sets the global log level for all PPTXTemplater logger instances.
+   * This is equivalent to setting the PPTX_LOG_LEVEL environment variable,
+   * but works at runtime without restarting the process.
+   *
+   * @static
+   * @param {'verbose'|'debug'|'info'|'warn'|'error'|'silent'} level - Log level.
+   * @returns {void}
+   *
+   * @example
+   * PPTXTemplater.setLogLevel('debug');  // Enable full debug output
+   * PPTXTemplater.setLogLevel('silent'); // Suppress all output
+   */
+  static setLogLevel(level) {
+    setGlobalLogLevel(level)
+  }
+
+  /**
+   * Preloads a PPTX template into an in-memory cache for fast repeated generation.
+   * Call this once at startup; subsequent `fromCache()` calls read from memory
+   * with zero disk I/O.
+   *
+   * @static
+   * @param {string|Buffer|Object} source - File path, Buffer, or folder object.
+   * @returns {Promise<Map>} The cache Map keyed by file paths.
+   *
+   * @example
+   * await PPTXTemplater.preload('./template.pptx');
+   * // Later, in request handlers:
+   * const ppt = await PPTXTemplater.fromCache('./template.pptx');
+   */
   static async preload(source) {
     let key = source
     if (Buffer.isBuffer(source)) {
@@ -256,10 +290,33 @@ class PPTXTemplater {
     return cachedFiles
   }
 
+  /**
+   * Alias for `preload()`. Caches a PPTX template in memory.
+   *
+   * @static
+   * @param {string|Buffer|Object} source - File path, Buffer, or folder object.
+   * @returns {Promise<Map>} The cache Map.
+   *
+   * @example
+   * await PPTXTemplater.cache('./template.pptx');
+   */
   static async cache(source) {
     return PPTXTemplater.preload(source)
   }
 
+  /**
+   * Creates an engine instance from a previously preloaded cache entry.
+   * Falls back to preloading if the source has not been cached yet.
+   *
+   * @static
+   * @param {string|Buffer|Object} source - Same source used with `preload()`.
+   * @returns {Promise<PPTXTemplater>} Initialized engine from cache.
+   *
+   * @example
+   * await PPTXTemplater.preload('./template.pptx');
+   * const ppt = await PPTXTemplater.fromCache('./template.pptx');
+   * // ppt is ready — no disk I/O on the load
+   */
   static async fromCache(source) {
     let key = source
     if (Buffer.isBuffer(source)) {
@@ -279,16 +336,66 @@ class PPTXTemplater {
     return engine
   }
 
+  /**
+   * Clears all preloaded templates from the in-memory cache.
+   * Call this to free memory or force templates to be reloaded from disk.
+   *
+   * @static
+   * @returns {void}
+   *
+   * @example
+   * PPTXTemplater.clearCache(); // Force fresh reload on next fromCache()
+   */
   static clearCache() {
     PPTXTemplater.#templateCache.clear()
   }
 
+  /**
+   * Enables internal performance profiling.
+   * After calling this, use `getPerformanceMetrics()` to read timing data.
+   *
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.enablePerformanceProfile();
+   * // ... do work ...
+   * console.log(ppt.getPerformanceMetrics());
+   */
   enablePerformanceProfile() {
     this.#profiler.enabled = true
     this.#profiler.startTime = performance.now()
     return this
   }
 
+  /**
+   * Enables debug-level logging for this session.
+   * Shortcut for `PPTXTemplater.setLogLevel('debug')`.
+   *
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * const ppt = await PPTXTemplater.load('./template.pptx');
+   * ppt.enableDebug(); // Shows all debug output
+   */
+  enableDebug() {
+    setGlobalLogLevel('debug')
+    return this
+  }
+
+  /**
+   * Returns performance metrics collected since `enablePerformanceProfile()` was called.
+   * Includes timing for template load, XML parse, chart update, image update,
+   * ZIP generation, total elapsed time, and memory usage.
+   *
+   * @returns {Object} Metrics object with `templateLoadMs`, `parseMs`, `chartUpdateMs`,
+   *   `imageUpdateMs`, `zipGenerationMs`, `totalMs`, `memoryUsedMB`.
+   *
+   * @example
+   * ppt.enablePerformanceProfile();
+   * await ppt.updateChart('chart1', data);
+   * const metrics = ppt.getPerformanceMetrics();
+   * console.log(`Total: ${metrics.totalMs}ms, Memory: ${metrics.memoryUsedMB}MB`);
+   */
   getPerformanceMetrics() {
     if (!this.#profiler.enabled) {
       return {
@@ -1030,13 +1137,13 @@ class PPTXTemplater {
   debugRelationships() {
     this.#assertLoaded()
     const files = this.#zipManager.listFiles('').filter(f => f.endsWith('.rels'))
-    console.log('=== Relationship Graph ===')
+    logger.info('=== Relationship Graph ===')
     for (const file of files) {
-      console.log(`\n${file}:`)
+      logger.info(`\n${file}:`)
       const rels = this.#relationshipManager.getRelationships(
         file.replace('_rels/', '').replace('.rels', '')
       )
-      rels.forEach(r => console.log(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`))
+      rels.forEach(r => logger.info(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`))
     }
     return this
   }
@@ -1052,14 +1159,14 @@ class PPTXTemplater {
     const xml = this.#slideManager.getSlideXml(slideIndex)
     const rels = this.#relationshipManager.getRelationships(info.zipPath)
 
-    console.log(`=== Slide ${slideIndex} Inspection ===`)
-    console.log(`Path: ${info.zipPath}`)
-    console.log(`ID: ${info.slideId}`)
-    console.log(`rId: ${info.relationshipId}`)
-    console.log(`Title: ${info.title}`)
-    console.log(`XML Size: ${xml.length} characters`)
-    console.log(`Relationships (${rels.length}):`)
-    rels.forEach(r => console.log(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`))
+    logger.info(`=== Slide ${slideIndex} Inspection ===`)
+    logger.info(`Path: ${info.zipPath}`)
+    logger.info(`ID: ${info.slideId}`)
+    logger.info(`rId: ${info.relationshipId}`)
+    logger.info(`Title: ${info.title}`)
+    logger.info(`XML Size: ${xml.length} characters`)
+    logger.info(`Relationships (${rels.length}):`)
+    rels.forEach(r => logger.info(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`))
 
     return this
   }
@@ -1072,11 +1179,11 @@ class PPTXTemplater {
   async inspectXML(xmlPath) {
     this.#assertLoaded()
     const xml = await this.#zipManager.readFile(xmlPath)
-    console.log(`=== XML Inspection: ${xmlPath} ===`)
+    logger.info(`=== XML Inspection: ${xmlPath} ===`)
     if (!xml) {
-      console.log('(File not found or empty)')
+      logger.info('(File not found or empty)')
     } else {
-      console.log(xml.substring(0, 1500) + (xml.length > 1500 ? '...\n[Truncated]' : ''))
+      logger.info(xml.substring(0, 1500) + (xml.length > 1500 ? '...\n[Truncated]' : ''))
     }
     return this
   }
@@ -1163,8 +1270,7 @@ class PPTXTemplater {
    */
   inspectChart(chartId) {
     this.#assertLoaded()
-    console.log(`=== Chart Inspection: ${chartId} ===`)
-    // Find chart across all slides to get info
+    logger.info(`=== Chart Inspection: ${chartId} ===`)
     let found = false
     for (const i of this.#slideManager.getAllSlideIndices()) {
       try {
@@ -1177,15 +1283,15 @@ class PPTXTemplater {
           c => c.zipPath.toLowerCase().includes(chartId.toLowerCase()) || c.rId === chartId
         )
         if (chart) {
-          console.log(`Found on Slide ${i}`)
-          console.log(`ZIP Path: ${chart.zipPath}`)
-          console.log(`Relationship ID: ${chart.rId}`)
+          logger.info(`Found on Slide ${i}`)
+          logger.info(`ZIP Path: ${chart.zipPath}`)
+          logger.info(`Relationship ID: ${chart.rId}`)
           found = true
           break
         }
       } catch (e) {}
     }
-    if (!found) console.log('Chart not found.')
+    if (!found) logger.info('Chart not found.')
     return this
   }
 
@@ -1205,15 +1311,15 @@ class PPTXTemplater {
    */
   debugChartRelationships() {
     this.#assertLoaded()
-    console.log('=== Chart Relationships ===')
+    logger.info('=== Chart Relationships ===')
     const chartFiles = this.#zipManager.listFiles('ppt/charts/').filter(f => {
       const name = f.split('/').pop()
       return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels')
     })
     for (const chartPath of chartFiles) {
-      console.log(`\n${chartPath}:`)
+      logger.info(`\n${chartPath}:`)
       const rels = this.#relationshipManager.getRelationships(chartPath)
-      rels.forEach(r => console.log(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`))
+      rels.forEach(r => logger.info(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`))
     }
     return this
   }
@@ -1345,24 +1451,64 @@ class PPTXTemplater {
   }
 
   // === Slide Features ===
+  /**
+   * Duplicates an existing slide and inserts the copy at the specified position.
+   *
+   * @param {number} slideIndex - 1-based index of the slide to duplicate.
+   * @param {number} [atPosition] - 1-based position to insert the copy. Defaults to end.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.duplicateSlide(1, 2); // Copy slide 1 and insert it as slide 2
+   */
   duplicateSlide(slideIndex, atPosition) {
     this.#assertLoaded()
     this.#slideManager.duplicateSlide(slideIndex, atPosition, this.#relationshipManager)
     return this
   }
 
+  /**
+   * Removes a slide from the presentation. Alias for `removeSlide()`.
+   *
+   * @param {number} slideIndex - 1-based index of the slide to delete.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.deleteSlide(3); // Remove slide 3
+   */
   deleteSlide(slideIndex) {
     this.#assertLoaded()
     this.#slideManager.removeSlide(slideIndex)
     return this
   }
 
+  /**
+   * Moves a slide from one position to another within the presentation.
+   *
+   * @param {number} fromIndex - 1-based source slide index.
+   * @param {number} toIndex - 1-based target slide index.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.moveSlide(5, 1); // Move slide 5 to position 1 (make it first)
+   */
   moveSlide(fromIndex, toIndex) {
     this.#assertLoaded()
     this.#slideManager.moveSlide(fromIndex, toIndex)
     return this
   }
 
+  /**
+   * Inserts a new blank slide at the specified position.
+   *
+   * @param {number} slideIndex - 1-based position to insert the slide at.
+   * @param {Object} [options] - Insert options.
+   * @param {number} [options.layoutIndex] - Slide layout index to apply.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.insertSlide(2, { layoutIndex: 1 }); // Insert blank slide at position 2
+   */
   insertSlide(slideIndex, options = {}) {
     this.#assertLoaded()
     this.#slideManager.insertSlide(
@@ -1374,12 +1520,44 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Returns an array of all slides in the presentation with their metadata.
+   *
+   * @returns {Array<{index: number, slideId: string, title: string, zipPath: string}>}
+   *
+   * @example
+   * const slides = ppt.getSlides();
+   * slides.forEach(s => console.log(`Slide ${s.index}: ${s.title}`));
+   */
   getSlides() {
     this.#assertLoaded()
     return this.#slideManager.getSlides()
   }
 
   // === Table Features ===
+  /**
+   * Extracts table data from the active slide as structured JSON.
+   * The first row of the table is treated as the header row.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {Object} [options] - Extraction options.
+   * @param {boolean} [options.raw=false] - Return `string[][]` instead of object array.
+   * @param {boolean} [options.includeMetadata=false] - Return `{rows, rowCount, columnCount, mergedCells}`.
+   * @returns {Array<Object>|Array<Array<string>>|Object} Extracted table data.
+   *
+   * @example
+   * // Object mode (default)
+   * const rows = await ppt.getTableRows('SalesTable');
+   * // → [{ region: 'North', sales: '1200' }, ...]
+   *
+   * // Raw mode
+   * const raw = await ppt.getTableRows('SalesTable', { raw: true });
+   * // → [['North', '1200'], ...]
+   *
+   * // Metadata mode
+   * const meta = await ppt.getTableRows('SalesTable', { includeMetadata: true });
+   * // → { rows: [...], rowCount: 5, columnCount: 3, mergedCells: [] }
+   */
   getTableRows(tableId, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1390,6 +1568,25 @@ class PPTXTemplater {
     return this.#tableManager.getTableRows(idx, tableId, options, this.#slideManager)
   }
 
+  /**
+   * Appends one or more rows to a table. Supports flat arrays and nested arrays
+   * for rowspan-merged cells.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {Array<string|Array<string>>} rowData - Row data. Nested arrays create rowspan cells.
+   * @param {Object} [options] - Row insertion options.
+   * @param {'rowspan'|'auto'|'none'} [options.mergeStrategy='rowspan'] - How to handle nested arrays.
+   *   `'rowspan'` creates OpenXML vertical spans, `'auto'` merges identical adjacent values,
+   *   `'none'` expands nested arrays into multiple flat rows.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * // Simple flat row
+   * ppt.addTableRow('SalesTable', ['North', '1200', '15%']);
+   *
+   * // Nested row with rowspan
+   * ppt.addTableRow('SalesTable', ['Region', ['Q1', 'Q2'], '$5K'], { mergeStrategy: 'rowspan' });
+   */
   addTableRow(tableId, rowData, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1399,6 +1596,16 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Removes a row from a table by its 0-based row index.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index to remove.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.removeTableRow('SalesTable', 2); // Remove the third row (0-based)
+   */
   removeTableRow(tableId, rowIndex) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1408,6 +1615,17 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Inserts a new row at the specified 0-based index, shifting existing rows down.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based index at which to insert the new row.
+   * @param {Array<string>} rowData - Cell values for the new row.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.insertTableRow('SalesTable', 1, ['East', '980', '8%']); // Insert at row 1
+   */
   insertTableRow(tableId, rowIndex, rowData) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1417,6 +1635,17 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Clones a row and inserts the copy at a target position.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} sourceRowIndex - 0-based index of the row to clone.
+   * @param {number} targetRowIndex - 0-based index where the clone is inserted.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.cloneTableRow('SalesTable', 0, 3); // Clone row 0 to position 3
+   */
   cloneTableRow(tableId, sourceRowIndex, targetRowIndex) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1432,6 +1661,25 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Updates the text and optional formatting of a single table cell.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} colIndex - 0-based column index.
+   * @param {string} value - New cell text content.
+   * @param {Object} [options] - Cell formatting options.
+   * @param {boolean} [options.bold] - Bold text.
+   * @param {boolean} [options.italic] - Italic text.
+   * @param {number} [options.fontSize] - Font size in points.
+   * @param {'left'|'center'|'right'} [options.align] - Text alignment.
+   * @param {string} [options.fill] - Cell background color (hex, e.g. '#FF0000').
+   * @param {string} [options.color] - Text color (hex).
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateCell('SalesTable', 1, 2, '$9,800', { bold: true, color: '#10B981' });
+   */
   updateCell(tableId, rowIndex, colIndex, value, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1449,6 +1697,22 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Merges a rectangular region of table cells into a single merged cell.
+   * Supports both positional arguments and an options object.
+   *
+   * @param {string|Object} tableIdOrOptions - Table ID string, or options object with all fields.
+   * @param {number} [startRow] - 0-based start row.
+   * @param {number} [startCol] - 0-based start column.
+   * @param {number} [endRow] - 0-based end row (inclusive).
+   * @param {number} [endCol] - 0-based end column (inclusive).
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.mergeCells('SalesTable', 0, 0, 0, 2); // Merge first 3 cells of row 0
+   * // Or with options object:
+   * ppt.mergeCells({ tableId: 'SalesTable', startRow: 0, startCol: 0, endRow: 0, endCol: 2 });
+   */
   mergeCells(tableIdOrOptions, startRow, startCol, endRow, endCol) {
     this.#assertLoaded()
     let tableId = tableIdOrOptions
@@ -1476,6 +1740,22 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Unmerges (splits) a previously merged cell region.
+   * Supports both positional arguments and an options object.
+   *
+   * @param {string|Object} tableIdOrOptions - Table ID string, or options object.
+   * @param {number} [startRow] - 0-based start row of the merged region.
+   * @param {number} [startCol] - 0-based start column.
+   * @param {number} [endRow] - 0-based end row.
+   * @param {number} [endCol] - 0-based end column.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.unmergeCells('SalesTable', 0, 0, 0, 2); // Unmerge region
+   * // Via cell coordinate:
+   * ppt.unmergeCells({ tableId: 'SalesTable', row: 0, col: 0 });
+   */
   unmergeCells(tableIdOrOptions, startRow, startCol, endRow, endCol) {
     this.#assertLoaded()
     let tableId = tableIdOrOptions
@@ -1514,12 +1794,37 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Returns an array of all merged cell regions in a table.
+   *
+   * @param {string} [tableId] - Table name or shape ID. Defaults to the first table found.
+   * @returns {Array<{startRow: number, startCol: number, endRow: number, endCol: number}>}
+   *
+   * @example
+   * const merges = ppt.getMergedCells('SalesTable');
+   * merges.forEach(m => console.log(`Merged: row ${m.startRow}-${m.endRow}, col ${m.startCol}-${m.endCol}`));
+   */
   getMergedCells(tableId) {
     this.#assertLoaded()
     const slideIndex = this.#getTargetSlideIndices()[0] || 1
     return this.#tableManager.getMergedCells(slideIndex, tableId || 'first', this.#slideManager)
   }
 
+  /**
+   * Validates whether a merge region is valid for the given table dimensions.
+   * Checks for overlapping merges, out-of-bounds coordinates, etc.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} startRow - 0-based start row.
+   * @param {number} startCol - 0-based start column.
+   * @param {number} endRow - 0-based end row.
+   * @param {number} endCol - 0-based end column.
+   * @returns {{valid: boolean, errors: string[]}} Validation result.
+   *
+   * @example
+   * const result = ppt.validateMergeRegion('SalesTable', 0, 0, 1, 2);
+   * if (!result.valid) console.error(result.errors);
+   */
   validateMergeRegion(tableId, startRow, startCol, endRow, endCol) {
     this.#assertLoaded()
     const slideIndex = this.#getTargetSlideIndices()[0] || 1
@@ -1534,6 +1839,19 @@ class PPTXTemplater {
     )
   }
 
+  /**
+   * Checks whether a specific table cell is part of a merged region.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} row - 0-based row index.
+   * @param {number} col - 0-based column index.
+   * @returns {boolean} `true` if the cell is merged (parent or continuation).
+   *
+   * @example
+   * if (ppt.isMergedCell('SalesTable', 0, 0)) {
+   *   console.log('Cell is part of a merged region');
+   * }
+   */
   isMergedCell(tableId, row, col) {
     this.#assertLoaded()
     const slideIndex = this.#getTargetSlideIndices()[0] || 1
@@ -1546,6 +1864,19 @@ class PPTXTemplater {
     )
   }
 
+  /**
+   * Returns the anchor (parent) cell coordinates of a merged region
+   * that contains the given cell.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} row - 0-based row index of any cell in the merged region.
+   * @param {number} col - 0-based column index.
+   * @returns {{row: number, col: number}|null} Anchor cell coordinates, or null if not merged.
+   *
+   * @example
+   * const parent = ppt.getMergeParent('SalesTable', 0, 1);
+   * // → { row: 0, col: 0 } if cells (0,0)-(0,2) are merged
+   */
   getMergeParent(tableId, row, col) {
     this.#assertLoaded()
     const slideIndex = this.#getTargetSlideIndices()[0] || 1
@@ -1558,6 +1889,18 @@ class PPTXTemplater {
     )
   }
 
+  /**
+   * Returns the full extent of the merged region containing a given cell.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} row - 0-based row index of any cell in the merged region.
+   * @param {number} col - 0-based column index.
+   * @returns {{startRow: number, startCol: number, endRow: number, endCol: number}|null}
+   *
+   * @example
+   * const region = ppt.getMergeRegion('SalesTable', 0, 1);
+   * // → { startRow: 0, startCol: 0, endRow: 0, endCol: 2 }
+   */
   getMergeRegion(tableId, row, col) {
     this.#assertLoaded()
     const slideIndex = this.#getTargetSlideIndices()[0] || 1
@@ -1570,6 +1913,17 @@ class PPTXTemplater {
     )
   }
 
+  /**
+   * Splits a previously merged cell region back into individual cells.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} row - 0-based row of the merged region anchor.
+   * @param {number} col - 0-based column of the merged region anchor.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.splitMergedRegion('SalesTable', 0, 0); // Split merge starting at row 0, col 0
+   */
   splitMergedRegion(tableId, row, col) {
     this.#assertLoaded()
     const slideIndex = this.#getTargetSlideIndices()[0] || 1
@@ -1583,6 +1937,19 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Clones an existing merged region to a new anchor position in the table.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} row - 0-based row of the source merged region.
+   * @param {number} col - 0-based column of the source merged region.
+   * @param {number} targetRow - 0-based target row.
+   * @param {number} targetCol - 0-based target column.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.cloneMergedRegion('SalesTable', 0, 0, 4, 0);
+   */
   cloneMergedRegion(tableId, row, col, targetRow, targetCol) {
     this.#assertLoaded()
     const slideIndex = this.#getTargetSlideIndices()[0] || 1
@@ -1598,6 +1965,15 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Automatically adjusts column widths to fit the content of each cell.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.autoFitTable('SalesTable');
+   */
   autoFitTable(tableId) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1607,6 +1983,18 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Resizes a table to the specified width and height in EMUs.
+   * 1 inch = 914,400 EMUs.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} width - New width in EMUs.
+   * @param {number} height - New height in EMUs.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.resizeTable('SalesTable', 6858000, 1371600); // 7.5" wide × 1.5" tall
+   */
   resizeTable(tableId, width, height) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1616,6 +2004,15 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Returns metadata for all tables on the targeted slide(s).
+   *
+   * @returns {Array<{name: string, rows: number, cols: number, zipPath: string}>}
+   *
+   * @example
+   * const tables = ppt.getTables();
+   * tables.forEach(t => console.log(`${t.name}: ${t.rows}×${t.cols}`));
+   */
   getTables() {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1627,10 +2024,34 @@ class PPTXTemplater {
   }
 
   // === Chart Features ===
+  /**
+   * Alias for `updateChart()`. Updates chart data for a named chart.
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {Object} data - Chart data object with `categories` and `series`.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateChartData('revenue-chart', {
+   *   categories: ['Q1', 'Q2', 'Q3'],
+   *   series: [{ name: 'Revenue', values: [100, 150, 200] }]
+   * });
+   */
   updateChartData(chartId, data) {
     return this.updateChart(chartId, data)
   }
 
+  /**
+   * Replaces a specific data series in a chart.
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {number} seriesIndex - 0-based index of the series to replace.
+   * @param {Object} newSeriesData - New series data `{ name, values }`.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.replaceChartSeries('revenue-chart', 0, { name: 'Revenue', values: [100, 200, 300] });
+   */
   replaceChartSeries(chartId, seriesIndex, newSeriesData) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1647,6 +2068,16 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Updates only the title text of a chart.
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {string} title - New chart title.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateChartTitle('revenue-chart', 'Q2 2026 Revenue');
+   */
   updateChartTitle(chartId, title) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1662,6 +2093,16 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Updates only the category labels (X-axis) of a chart, keeping values unchanged.
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {string[]} categories - Array of category label strings.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateChartCategories('revenue-chart', ['Jan', 'Feb', 'Mar', 'Apr']);
+   */
   updateChartCategories(chartId, categories) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1677,6 +2118,26 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Updates data labels for a specific chart series.
+   * Supports custom arrays, label maps, template strings, and cell references.
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {Object} options - Data label options.
+   * @param {number} [options.series=0] - 0-based series index.
+   * @param {string[]} [options.labels] - Array of custom label strings.
+   * @param {Object} [options.labelMap] - Map of `{ categoryValue: label }`.
+   * @param {string} [options.template] - Template string with `{value}`, `{category}`, `{percentage}` tokens.
+   * @param {string} [options.labelsFromCells] - Excel cell range (e.g. `'Sheet1!$C$2:$C$6'`).
+   * @param {boolean} [options.showSeriesNameInBar] - Prepend series name to bar chart labels.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateDataLabels('revenue-chart', {
+   *   series: 0,
+   *   template: '{value} ({percentage}%)',
+   * });
+   */
   updateDataLabels(chartId, options) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1692,6 +2153,18 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Retrieves the current data labels configuration for a specific chart series.
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {Object} [options] - Options.
+   * @param {number} [options.series=0] - 0-based series index.
+   * @returns {Promise<Object>} Current data label settings.
+   *
+   * @example
+   * const labels = await ppt.getDataLabels('revenue-chart', { series: 0 });
+   * console.log(labels.showValue, labels.position);
+   */
   async getDataLabels(chartId, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1706,6 +2179,17 @@ class PPTXTemplater {
     )
   }
 
+  /**
+   * Validates the data labels configuration for a chart series against the chart XML.
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {Object} [options] - Options (same as `updateDataLabels`).
+   * @returns {Promise<{valid: boolean, errors: string[]}>}
+   *
+   * @example
+   * const result = await ppt.validateDataLabels('revenue-chart');
+   * if (!result.valid) console.error(result.errors);
+   */
   async validateDataLabels(chartId, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1714,6 +2198,16 @@ class PPTXTemplater {
     return ValidationEngine.validateDataLabels(this, idx, chartId, options)
   }
 
+  /**
+   * Validates chart data labels across all series, including cell reference checks.
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {Object} [options] - Options.
+   * @returns {Promise<{valid: boolean, errors: string[], warnings: string[]}>}
+   *
+   * @example
+   * const result = await ppt.validateChartLabels('revenue-chart');
+   */
   async validateChartLabels(chartId, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1728,6 +2222,16 @@ class PPTXTemplater {
     )
   }
 
+  /**
+   * Validates series name labels (the labels showing series names inside bar chart bars).
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {Object} [options] - Options.
+   * @returns {Promise<{valid: boolean, errors: string[], warnings: string[]}>}
+   *
+   * @example
+   * const result = await ppt.validateSeriesNameLabels('bar-chart');
+   */
   async validateSeriesNameLabels(chartId, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1742,6 +2246,15 @@ class PPTXTemplater {
     )
   }
 
+  /**
+   * Returns an array of all charts found on the targeted slide(s).
+   *
+   * @returns {Array<{rId: string, zipPath: string}>} Chart info objects.
+   *
+   * @example
+   * const charts = ppt.getCharts();
+   * charts.forEach(c => console.log(c.zipPath));
+   */
   getCharts() {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1851,6 +2364,21 @@ class PPTXTemplater {
    * @param {string|Object} data - String value or list configuration object.
    * @returns {PPTXTemplater} this (chainable)
    */
+  /**
+   * Updates text content or list items in a named shape or text box.
+   * Supports plain strings, bullet lists, numbered lists, and nested lists.
+   *
+   * @param {string} tag - Shape name/ID or placeholder tag.
+   * @param {string|Object} data - Text string, or list configuration object.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * // Plain text
+   * ppt.updateText('SubtitleBox', 'Updated subtitle');
+   *
+   * // Bullet list
+   * ppt.updateText('BulletBox', { items: ['Item A', 'Item B', 'Item C'] });
+   */
   updateText(tag, data) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1865,6 +2393,16 @@ class PPTXTemplater {
    *
    * @param {string} tag - Shape name/ID or placeholder tag.
    * @returns {Array} Nested list structure of items.
+   */
+  /**
+   * Retrieves list items from a shape or text box.
+   *
+   * @param {string} tag - Shape name/ID or placeholder tag.
+   * @returns {Array} Nested list structure of items.
+   *
+   * @example
+   * const items = ppt.getList('BulletBox');
+   * console.log(items); // ['Item A', ['Nested', 'Sub-item'], 'Item B']
    */
   getList(tag) {
     this.#assertLoaded()
@@ -1884,6 +2422,20 @@ class PPTXTemplater {
   }
 
   // === Text Features ===
+  /**
+   * Replaces a text placeholder tag across all targeted shapes on selected slides.
+   * Finds shapes containing `{{tag}}` or `tag` and replaces the placeholder value.
+   *
+   * @param {string} tag - Placeholder tag name (e.g. `'{{name}}'` or `'name'`).
+   * @param {string} value - Replacement value.
+   * @param {Object} [options] - Options.
+   * @param {number} [options.slide] - Target a specific slide index (overrides `useSlide`).
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.replaceTextByTag('{{company}}', 'Acme Corp');
+   * ppt.replaceTextByTag('{{date}}', '2026-06-12');
+   */
   replaceTextByTag(tag, value, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1900,6 +2452,21 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Replaces multiple text placeholder tags in a single pass.
+   * More efficient than calling `replaceTextByTag()` repeatedly.
+   *
+   * @param {Object<string, string>} replacements - Map of `{ tag: value }` pairs.
+   * @param {Object} [options] - Options (same as `replaceTextByTag`).
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.replaceMultiple({
+   *   '{{title}}': 'Q2 Report',
+   *   '{{date}}': 'June 2026',
+   *   '{{company}}': 'Acme Corp'
+   * });
+   */
   replaceMultiple(replacements, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1915,6 +2482,16 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Searches for all occurrences of a text string across the targeted slides.
+   *
+   * @param {string} text - Text to search for.
+   * @returns {Array<{slideIndex: number, shapeName: string, text: string}>} Array of matches.
+   *
+   * @example
+   * const matches = ppt.findText('Revenue');
+   * matches.forEach(m => console.log(`Found on slide ${m.slideIndex} in "${m.shapeName}"`));
+   */
   findText(text) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1925,6 +2502,15 @@ class PPTXTemplater {
     return matches
   }
 
+  /**
+   * Returns all text elements (paragraphs) across the targeted slides.
+   *
+   * @returns {Array<{slideIndex: number, shapeName: string, text: string}>}
+   *
+   * @example
+   * const elements = ppt.getTextElements();
+   * elements.forEach(el => console.log(`Slide ${el.slideIndex}: ${el.text}`))
+   */
   getTextElements() {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1936,6 +2522,16 @@ class PPTXTemplater {
   }
 
   // === Shape Features ===
+  /**
+   * Sets the text content of an existing shape by name or ID.
+   *
+   * @param {string} shapeId - Shape name or ID.
+   * @param {string} text - New text content.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateShapeText('CalloutBox', 'Important note here');
+   */
   updateShapeText(shapeId, text) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1985,6 +2581,19 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Duplicates an existing shape with a new ID, optionally at a different position.
+   *
+   * @param {string} shapeId - Source shape name or ID.
+   * @param {string} newShapeId - Name/ID for the cloned shape.
+   * @param {Object} [options] - Position overrides for the clone.
+   * @param {number} [options.x] - X offset for the clone (EMUs).
+   * @param {number} [options.y] - Y offset for the clone (EMUs).
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.cloneShape('logo', 'logo-copy', { x: 2000000, y: 500000 });
+   */
   cloneShape(shapeId, newShapeId, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -1994,6 +2603,15 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Removes a shape from the targeted slide(s). Alias for `removeShape()`.
+   *
+   * @param {string} shapeId - Shape name or ID to delete.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.deleteShape('temp-banner');
+   */
   deleteShape(shapeId) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -2003,6 +2621,15 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Returns metadata for all shapes on the targeted slide(s).
+   *
+   * @returns {Array<{id: string, name: string, type: string, x: number, y: number, width: number, height: number}>}
+   *
+   * @example
+   * const shapes = ppt.getShapes();
+   * shapes.forEach(s => console.log(`${s.name}: ${s.type} at (${s.x}, ${s.y})`));
+   */
   getShapes() {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -2253,6 +2880,16 @@ class PPTXTemplater {
   }
 
   // === Image Features ===
+  /**
+   * Replaces an existing image in the presentation by shape name or relationship ID.
+   *
+   * @param {string} imageIdOrName - Shape name, alt text, or relationship ID of the image.
+   * @param {string|Buffer} sourcePathOrBuffer - Path to the replacement image file, or a Buffer.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   *
+   * @example
+   * await ppt.replaceImage('company-logo', './new-logo.png');
+   */
   async replaceImage(imageIdOrName, sourcePathOrBuffer) {
     this.#assertLoaded()
     const t0 = performance.now()
@@ -2271,6 +2908,30 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Adds a new image to the targeted slide(s) at the specified position.
+   *
+   * @param {string|Buffer} sourcePathOrBuffer - Path to the image file, or a Buffer.
+   * @param {Object} [options] - Positioning and display options.
+   * @param {number} [options.x] - X offset in EMUs (1 inch = 914,400 EMUs).
+   * @param {number} [options.y] - Y offset in EMUs.
+   * @param {number} [options.width] - Width in EMUs.
+   * @param {number} [options.height] - Height in EMUs.
+   * @param {number} [options.rotation] - Rotation in degrees (0–360).
+   * @param {number} [options.opacity] - Opacity (0–100).
+   * @param {string} [options.name] - Shape name for the image.
+   * @param {Object} [options.cropTo] - Crop percentages `{ l, r, t, b }` (0–100000).
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   *
+   * @example
+   * await ppt.addImage('./photo.jpg', {
+   *   x: 914400,       // 1 inch
+   *   y: 914400,       // 1 inch
+   *   width: 3657600,  // 4 inches
+   *   height: 2743200, // 3 inches
+   *   name: 'hero-image'
+   * });
+   */
   async addImage(sourcePathOrBuffer, options = {}) {
     this.#assertLoaded()
     const t0 = performance.now()
@@ -2289,6 +2950,15 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Removes an image from the targeted slide(s) by shape name or relationship ID.
+   *
+   * @param {string} imageIdOrName - Shape name, alt text, or relationship ID of the image.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.removeImage('old-logo');
+   */
   removeImage(imageIdOrName) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -2303,6 +2973,15 @@ class PPTXTemplater {
     return this
   }
 
+  /**
+   * Returns metadata for all images found on the targeted slide(s).
+   *
+   * @returns {Array<{rId: string, name: string, x: number, y: number, width: number, height: number, mediaPath: string}>}
+   *
+   * @example
+   * const images = ppt.getImages();
+   * images.forEach(img => console.log(`${img.name}: ${img.width}×${img.height} EMUs`));
+   */
   getImages() {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -2315,7 +2994,19 @@ class PPTXTemplater {
     return images
   }
 
-  // === Validation Features ===
+  /**
+   * Performs a comprehensive validation of the entire PPTX structure.
+   * Checks slide XML, relationships, content types, slide masters, and layouts.
+   *
+   * @returns {Promise<{valid: boolean, errors: string[], warnings: string[]}>} Validation report.
+   *
+   * @example
+   * const result = await ppt.validatePresentation();
+   * if (!result.valid) {
+   *   console.error('Errors:', result.errors);
+   *   console.warn('Warnings:', result.warnings);
+   * }
+   */
   async validatePresentation() {
     this.#assertLoaded()
     return await ValidationEngine.validatePresentation(this)
@@ -2409,11 +3100,31 @@ class PPTXTemplater {
     }
   }
 
+  /**
+   * Validates the XML structure of a specific slide.
+   *
+   * @param {number} slideIndex - 1-based slide index to validate.
+   * @returns {Promise<{valid: boolean, errors: string[], warnings: string[]}>}
+   *
+   * @example
+   * const result = await ppt.validateSlide(1);
+   * if (!result.valid) console.error(result.errors);
+   */
   async validateSlide(slideIndex) {
     this.#assertLoaded()
     return await ValidationEngine.validateSlide(this, slideIndex)
   }
 
+  /**
+   * Validates the XML structure of a specific table on the active slide.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @returns {Promise<{valid: boolean, errors: string[], warnings: string[]}>}
+   *
+   * @example
+   * const result = await ppt.validateTable('SalesTable');
+   * if (!result.valid) console.error(result.errors);
+   */
   async validateTable(tableId) {
     this.#assertLoaded()
     return await ValidationEngine.validateTable(
@@ -2423,17 +3134,46 @@ class PPTXTemplater {
     )
   }
 
+  /**
+   * Validates the internal ZIP archive structure of the PPTX file.
+   * Checks that all files referenced in the archive are accessible and uncorrupted.
+   * Throws if critical structural issues are found.
+   *
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   *
+   * @example
+   * await ppt.validateArchive(); // Throws PPTXError if the ZIP is corrupt
+   */
   async validateArchive() {
     this.#assertLoaded()
     await this.#zipManager.validateArchive()
     return this
   }
 
+  /**
+   * Enables ZIP debug output. When enabled, every call to `toBuffer()` or `toStream()`
+   * will log all ZIP entries (name, compression method, sizes, CRC).
+   *
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.enableDebugZip();
+   * const buffer = await ppt.toBuffer(); // Logs ZIP entries to debug output
+   */
   enableDebugZip() {
     this.#outputWriter.debugZip = true
     return this
   }
 
+  /**
+   * Validates relationships for a specific part path inside the ZIP.
+   *
+   * @param {string} partPath - ZIP path to validate (e.g. `'ppt/slides/slide1.xml'`).
+   * @returns {Object} Validation result with `valid`, `errors`, and `warnings`.
+   *
+   * @example
+   * const result = ppt.validateRelationships('ppt/slides/slide1.xml');
+   */
   validateRelationships(partPath) {
     this.#assertLoaded()
     return ValidationEngine.validateRelationships(this, partPath)
@@ -2658,6 +3398,17 @@ class PPTXTemplater {
   /**
    * Gets the ordered metadata of all objects on the slide.
    */
+  /**
+   * Returns an ordered array of all slide objects (shapes, images, charts, tables)
+   * from bottom to top of the stacking order.
+   *
+   * @param {number} [slideIndex] - 1-based slide index. Defaults to the active slide.
+   * @returns {Array<{id: string, name: string, type: string, zIndex: number}>}
+   *
+   * @example
+   * const order = ppt.getObjectOrder(1);
+   * order.forEach(o => console.log(`[${o.zIndex}] ${o.name}`));
+   */
   getObjectOrder(slideIndex) {
     this.#assertLoaded()
     const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
@@ -2684,6 +3435,16 @@ class PPTXTemplater {
   /**
    * Retrieves the info of the top-most object on the slide.
    */
+  /**
+   * Returns the top-most (front) object on the slide.
+   *
+   * @param {number} [slideIndex] - 1-based slide index. Defaults to the active slide.
+   * @returns {{id: string, name: string, type: string, zIndex: number}|null}
+   *
+   * @example
+   * const top = ppt.getTopMostObject(1);
+   * console.log('Front-most shape:', top.name);
+   */
   getTopMostObject(slideIndex) {
     this.#assertLoaded()
     const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
@@ -2693,6 +3454,16 @@ class PPTXTemplater {
   /**
    * Retrieves the info of the bottom-most object on the slide.
    */
+  /**
+   * Returns the bottom-most (back) object on the slide.
+   *
+   * @param {number} [slideIndex] - 1-based slide index. Defaults to the active slide.
+   * @returns {{id: string, name: string, type: string, zIndex: number}|null}
+   *
+   * @example
+   * const bottom = ppt.getBottomMostObject(1);
+   * console.log('Back-most shape:', bottom.name);
+   */
   getBottomMostObject(slideIndex) {
     this.#assertLoaded()
     const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
@@ -2701,6 +3472,18 @@ class PPTXTemplater {
 
   /**
    * Swaps stacking positions of two slide objects.
+   */
+  /**
+   * Swaps the stacking positions of two slide objects.
+   *
+   * @param {number|string} slideIndexOrId1 - Slide index (if 3 args) or first object ID (if 2 args).
+   * @param {string} id1OrId2 - First object ID (if 3 args) or second object ID (if 2 args).
+   * @param {string} [id2] - Second object ID (only if slide index is provided as first arg).
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.swapObjects(1, 'logo', 'background'); // On slide 1, swap 'logo' and 'background'
+   * ppt.swapObjects('logo', 'background');     // On active slide
    */
   swapObjects(slideIndexOrId1, id1OrId2, id2) {
     this.#assertLoaded()
@@ -2721,6 +3504,17 @@ class PPTXTemplater {
   /**
    * Sorts stacking order using a custom comparison function.
    */
+  /**
+   * Sorts all slide objects using a custom comparison function.
+   *
+   * @param {number|Function} slideIndexOrCompareFn - Slide index (if 2 args) or compare function (if 1 arg).
+   * @param {Function} [compareFnOption] - Compare function when slide index is provided.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * // Sort alphabetically by name on the active slide
+   * ppt.sortObjects((a, b) => a.name.localeCompare(b.name));
+   */
   sortObjects(slideIndexOrCompareFn, compareFnOption) {
     this.#assertLoaded()
     let slideIndex, compareFn
@@ -2737,6 +3531,16 @@ class PPTXTemplater {
 
   /**
    * Cleans up and normalizes stacking order consistency.
+   */
+  /**
+   * Normalizes the stacking order of all objects on a slide, removing gaps
+   * and ensuring Z-index values are sequential (1, 2, 3, ...).
+   *
+   * @param {number} [slideIndex] - 1-based slide index. Defaults to the active slide.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.normalizeZOrder(1); // Clean up stacking order on slide 1
    */
   normalizeZOrder(slideIndex) {
     this.#assertLoaded()

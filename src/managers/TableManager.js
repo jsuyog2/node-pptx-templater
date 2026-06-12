@@ -796,8 +796,6 @@ class TableManager {
   getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager) {
     const { tblObj, frameObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
-
     const xfrm = frameObj['p:xfrm']
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
     const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
@@ -1343,6 +1341,16 @@ class TableManager {
       }
     }
 
+    // Scale shape down proportionally to fit inside the cell if it exceeds the cell dimensions
+    if (shapeWidth > cellWidth_px || shapeHeight > cellHeight_px) {
+      logger.warn(
+        `Shape width (${shapeWidth}px) or height (${shapeHeight}px) exceeds cell dimensions (${cellWidth_px}px x ${cellHeight_px}px). Scaling shape to fit.`
+      )
+      const scale = Math.min(cellWidth_px / shapeWidth, cellHeight_px / shapeHeight)
+      shapeWidth = Math.max(1, Math.floor(shapeWidth * scale))
+      shapeHeight = Math.max(1, Math.floor(shapeHeight * scale))
+    }
+
     // 2. Determine alignment settings
     let alignX = config.alignX
     let alignY = config.alignY
@@ -1695,8 +1703,6 @@ class TableManager {
       }
     }
 
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
-
     const xfrm = frameObj['p:xfrm']
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
     const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
@@ -1870,8 +1876,6 @@ class TableManager {
       slideManager
     )
 
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
-
     const xfrm = frameObj['p:xfrm']
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
     const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
@@ -1954,8 +1958,6 @@ class TableManager {
       tableId,
       slideManager
     )
-
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`

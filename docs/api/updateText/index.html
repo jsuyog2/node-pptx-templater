@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>updateText() API Method - node-pptx-templater</title>
-  <meta name="description" content="Updates shape text or list content by placeholder tag or shape name/ID. Supports bullet lists, numbered lists, nested lists, and custom styling.">
+  <meta name="description" content="Updates shape text or list content by placeholder tag or shape name/ID. Supports bullet lists, numbered lists, nested lists, and custom styling. / /** Updates text content or list items in a named shape or text box. Supports plain strings, bullet lists, numbered lists, and nested lists.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/api/updateText/">
   <link rel="stylesheet" href="../../style.css">
   <script>
@@ -21,7 +21,7 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Updates shape text or list content by placeholder tag or shape name/ID. Supports bullet lists, numbered lists, nested lists, and custom styling.</p>
+    <p><strong>Description:</strong> Updates shape text or list content by placeholder tag or shape name/ID. Supports bullet lists, numbered lists, nested lists, and custom styling. / /** Updates text content or list items in a named shape or text box. Supports plain strings, bullet lists, numbered lists, and nested lists.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
     
       <h3>Parameters</h3>
@@ -47,6 +47,18 @@
               <td>String value or list configuration object.</td>
             </tr>
           
+            <tr>
+              <td><strong>tag</strong></td>
+              <td><code>string</code></td>
+              <td>Shape name/ID or placeholder tag.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>data</strong></td>
+              <td><code>string|Object</code></td>
+              <td>Text string, or list configuration object.</td>
+            </tr>
+          
         </tbody>
       </table>
     
@@ -59,6 +71,12 @@
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Supports simple strings or bulleted/numbered list config objects. Paragraph alignments and styles of template run are preserved.</p>
     <p><strong>Errors:</strong> Throws PPTXError if placeholder tag or shape name/ID is not found in the selected slide.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>// Plain text
+ppt.updateText(&#039;SubtitleBox&#039;, &#039;Updated subtitle&#039;);
+// Bullet list
+ppt.updateText(&#039;BulletBox&#039;, { items: [&#039;Item A&#039;, &#039;Item B&#039;, &#039;Item C&#039;] });</code></pre>
     
   
     </div>

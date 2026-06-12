@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>mergeCells() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Merges a rectangular region of table cells into a single merged cell. Supports both positional arguments and an options object.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/mergeCells/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,67 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Merges a rectangular region of table cells into a single merged cell. Supports both positional arguments and an options object.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>tableIdOrOptions</strong></td>
+              <td><code>string|Object</code></td>
+              <td>Table ID string, or options object with all fields.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[startRow]</strong></td>
+              <td><code>number</code></td>
+              <td>0-based start row.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[startCol]</strong></td>
+              <td><code>number</code></td>
+              <td>0-based start column.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[endRow]</strong></td>
+              <td><code>number</code></td>
+              <td>0-based end row (inclusive).</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[endCol]</strong></td>
+              <td><code>number</code></td>
+              <td>0-based end column (inclusive).</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>PPTXTemplater</code> — this (chainable)</p>
     
     <h3>OpenXML Impact</h3>
     <p>Declares `gridSpan` and `rowSpan` in the top-left origin `&lt;a:tc&gt;`, and applies `hMerge=&quot;1&quot;` or `vMerge=&quot;1&quot;` properties to all shadowed cells inside the merged region block.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Start Row/Col must be less than or equal to End Row/Col. Cells outside the grid boundaries throw RangeError.</p>
     <p><strong>Errors:</strong> Validates bounds before running. Best practice is to run `validateMergeRegion()` first.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>ppt.mergeCells(&#039;SalesTable&#039;, 0, 0, 0, 2); // Merge first 3 cells of row 0
+// Or with options object:
+ppt.mergeCells({ tableId: &#039;SalesTable&#039;, startRow: 0, startCol: 0, endRow: 0, endCol: 2 });</code></pre>
     
   
     </div>

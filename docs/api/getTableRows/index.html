@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>getTableRows() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Extracts table data from the active slide as structured JSON. The first row of the table is treated as the header row.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/api/getTableRows/">
   <link rel="stylesheet" href="../../style.css">
   <script>
@@ -21,18 +21,67 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Extracts table data from the active slide as structured JSON. The first row of the table is treated as the header row.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>tableId</strong></td>
+              <td><code>string</code></td>
+              <td>Table name or shape ID.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options]</strong></td>
+              <td><code>Object</code></td>
+              <td>Extraction options.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.raw=false]</strong></td>
+              <td><code>boolean</code></td>
+              <td>Return `string[][]` instead of object array.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.includeMetadata=false]</strong></td>
+              <td><code>boolean</code></td>
+              <td>Return `{rows, rowCount, columnCount, mergedCells}`.</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>Array&lt;Object&gt;|Array&lt;Array&lt;string&gt;&gt;|Object</code> — Extracted table data.</p>
     
     <h3>OpenXML Impact</h3>
     <p>Reads XML table data structure. No write impact on slide XML.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> If tableId is not found, throws TableNotFoundError. Merged cells automatically resolve to their parent cell value.</p>
     <p><strong>Errors:</strong> Throws TableNotFoundError if table is not found, or PPTXError if slide selection is empty.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>// Object mode (default)
+const rows = await ppt.getTableRows(&#039;SalesTable&#039;);
+// → [{ region: &#039;North&#039;, sales: &#039;1200&#039; }, ...]
+// Raw mode
+const raw = await ppt.getTableRows(&#039;SalesTable&#039;, { raw: true });
+// → [[&#039;North&#039;, &#039;1200&#039;], ...]
+// Metadata mode
+const meta = await ppt.getTableRows(&#039;SalesTable&#039;, { includeMetadata: true });
+// → { rows: [...], rowCount: 5, columnCount: 3, mergedCells: [] }</code></pre>
     
   
     </div>

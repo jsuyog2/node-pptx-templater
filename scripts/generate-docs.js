@@ -153,6 +153,8 @@ const METHOD_CATEGORIES = {
   'validatePresentation': 'utils',
   'validateArchive': 'utils',
   'enableDebugZip': 'utils',
+  'setLogLevel': 'utils',
+  'enableDebug': 'utils',
   'validateSlide': 'utils',
   'validateTable': 'utils',
   'validateRelationships': 'utils',
@@ -719,7 +721,7 @@ function getPublicMethodsFromSource() {
   const code = fs.readFileSync(resolve(__dirname, '../src/core/PPTXTemplater.js'), 'utf-8');
   // Strip out comments
   const cleanCode = code.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
-  
+
   // Match method signatures: either async or standard, e.g. name(...)
   const methodRegex = /(?:async\s+)?([#a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
   const methods = new Set();
@@ -738,7 +740,7 @@ function getPublicMethodsFromSource() {
       methods.add(methodName);
     }
   }
-  
+
   // Match getters too
   const getterRegex = /get\s+([a-zA-Z0-9_]+)\s*\(\)\s*\{/g;
   while ((match = getterRegex.exec(cleanCode)) !== null) {
@@ -756,7 +758,7 @@ function getPublicMethodsFromSource() {
  */
 function extractAPIDocs() {
   const srcDir = resolve(__dirname, '../src');
-  
+
   function walk(dir) {
     let results = [];
     const list = fs.readdirSync(dir);
@@ -771,44 +773,44 @@ function extractAPIDocs() {
     });
     return results;
   }
-  
+
   const files = walk(srcDir);
   const apis = [];
-  
+
   files.forEach(file => {
     const relPath = path.relative(resolve(__dirname, '..'), file).replace(/\\/g, '/');
     const content = fs.readFileSync(file, 'utf-8');
-    
+
     // Find class name
     const classMatch = content.match(/class\s+([a-zA-Z0-9_]+)/);
     const className = classMatch ? classMatch[1] : path.basename(file, '.js');
-    
+
     // Pattern to match JSDoc comments followed by method signature
     const docPattern = /\/\*\*([\s\S]*?)\*\/\s*(?:async\s+|get\s+)?([a-zA-Z0-9_#]+)\s*(?:\(([^)]*)\))?/g;
     let match;
-    
+
     while ((match = docPattern.exec(content)) !== null) {
       const jsdoc = match[1];
       const name = match[2];
       const args = match[3] || '';
-      
+
       // Ignore private methods
       if (name.startsWith('#') || name === 'constructor') {
         continue;
       }
-      
+
       // Only process PPTXTemplater methods and root utilities for public API
       if (className !== 'PPTXTemplater' && !relPath.includes('src/utils/xmlUtils.js') && !relPath.includes('src/utils/relationshipUtils.js')) {
         continue;
       }
-      
+
       const lines = jsdoc.split('\n').map(l => l.replace(/^\s*\*\s?/, '').trim());
       const descLines = [];
       const params = [];
       let returns = null;
       const examples = [];
       let inExample = false;
-      
+
       for (let line of lines) {
         if (line.startsWith('@param')) {
           inExample = false;
@@ -841,10 +843,10 @@ function extractAPIDocs() {
           }
         }
       }
-      
+
       const description = descLines.filter(Boolean).join(' ');
       const exampleCode = examples.filter(l => l !== '').join('\n');
-      
+
       // Deduplicate
       if (!apis.find(a => a.name === name)) {
         apis.push({
@@ -860,11 +862,11 @@ function extractAPIDocs() {
       }
     }
   });
-  
+
   // Fill undocumented wrapper methods of PPTXTemplater
   const sourceMethods = getPublicMethodsFromSource();
   sourceMethods.push('load', 'create');
-  
+
   sourceMethods.forEach(method => {
     if (!apis.find(a => a.name === method)) {
       // Find implementation inside manager JS JSDocs if exists
@@ -872,7 +874,7 @@ function extractAPIDocs() {
       let args = '()';
       let params = [];
       let returns = { type: 'PPTXTemplater', desc: 'The fluent engine instance.' };
-      
+
       apis.push({
         file: 'src/core/PPTXTemplater.js',
         className: 'PPTXTemplater',
@@ -885,7 +887,7 @@ function extractAPIDocs() {
       });
     }
   });
-  
+
   completeDatabaseMetadata(apis);
   return apis;
 }
@@ -893,19 +895,19 @@ function extractAPIDocs() {
 function validateAPIBuild(apis) {
   const sourceMethods = getPublicMethodsFromSource();
   sourceMethods.push('load', 'create');
-  
+
   const unmapped = [];
   for (const method of sourceMethods) {
     if (!METHOD_CATEGORIES[method]) {
       unmapped.push(method);
     }
   }
-  
+
   if (unmapped.length > 0) {
     console.error('Validation failed: The following public methods are not categorized in METHOD_CATEGORIES:', unmapped);
     process.exit(1);
   }
-  
+
   console.log(`Validation passed: All ${sourceMethods.length} methods correctly mapped and documented!`);
 }
 
@@ -923,7 +925,7 @@ function renderSidebarAPIs(apis) {
   let html = '';
   for (const [catId, catInfo] of Object.entries(API_CATEGORIES)) {
     const catApis = apis.filter(a => a.category === catId);
-    
+
     html += `
       <div class="space-y-1 mt-4 class-sidebar-group" id="group-api-${catId}">
         <h3 class="text-xs uppercase text-gray-500 font-semibold tracking-wider px-3 flex items-center justify-between cursor-pointer hover:text-white transition-colors" onclick="toggleSidebarGroup('api-${catId}')">
@@ -946,7 +948,7 @@ function renderContentAPIs(apis) {
   let html = '';
   for (const [catId, catInfo] of Object.entries(API_CATEGORIES)) {
     const catApis = apis.filter(a => a.category === catId);
-    
+
     html += `
       <!-- Category ${catId} Section -->
       <section id="api-${catId}" class="doc-section space-y-6 hidden">
@@ -959,10 +961,10 @@ function renderContentAPIs(apis) {
         
         <div class="grid grid-cols-1 gap-6 mt-6">
     `;
-    
+
     catApis.forEach(m => {
       const signature = `${m.name}(${m.args})`;
-      
+
       let paramsTable = '';
       if (m.params.length > 0) {
         paramsTable = `
@@ -988,7 +990,7 @@ function renderContentAPIs(apis) {
           </div>
         `;
       }
-      
+
       let returnsBlock = '';
       if (m.returns) {
         returnsBlock = `
@@ -999,7 +1001,7 @@ function renderContentAPIs(apis) {
           </div>
         `;
       }
-      
+
       let exampleBlock = '';
       if (m.examples) {
         exampleBlock = `
@@ -1019,7 +1021,7 @@ function renderContentAPIs(apis) {
           </div>
         `;
       }
-      
+
       html += `
         <!-- Method ${m.name} Card -->
         <div id="method-${m.name}" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
@@ -1052,13 +1054,13 @@ function renderContentAPIs(apis) {
         </div>
       `;
     });
-    
+
     html += `
         </div>
       </section>
     `;
   }
-  
+
   return html;
 }
 
@@ -1067,7 +1069,7 @@ function generateReadmeAPI(apis) {
   for (const [catId, catInfo] of Object.entries(API_CATEGORIES)) {
     const catApis = apis.filter(a => a.category === catId);
     md += `\n### ${catInfo.title}\n\n`;
-    
+
     catApis.forEach(m => {
       md += `#### \`${m.name}(${m.args})\`\n`;
       md += `${m.description}\n\n`;
@@ -1092,13 +1094,13 @@ function generateReadmeAPI(apis) {
 async function syncReadme(apis) {
   const readmePath = resolve(__dirname, '../README.md');
   if (!fs.existsSync(readmePath)) return;
-  
+
   let readme = await fs.readFile(readmePath, 'utf-8');
   const startTag = '<!-- API_REFERENCE_START -->';
   const endTag = '<!-- API_REFERENCE_END -->';
   const startIndex = readme.indexOf(startTag);
   const endIndex = readme.indexOf(endTag);
-  
+
   if (startIndex !== -1 && endIndex !== -1) {
     const before = readme.substring(0, startIndex + startTag.length);
     const after = readme.substring(endIndex);
@@ -1158,7 +1160,7 @@ function getLastModifiedDate(filePath) {
   } catch (e) {
     // Ignore and fallback
   }
-  
+
   try {
     const stats = fs.statSync(filePath);
     return stats.mtime.toISOString().split('T')[0];
@@ -1442,7 +1444,7 @@ function getMethodBodyContent(m) {
       </table>
     `;
   }
-  
+
   let returnsBlock = '';
   if (m.returns) {
     returnsBlock = `
@@ -1450,7 +1452,7 @@ function getMethodBodyContent(m) {
       <p><code>${escapeHtml(m.returns.type)}</code> — ${escapeHtml(m.returns.desc)}</p>
     `;
   }
-  
+
   let examplesBlock = '';
   if (m.exampleCode) {
     examplesBlock = `
@@ -1553,9 +1555,9 @@ async function validateSitemap(routes, examplesUrls, foundImages, baseVUrl) {
   console.log('--- Starting Sitemap Validation Audit ---');
   const errors = [];
   const warnings = [];
-  
+
   const allUrls = [...routes, ...examplesUrls];
-  
+
   // 1. Check for Duplicate URLs
   const urlSet = new Set();
   for (const r of allUrls) {
@@ -1564,7 +1566,7 @@ async function validateSitemap(routes, examplesUrls, foundImages, baseVUrl) {
     }
     urlSet.add(r.url);
   }
-  
+
   // 2. Verify File Existence (No 404s in Sitemap)
   for (const r of routes) {
     const fileExists = await fs.pathExists(r.fsPath);
@@ -1572,16 +1574,16 @@ async function validateSitemap(routes, examplesUrls, foundImages, baseVUrl) {
       errors.push({ type: 'MISSING_FILE', url: r.url, fsPath: r.fsPath, message: `Sitemap URL references a non-existent file on disk: ${r.fsPath}` });
     }
   }
-  
+
   // 3. Verify Canonical Tag Matches URL Exactly (Canonical URL Validation)
   for (const r of routes) {
     const fileExists = await fs.pathExists(r.fsPath);
     if (fileExists) {
       const htmlContent = await fs.readFile(r.fsPath, 'utf-8');
-      
+
       const canonicalMatch = htmlContent.match(/<link\s+[^>]*rel=["']canonical["']\s+[^>]*href=["']([^"']+)["'][^>]*>/i) ||
-                             htmlContent.match(/<link\s+[^>]*href=["']([^"']+)["']\s+[^>]*rel=["']canonical["'][^>]*>/i);
-      
+        htmlContent.match(/<link\s+[^>]*href=["']([^"']+)["']\s+[^>]*rel=["']canonical["'][^>]*>/i);
+
       if (!canonicalMatch) {
         errors.push({ type: 'MISSING_CANONICAL', url: r.url, fsPath: r.fsPath, message: `Canonical link tag is missing in file: ${r.fsPath}` });
       } else {
@@ -1595,7 +1597,7 @@ async function validateSitemap(routes, examplesUrls, foundImages, baseVUrl) {
           });
         }
       }
-      
+
       // 4. Crawl / Check for broken internal links inside generated pages
       const hrefRegex = /href=["']([^"']+)["']/gi;
       let hrefMatch;
@@ -1604,13 +1606,13 @@ async function validateSitemap(routes, examplesUrls, foundImages, baseVUrl) {
         if (link.startsWith('http') || link.startsWith('#') || link.startsWith('mailto:')) {
           continue;
         }
-        
+
         const resolvedLinkPath = resolve(path.dirname(r.fsPath), link);
         let checkPath = resolvedLinkPath;
         if (checkPath.endsWith('/') || (!path.extname(checkPath) && !checkPath.endsWith('index.html'))) {
           checkPath = checkPath.endsWith('/') ? checkPath + 'index.html' : checkPath + '/index.html';
         }
-        
+
         const linkedFileExists = await fs.pathExists(checkPath);
         if (!linkedFileExists) {
           errors.push({
@@ -1634,7 +1636,7 @@ async function validateSitemap(routes, examplesUrls, foundImages, baseVUrl) {
   }
 
   console.log(`Validation Audit Summary: ${errors.length} errors, ${warnings.length} warnings.`);
-  
+
   const report = {
     timestamp: new Date().toISOString(),
     baseUrl: baseVUrl,
@@ -1644,10 +1646,10 @@ async function validateSitemap(routes, examplesUrls, foundImages, baseVUrl) {
     errors,
     warnings
   };
-  
+
   await fs.writeFile(resolve(DOCS_DIR, 'sitemap-report.json'), JSON.stringify(report, null, 2));
   console.log('Sitemap audit report successfully written to docs/sitemap-report.json');
-  
+
   if (errors.length > 0) {
     console.error('Sitemap Validation Errors Found:');
     errors.forEach(e => console.error(`  - [${e.type}] ${e.message}`));
@@ -1658,17 +1660,17 @@ async function validateSitemap(routes, examplesUrls, foundImages, baseVUrl) {
 async function generateSeoSitemapsAndPages(apis, htmlContent) {
   const BASE_URL = process.env.DOCS_BASE_URL || 'https://jsuyog2.github.io/node-pptx-templater/';
   const normalizedBaseUrl = BASE_URL.endsWith('/') ? BASE_URL : BASE_URL + '/';
-  
+
   const routes = [];
-  
+
   async function registerRoute({ v, pathUrl, fileRelPath, title, desc, changefreq, priority, sourceFile, type, bodyHtml }) {
     const vPrefix = v ? v + '/' : '';
     const fullPathUrl = normalizedBaseUrl + vPrefix + pathUrl;
     const fsRelPath = vPrefix + fileRelPath;
     const absoluteFsPath = resolve(DOCS_DIR, fsRelPath);
-    
+
     const lastmod = getLastModifiedDate(sourceFile);
-    
+
     routes.push({
       url: fullPathUrl,
       fsPath: absoluteFsPath,
@@ -1680,16 +1682,16 @@ async function generateSeoSitemapsAndPages(apis, htmlContent) {
       lastmod,
       type
     });
-    
+
     if (fileRelPath !== 'index.html') {
       const parentDir = path.dirname(absoluteFsPath);
       await fs.ensureDir(parentDir);
-      
+
       const relativeBackDepth = (v ? '../' : '') + '../'.repeat(fileRelPath.split('/').length - 1);
       const redirectHash = type === 'api' ? `method-${pathUrl.split('/').filter(Boolean).pop()}` :
-                           type === 'category' ? `api-${pathUrl.split('/').filter(Boolean).pop()}` :
-                           pathUrl.split('/').filter(Boolean).pop() || 'introduction';
-      
+        type === 'category' ? `api-${pathUrl.split('/').filter(Boolean).pop()}` :
+          pathUrl.split('/').filter(Boolean).pop() || 'introduction';
+
       const redirectHtml = buildStaticPageHtml(title, desc, fullPathUrl, redirectHash, relativeBackDepth, bodyHtml);
       await fs.writeFile(absoluteFsPath, redirectHtml);
     }
@@ -1718,11 +1720,11 @@ async function generateSeoSitemapsAndPages(apis, htmlContent) {
   ];
 
   const versions = ['', 'latest', `v${VERSION.split('.')[0]}`];
-  
+
   for (const v of versions) {
     const lastmodHome = getLastModifiedDate(resolve(__dirname, '../README.md'));
     const vPrefix = v ? v + '/' : '';
-    
+
     routes.push({
       url: normalizedBaseUrl + vPrefix,
       fsPath: resolve(DOCS_DIR, vPrefix + 'index.html'),
@@ -1734,7 +1736,7 @@ async function generateSeoSitemapsAndPages(apis, htmlContent) {
       lastmod: lastmodHome,
       type: 'core'
     });
-    
+
     if (v) {
       await fs.ensureDir(resolve(DOCS_DIR, vPrefix));
       const adjustedHtml = htmlContent
@@ -1744,7 +1746,7 @@ async function generateSeoSitemapsAndPages(apis, htmlContent) {
         .replace(/https:\/\/jsuyog2.github.io\/node-pptx-templater\//g, normalizedBaseUrl + vPrefix);
       await fs.writeFile(resolve(DOCS_DIR, vPrefix + 'index.html'), adjustedHtml);
     }
-    
+
     for (const page of corePages) {
       await registerRoute({
         v,
@@ -1759,7 +1761,7 @@ async function generateSeoSitemapsAndPages(apis, htmlContent) {
         bodyHtml: page.content
       });
     }
-    
+
     for (const catId of Object.keys(API_CATEGORIES)) {
       const catInfo = API_CATEGORIES[catId];
       await registerRoute({
@@ -1775,7 +1777,7 @@ async function generateSeoSitemapsAndPages(apis, htmlContent) {
         bodyHtml: getCategoryBodyContent(catId, catInfo, apis)
       });
     }
-    
+
     for (const m of apis) {
       await registerRoute({
         v,
@@ -1795,11 +1797,11 @@ async function generateSeoSitemapsAndPages(apis, htmlContent) {
   const docsUrls = routes.filter(r => r.type === 'core' || r.type === 'category');
   const sitemapDocsXml = generateSitemapXml(docsUrls);
   await fs.writeFile(resolve(DOCS_DIR, 'sitemap-docs.xml'), sitemapDocsXml);
-  
+
   const apiUrls = routes.filter(r => r.type === 'api');
   const sitemapApiXml = generateSitemapXml(apiUrls);
   await fs.writeFile(resolve(DOCS_DIR, 'sitemap-api.xml'), sitemapApiXml);
-  
+
   const examplesUrls = [];
   const lastmodReadme = getLastModifiedDate(resolve(__dirname, '../README.md'));
   for (const v of versions) {
@@ -1832,20 +1834,20 @@ async function generateSeoSitemapsAndPages(apis, htmlContent) {
     foundImages.add(imgMatch[1]);
   }
   foundImages.add('assets/brand-preview.png');
-  
+
   const imageElementsXml = [];
   for (const imgUrl of foundImages) {
     const absoluteImgUrl = imgUrl.startsWith('http') ? imgUrl : normalizedBaseUrl + imgUrl;
     const imgTitle = path.basename(imgUrl, path.extname(imgUrl))
       .replace(/[-_]/g, ' ')
       .replace(/\b\w/g, c => c.toUpperCase());
-      
+
     imageElementsXml.push(`    <image:image>
       <image:loc>${absoluteImgUrl}</image:loc>
       <image:title>${escapeHtml(imgTitle)}</image:title>
     </image:image>`);
   }
-  
+
   const sitemapImagesXml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
@@ -1857,7 +1859,7 @@ ${imageElementsXml.join('\n')}
 
   const totalUrlsCount = routes.length + examplesUrls.length;
   console.log(`Total generated URLs for sitemap indexing: ${totalUrlsCount}`);
-  
+
   let sitemapXmlContent = '';
   if (totalUrlsCount > 500) {
     console.log(`URL count exceeds 500 (${totalUrlsCount}). Generating sitemap-index.xml as sitemap.xml.`);
@@ -1870,7 +1872,7 @@ ${imageElementsXml.join('\n')}
   } else {
     const allUrls = [...routes, ...examplesUrls];
     sitemapXmlContent = generateSitemapXml(allUrls);
-    
+
     const indexContent = generateSitemapIndexXml([
       normalizedBaseUrl + 'sitemap-docs.xml',
       normalizedBaseUrl + 'sitemap-api.xml',
@@ -1879,9 +1881,9 @@ ${imageElementsXml.join('\n')}
     ]);
     await fs.writeFile(resolve(DOCS_DIR, 'sitemap-index.xml'), indexContent);
   }
-  
+
   await fs.writeFile(resolve(DOCS_DIR, 'sitemap.xml'), sitemapXmlContent);
-  
+
   const robotsTxt = `User-agent: *
 Allow: /
 Sitemap: ${normalizedBaseUrl}sitemap.xml`;
@@ -3141,7 +3143,7 @@ window.toggleSidebarGroup = function(groupId) {
   await fs.writeFile(resolve(DOCS_DIR, 'index.html'), HTML_CONTENT);
   await fs.writeFile(resolve(DOCS_DIR, 'style.css'), CSS_CONTENT);
   await fs.writeFile(resolve(DOCS_DIR, 'app.js'), JS_CONTENT);
-  
+
   // SEO Sitemaps & Dynamic Clean URL Pages Generation
   await generateSeoSitemapsAndPages(apis, HTML_CONTENT);
 

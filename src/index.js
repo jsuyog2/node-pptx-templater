@@ -51,7 +51,7 @@ const {
   analyzeXmlFile,
   reportXmlComplexity,
 } = require('./utils/xmlUtils.js')
-const { createLogger } = require('./utils/logger.js')
+const { createLogger, setGlobalLogLevel, resetLogLevel } = require('./utils/logger.js')
 const {
   PPTXError,
   SlideNotFoundError,
@@ -87,6 +87,8 @@ module.exports = {
   analyzeXmlFile,
   reportXmlComplexity,
   createLogger,
+  setGlobalLogLevel,
+  resetLogLevel,
   PPTXError,
   SlideNotFoundError,
   ChartNotFoundError,

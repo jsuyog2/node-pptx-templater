@@ -30,6 +30,78 @@
         </li>
       
         <li>
+          <a href="../../api/getTableRows/"><strong>getTableRows</strong></a> — Extracts table data from the active slide as structured JSON. The first row of the table is treated as the header row.
+        </li>
+      
+        <li>
+          <a href="../../api/addTableRow/"><strong>addTableRow</strong></a> — Appends one or more rows to a table. Supports flat arrays and nested arrays for rowspan-merged cells. `&#039;rowspan&#039;` creates OpenXML vertical spans, `&#039;auto&#039;` merges identical adjacent values, `&#039;none&#039;` expands nested arrays into multiple flat rows.
+        </li>
+      
+        <li>
+          <a href="../../api/removeTableRow/"><strong>removeTableRow</strong></a> — Removes a row from a table by its 0-based row index.
+        </li>
+      
+        <li>
+          <a href="../../api/insertTableRow/"><strong>insertTableRow</strong></a> — Inserts a new row at the specified 0-based index, shifting existing rows down.
+        </li>
+      
+        <li>
+          <a href="../../api/cloneTableRow/"><strong>cloneTableRow</strong></a> — Clones a row and inserts the copy at a target position.
+        </li>
+      
+        <li>
+          <a href="../../api/updateCell/"><strong>updateCell</strong></a> — Updates the text and optional formatting of a single table cell.
+        </li>
+      
+        <li>
+          <a href="../../api/mergeCells/"><strong>mergeCells</strong></a> — Merges a rectangular region of table cells into a single merged cell. Supports both positional arguments and an options object.
+        </li>
+      
+        <li>
+          <a href="../../api/unmergeCells/"><strong>unmergeCells</strong></a> — Unmerges (splits) a previously merged cell region. Supports both positional arguments and an options object.
+        </li>
+      
+        <li>
+          <a href="../../api/getMergedCells/"><strong>getMergedCells</strong></a> — Returns an array of all merged cell regions in a table.
+        </li>
+      
+        <li>
+          <a href="../../api/validateMergeRegion/"><strong>validateMergeRegion</strong></a> — Validates whether a merge region is valid for the given table dimensions. Checks for overlapping merges, out-of-bounds coordinates, etc.
+        </li>
+      
+        <li>
+          <a href="../../api/isMergedCell/"><strong>isMergedCell</strong></a> — Checks whether a specific table cell is part of a merged region.
+        </li>
+      
+        <li>
+          <a href="../../api/getMergeParent/"><strong>getMergeParent</strong></a> — Returns the anchor (parent) cell coordinates of a merged region that contains the given cell.
+        </li>
+      
+        <li>
+          <a href="../../api/getMergeRegion/"><strong>getMergeRegion</strong></a> — Returns the full extent of the merged region containing a given cell.
+        </li>
+      
+        <li>
+          <a href="../../api/splitMergedRegion/"><strong>splitMergedRegion</strong></a> — Splits a previously merged cell region back into individual cells.
+        </li>
+      
+        <li>
+          <a href="../../api/cloneMergedRegion/"><strong>cloneMergedRegion</strong></a> — Clones an existing merged region to a new anchor position in the table.
+        </li>
+      
+        <li>
+          <a href="../../api/autoFitTable/"><strong>autoFitTable</strong></a> — Automatically adjusts column widths to fit the content of each cell.
+        </li>
+      
+        <li>
+          <a href="../../api/resizeTable/"><strong>resizeTable</strong></a> — Resizes a table to the specified width and height in EMUs. 1 inch = 914,400 EMUs.
+        </li>
+      
+        <li>
+          <a href="../../api/getTables/"><strong>getTables</strong></a> — Returns metadata for all tables on the targeted slide(s).
+        </li>
+      
+        <li>
           <a href="../../api/addCellShape/"><strong>addCellShape</strong></a> — Dynamically adds a shape inside a table cell based on cell coordinates.
         </li>
       
@@ -51,78 +123,6 @@
       
         <li>
           <a href="../../api/getCellPosition/"><strong>getCellPosition</strong></a> — Retrieves final rendered position of a table cell in pixels.
-        </li>
-      
-        <li>
-          <a href="../../api/getTableRows/"><strong>getTableRows</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/addTableRow/"><strong>addTableRow</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/removeTableRow/"><strong>removeTableRow</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/insertTableRow/"><strong>insertTableRow</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/cloneTableRow/"><strong>cloneTableRow</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/updateCell/"><strong>updateCell</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/mergeCells/"><strong>mergeCells</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/unmergeCells/"><strong>unmergeCells</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/getMergedCells/"><strong>getMergedCells</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/validateMergeRegion/"><strong>validateMergeRegion</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/isMergedCell/"><strong>isMergedCell</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/getMergeParent/"><strong>getMergeParent</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/getMergeRegion/"><strong>getMergeRegion</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/splitMergedRegion/"><strong>splitMergedRegion</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/cloneMergedRegion/"><strong>cloneMergedRegion</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/autoFitTable/"><strong>autoFitTable</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/resizeTable/"><strong>resizeTable</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/getTables/"><strong>getTables</strong></a> — Delegates core actions to slide element sub-managers.
         </li>
       
     </ul>

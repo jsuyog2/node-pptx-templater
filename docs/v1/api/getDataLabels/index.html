@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>getDataLabels() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Retrieves the current data labels configuration for a specific chart series.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/getDataLabels/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,54 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Retrieves the current data labels configuration for a specific chart series.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>chartId</strong></td>
+              <td><code>string</code></td>
+              <td>Chart name or shape ID.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options]</strong></td>
+              <td><code>Object</code></td>
+              <td>Options.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.series=0]</strong></td>
+              <td><code>number</code></td>
+              <td>0-based series index.</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>Promise&lt;Object&gt;</code> — Current data label settings.</p>
     
     <h3>OpenXML Impact</h3>
     <p>Reads individual `&lt;c:dLbl&gt;` values and structures from `&lt;c:dLbls&gt;` inside slide chart XML caches.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Returns an empty array if the targeted series index has no custom data label overrides or does not exist.</p>
     <p><strong>Errors:</strong> Gracefully resolves any pending chart queue tasks first before executing to ensure read accuracy.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>const labels = await ppt.getDataLabels(&#039;revenue-chart&#039;, { series: 0 });
+console.log(labels.showValue, labels.position);</code></pre>
     
   
     </div>

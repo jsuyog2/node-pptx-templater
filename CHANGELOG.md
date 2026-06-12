@@ -5,7 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-06-12
+
+### Added
+
+- **Runtime Log Level Control**: `PPTXTemplater.load(path, { logLevel: 'debug' })` — configure logging at load time without environment variables. Also added `PPTXTemplater.setLogLevel(level)` static method and `ppt.enableDebug()` instance shortcut. Supported levels: `verbose`, `debug`, `info`, `warn` (default), `error`, `silent`. The new `setGlobalLogLevel()` and `resetLogLevel()` functions are now exported from the public API.
+
+- **`verbose` Log Level**: New log level below `debug` for maximum diagnostic output. Use `PPTXTemplater.setLogLevel('verbose')` to enable.
+
+- **`getTableRows(tableId, options)`**: Extract table data as structured JSON. Supports three modes: default (array of objects using header row as keys), `{ raw: true }` (array of string arrays), and `{ includeMetadata: true }` (full metadata including row/column count and merged cell info).
+
+- **Nested `addTableRow()` with `mergeStrategy`**: Add rows with nested arrays to create rowspan-merged cells. Options: `'rowspan'` (OpenXML vertical spans), `'auto'` (merge identical adjacent values), `'none'` (expand to flat rows).
+
+- **8 new example files** in `examples/`: `image-operations.js`, `shape-operations.js`, `z-order.js`, `slide-import.js`, `text-search.js`, `table-extraction.js`, `nested-table-rows.js`, `xml-folder-workflow.js`.
+
+- **Documentation Validation Tooling** (`scripts/validate-docs.js`): Checks that every public method has JSDoc. Exits with code 1 on violations. Run via `npm run docs:validate`.
+
+- **Feature Inventory Generator** (`scripts/generate-feature-inventory.js`): Parses `PPTXTemplater.js` and outputs `docs/feature-inventory.json` and `docs/feature-inventory.md` with all methods grouped by category. Run via `npm run docs:inventory`.
+
+- **Professional logo** (`assets/logo.png`): Library logo suitable for GitHub, NPM, and documentation.
+
+- **New npm scripts**: `docs:validate`, `docs:inventory`, `example:images`, `example:shapes`, `example:zorder`, `example:slide-import`, `example:text-search`, `example:table-extraction`, `example:nested-rows`, `example:xml-folder`.
+
+### Fixed
+
+- **Horizontal merge preservation**: Fixed PowerPoint "repair mode" errors when using `addTableRow()` with rows containing `gridSpan`/`hMerge` attributes. The cloning logic now correctly preserves horizontal merge attributes and only clears vertical merge state.
+
+- **`console.log` violations** in `ChartManager.js` (3 calls in `updateChartAsync()`), `OutputWriter.js` (5 calls in `printDebugZip()`), and `PPTXTemplater.js` (8 calls across `debugRelationships()`, `inspectSlide()`, `inspectXML()`, `inspectChart()`, `debugChartRelationships()`). All replaced with structured `logger.debug()` / `logger.info()` calls that respect the configured log level. **The library is now completely silent by default** — no terminal output at all unless explicitly enabled.
+
+### Changed
+
+- **Logger system overhauled**: Added `verbose` level, runtime `setGlobalLogLevel()` function, `resetLogLevel()` function, and module-level `runtimeLevel` override. All logger instances now share a mutable runtime level for live updates.
+
+- **README**: Rewritten to be concise, modern, and SEO-friendly. Detailed API docs now live at https://jsuyog2.github.io/node-pptx-templater/.
+
+- **Version**: Bumped from `1.0.21` → `1.1.0`.
+
+---
+
 ## [1.0.6] - 2026-06-02
+
 
 ### Added
 

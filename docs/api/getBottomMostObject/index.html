@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>getBottomMostObject() API Method - node-pptx-templater</title>
-  <meta name="description" content="Retrieves the info of the bottom-most object on the slide.">
+  <meta name="description" content="Retrieves the info of the bottom-most object on the slide. / /** Returns the bottom-most (back) object on the slide.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/api/getBottomMostObject/">
   <link rel="stylesheet" href="../../style.css">
   <script>
@@ -21,15 +21,42 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Retrieves the info of the bottom-most object on the slide.</p>
+    <p><strong>Description:</strong> Retrieves the info of the bottom-most object on the slide. / /** Returns the bottom-most (back) object on the slide.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
     
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>[slideIndex]</strong></td>
+              <td><code>number</code></td>
+              <td>1-based slide index. Defaults to the active slide.</td>
+            </tr>
+          
+        </tbody>
+      </table>
+    
+    
+      <h3>Returns</h3>
+      <p><code>{id: string, name: string, type: string, zIndex: number</code> — </p>
     
     <h3>OpenXML Impact</h3>
     <p>Modifies underlying OpenXML nodes to reflect updates on slide serialization.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> No critical edge cases documented. Verify argument boundaries.</p>
     <p><strong>Errors:</strong> Wrap inside try/catch blocks to process execution errors.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>const bottom = ppt.getBottomMostObject(1);
+console.log(&#039;Back-most shape:&#039;, bottom.name);</code></pre>
     
   
     </div>

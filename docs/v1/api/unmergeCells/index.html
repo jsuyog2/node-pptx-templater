@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>unmergeCells() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Unmerges (splits) a previously merged cell region. Supports both positional arguments and an options object.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/unmergeCells/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,67 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Unmerges (splits) a previously merged cell region. Supports both positional arguments and an options object.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>tableIdOrOptions</strong></td>
+              <td><code>string|Object</code></td>
+              <td>Table ID string, or options object.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[startRow]</strong></td>
+              <td><code>number</code></td>
+              <td>0-based start row of the merged region.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[startCol]</strong></td>
+              <td><code>number</code></td>
+              <td>0-based start column.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[endRow]</strong></td>
+              <td><code>number</code></td>
+              <td>0-based end row.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[endCol]</strong></td>
+              <td><code>number</code></td>
+              <td>0-based end column.</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>PPTXTemplater</code> — this (chainable)</p>
     
     <h3>OpenXML Impact</h3>
     <p>Removes `gridSpan`, `rowSpan`, `hMerge`, and `vMerge` attributes from all target cells in the region.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Target must overlap an active merge region origin. Calling on an unmerged region acts as a no-op.</p>
     <p><strong>Errors:</strong> Gracefully ignores if cell coordinates do not match any active merge region.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>ppt.unmergeCells(&#039;SalesTable&#039;, 0, 0, 0, 2); // Unmerge region
+// Via cell coordinate:
+ppt.unmergeCells({ tableId: &#039;SalesTable&#039;, row: 0, col: 0 });</code></pre>
     
   
     </div>

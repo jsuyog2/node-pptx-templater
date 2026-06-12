@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>removeTableRow() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Removes a row from a table by its 0-based row index.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/latest/api/removeTableRow/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,47 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Removes a row from a table by its 0-based row index.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>tableId</strong></td>
+              <td><code>string</code></td>
+              <td>Table name or shape ID.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>rowIndex</strong></td>
+              <td><code>number</code></td>
+              <td>0-based row index to remove.</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>PPTXTemplater</code> — this (chainable)</p>
     
     <h3>OpenXML Impact</h3>
     <p>Removes the target `&lt;a:tr&gt;` node entirely from the slide table XML.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Index must fall within table bounds (0 to rows.length - 1). Deleting the last row of a table leaves it structurally empty, which might alert alerts in PowerPoint.</p>
     <p><strong>Errors:</strong> Throws RangeError if rowIndex is out of bounds.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>ppt.removeTableRow(&#039;SalesTable&#039;, 2); // Remove the third row (0-based)</code></pre>
     
   
     </div>

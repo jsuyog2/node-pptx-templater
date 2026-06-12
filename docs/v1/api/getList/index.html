@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>getList() API Method - node-pptx-templater</title>
-  <meta name="description" content="Retrieves list items from a shape or text box by name or placeholder tag.">
+  <meta name="description" content="Retrieves list items from a shape or text box by name or placeholder tag. / /** Retrieves list items from a shape or text box.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/getList/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,7 +21,7 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Retrieves list items from a shape or text box by name or placeholder tag.</p>
+    <p><strong>Description:</strong> Retrieves list items from a shape or text box by name or placeholder tag. / /** Retrieves list items from a shape or text box.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
     
       <h3>Parameters</h3>
@@ -41,6 +41,12 @@
               <td>Shape name/ID or placeholder tag.</td>
             </tr>
           
+            <tr>
+              <td><strong>tag</strong></td>
+              <td><code>string</code></td>
+              <td>Shape name/ID or placeholder tag.</td>
+            </tr>
+          
         </tbody>
       </table>
     
@@ -53,6 +59,10 @@
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Scans specified shape or text placeholders, parsing nested levels and bullet definitions.</p>
     <p><strong>Errors:</strong> Returns empty array if shape has no text body or tag cannot be found.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>const items = ppt.getList(&#039;BulletBox&#039;);
+console.log(items); // [&#039;Item A&#039;, [&#039;Nested&#039;, &#039;Sub-item&#039;], &#039;Item B&#039;]</code></pre>
     
   
     </div>

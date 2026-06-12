@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>duplicateSlide() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Duplicates an existing slide and inserts the copy at the specified position.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/latest/api/duplicateSlide/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,47 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Duplicates an existing slide and inserts the copy at the specified position.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>slideIndex</strong></td>
+              <td><code>number</code></td>
+              <td>1-based index of the slide to duplicate.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[atPosition]</strong></td>
+              <td><code>number</code></td>
+              <td>1-based position to insert the copy. Defaults to end.</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>PPTXTemplater</code> — this (chainable)</p>
     
     <h3>OpenXML Impact</h3>
     <p>Duplicates slide layout XML file, copies all elements relationships, and appends a slide reference entry inside `ppt/presentation.xml`.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Index parameters are 1-based. Position index must fall between 1 and slideCount + 1.</p>
     <p><strong>Errors:</strong> Throws RangeError if indices fall outside the available collection bounds.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>ppt.duplicateSlide(1, 2); // Copy slide 1 and insert it as slide 2</code></pre>
     
   
     </div>

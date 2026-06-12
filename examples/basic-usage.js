@@ -19,14 +19,14 @@ const { PPTXTemplater } = require('../src/index.js')
 const { existsSync } = require('fs')
 const { resolve } = require('path')
 
-const TEMPLATE_PATH = resolve(__dirname, '../templates/sample/[Content_Types].xml');
-const TEMPLATE_PATH_PPTX = resolve(__dirname, '../templates/sample.pptx');
+const TEMPLATE_PATH = resolve(__dirname, '../templates/sample/[Content_Types].xml')
+const TEMPLATE_PATH_PPTX = resolve(__dirname, '../templates/sample.pptx')
 const OUTPUT_PATH = resolve(__dirname, '../examples/output/basic-output.pptx')
 const OUTPUT_PATH_EXTRACTION = resolve(__dirname, '../templates/sample')
 
 async function main() {
   if (existsSync(TEMPLATE_PATH_PPTX)) {
-    await PPTXTemplater.extractPptx(TEMPLATE_PATH_PPTX, OUTPUT_PATH_EXTRACTION, { overwrite: true });
+    await PPTXTemplater.extractPptx(TEMPLATE_PATH_PPTX, OUTPUT_PATH_EXTRACTION, { overwrite: true })
   }
   // Check if template exists
   if (!existsSync(TEMPLATE_PATH)) {
@@ -89,8 +89,8 @@ async function main() {
       sourceSlide: 2,
       targetSlide: 1,
     })
-    const rows = await ppt.getTableRows('Table');
-    console.log(rows);
+    const rows = await ppt.getTableRows('Table')
+    console.log(rows)
 
     ppt.updateTable('Table', [
       ['Name', '', 'Role', 'Dept'],

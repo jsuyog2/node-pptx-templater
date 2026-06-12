@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>addImage() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Adds a new image to the targeted slide(s) at the specified position.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/latest/api/addImage/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,101 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Adds a new image to the targeted slide(s) at the specified position.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>sourcePathOrBuffer</strong></td>
+              <td><code>string|Buffer</code></td>
+              <td>Path to the image file, or a Buffer.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options]</strong></td>
+              <td><code>Object</code></td>
+              <td>Positioning and display options.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.x]</strong></td>
+              <td><code>number</code></td>
+              <td>X offset in EMUs (1 inch = 914,400 EMUs).</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.y]</strong></td>
+              <td><code>number</code></td>
+              <td>Y offset in EMUs.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.width]</strong></td>
+              <td><code>number</code></td>
+              <td>Width in EMUs.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.height]</strong></td>
+              <td><code>number</code></td>
+              <td>Height in EMUs.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.rotation]</strong></td>
+              <td><code>number</code></td>
+              <td>Rotation in degrees (0–360).</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.opacity]</strong></td>
+              <td><code>number</code></td>
+              <td>Opacity (0–100).</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.name]</strong></td>
+              <td><code>string</code></td>
+              <td>Shape name for the image.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.cropTo]</strong></td>
+              <td><code>Object</code></td>
+              <td>Crop percentages `{ l, r, t, b }` (0–100000).</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>Promise&lt;PPTXTemplater&gt;</code> — this (chainable)</p>
     
     <h3>OpenXML Impact</h3>
     <p>Modifies underlying OpenXML nodes to reflect updates on slide serialization.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> No critical edge cases documented. Verify argument boundaries.</p>
     <p><strong>Errors:</strong> Wrap inside try/catch blocks to process execution errors.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>await ppt.addImage(&#039;./photo.jpg&#039;, {
+x: 914400,       // 1 inch
+y: 914400,       // 1 inch
+width: 3657600,  // 4 inches
+height: 2743200, // 3 inches
+name: &#039;hero-image&#039;
+});</code></pre>
     
   
     </div>

@@ -38,6 +38,18 @@
         </li>
       
         <li>
+          <a href="../../api/enablePerformanceProfile/"><strong>enablePerformanceProfile</strong></a> — Enables internal performance profiling. After calling this, use `getPerformanceMetrics()` to read timing data.
+        </li>
+      
+        <li>
+          <a href="../../api/enableDebug/"><strong>enableDebug</strong></a> — Enables debug-level logging for this session. Shortcut for `PPTXTemplater.setLogLevel(&#039;debug&#039;)`.
+        </li>
+      
+        <li>
+          <a href="../../api/getPerformanceMetrics/"><strong>getPerformanceMetrics</strong></a> — Returns performance metrics collected since `enablePerformanceProfile()` was called. Includes timing for template load, XML parse, chart update, image update, ZIP generation, total elapsed time, and memory usage. `imageUpdateMs`, `zipGenerationMs`, `totalMs`, `memoryUsedMB`.
+        </li>
+      
+        <li>
           <a href="../../api/getInfo/"><strong>getInfo</strong></a> — Returns presentation metadata (title, author, slide count, etc.)
         </li>
       
@@ -102,7 +114,31 @@
         </li>
       
         <li>
+          <a href="../../api/validatePresentation/"><strong>validatePresentation</strong></a> — Performs a comprehensive validation of the entire PPTX structure. Checks slide XML, relationships, content types, slide masters, and layouts.
+        </li>
+      
+        <li>
           <a href="../../api/validatePresentationXml/"><strong>validatePresentationXml</strong></a> — Performs validation specifically on PowerPoint XML folder contents/relationships.
+        </li>
+      
+        <li>
+          <a href="../../api/validateSlide/"><strong>validateSlide</strong></a> — Validates the XML structure of a specific slide.
+        </li>
+      
+        <li>
+          <a href="../../api/validateTable/"><strong>validateTable</strong></a> — Validates the XML structure of a specific table on the active slide.
+        </li>
+      
+        <li>
+          <a href="../../api/validateArchive/"><strong>validateArchive</strong></a> — Validates the internal ZIP archive structure of the PPTX file. Checks that all files referenced in the archive are accessible and uncorrupted. Throws if critical structural issues are found.
+        </li>
+      
+        <li>
+          <a href="../../api/enableDebugZip/"><strong>enableDebugZip</strong></a> — Enables ZIP debug output. When enabled, every call to `toBuffer()` or `toStream()` will log all ZIP entries (name, compression method, sizes, CRC).
+        </li>
+      
+        <li>
+          <a href="../../api/validateRelationships/"><strong>validateRelationships</strong></a> — Validates relationships for a specific part path inside the ZIP.
         </li>
       
         <li>
@@ -111,6 +147,10 @@
       
         <li>
           <a href="../../api/function/"><strong>function</strong></a> — OpenXML relationship IDs follow the format rId1, rId2, rId3, ... They must be unique within each .rels file. These utilities generate collision-free IDs when adding new relationships. / /** Generates the next available relationship ID given an array of existing IDs. Always uses the format &quot;rId{N}&quot; where N is the next integer after the max.
+        </li>
+      
+        <li>
+          <a href="../../api/setLogLevel/"><strong>setLogLevel</strong></a> — Delegates core actions to slide element sub-managers.
         </li>
       
         <li>
@@ -130,14 +170,6 @@
         </li>
       
         <li>
-          <a href="../../api/enablePerformanceProfile/"><strong>enablePerformanceProfile</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/getPerformanceMetrics/"><strong>getPerformanceMetrics</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
           <a href="../../api/fromPresentationXml/"><strong>fromPresentationXml</strong></a> — Delegates core actions to slide element sub-managers.
         </li>
       
@@ -147,30 +179,6 @@
       
         <li>
           <a href="../../api/buildPptx/"><strong>buildPptx</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/validatePresentation/"><strong>validatePresentation</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/validateSlide/"><strong>validateSlide</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/validateTable/"><strong>validateTable</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/validateArchive/"><strong>validateArchive</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/enableDebugZip/"><strong>enableDebugZip</strong></a> — Delegates core actions to slide element sub-managers.
-        </li>
-      
-        <li>
-          <a href="../../api/validateRelationships/"><strong>validateRelationships</strong></a> — Delegates core actions to slide element sub-managers.
         </li>
       
         <li>

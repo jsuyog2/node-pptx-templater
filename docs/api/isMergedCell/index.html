@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>isMergedCell() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Checks whether a specific table cell is part of a merged region.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/api/isMergedCell/">
   <link rel="stylesheet" href="../../style.css">
   <script>
@@ -21,18 +21,55 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Checks whether a specific table cell is part of a merged region.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>tableId</strong></td>
+              <td><code>string</code></td>
+              <td>Table name or shape ID.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>row</strong></td>
+              <td><code>number</code></td>
+              <td>0-based row index.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>col</strong></td>
+              <td><code>number</code></td>
+              <td>0-based column index.</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>boolean</code> — `true` if the cell is merged (parent or continuation).</p>
     
     <h3>OpenXML Impact</h3>
     <p>Modifies underlying OpenXML nodes to reflect updates on slide serialization.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> No critical edge cases documented. Verify argument boundaries.</p>
     <p><strong>Errors:</strong> Wrap inside try/catch blocks to process execution errors.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>if (ppt.isMergedCell(&#039;SalesTable&#039;, 0, 0)) {
+console.log(&#039;Cell is part of a merged region&#039;);
+}</code></pre>
     
   
     </div>

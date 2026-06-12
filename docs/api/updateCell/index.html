@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>updateCell() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Updates the text and optional formatting of a single table cell.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/api/updateCell/">
   <link rel="stylesheet" href="../../style.css">
   <script>
@@ -21,18 +21,101 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Updates the text and optional formatting of a single table cell.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>tableId</strong></td>
+              <td><code>string</code></td>
+              <td>Table name or shape ID.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>rowIndex</strong></td>
+              <td><code>number</code></td>
+              <td>0-based row index.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>colIndex</strong></td>
+              <td><code>number</code></td>
+              <td>0-based column index.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>value</strong></td>
+              <td><code>string</code></td>
+              <td>New cell text content.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options]</strong></td>
+              <td><code>Object</code></td>
+              <td>Cell formatting options.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.bold]</strong></td>
+              <td><code>boolean</code></td>
+              <td>Bold text.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.italic]</strong></td>
+              <td><code>boolean</code></td>
+              <td>Italic text.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.fontSize]</strong></td>
+              <td><code>number</code></td>
+              <td>Font size in points.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.align]</strong></td>
+              <td><code>&#039;left&#039;|&#039;center&#039;|&#039;right&#039;</code></td>
+              <td>Text alignment.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.fill]</strong></td>
+              <td><code>string</code></td>
+              <td>Cell background color (hex, e.g. &#039;#FF0000&#039;).</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.color]</strong></td>
+              <td><code>string</code></td>
+              <td>Text color (hex).</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>PPTXTemplater</code> — this (chainable)</p>
     
     <h3>OpenXML Impact</h3>
     <p>Modifies underlying OpenXML nodes to reflect updates on slide serialization.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> No critical edge cases documented. Verify argument boundaries.</p>
     <p><strong>Errors:</strong> Wrap inside try/catch blocks to process execution errors.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>ppt.updateCell(&#039;SalesTable&#039;, 1, 2, &#039;$9,800&#039;, { bold: true, color: &#039;#10B981&#039; });</code></pre>
     
   
     </div>

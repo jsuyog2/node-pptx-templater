@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>validateChartLabels() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Validates chart data labels across all series, including cell reference checks.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/validateChartLabels/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,47 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Validates chart data labels across all series, including cell reference checks.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>chartId</strong></td>
+              <td><code>string</code></td>
+              <td>Chart name or shape ID.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options]</strong></td>
+              <td><code>Object</code></td>
+              <td>Options.</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>Promise&lt;{valid: boolean, errors: string[], warnings: string[]</code> — </p>
     
     <h3>OpenXML Impact</h3>
     <p>Reads template dLbls properties and layout data structure to identify potential visual alignment and rendering issues.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Ensures the targeted chart is stacked and the series details/style properties are present in the template.</p>
     <p><strong>Errors:</strong> Returns validation report object `{ valid: boolean, errors: string[], warnings: string[] }` instead of throwing.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>const result = await ppt.validateChartLabels(&#039;revenue-chart&#039;);</code></pre>
     
   
     </div>

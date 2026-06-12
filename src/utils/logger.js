@@ -2,10 +2,11 @@
  * @fileoverview Logger utility - lightweight structured logging.
  *
  * Provides contextual logging with module names.
- * Respects the PPTX_LOG_LEVEL environment variable.
+ * Respects the PPTX_LOG_LEVEL environment variable, or can be
+ * configured at runtime via setGlobalLogLevel().
  *
  * Log levels (lowest to highest severity):
- *   debug → info → warn → error
+ *   verbose → debug → info → warn → error → silent
  *
  * Usage:
  *   const logger = createLogger('MyModule');
@@ -14,21 +15,67 @@
  *   logger.warn('Watch out');
  *   logger.error('Something failed');
  *
- * Environment:
- *   PPTX_LOG_LEVEL=debug  → show all logs
- *   PPTX_LOG_LEVEL=info   → show info, warn, error (default)
- *   PPTX_LOG_LEVEL=warn   → show warn and error only
- *   PPTX_LOG_LEVEL=error  → show only errors
- *   PPTX_LOG_LEVEL=silent → suppress all logs
+ * Environment variable (set before process starts):
+ *   PPTX_LOG_LEVEL=debug   → show debug, info, warn, error
+ *   PPTX_LOG_LEVEL=info    → show info, warn, error
+ *   PPTX_LOG_LEVEL=warn    → show warn and error only (default)
+ *   PPTX_LOG_LEVEL=error   → show only errors
+ *   PPTX_LOG_LEVEL=silent  → suppress all output
+ *
+ * Runtime control (overrides env var):
+ *   const { setGlobalLogLevel } = require('./logger');
+ *   setGlobalLogLevel('debug');
  */
 
-const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3, silent: 4 }
+/** @type {Object.<string, number>} */
+const LOG_LEVELS = { verbose: -1, debug: 0, info: 1, warn: 2, error: 3, silent: 4 }
 
-const currentLevel =
-  LOG_LEVELS[(process.env.PPTX_LOG_LEVEL || 'warn').toLowerCase()] ?? LOG_LEVELS.warn
+/** @type {number} Initial level from environment variable */
+const envLevel = LOG_LEVELS[(process.env.PPTX_LOG_LEVEL || 'warn').toLowerCase()] ?? LOG_LEVELS.warn
+
+/** @type {number|null} Runtime override — null means use envLevel */
+let runtimeLevel = null
+
+/**
+ * Gets the current effective log level.
+ * @returns {number}
+ */
+function getEffectiveLevel() {
+  return runtimeLevel !== null ? runtimeLevel : envLevel
+}
+
+/**
+ * Sets the global log level at runtime, overriding the environment variable.
+ * This affects all logger instances immediately.
+ *
+ * @param {string} level - One of: 'verbose', 'debug', 'info', 'warn', 'error', 'silent'
+ * @throws {Error} If an invalid level is provided.
+ *
+ * @example
+ * const { setGlobalLogLevel } = require('node-pptx-templater');
+ * setGlobalLogLevel('debug'); // Enable verbose output
+ * setGlobalLogLevel('silent'); // Suppress everything
+ */
+function setGlobalLogLevel(level) {
+  const normalized = String(level).toLowerCase()
+  if (LOG_LEVELS[normalized] === undefined) {
+    throw new Error(
+      `Invalid log level: "${level}". Valid levels: verbose, debug, info, warn, error, silent`
+    )
+  }
+  runtimeLevel = LOG_LEVELS[normalized]
+}
+
+/**
+ * Resets the log level back to the environment variable default.
+ */
+function resetLogLevel() {
+  runtimeLevel = null
+}
 
 /**
  * ANSI color codes for terminal output.
+ * @private
  */
 const COLORS = {
   reset: '\x1b[0m',
@@ -37,6 +84,7 @@ const COLORS = {
   green: '\x1b[32m',
   yellow: '\x1b[33m',
   red: '\x1b[31m',
+  magenta: '\x1b[35m',
 }
 
 /**
@@ -49,6 +97,7 @@ function timestamp() {
 
 /**
  * @typedef {Object} Logger
+ * @property {Function} verbose - Log verbose message (most detailed).
  * @property {Function} debug - Log debug message.
  * @property {Function} info - Log info message.
  * @property {Function} warn - Log warning.
@@ -64,16 +113,17 @@ function timestamp() {
  * @example
  * const logger = createLogger('SlideManager');
  * logger.info('Loaded 5 slides');
+ * logger.debug('Processing slide XML...');
  */
 function createLogger(moduleName) {
   const isTTY = process.stdout.isTTY
 
   const log = (level, levelNum, color, message, ...args) => {
-    if (levelNum < currentLevel) return
+    if (levelNum < getEffectiveLevel()) return
 
     const prefix = isTTY
-      ? `${COLORS.dim}${timestamp()}${COLORS.reset} ${color}[${level.toUpperCase().padEnd(5)}]${COLORS.reset} ${COLORS.cyan}[${moduleName}]${COLORS.reset}`
-      : `${timestamp()} [${level.toUpperCase().padEnd(5)}] [${moduleName}]`
+      ? `${COLORS.dim}${timestamp()}${COLORS.reset} ${color}[${level.toUpperCase().padEnd(7)}]${COLORS.reset} ${COLORS.cyan}[${moduleName}]${COLORS.reset}`
+      : `${timestamp()} [${level.toUpperCase().padEnd(7)}] [${moduleName}]`
 
     const output =
       args.length > 0
@@ -85,7 +135,15 @@ function createLogger(moduleName) {
 
   return {
     /**
-     * Logs a debug-level message. Only shown when PPTX_LOG_LEVEL=debug.
+     * Logs a verbose-level message. Only shown when level=verbose.
+     * @param {string} message
+     * @param {...*} args
+     */
+    verbose: (message, ...args) =>
+      log('verbose', LOG_LEVELS.verbose, COLORS.magenta, message, ...args),
+
+    /**
+     * Logs a debug-level message. Only shown when level=debug or lower.
      * @param {string} message
      * @param {...*} args
      */
@@ -116,4 +174,7 @@ function createLogger(moduleName) {
 
 module.exports = {
   createLogger,
+  setGlobalLogLevel,
+  resetLogLevel,
+  LOG_LEVELS,
 }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>cloneShape() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Duplicates an existing shape with a new ID, optionally at a different position.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/api/cloneShape/">
   <link rel="stylesheet" href="../../style.css">
   <script>
@@ -21,18 +21,65 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Duplicates an existing shape with a new ID, optionally at a different position.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>shapeId</strong></td>
+              <td><code>string</code></td>
+              <td>Source shape name or ID.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>newShapeId</strong></td>
+              <td><code>string</code></td>
+              <td>Name/ID for the cloned shape.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options]</strong></td>
+              <td><code>Object</code></td>
+              <td>Position overrides for the clone.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.x]</strong></td>
+              <td><code>number</code></td>
+              <td>X offset for the clone (EMUs).</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.y]</strong></td>
+              <td><code>number</code></td>
+              <td>Y offset for the clone (EMUs).</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>PPTXTemplater</code> — this (chainable)</p>
     
     <h3>OpenXML Impact</h3>
     <p>Duplicates the target shape element XML node (`p:sp`) and adds positioning coordinates.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Offsets are in English Metric Units (EMU). Offset parameters specify position displacement.</p>
     <p><strong>Errors:</strong> Throws error if target shape is not found on active slide.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>ppt.cloneShape(&#039;logo&#039;, &#039;logo-copy&#039;, { x: 2000000, y: 500000 });</code></pre>
     
   
     </div>

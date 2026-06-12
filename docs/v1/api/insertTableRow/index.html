@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>insertTableRow() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Inserts a new row at the specified 0-based index, shifting existing rows down.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/insertTableRow/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,53 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Inserts a new row at the specified 0-based index, shifting existing rows down.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>tableId</strong></td>
+              <td><code>string</code></td>
+              <td>Table name or shape ID.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>rowIndex</strong></td>
+              <td><code>number</code></td>
+              <td>0-based index at which to insert the new row.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>rowData</strong></td>
+              <td><code>Array&lt;string&gt;</code></td>
+              <td>Cell values for the new row.</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>PPTXTemplater</code> — this (chainable)</p>
     
     <h3>OpenXML Impact</h3>
     <p>Modifies underlying OpenXML nodes to reflect updates on slide serialization.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> No critical edge cases documented. Verify argument boundaries.</p>
     <p><strong>Errors:</strong> Wrap inside try/catch blocks to process execution errors.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>ppt.insertTableRow(&#039;SalesTable&#039;, 1, [&#039;East&#039;, &#039;980&#039;, &#039;8%&#039;]); // Insert at row 1</code></pre>
     
   
     </div>

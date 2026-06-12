@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>addTableRow() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Appends one or more rows to a table. Supports flat arrays and nested arrays for rowspan-merged cells. `&#039;rowspan&#039;` creates OpenXML vertical spans, `&#039;auto&#039;` merges identical adjacent values, `&#039;none&#039;` expands nested arrays into multiple flat rows.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/addTableRow/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,62 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Appends one or more rows to a table. Supports flat arrays and nested arrays for rowspan-merged cells. `&#039;rowspan&#039;` creates OpenXML vertical spans, `&#039;auto&#039;` merges identical adjacent values, `&#039;none&#039;` expands nested arrays into multiple flat rows.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>tableId</strong></td>
+              <td><code>string</code></td>
+              <td>Table name or shape ID.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>rowData</strong></td>
+              <td><code>Array&lt;string|Array&lt;string&gt;&gt;</code></td>
+              <td>Row data. Nested arrays create rowspan cells.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options]</strong></td>
+              <td><code>Object</code></td>
+              <td>Row insertion options.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options.mergeStrategy=&#039;rowspan&#039;]</strong></td>
+              <td><code>&#039;rowspan&#039;|&#039;auto&#039;|&#039;none&#039;</code></td>
+              <td>How to handle nested arrays.</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>PPTXTemplater</code> — this (chainable)</p>
     
     <h3>OpenXML Impact</h3>
     <p>Appends a `&lt;a:tr&gt;` child block to the table, and assigns a unique collaborative ID `&lt;a16:rowId&gt;` to prevent file corruption.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Target table must exist. Row array must match table column count, otherwise cells are padded or truncated.</p>
     <p><strong>Errors:</strong> Validates columns layout before appending. Generates custom rowId hashes.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>// Simple flat row
+ppt.addTableRow(&#039;SalesTable&#039;, [&#039;North&#039;, &#039;1200&#039;, &#039;15%&#039;]);
+// Nested row with rowspan
+ppt.addTableRow(&#039;SalesTable&#039;, [&#039;Region&#039;, [&#039;Q1&#039;, &#039;Q2&#039;], &#039;$5K&#039;], { mergeStrategy: &#039;rowspan&#039; });</code></pre>
     
   
     </div>

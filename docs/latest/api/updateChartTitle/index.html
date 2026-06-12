@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>updateChartTitle() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Updates only the title text of a chart.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/latest/api/updateChartTitle/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,47 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Updates only the title text of a chart.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>chartId</strong></td>
+              <td><code>string</code></td>
+              <td>Chart name or shape ID.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>title</strong></td>
+              <td><code>string</code></td>
+              <td>New chart title.</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>PPTXTemplater</code> — this (chainable)</p>
     
     <h3>OpenXML Impact</h3>
     <p>Finds and replaces text run values inside `&lt;c:title&gt;` and child `&lt;a:t&gt;` nodes under chart structure.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> If the template chart has no initial title layout block, adding a title might require injecting new XML blocks.</p>
     <p><strong>Errors:</strong> Safely overrides title runs if title node exists; otherwise updates layout or prints warnings.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>ppt.updateChartTitle(&#039;revenue-chart&#039;, &#039;Q2 2026 Revenue&#039;);</code></pre>
     
   
     </div>

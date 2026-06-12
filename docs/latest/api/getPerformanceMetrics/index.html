@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>getPerformanceMetrics() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Returns performance metrics collected since `enablePerformanceProfile()` was called. Includes timing for template load, XML parse, chart update, image update, ZIP generation, total elapsed time, and memory usage. `imageUpdateMs`, `zipGenerationMs`, `totalMs`, `memoryUsedMB`.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/latest/api/getPerformanceMetrics/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,24 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Returns performance metrics collected since `enablePerformanceProfile()` was called. Includes timing for template load, XML parse, chart update, image update, ZIP generation, total elapsed time, and memory usage. `imageUpdateMs`, `zipGenerationMs`, `totalMs`, `memoryUsedMB`.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>Object</code> — Metrics object with `templateLoadMs`, `parseMs`, `chartUpdateMs`,</p>
     
     <h3>OpenXML Impact</h3>
     <p>Modifies underlying OpenXML nodes to reflect updates on slide serialization.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> No critical edge cases documented. Verify argument boundaries.</p>
     <p><strong>Errors:</strong> Wrap inside try/catch blocks to process execution errors.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>ppt.enablePerformanceProfile();
+await ppt.updateChart(&#039;chart1&#039;, data);
+const metrics = ppt.getPerformanceMetrics();
+console.log(`Total: ${metrics.totalMs}ms, Memory: ${metrics.memoryUsedMB}MB`);</code></pre>
     
   
     </div>

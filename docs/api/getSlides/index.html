@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>getSlides() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Returns an array of all slides in the presentation with their metadata.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/api/getSlides/">
   <link rel="stylesheet" href="../../style.css">
   <script>
@@ -21,18 +21,22 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Returns an array of all slides in the presentation with their metadata.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>Array&lt;{index: number, slideId: string, title: string, zipPath: string</code> — </p>
     
     <h3>OpenXML Impact</h3>
     <p>Modifies underlying OpenXML nodes to reflect updates on slide serialization.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> No critical edge cases documented. Verify argument boundaries.</p>
     <p><strong>Errors:</strong> Wrap inside try/catch blocks to process execution errors.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>const slides = ppt.getSlides();
+slides.forEach(s =&gt; console.log(`Slide ${s.index}: ${s.title}`));</code></pre>
     
   
     </div>

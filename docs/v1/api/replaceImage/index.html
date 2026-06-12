@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>replaceImage() API Method - node-pptx-templater</title>
-  <meta name="description" content="Delegates core actions to slide element sub-managers.">
+  <meta name="description" content="Replaces an existing image in the presentation by shape name or relationship ID.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/replaceImage/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,18 +21,47 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Delegates core actions to slide element sub-managers.</p>
+    <p><strong>Description:</strong> Replaces an existing image in the presentation by shape name or relationship ID.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
+    
+      <h3>Parameters</h3>
+      <table border="1" cellpadding="5" style="border-collapse: collapse; border-color: rgba(255,255,255,0.05); width: 100%;">
+        <thead>
+          <tr style="background-color: rgba(255,255,255,0.02);">
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>imageIdOrName</strong></td>
+              <td><code>string</code></td>
+              <td>Shape name, alt text, or relationship ID of the image.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>sourcePathOrBuffer</strong></td>
+              <td><code>string|Buffer</code></td>
+              <td>Path to the replacement image file, or a Buffer.</td>
+            </tr>
+          
+        </tbody>
+      </table>
     
     
       <h3>Returns</h3>
-      <p><code>PPTXTemplater</code> — The fluent engine instance.</p>
+      <p><code>Promise&lt;PPTXTemplater&gt;</code> — this (chainable)</p>
     
     <h3>OpenXML Impact</h3>
     <p>Overwrites target media target inside presentation archive or updates relationship mapping target references to point to the new image.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Image placeholder name/id must exist in template. Image types must match or content-type overrides must be registered.</p>
     <p><strong>Errors:</strong> Throws error if image reference is missing or if media buffer is corrupted.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>await ppt.replaceImage(&#039;company-logo&#039;, &#039;./new-logo.png&#039;);</code></pre>
     
   
     </div>
