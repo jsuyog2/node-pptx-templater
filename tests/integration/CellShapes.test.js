@@ -351,4 +351,132 @@ describe('Table Cell Shapes Integration Tests', () => {
     const report = await ppt.validatePresentation()
     expect(report.valid).toBe(true)
   })
+
+  it('should support table cell positioning, shape centering options, and alignment helpers', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    // 1. Verify getCellBounds & getCellPosition with a string ID and returning dimensions
+    const cellBounds = ppt.getCellBounds('Table', 1, 1)
+    expect(cellBounds).not.toBeNull()
+    expect(cellBounds.width).toBeGreaterThan(0)
+    expect(cellBounds.height).toBeGreaterThan(0)
+
+    const cellPos = ppt.getCellPosition('Table', 1, 1)
+    expect(cellPos).not.toBeNull()
+    expect(cellPos.width).toBe(cellBounds.width)
+    expect(cellPos.height).toBe(cellBounds.height)
+
+    // 2. Verify support for passing table objects
+    const mockTableObj = { id: 'Table', name: 'SomeTable' }
+    const cellBoundsObj = ppt.getCellBounds(mockTableObj, 1, 1)
+    expect(cellBoundsObj).toEqual(cellBounds)
+
+    // 3. Add new shape aligned to cell center (using dual signature: type, options)
+    await ppt.addShape('ellipse', {
+      id: 'CenteredEllipse',
+      width: 40,
+      height: 30,
+      fill: '#8B5CF6',
+      alignToCell: {
+        table: mockTableObj,
+        row: 1,
+        col: 1,
+        horizontal: 'center',
+        vertical: 'middle'
+      }
+    })
+
+    const shape = ppt.getShape('CenteredEllipse')
+    expect(shape).not.toBeNull()
+
+    const expectedX = Math.round(cellBounds.x + (cellBounds.width - 40) / 2)
+    const expectedY = Math.round(cellBounds.y + (cellBounds.height - 30) / 2)
+
+    const shapeX = shape.x
+    const shapeY = shape.y
+
+    expect(shapeX).toBe(expectedX)
+    expect(shapeY).toBe(expectedY)
+
+    // 4. Test alignShapeToCell helper (right/bottom alignment)
+    ppt.alignShapeToCell('CenteredEllipse', 'Table', 1, 1, {
+      horizontal: 'right',
+      vertical: 'bottom'
+    })
+
+    const shapeAligned = ppt.getShape('CenteredEllipse')
+    const shapeXAligned = shapeAligned.x
+    const shapeYAligned = shapeAligned.y
+
+    const expectedXRight = Math.round(cellBounds.x + cellBounds.width - 40)
+    const expectedYBottom = Math.round(cellBounds.y + cellBounds.height - 30)
+
+    expect(shapeXAligned).toBe(expectedXRight)
+    expect(shapeYAligned).toBe(expectedYBottom)
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
+
+  it('should support vertical alignment configurations (top, middle, bottom) and place shapes at correct, distinct positions', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    const cellBounds = ppt.getCellBounds('Table', 1, 1)
+    expect(cellBounds).not.toBeNull()
+
+    // Add three shapes with different vertical alignments
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'circle',
+      fill: '#EF4444',
+      width: 10,
+      height: 10,
+      horizontal: 'center',
+      vertical: 'top',
+    })
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'circle',
+      fill: '#10B981',
+      width: 10,
+      height: 10,
+      horizontal: 'center',
+      vertical: 'middle',
+    })
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'circle',
+      fill: '#3B82F6',
+      width: 10,
+      height: 10,
+      horizontal: 'center',
+      vertical: 'bottom',
+    })
+
+    const shapeTop = ppt.getCellShape('Table', 1, 1, 0)
+    const shapeMiddle = ppt.getCellShape('Table', 1, 1, 1)
+    const shapeBottom = ppt.getCellShape('Table', 1, 1, 2)
+
+    expect(shapeTop).not.toBeNull()
+    expect(shapeMiddle).not.toBeNull()
+    expect(shapeBottom).not.toBeNull()
+
+    // Assert that the Y positions are distinct and increasing
+    expect(shapeMiddle.y).toBeGreaterThan(shapeTop.y)
+    expect(shapeBottom.y).toBeGreaterThan(shapeMiddle.y)
+
+    // Mathematically assert the values:
+    // top: cellBounds.y + 5 (since config.y is undefined and default padding is 5px)
+    // middle: cellBounds.y + (cellBounds.height - 10) / 2
+    // bottom: cellBounds.y + cellBounds.height - 10 - 5
+    const expectedTopY = cellBounds.y + 5
+    const expectedMiddleY = Math.round(cellBounds.y + (cellBounds.height - 10) / 2)
+    const expectedBottomY = cellBounds.y + cellBounds.height - 10 - 5
+
+    expect(shapeTop.y).toBe(expectedTopY)
+    expect(shapeMiddle.y).toBe(expectedMiddleY)
+    expect(shapeBottom.y).toBe(expectedBottomY)
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
 })
