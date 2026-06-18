@@ -51,6 +51,14 @@ async function main() {
     console.log('Autofitting table columns...')
     ppt.autoFitTable(tableId)
 
+    console.log('Align shapes with table cells...')
+    ppt.alignShapeToCell('Shape01', 'Table', 1, 5, {horizontal: 'left', vertical: 'top'})
+    ppt.alignShapeToCell('Shape02', 'Table', 2, 5, {horizontal: 'center', vertical: 'middle'})
+    ppt.alignShapeToCell('Shape03', 'Table', 3, 5, {horizontal: 'right', vertical: 'bottom'})
+    ppt.alignShapeToCell('Shape04', 'Table', 4, 5, {horizontal: 'center', vertical: 'bottom'})
+    ppt.alignShapeToCell('Shape05', 'Table', 5, 5, {horizontal: 'left', vertical: 'bottom'})
+    ppt.alignShapeToCell('Shape06', 'Table', 6, 5, {horizontal: 'center', vertical: 'top'})
+
     // Ensure output directory exists
     await fsExtra.ensureDir(resolve(__dirname, './output'))
 

@@ -2556,7 +2556,11 @@ class PPTXTemplater {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
-      this.#shapeManager.updateShapePosition(idx, shapeId, options, this.#slideManager)
+      let resolvedOptions = options
+      if (options.alignToCell) {
+        resolvedOptions = this.#resolveAlignToCell(idx, options, shapeId, true)
+      }
+      this.#shapeManager.updateShapePosition(idx, shapeId, resolvedOptions, this.#slideManager)
     }
     return this
   }
@@ -2650,17 +2654,22 @@ class PPTXTemplater {
     return this.#shapeManager.validateShape(options)
   }
 
-  /**
-   * Adds a new shape dynamically to the targeted slide(s).
-   *
-   * @param {Object} options Shape configuration options.
-   * @returns {this} The chainable presentation templater instance.
-   */
-  async addShape(options) {
+  async addShape(typeOrOptions, options = {}) {
     this.#assertLoaded()
+    let resolvedOptions = {}
+    if (typeof typeOrOptions === 'string') {
+      resolvedOptions = { ...options, type: typeOrOptions }
+    } else {
+      resolvedOptions = { ...typeOrOptions }
+    }
+
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
-      this.#shapeManager.addShape(idx, options, this.#slideManager)
+      let finalOptions = resolvedOptions
+      if (resolvedOptions.alignToCell) {
+        finalOptions = this.#resolveAlignToCell(idx, resolvedOptions)
+      }
+      this.#shapeManager.addShape(idx, finalOptions, this.#slideManager)
     }
     return this
   }
@@ -2676,7 +2685,11 @@ class PPTXTemplater {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
-      this.#shapeManager.updateShape(idx, shapeId, options, this.#slideManager)
+      let resolvedOptions = options
+      if (options.alignToCell) {
+        resolvedOptions = this.#resolveAlignToCell(idx, options, shapeId)
+      }
+      this.#shapeManager.updateShape(idx, shapeId, resolvedOptions, this.#slideManager)
     }
     return this
   }
@@ -2822,13 +2835,14 @@ class PPTXTemplater {
   /**
    * Retrieves final rendered bounds of a table cell in pixels.
    *
-   * @param {string} tableId - Table name or shape ID.
+   * @param {string|Object} tableIdOrObj - Table name, shape ID, or table object.
    * @param {number} rowIndex - 0-based row index.
    * @param {number} colIndex - 0-based column index.
    * @returns {Object|null} Cell bounds { x, y, width, height } in pixels, or null.
    */
-  getCellBounds(tableId, rowIndex, colIndex) {
+  getCellBounds(tableIdOrObj, rowIndex, colIndex) {
     this.#assertLoaded()
+    const tableId = typeof tableIdOrObj === 'object' ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId : tableIdOrObj
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       try {
@@ -2851,14 +2865,18 @@ class PPTXTemplater {
 
   /**
    * Retrieves final rendered position of a table cell in pixels.
+   * Optionally calculates centered top-left coordinates for a shape of given dimensions.
    *
-   * @param {string} tableId - Table name or shape ID.
+   * @param {string|Object} tableIdOrObj - Table name, shape ID, or table object.
    * @param {number} rowIndex - 0-based row index.
    * @param {number} colIndex - 0-based column index.
-   * @returns {Object|null} Cell position { row, column, x, y } in pixels, or null.
+   * @param {number|Object} [shapeWidthOrOptions] - Width of the shape in pixels, or options object.
+   * @param {number} [shapeHeight] - Height of the shape in pixels.
+   * @returns {Object|null} Cell position { row, column, x, y, width, height } in pixels, or null.
    */
-  getCellPosition(tableId, rowIndex, colIndex) {
+  getCellPosition(tableIdOrObj, rowIndex, colIndex, shapeWidthOrOptions, shapeHeight) {
     this.#assertLoaded()
+    const tableId = typeof tableIdOrObj === 'object' ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId : tableIdOrObj
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       try {
@@ -2867,7 +2885,9 @@ class PPTXTemplater {
           tableId,
           rowIndex,
           colIndex,
-          this.#slideManager
+          this.#slideManager,
+          shapeWidthOrOptions,
+          shapeHeight
         )
         if (pos) return pos
       } catch (err) {
@@ -3547,6 +3567,120 @@ class PPTXTemplater {
     const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
     this.#zOrderManager.normalizeZOrder(targetIdx, this.#slideManager)
     return this
+  }
+
+  /**
+   * Aligns an existing shape to a table cell's position.
+   *
+   * @param {string} shapeId - Unique shape name/id in the template.
+   * @param {string|Object} tableIdOrObj - Table ID string, or table object.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} colIndex - 0-based column index.
+   * @param {Object} [options] - Alignment options.
+   * @param {'left'|'center'|'right'} [options.horizontal='center'] - Horizontal alignment.
+   * @param {'top'|'middle'|'bottom'} [options.vertical='middle'] - Vertical alignment.
+   * @returns {this} The chainable presentation templater instance.
+   */
+  alignShapeToCell(shapeId, tableIdOrObj, rowIndex, colIndex, options = {}) {
+    const tableId = typeof tableIdOrObj === 'object' ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId : tableIdOrObj
+    this.updateShapePosition(shapeId, {
+      alignToCell: {
+        table: tableId,
+        row: rowIndex,
+        col: colIndex,
+        horizontal: options.horizontal || 'center',
+        vertical: options.vertical || 'middle'
+      }
+    })
+    return this
+  }
+
+  #resolveAlignToCell(slideIndex, options, shapeId, convertToEmus = false) {
+    const align = options.alignToCell
+    if (!align || !align.table) return options
+
+    const tableId = typeof align.table === 'object' ? align.table.id || align.table.name || align.table.tableId : align.table
+    const row = align.row !== undefined ? align.row : 0
+    const col = align.col !== undefined ? align.col : 0
+
+    // Get cell bounds
+    const bounds = this.#tableManager.getCellBounds(
+      slideIndex,
+      tableId,
+      row,
+      col,
+      this.#slideManager
+    )
+
+    if (!bounds) return options
+
+    // Determine shape dimensions
+    let shapeWidth = options.width
+    let shapeHeight = options.height
+
+    if (convertToEmus) {
+      if (shapeWidth !== undefined) shapeWidth = Math.round(shapeWidth / 9525)
+      if (shapeHeight !== undefined) shapeHeight = Math.round(shapeHeight / 9525)
+    }
+
+    if (shapeWidth === undefined || shapeHeight === undefined) {
+      if (options.type === 'square' && options.size !== undefined) {
+        shapeWidth = options.size
+        shapeHeight = options.size
+      } else if (options.type === 'circle' && options.radius !== undefined) {
+        shapeWidth = options.radius * 2
+        shapeHeight = options.radius * 2
+      } else if (shapeId) {
+        // Try getting existing shape dimensions
+        const existing = this.#shapeManager.getShape(slideIndex, shapeId, this.#slideManager)
+        if (existing) {
+          shapeWidth = existing.width
+          shapeHeight = existing.height
+        }
+      }
+    }
+
+    // Default to fallback dimensions if still undefined
+    if (shapeWidth === undefined) shapeWidth = 100
+    if (shapeHeight === undefined) shapeHeight = 100
+
+    // Align horizontally
+    let horiz = align.horizontal || align.alignX || 'center'
+    horiz = String(horiz).toLowerCase()
+    if (horiz === 'middle') horiz = 'center'
+
+    let x = bounds.x
+    if (horiz === 'center') {
+      x = bounds.x + (bounds.width - shapeWidth) / 2
+    } else if (horiz === 'right') {
+      x = bounds.x + bounds.width - shapeWidth
+    }
+
+    // Align vertically
+    let vert = align.vertical || align.alignY || 'middle'
+    vert = String(vert).toLowerCase()
+    if (vert === 'center') vert = 'middle'
+
+    let y = bounds.y
+    if (vert === 'middle') {
+      y = bounds.y + (bounds.height - shapeHeight) / 2
+    } else if (vert === 'bottom') {
+      y = bounds.y + bounds.height - shapeHeight
+    }
+
+    const resolved = { ...options }
+    if (convertToEmus) {
+      resolved.x = Math.round(x * 9525)
+      resolved.y = Math.round(y * 9525)
+    } else {
+      resolved.x = Math.round(x)
+      resolved.y = Math.round(y)
+    }
+
+    // Remove alignToCell to prevent it polluting lower levels
+    delete resolved.alignToCell
+
+    return resolved
   }
 }
 

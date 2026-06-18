@@ -796,6 +796,8 @@ class TableManager {
   getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager) {
     const { tblObj, frameObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
+
     const xfrm = frameObj['p:xfrm']
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
     const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
@@ -843,13 +845,36 @@ class TableManager {
     }
   }
 
-  getCellPosition(slideIndex, tableId, rowIndex, colIndex, slideManager) {
+  getCellPosition(slideIndex, tableId, rowIndex, colIndex, slideManager, shapeWidthOrOptions, shapeHeight) {
     const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    if (!bounds) return null
+
+    let shapeWidth
+    let shapeHeightVal
+
+    if (shapeWidthOrOptions && typeof shapeWidthOrOptions === 'object') {
+      shapeWidth = shapeWidthOrOptions.width !== undefined ? shapeWidthOrOptions.width : shapeWidthOrOptions.shapeWidth
+      shapeHeightVal = shapeWidthOrOptions.height !== undefined ? shapeWidthOrOptions.height : shapeWidthOrOptions.shapeHeight
+    } else {
+      shapeWidth = shapeWidthOrOptions
+      shapeHeightVal = shapeHeight
+    }
+
+    let x = bounds.x
+    let y = bounds.y
+
+    if (shapeWidth !== undefined && shapeHeightVal !== undefined) {
+      x = Math.round(bounds.x + (bounds.width - shapeWidth) / 2)
+      y = Math.round(bounds.y + (bounds.height - shapeHeightVal) / 2)
+    }
+
     return {
       row: rowIndex,
       column: colIndex,
-      x: bounds.x,
-      y: bounds.y,
+      x,
+      y,
+      width: bounds.width,
+      height: bounds.height,
     }
   }
 
@@ -1352,8 +1377,17 @@ class TableManager {
     }
 
     // 2. Determine alignment settings
-    let alignX = config.alignX
-    let alignY = config.alignY
+    let alignX = config.alignX || config.horizontal
+    let alignY = config.alignY || config.vertical
+
+    if (alignX) {
+      alignX = String(alignX).toLowerCase()
+      if (alignX === 'middle') alignX = 'center'
+    }
+    if (alignY) {
+      alignY = String(alignY).toLowerCase()
+      if (alignY === 'center') alignY = 'middle'
+    }
 
     if (config.position) {
       switch (config.position) {
@@ -1444,7 +1478,13 @@ class TableManager {
 
       // 4. Boundary Constraints Validation/Enforcement
       if (shapeWidth > cellWidth_px) {
-        shapeLeft = cellLeft_px
+        if (alignX === 'center') {
+          shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2
+        } else if (alignX === 'right') {
+          shapeLeft = cellLeft_px + cellWidth_px - shapeWidth
+        } else {
+          shapeLeft = cellLeft_px
+        }
       } else {
         shapeLeft = Math.max(
           cellLeft_px,
@@ -1453,7 +1493,13 @@ class TableManager {
       }
 
       if (shapeHeight > cellHeight_px) {
-        shapeTop = cellTop_px
+        if (alignY === 'middle') {
+          shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2
+        } else if (alignY === 'bottom') {
+          shapeTop = cellTop_px + cellHeight_px - shapeHeight
+        } else {
+          shapeTop = cellTop_px
+        }
       } else {
         shapeTop = Math.max(
           cellTop_px,
@@ -1876,6 +1922,8 @@ class TableManager {
       slideManager
     )
 
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
+
     const xfrm = frameObj['p:xfrm']
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
     const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
@@ -1958,6 +2006,8 @@ class TableManager {
       tableId,
       slideManager
     )
+
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
@@ -2105,8 +2155,11 @@ class TableManager {
     const numRows = trsArr.length
     const numCols = colWidths.length
 
-    // Initialize rowHeights with original height or 0
-    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+    // Initialize rowHeights with original height or a safe minimum floor of 228600 EMUs (~24px/pt)
+    const rowHeights = trsArr.map(row => {
+      const h = parseInt(row['@_h'] || 0, 10)
+      return Math.max(h, 228600)
+    })
 
     // Helper to get paragraph font size
     const getParagraphFontSize = p => {
@@ -2228,7 +2281,7 @@ class TableManager {
         }
 
         const totalCellHeight_emu = marT + marB + textHeight_emu
-        cellHeights[r][c] = totalCellHeight_emu
+        cellHeights[r][c] = Math.max(totalCellHeight_emu, 228600)
       }
     }
 
