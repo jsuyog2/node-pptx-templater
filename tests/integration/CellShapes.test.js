@@ -383,8 +383,8 @@ describe('Table Cell Shapes Integration Tests', () => {
         row: 1,
         col: 1,
         horizontal: 'center',
-        vertical: 'middle'
-      }
+        vertical: 'middle',
+      },
     })
 
     const shape = ppt.getShape('CenteredEllipse')
@@ -402,7 +402,7 @@ describe('Table Cell Shapes Integration Tests', () => {
     // 4. Test alignShapeToCell helper (right/bottom alignment)
     ppt.alignShapeToCell('CenteredEllipse', 'Table', 1, 1, {
       horizontal: 'right',
-      vertical: 'bottom'
+      vertical: 'bottom',
     })
 
     const shapeAligned = ppt.getShape('CenteredEllipse')

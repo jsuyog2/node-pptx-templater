@@ -845,7 +845,15 @@ class TableManager {
     }
   }
 
-  getCellPosition(slideIndex, tableId, rowIndex, colIndex, slideManager, shapeWidthOrOptions, shapeHeight) {
+  getCellPosition(
+    slideIndex,
+    tableId,
+    rowIndex,
+    colIndex,
+    slideManager,
+    shapeWidthOrOptions,
+    shapeHeight
+  ) {
     const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
     if (!bounds) return null
 
@@ -853,8 +861,14 @@ class TableManager {
     let shapeHeightVal
 
     if (shapeWidthOrOptions && typeof shapeWidthOrOptions === 'object') {
-      shapeWidth = shapeWidthOrOptions.width !== undefined ? shapeWidthOrOptions.width : shapeWidthOrOptions.shapeWidth
-      shapeHeightVal = shapeWidthOrOptions.height !== undefined ? shapeWidthOrOptions.height : shapeWidthOrOptions.shapeHeight
+      shapeWidth =
+        shapeWidthOrOptions.width !== undefined
+          ? shapeWidthOrOptions.width
+          : shapeWidthOrOptions.shapeWidth
+      shapeHeightVal =
+        shapeWidthOrOptions.height !== undefined
+          ? shapeWidthOrOptions.height
+          : shapeWidthOrOptions.shapeHeight
     } else {
       shapeWidth = shapeWidthOrOptions
       shapeHeightVal = shapeHeight
