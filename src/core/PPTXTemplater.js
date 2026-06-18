@@ -2842,7 +2842,10 @@ class PPTXTemplater {
    */
   getCellBounds(tableIdOrObj, rowIndex, colIndex) {
     this.#assertLoaded()
-    const tableId = typeof tableIdOrObj === 'object' ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId : tableIdOrObj
+    const tableId =
+      typeof tableIdOrObj === 'object'
+        ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId
+        : tableIdOrObj
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       try {
@@ -2876,7 +2879,10 @@ class PPTXTemplater {
    */
   getCellPosition(tableIdOrObj, rowIndex, colIndex, shapeWidthOrOptions, shapeHeight) {
     this.#assertLoaded()
-    const tableId = typeof tableIdOrObj === 'object' ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId : tableIdOrObj
+    const tableId =
+      typeof tableIdOrObj === 'object'
+        ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId
+        : tableIdOrObj
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       try {
@@ -3582,15 +3588,18 @@ class PPTXTemplater {
    * @returns {this} The chainable presentation templater instance.
    */
   alignShapeToCell(shapeId, tableIdOrObj, rowIndex, colIndex, options = {}) {
-    const tableId = typeof tableIdOrObj === 'object' ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId : tableIdOrObj
+    const tableId =
+      typeof tableIdOrObj === 'object'
+        ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId
+        : tableIdOrObj
     this.updateShapePosition(shapeId, {
       alignToCell: {
         table: tableId,
         row: rowIndex,
         col: colIndex,
         horizontal: options.horizontal || 'center',
-        vertical: options.vertical || 'middle'
-      }
+        vertical: options.vertical || 'middle',
+      },
     })
     return this
   }
@@ -3599,7 +3608,10 @@ class PPTXTemplater {
     const align = options.alignToCell
     if (!align || !align.table) return options
 
-    const tableId = typeof align.table === 'object' ? align.table.id || align.table.name || align.table.tableId : align.table
+    const tableId =
+      typeof align.table === 'object'
+        ? align.table.id || align.table.name || align.table.tableId
+        : align.table
     const row = align.row !== undefined ? align.row : 0
     const col = align.col !== undefined ? align.col : 0
 
