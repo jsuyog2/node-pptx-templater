@@ -196,6 +196,7 @@ async function main() {
 
     let TeamData = [
       [
+        '',
         'Team A',
         'Bob',
         'Designer',
@@ -206,6 +207,7 @@ async function main() {
       ],
       [
         '',
+        '',
         'Charlie',
         'Admin',
         'The final implementation should allow users to build highly visual dashboards and reports.',
@@ -215,6 +217,7 @@ async function main() {
       ],
       [
         '',
+        '',
         'David',
         'Developer',
         'The final implementation should allow users to build highly visual dashboards and reports.',
@@ -223,6 +226,7 @@ async function main() {
         'A',
       ],
       [
+        '',
         'Team B',
         'User',
         'Tester',
@@ -232,6 +236,7 @@ async function main() {
         'A',
       ],
       [
+        '',
         '',
         'Alice',
         'Manager',
@@ -247,11 +252,14 @@ async function main() {
     ppt.removeTableRow('Table', 1)
 
     ppt.mergeCells('Table', 1, 0, 3, 0)
+    ppt.mergeCells('Table', 1, 1, 3, 1)
     ppt.mergeCells('Table', 4, 0, 5, 0)
+    ppt.mergeCells('Table', 4, 1, 5, 1)
+
     TeamData.forEach((element, rowIndex) => {
       element.forEach((cell, colIndex) => {
-        if (colIndex === 6 && cell === 'A' || cell === 'B') {
-          ppt.addCellShape('Table', (rowIndex + 1), colIndex, {
+        if (colIndex === 7 && (cell === 'A' || cell === 'B')) {
+          ppt.addCellShape('Table', rowIndex + 1, colIndex, {
             type: 'circle',
             fill: cell === 'A' ? '#10B981' : '#EF4444',
             width: 15,
@@ -259,10 +267,13 @@ async function main() {
             position: 'center',
           })
 
-          ppt.updateCell('Table', rowIndex, colIndex, '')
+          ppt.updateCell('Table', rowIndex + 1, colIndex, '')
         }
       })
     });
+
+    ppt.alignShapeToCell('Team A Logo', 'Table', 1, 0);
+    ppt.alignShapeToCell('Team B Logo', 'Table', 4, 0);
 
     // Step 3: Save to file
     await ppt.saveToFile(OUTPUT_PATH)

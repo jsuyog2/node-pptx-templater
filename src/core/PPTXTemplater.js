@@ -1716,7 +1716,8 @@ class PPTXTemplater {
         colIndex,
         value,
         options,
-        this.#slideManager
+        this.#slideManager,
+        this.#shapeManager
       )
     }
     return this
