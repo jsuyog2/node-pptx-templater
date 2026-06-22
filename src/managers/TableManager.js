@@ -1762,7 +1762,9 @@ class TableManager {
     }
 
     const shapesToCreate = []
-    const headerNames = (tblObj['a:tr']?.[0]?.['a:tc'] || []).map(cell => this.#getCellText(cell).trim())
+    const headerNames = (tblObj['a:tr']?.[0]?.['a:tc'] || []).map(cell =>
+      this.#getCellText(cell).trim()
+    )
 
     for (let i = 0; i < rowsData.length; i++) {
       const rowData = rowsData[i]
@@ -1803,7 +1805,13 @@ class TableManager {
     shapesToCreate.sort((a, b) => (a.config.zIndex || 0) - (b.config.zIndex || 0))
 
     shapesToCreate.forEach(item => {
-      const bounds = this.getCellBounds(slideIndex, tableId, item.rowIndex, item.colIndex, slideManager)
+      const bounds = this.getCellBounds(
+        slideIndex,
+        tableId,
+        item.rowIndex,
+        item.colIndex,
+        slideManager
+      )
       if (bounds) {
         const expandedConfigs = this.#expandCellShape(item.config, bounds)
 
@@ -1882,11 +1890,7 @@ class TableManager {
   }
 
   addCellShape(slideIndex, tableId, rowIndex, colIndex, options, slideManager, shapeManager) {
-    const { resolvedTableId } = this.#getTableContext(
-      slideIndex,
-      tableId,
-      slideManager
-    )
+    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
     if (!bounds) {
@@ -1929,11 +1933,7 @@ class TableManager {
     slideManager,
     shapeManager
   ) {
-    const { resolvedTableId } = this.#getTableContext(
-      slideIndex,
-      tableId,
-      slideManager
-    )
+    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`

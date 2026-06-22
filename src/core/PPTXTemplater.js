@@ -2753,7 +2753,12 @@ class PPTXTemplater {
     let opts = options
     if (rowIndex && typeof rowIndex === 'object') {
       row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
+      col =
+        rowIndex.column !== undefined
+          ? rowIndex.column
+          : rowIndex.col !== undefined
+            ? rowIndex.col
+            : rowIndex.colIndex
       opts = rowIndex
     }
 
@@ -2790,8 +2795,18 @@ class PPTXTemplater {
     let opts = options
     if (rowIndex && typeof rowIndex === 'object') {
       row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
-      shpIdx = rowIndex.shapeIndex !== undefined ? rowIndex.shapeIndex : (rowIndex.shape !== undefined ? rowIndex.shape : colIndex)
+      col =
+        rowIndex.column !== undefined
+          ? rowIndex.column
+          : rowIndex.col !== undefined
+            ? rowIndex.col
+            : rowIndex.colIndex
+      shpIdx =
+        rowIndex.shapeIndex !== undefined
+          ? rowIndex.shapeIndex
+          : rowIndex.shape !== undefined
+            ? rowIndex.shape
+            : colIndex
       opts = options !== undefined ? options : rowIndex
     }
 
@@ -2827,8 +2842,18 @@ class PPTXTemplater {
     let shpIdx = shapeIndex
     if (rowIndex && typeof rowIndex === 'object') {
       row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
-      shpIdx = rowIndex.shapeIndex !== undefined ? rowIndex.shapeIndex : (rowIndex.shape !== undefined ? rowIndex.shape : colIndex)
+      col =
+        rowIndex.column !== undefined
+          ? rowIndex.column
+          : rowIndex.col !== undefined
+            ? rowIndex.col
+            : rowIndex.colIndex
+      shpIdx =
+        rowIndex.shapeIndex !== undefined
+          ? rowIndex.shapeIndex
+          : rowIndex.shape !== undefined
+            ? rowIndex.shape
+            : colIndex
     }
 
     const targetIndices = this.#getTargetSlideIndices()
@@ -2862,8 +2887,18 @@ class PPTXTemplater {
     let shpIdx = shapeIndex
     if (rowIndex && typeof rowIndex === 'object') {
       row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
-      shpIdx = rowIndex.shapeIndex !== undefined ? rowIndex.shapeIndex : (rowIndex.shape !== undefined ? rowIndex.shape : colIndex)
+      col =
+        rowIndex.column !== undefined
+          ? rowIndex.column
+          : rowIndex.col !== undefined
+            ? rowIndex.col
+            : rowIndex.colIndex
+      shpIdx =
+        rowIndex.shapeIndex !== undefined
+          ? rowIndex.shapeIndex
+          : rowIndex.shape !== undefined
+            ? rowIndex.shape
+            : colIndex
     }
 
     const targetIndices = this.#getTargetSlideIndices()
@@ -2900,19 +2935,18 @@ class PPTXTemplater {
     let col = colIndex
     if (rowIndex && typeof rowIndex === 'object') {
       row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
+      col =
+        rowIndex.column !== undefined
+          ? rowIndex.column
+          : rowIndex.col !== undefined
+            ? rowIndex.col
+            : rowIndex.colIndex
     }
 
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       try {
-        const bounds = this.#tableManager.getCellBounds(
-          idx,
-          tableId,
-          row,
-          col,
-          this.#slideManager
-        )
+        const bounds = this.#tableManager.getCellBounds(idx, tableId, row, col, this.#slideManager)
         if (bounds) return bounds
       } catch (err) {
         logger.debug(
@@ -2946,7 +2980,12 @@ class PPTXTemplater {
     let height = shapeHeight
     if (rowIndex && typeof rowIndex === 'object') {
       row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
+      col =
+        rowIndex.column !== undefined
+          ? rowIndex.column
+          : rowIndex.col !== undefined
+            ? rowIndex.col
+            : rowIndex.colIndex
       widthOrOpts = colIndex
       height = shapeWidthOrOptions
     }

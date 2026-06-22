@@ -624,10 +624,14 @@ describe('Table Cell Shapes Integration Tests', () => {
     ppt.updateTable('Table', {
       rows: [
         { A: 'Standard Text', V: 'Normal status', B: 10 },
-        { A: 'This is a very long text that wraps across multiple lines and expands the row height significantly. We expect this row to be much taller than the template default.', V: 'Wrapped status', B: 20 },
+        {
+          A: 'This is a very long text that wraps across multiple lines and expands the row height significantly. We expect this row to be much taller than the template default.',
+          V: 'Wrapped status',
+          B: 20,
+        },
         { A: 'Row 3 Col 0', V: 'Status 3', B: 30 },
         { A: 'Row 4 Col 0', V: 'Status 4', B: 40 },
-      ]
+      ],
     })
 
     // 2. Insert an additional row dynamically using insertTableRow
@@ -655,7 +659,7 @@ describe('Table Cell Shapes Integration Tests', () => {
       width: 10,
       height: 10,
       alignX: 'center',
-      alignY: 'middle'
+      alignY: 'middle',
     })
 
     // - Shape 2: Object-based call signature targeting the same merged cell
@@ -666,7 +670,7 @@ describe('Table Cell Shapes Integration Tests', () => {
       width: 10,
       height: 10,
       alignX: 'center',
-      alignY: 'middle'
+      alignY: 'middle',
     })
 
     // - Shape 3: Center-aligned shape in the wrapped cell (Row 2, Column 0) using object signature
@@ -677,7 +681,7 @@ describe('Table Cell Shapes Integration Tests', () => {
       width: 15,
       height: 15,
       alignX: 'center',
-      alignY: 'middle'
+      alignY: 'middle',
     })
 
     // - Shape 4: Explicit offset (x: 5, y: 3) shape in standard cell using object signature
@@ -688,7 +692,7 @@ describe('Table Cell Shapes Integration Tests', () => {
       width: 12,
       height: 12,
       x: 5,
-      y: 3
+      y: 3,
     })
 
     // 5. Assert bounds and shape coordinate correctness
