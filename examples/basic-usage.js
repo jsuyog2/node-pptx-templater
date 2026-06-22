@@ -244,11 +244,11 @@ async function main() {
         '85',
         'P',
         'B',
-      ]
+      ],
     ]
     TeamData.forEach(element => {
       ppt.addTableRow('Table', element)
-    });
+    })
     ppt.removeTableRow('Table', 1)
 
     ppt.mergeCells('Table', 1, 0, 3, 0)
@@ -270,10 +270,10 @@ async function main() {
           ppt.updateCell('Table', rowIndex + 1, colIndex, '')
         }
       })
-    });
+    })
 
-    ppt.alignShapeToCell('Team A Logo', 'Table', 1, 0);
-    ppt.alignShapeToCell('Team B Logo', 'Table', 4, 0);
+    ppt.alignShapeToCell('Team A Logo', 'Table', 1, 0)
+    ppt.alignShapeToCell('Team B Logo', 'Table', 4, 0)
 
     // Step 3: Save to file
     await ppt.saveToFile(OUTPUT_PATH)

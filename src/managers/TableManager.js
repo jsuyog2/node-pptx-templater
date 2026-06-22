@@ -80,11 +80,7 @@ class TableManager {
    * @throws {TableNotFoundError} If the table is not found.
    */
   updateTable(slideIndex, tableId, data, slideManager, shapeManager) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
-      slideIndex,
-      tableId,
-      slideManager
-    )
+    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (trs.length === 0) {
@@ -249,8 +245,7 @@ class TableManager {
         cellShapes,
         slideManager,
         shapeManager,
-        tblObj,
-        frameObj
+        tblObj
       )
     }
 
@@ -2110,8 +2105,7 @@ class TableManager {
     cellShapes,
     slideManager,
     shapeManager,
-    tblObj,
-    frameObj
+    tblObj
   ) {
     if (!cellShapes || !shapeManager) return
 
@@ -2126,54 +2120,6 @@ class TableManager {
         shapeManager.deleteShape(slideIndex, name, slideManager)
       } catch (err) {
         logger.warn(`Failed to delete existing cell shape "${name}": ${err.message}`)
-      }
-    }
-
-    const xfrm = frameObj['p:xfrm']
-    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
-    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
-
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
-
-    const trsArr = tblObj['a:tr'] || []
-    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
-
-    const getCellBounds = (r, c) => {
-      const parent = this.getMergeParent(slideIndex, tableId, r, c, slideManager)
-      const pr = parent.row
-      const pc = parent.col
-
-      let cellLeft = tableX
-      for (let idx = 0; idx < pc; idx++) {
-        cellLeft += colWidths[idx] || 0
-      }
-
-      let cellTop = tableY
-      for (let idx = 0; idx < pr; idx++) {
-        cellTop += rowHeights[idx] || 0
-      }
-
-      const parentCell = trsArr[pr]?.['a:tc']?.[pc]
-      const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
-      const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
-
-      let cellWidth = 0
-      for (let idx = 0; idx < gridSpan; idx++) {
-        cellWidth += colWidths[pc + idx] || 0
-      }
-
-      let cellHeight = 0
-      for (let idx = 0; idx < rowSpan; idx++) {
-        cellHeight += rowHeights[pr + idx] || 0
-      }
-
-      return {
-        left: cellLeft,
-        top: cellTop,
-        width: cellWidth,
-        height: cellHeight,
       }
     }
 
@@ -2306,45 +2252,7 @@ class TableManager {
   }
 
   addCellShape(slideIndex, tableId, rowIndex, colIndex, options, slideManager, shapeManager) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
-      slideIndex,
-      tableId,
-      slideManager
-    )
-
-    const xfrm = frameObj['p:xfrm']
-    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
-    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
-
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
-
-    const trsArr = tblObj['a:tr'] || []
-    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
-
-    const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
-    const pr = parent.row
-    const pc = parent.col
-
-    let cellLeft = tableX
-    for (let idx = 0; idx < pc; idx++) {
-      cellLeft += colWidths[idx] || 0
-    }
-
-    let cellTop = tableY
-    for (let idx = 0; idx < pr; idx++) {
-      cellTop += rowHeights[idx] || 0
-    }
-
-    const parentCell = trsArr[pr]?.['a:tc']?.[pc]
-    const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
-    const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
-
-    let cellWidth = 0
-    for (let idx = 0; idx < gridSpan; idx++) {
-      cellWidth += colWidths[pc + idx] || 0
-    }
+    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
     if (!bounds) {
@@ -2399,11 +2307,7 @@ class TableManager {
     slideManager,
     shapeManager
   ) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
-      slideIndex,
-      tableId,
-      slideManager
-    )
+    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
@@ -2714,7 +2618,7 @@ class TableManager {
 
       return {
         fontSize: maxSz !== null ? maxSz : 14,
-        typeface: typeface || 'Arial'
+        typeface: typeface || 'Arial',
       }
     }
 
@@ -2773,9 +2677,9 @@ class TableManager {
                 if (w.length > longestWordLen) longestWordLen = w.length
               }
 
-              const minWordWidth = (longestWordLen * fontInfo.fontSize * aspect) * 9525 + marL + marR
+              const minWordWidth = longestWordLen * fontInfo.fontSize * aspect * 9525 + marL + marR
               const idealChars = Math.min(30, pText.length)
-              const idealTextWidth = (idealChars * fontInfo.fontSize * aspect) * 9525 + marL + marR
+              const idealTextWidth = idealChars * fontInfo.fontSize * aspect * 9525 + marL + marR
 
               const cellIdeal = Math.max(minWordWidth, idealTextWidth)
               if (cellIdeal > cellTextWidth) {
@@ -2809,7 +2713,7 @@ class TableManager {
     if (sumPreferred > 0) {
       const scale = totalTableWidth / sumPreferred
       finalWidths = preferredWidths.map((w, idx) => {
-        let scaled = Math.round(w * scale)
+        const scaled = Math.round(w * scale)
         const minAllowed = Math.min(originalWidths[idx] || 300000, 300000)
         return Math.max(scaled, minAllowed)
       })
@@ -3003,7 +2907,7 @@ class TableManager {
 
       return {
         fontSize: maxSz !== null ? maxSz : 14,
-        typeface: typeface || 'Arial'
+        typeface: typeface || 'Arial',
       }
     }
 
