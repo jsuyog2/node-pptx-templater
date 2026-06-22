@@ -32,7 +32,7 @@ async function main() {
     width: 2743200, // 3 inches
     height: 457200, // 0.5 inches
     fill: '#3B82F6',
-    name: 'demo-shape',
+    id: 'demo-shape',
   })
   console.log('✓ Added shape: demo-shape (blue rectangle)')
 

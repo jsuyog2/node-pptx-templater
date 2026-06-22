@@ -2654,6 +2654,16 @@ class PPTXTemplater {
     return this.#shapeManager.validateShape(options)
   }
 
+  /**
+   * Adds a new shape to the targeted slide(s).
+   *
+   * @param {string|Object} typeOrOptions Either the shape type string (e.g., 'rect', 'ellipse') or a full options object.
+   * @param {Object} [options={}] Additional configuration options if type was specified as a string.
+   * @returns {Promise<PPTXTemplater>} The templater instance for chaining.
+   *
+   * @example
+   * await ppt.addShape('rect', { id: 'MyShape', x: 100, y: 100, width: 200, height: 100 });
+   */
   async addShape(typeOrOptions, options = {}) {
     this.#assertLoaded()
     let resolvedOptions = {}
@@ -2738,14 +2748,23 @@ class PPTXTemplater {
    */
   async addCellShape(tableId, rowIndex, colIndex, options) {
     this.#assertLoaded()
+    let row = rowIndex
+    let col = colIndex
+    let opts = options
+    if (rowIndex && typeof rowIndex === 'object') {
+      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
+      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
+      opts = rowIndex
+    }
+
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       this.#tableManager.addCellShape(
         idx,
         tableId,
-        rowIndex,
-        colIndex,
-        options,
+        row,
+        col,
+        opts,
         this.#slideManager,
         this.#shapeManager
       )
@@ -2765,15 +2784,26 @@ class PPTXTemplater {
    */
   async updateCellShape(tableId, rowIndex, colIndex, shapeIndex, options) {
     this.#assertLoaded()
+    let row = rowIndex
+    let col = colIndex
+    let shpIdx = shapeIndex
+    let opts = options
+    if (rowIndex && typeof rowIndex === 'object') {
+      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
+      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
+      shpIdx = rowIndex.shapeIndex !== undefined ? rowIndex.shapeIndex : (rowIndex.shape !== undefined ? rowIndex.shape : colIndex)
+      opts = options !== undefined ? options : rowIndex
+    }
+
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       this.#tableManager.updateCellShape(
         idx,
         tableId,
-        rowIndex,
-        colIndex,
-        shapeIndex,
-        options,
+        row,
+        col,
+        shpIdx,
+        opts,
         this.#slideManager,
         this.#shapeManager
       )
@@ -2792,14 +2822,23 @@ class PPTXTemplater {
    */
   async removeCellShape(tableId, rowIndex, colIndex, shapeIndex) {
     this.#assertLoaded()
+    let row = rowIndex
+    let col = colIndex
+    let shpIdx = shapeIndex
+    if (rowIndex && typeof rowIndex === 'object') {
+      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
+      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
+      shpIdx = rowIndex.shapeIndex !== undefined ? rowIndex.shapeIndex : (rowIndex.shape !== undefined ? rowIndex.shape : colIndex)
+    }
+
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       this.#tableManager.removeCellShape(
         idx,
         tableId,
-        rowIndex,
-        colIndex,
-        shapeIndex,
+        row,
+        col,
+        shpIdx,
         this.#slideManager,
         this.#shapeManager
       )
@@ -2818,14 +2857,23 @@ class PPTXTemplater {
    */
   getCellShape(tableId, rowIndex, colIndex, shapeIndex) {
     this.#assertLoaded()
+    let row = rowIndex
+    let col = colIndex
+    let shpIdx = shapeIndex
+    if (rowIndex && typeof rowIndex === 'object') {
+      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
+      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
+      shpIdx = rowIndex.shapeIndex !== undefined ? rowIndex.shapeIndex : (rowIndex.shape !== undefined ? rowIndex.shape : colIndex)
+    }
+
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       const shape = this.#tableManager.getCellShape(
         idx,
         tableId,
-        rowIndex,
-        colIndex,
-        shapeIndex,
+        row,
+        col,
+        shpIdx,
         this.#slideManager,
         this.#shapeManager
       )
@@ -2848,14 +2896,21 @@ class PPTXTemplater {
       typeof tableIdOrObj === 'object'
         ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId
         : tableIdOrObj
+    let row = rowIndex
+    let col = colIndex
+    if (rowIndex && typeof rowIndex === 'object') {
+      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
+      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
+    }
+
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       try {
         const bounds = this.#tableManager.getCellBounds(
           idx,
           tableId,
-          rowIndex,
-          colIndex,
+          row,
+          col,
           this.#slideManager
         )
         if (bounds) return bounds
@@ -2885,17 +2940,28 @@ class PPTXTemplater {
       typeof tableIdOrObj === 'object'
         ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId
         : tableIdOrObj
+    let row = rowIndex
+    let col = colIndex
+    let widthOrOpts = shapeWidthOrOptions
+    let height = shapeHeight
+    if (rowIndex && typeof rowIndex === 'object') {
+      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
+      col = rowIndex.column !== undefined ? rowIndex.column : (rowIndex.col !== undefined ? rowIndex.col : rowIndex.colIndex)
+      widthOrOpts = colIndex
+      height = shapeWidthOrOptions
+    }
+
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       try {
         const pos = this.#tableManager.getCellPosition(
           idx,
           tableId,
-          rowIndex,
-          colIndex,
+          row,
+          col,
           this.#slideManager,
-          shapeWidthOrOptions,
-          shapeHeight
+          widthOrOpts,
+          height
         )
         if (pos) return pos
       } catch (err) {
