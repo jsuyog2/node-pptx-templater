@@ -473,10 +473,14 @@ class PPTXTemplater {
         throw new PPTXError(`Destination is a file: ${outputPath}`)
       }
       const files = fs.readdirSync(resolvedOut)
-      if (files.length > 0 && !options.overwrite) {
-        throw new PPTXError(
-          `Destination directory "${outputPath}" is not empty. Set overwrite: true to overwrite.`
-        )
+      if (files.length > 0) {
+        if (!options.overwrite) {
+          throw new PPTXError(
+            `Destination directory "${outputPath}" is not empty. Set overwrite: true to overwrite.`
+          )
+        } else {
+          await fs.emptyDir(resolvedOut)
+        }
       }
     } else {
       await fs.ensureDir(resolvedOut)
