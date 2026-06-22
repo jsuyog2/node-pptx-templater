@@ -479,4 +479,139 @@ describe('Table Cell Shapes Integration Tests', () => {
     const report = await ppt.validatePresentation()
     expect(report.valid).toBe(true)
   })
+
+  it('should not modify row heights or column widths when calling addCellShape()', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    const getRowHeights = xml => {
+      const regex = /<a:tr\s+h="(\d+)">/g
+      const heights = []
+      let match
+      while ((match = regex.exec(xml)) !== null) {
+        heights.push(match[1])
+      }
+      return heights
+    }
+
+    const getColWidths = xml => {
+      const regex = /<a:gridCol\s+w="(\d+)">/g
+      const widths = []
+      let match
+      while ((match = regex.exec(xml)) !== null) {
+        widths.push(match[1])
+      }
+      return widths
+    }
+
+    const slideXmlBefore = await ppt.slideManager.getSlideXmlAsync(3)
+    const heightsBefore = getRowHeights(slideXmlBefore)
+    const widthsBefore = getColWidths(slideXmlBefore)
+
+    // Call addCellShape multiple times
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'circle',
+      fill: '#EF4444',
+      width: 10,
+      height: 10,
+      horizontal: 'center',
+      vertical: 'top',
+    })
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'rectangle',
+      fill: '#3B82F6',
+      width: 15,
+      height: 15,
+      horizontal: 'center',
+      vertical: 'bottom',
+    })
+
+    const slideXmlAfter = await ppt.slideManager.getSlideXmlAsync(3)
+    const heightsAfter = getRowHeights(slideXmlAfter)
+    const widthsAfter = getColWidths(slideXmlAfter)
+
+    expect(heightsAfter).toEqual(heightsBefore)
+    expect(widthsAfter).toEqual(widthsBefore)
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
+
+  it('should calculate coordinates correctly for vertically and horizontally merged cells and respect alignments/offsets', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    // Populate the table with 4 data rows first to avoid out-of-bounds error
+    ppt.updateTable('Table', {
+      rows: [
+        { A: 'Row 1', V: 'Val 1', B: 10 },
+        { A: 'Row 2', V: 'Val 2', B: 20 },
+        { A: 'Row 3', V: 'Val 3', B: 30 },
+        { A: 'Row 4', V: 'Val 4', B: 40 },
+      ]
+    })
+
+    // 1. Vertical and Horizontal merge: Merge rows 1-2 and columns 1-2 (2x2 merged cell)
+    ppt.mergeCells('Table', 1, 1, 2, 2)
+
+    // Add shapes to verify all combinations of alignments/offsets
+    // - Shape 1: Center-Middle, no offset (true centering)
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'circle',
+      fill: '#EF4444',
+      width: 10,
+      height: 10,
+      alignX: 'center',
+      alignY: 'middle'
+    })
+
+    // - Shape 2: Top-Left alignment with explicit offset (x: 5, y: 3)
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'rectangle',
+      fill: '#10B981',
+      width: 15,
+      height: 15,
+      alignX: 'left',
+      alignY: 'top',
+      x: 5,
+      y: 3
+    })
+
+    // - Shape 3: Bottom-Right alignment with explicit offset (x: 4, y: 2)
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'star5',
+      fill: '#3B82F6',
+      width: 12,
+      height: 12,
+      alignX: 'right',
+      alignY: 'bottom',
+      x: 4,
+      y: 2
+    })
+
+    // Get cell bounds and shapes
+    const bounds = ppt.getCellBounds('Table', 1, 1)
+    const shapeCenter = ppt.getCellShape('Table', 1, 1, 0)
+    const shapeTopLeft = ppt.getCellShape('Table', 1, 1, 1)
+    const shapeBottomRight = ppt.getCellShape('Table', 1, 1, 2)
+
+    expect(shapeCenter).not.toBeNull()
+    expect(shapeTopLeft).not.toBeNull()
+    expect(shapeBottomRight).not.toBeNull()
+
+    // 1. Verify true centering in merged cell bounds
+    expect(shapeCenter.x).toBe(Math.round(bounds.x + (bounds.width - 10) / 2))
+    expect(shapeCenter.y).toBe(Math.round(bounds.y + (bounds.height - 10) / 2))
+
+    // 2. Verify Top-Left with offset (x: 5, y: 3)
+    expect(shapeTopLeft.x).toBe(Math.round(bounds.x + 5))
+    expect(shapeTopLeft.y).toBe(Math.round(bounds.y + 3))
+
+    // 3. Verify Bottom-Right with offset (x: 4, y: 2)
+    expect(shapeBottomRight.x).toBe(Math.round(bounds.x + bounds.width - 12 - 4))
+    expect(shapeBottomRight.y).toBe(Math.round(bounds.y + bounds.height - 12 - 2))
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
 })

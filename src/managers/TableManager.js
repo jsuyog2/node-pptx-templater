@@ -223,7 +223,7 @@ class TableManager {
       )
     }
 
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
 
     if (cellShapes) {
       this.#processCellShapes(
@@ -796,8 +796,6 @@ class TableManager {
   getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager) {
     const { tblObj, frameObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
-
     const xfrm = frameObj['p:xfrm']
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
     const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
@@ -807,7 +805,7 @@ class TableManager {
     const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
 
     const trsArr = tblObj['a:tr'] || []
-    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+    const rowHeights = this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, false)
 
     const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
     const pr = parent.row
@@ -1936,8 +1934,6 @@ class TableManager {
       slideManager
     )
 
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
-
     const xfrm = frameObj['p:xfrm']
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
     const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
@@ -1947,7 +1943,7 @@ class TableManager {
     const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
 
     const trsArr = tblObj['a:tr'] || []
-    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+    const rowHeights = this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, false)
 
     const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
     const pr = parent.row
@@ -2021,8 +2017,6 @@ class TableManager {
       slideManager
     )
 
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
-
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
     const matchingShapes = shapes.filter(
@@ -2046,7 +2040,7 @@ class TableManager {
     const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
 
     const trsArr = tblObj['a:tr'] || []
-    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+    const rowHeights = this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, false)
 
     const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
     const pr = parent.row
@@ -2158,7 +2152,7 @@ class TableManager {
     }
   }
 
-  #calculateRowHeights(slideIndex, tableId, slideManager, tblObj) {
+  #calculateRowHeights(slideIndex, tableId, slideManager, tblObj, writeToXml = true) {
     const trsArr = tblObj['a:tr'] || []
     if (trsArr.length === 0) return []
 
@@ -2172,7 +2166,7 @@ class TableManager {
     // Initialize rowHeights with original height or a safe minimum floor of 228600 EMUs (~24px/pt)
     const rowHeights = trsArr.map(row => {
       const h = parseInt(row['@_h'] || 0, 10)
-      return Math.max(h, 228600)
+      return h > 0 ? h : 228600
     })
 
     // Helper to get paragraph font size
@@ -2295,7 +2289,9 @@ class TableManager {
         }
 
         const totalCellHeight_emu = marT + marB + textHeight_emu
-        cellHeights[r][c] = Math.max(totalCellHeight_emu, 228600)
+        const rowTemplateHeight = parseInt(row['@_h'] || 0, 10)
+        const minFloor = rowTemplateHeight > 0 ? rowTemplateHeight : 228600
+        cellHeights[r][c] = Math.max(totalCellHeight_emu, minFloor)
       }
     }
 
@@ -2346,8 +2342,10 @@ class TableManager {
     }
 
     // Update row heights in XML
-    for (let r = 0; r < numRows; r++) {
-      trsArr[r]['@_h'] = String(rowHeights[r])
+    if (writeToXml) {
+      for (let r = 0; r < numRows; r++) {
+        trsArr[r]['@_h'] = String(rowHeights[r])
+      }
     }
 
     return rowHeights

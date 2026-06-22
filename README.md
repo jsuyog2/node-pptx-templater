@@ -172,26 +172,50 @@ const meta = await ppt.getTableRows('SalesTable', { includeMetadata: true });
 ```
 
 ### Table Cell Shapes
-Cell shapes are overlay graphics anchored within table cells. They are positioned absolutely based on cell bounds, and **never** modify row heights, column widths, cell margins, or trigger table reflow. Offsets (`x`, `y`) are relative to the cell's top-left corner. Oversized shapes are scaled down proportionally to fit inside the cell.
+Cell shapes are overlay graphics anchored within table cells. They are positioned absolutely based on cell bounds, and **never** modify row heights, column widths, cell margins, or trigger table reflow.
+
+#### Merged Cell Support
+When targeting a merged cell (spanned using `rowSpan` or `colSpan`), `addCellShape()` dynamically resolves the **actual rendered bounds** of the entire merged cell region (summing the width and height of the spanned rows/columns). The shape is positioned and aligned relative to this final merged boundary. Any offset `x` and `y` specified is interpreted relative to the top-left corner of the resolved merged cell region.
+
+#### Alignment & Presets
+Shapes can be aligned dynamically within the cell (or merged region) using preset positions or explicit alignments:
+* **Presets**: Use `position` values like `'top-left'`, `'center'`, `'bottom-right'`, etc.
+* **Alignment Options**: Set `alignX: 'left' | 'center' | 'right'` and `alignY: 'top' | 'middle' | 'bottom'`. If no alignments or offsets are provided, shapes default to true centering (`'center'`/`'middle'`).
+* **Offsets & Padding**: Offsets (`x`, `y`) are applied relative to the resolved alignment. For instance, when `alignX: 'right'` is used, the shape is placed at `cellRight - shapeWidth - x` (defaulting to a `5px` padding if `x` is omitted).
 
 ```javascript
-// Add a simple indicator
-await ppt.addCellShape('SalesTable', 2, 1, {
+// Add a status icon centered in a merged cell (rowSpan=2, colSpan=2)
+await ppt.addCellShape('StatusTable', 1, 1, {
   type: 'circle',
   width: 12,
   height: 12,
-  fill: '#10B981' // Green status dot
+  fill: '#10B981', // Green status dot
+  alignX: 'center',
+  alignY: 'middle' // Visually centered in the merged cell
 });
 
-// Add a badge with text and custom offsets
-await ppt.addCellShape('SalesTable', 1, 2, {
+// Add a badge with text and explicit offsets inside a merged cell
+await ppt.addCellShape('StatusTable', 1, 1, {
   type: 'badge',
-  text: 'Active',
-  fill: '#3B82F6',
-  x: 4,
-  y: 2,
+  text: 'Urgent',
+  fill: '#EF4444',
+  alignX: 'left',
+  alignY: 'top',
+  x: 5,
+  y: 3,
   width: 50,
   height: 16
+});
+
+// Add an indicator with bottom-right alignment and custom padding
+await ppt.addCellShape('StatusTable', 1, 1, {
+  type: 'icon',
+  icon: 'up',
+  size: 14,
+  alignX: 'right',
+  alignY: 'bottom',
+  x: 4,
+  y: 2
 });
 ```
 
