@@ -548,7 +548,7 @@ describe('Table Cell Shapes Integration Tests', () => {
         { A: 'Row 2', V: 'Val 2', B: 20 },
         { A: 'Row 3', V: 'Val 3', B: 30 },
         { A: 'Row 4', V: 'Val 4', B: 40 },
-      ]
+      ],
     })
 
     // 1. Vertical and Horizontal merge: Merge rows 1-2 and columns 1-2 (2x2 merged cell)
@@ -562,7 +562,7 @@ describe('Table Cell Shapes Integration Tests', () => {
       width: 10,
       height: 10,
       alignX: 'center',
-      alignY: 'middle'
+      alignY: 'middle',
     })
 
     // - Shape 2: Top-Left alignment with explicit offset (x: 5, y: 3)
@@ -574,7 +574,7 @@ describe('Table Cell Shapes Integration Tests', () => {
       alignX: 'left',
       alignY: 'top',
       x: 5,
-      y: 3
+      y: 3,
     })
 
     // - Shape 3: Bottom-Right alignment with explicit offset (x: 4, y: 2)
@@ -586,7 +586,7 @@ describe('Table Cell Shapes Integration Tests', () => {
       alignX: 'right',
       alignY: 'bottom',
       x: 4,
-      y: 2
+      y: 2,
     })
 
     // Get cell bounds and shapes
