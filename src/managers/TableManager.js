@@ -1302,10 +1302,10 @@ class TableManager {
   }
 
   #expandCellShape(config, cellBounds) {
-    const cellLeft_px = Math.round(cellBounds.left / 9525)
-    const cellTop_px = Math.round(cellBounds.top / 9525)
-    const cellWidth_px = Math.round(cellBounds.width / 9525)
-    const cellHeight_px = Math.round(cellBounds.height / 9525)
+    const cellLeft_px = cellBounds.x
+    const cellTop_px = cellBounds.y
+    const cellWidth_px = cellBounds.width
+    const cellHeight_px = cellBounds.height
 
     const parseLength = (val, maxVal) => {
       if (typeof val === 'string' && val.endsWith('%')) {
@@ -1743,7 +1743,7 @@ class TableManager {
     slideManager,
     shapeManager,
     tblObj,
-    frameObj
+    _frameObj
   ) {
     if (!cellShapes || !shapeManager) return
 
@@ -1761,62 +1761,14 @@ class TableManager {
       }
     }
 
-    const xfrm = frameObj['p:xfrm']
-    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
-    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
-
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
-
-    const trsArr = tblObj['a:tr'] || []
-    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
-
-    const getCellBounds = (r, c) => {
-      const parent = this.getMergeParent(slideIndex, tableId, r, c, slideManager)
-      const pr = parent.row
-      const pc = parent.col
-
-      let cellLeft = tableX
-      for (let idx = 0; idx < pc; idx++) {
-        cellLeft += colWidths[idx] || 0
-      }
-
-      let cellTop = tableY
-      for (let idx = 0; idx < pr; idx++) {
-        cellTop += rowHeights[idx] || 0
-      }
-
-      const parentCell = trsArr[pr]?.['a:tc']?.[pc]
-      const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
-      const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
-
-      let cellWidth = 0
-      for (let idx = 0; idx < gridSpan; idx++) {
-        cellWidth += colWidths[pc + idx] || 0
-      }
-
-      let cellHeight = 0
-      for (let idx = 0; idx < rowSpan; idx++) {
-        cellHeight += rowHeights[pr + idx] || 0
-      }
-
-      return {
-        left: cellLeft,
-        top: cellTop,
-        width: cellWidth,
-        height: cellHeight,
-      }
-    }
-
     const shapesToCreate = []
-    const headerNames = (trsArr[0]?.['a:tc'] || []).map(cell => this.#getCellText(cell).trim())
+    const headerNames = (tblObj['a:tr']?.[0]?.['a:tc'] || []).map(cell => this.#getCellText(cell).trim())
 
     for (let i = 0; i < rowsData.length; i++) {
       const rowData = rowsData[i]
       const finalRowIndex = isObjectRows ? i + 1 : i
 
-      const numCols = trsArr[finalRowIndex]?.['a:tc']?.length || 0
+      const numCols = tblObj['a:tr']?.[finalRowIndex]?.['a:tc']?.length || 0
       for (let j = 0; j < numCols; j++) {
         const headerName = headerNames[j]
         let shapeFn = null
@@ -1851,16 +1803,18 @@ class TableManager {
     shapesToCreate.sort((a, b) => (a.config.zIndex || 0) - (b.config.zIndex || 0))
 
     shapesToCreate.forEach(item => {
-      const bounds = getCellBounds(item.rowIndex, item.colIndex)
-      const expandedConfigs = this.#expandCellShape(item.config, bounds)
+      const bounds = this.getCellBounds(slideIndex, tableId, item.rowIndex, item.colIndex, slideManager)
+      if (bounds) {
+        const expandedConfigs = this.#expandCellShape(item.config, bounds)
 
-      expandedConfigs.forEach((expandedConfig, expIdx) => {
-        const finalShapeIndex =
-          expandedConfigs.length > 1 ? `${item.shapeIndex}_${expIdx}` : item.shapeIndex
-        expandedConfig.id = `cellshape_${resolvedTableId}_${item.rowIndex}_${item.colIndex}_${finalShapeIndex}`
+        expandedConfigs.forEach((expandedConfig, expIdx) => {
+          const finalShapeIndex =
+            expandedConfigs.length > 1 ? `${item.shapeIndex}_${expIdx}` : item.shapeIndex
+          expandedConfig.id = `cellshape_${resolvedTableId}_${item.rowIndex}_${item.colIndex}_${finalShapeIndex}`
 
-        shapeManager.addShape(slideIndex, expandedConfig, slideManager)
-      })
+          shapeManager.addShape(slideIndex, expandedConfig, slideManager)
+        })
+      }
     })
   }
 
@@ -1928,52 +1882,16 @@ class TableManager {
   }
 
   addCellShape(slideIndex, tableId, rowIndex, colIndex, options, slideManager, shapeManager) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
+    const { resolvedTableId } = this.#getTableContext(
       slideIndex,
       tableId,
       slideManager
     )
 
-    const xfrm = frameObj['p:xfrm']
-    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
-    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
-
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
-
-    const trsArr = tblObj['a:tr'] || []
-    const rowHeights = this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, false)
-
-    const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
-    const pr = parent.row
-    const pc = parent.col
-
-    let cellLeft = tableX
-    for (let idx = 0; idx < pc; idx++) {
-      cellLeft += colWidths[idx] || 0
+    const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    if (!bounds) {
+      throw new PPTXError(`Could not calculate bounds for cell (${rowIndex}, ${colIndex})`)
     }
-
-    let cellTop = tableY
-    for (let idx = 0; idx < pr; idx++) {
-      cellTop += rowHeights[idx] || 0
-    }
-
-    const parentCell = trsArr[pr]?.['a:tc']?.[pc]
-    const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
-    const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
-
-    let cellWidth = 0
-    for (let idx = 0; idx < gridSpan; idx++) {
-      cellWidth += colWidths[pc + idx] || 0
-    }
-
-    let cellHeight = 0
-    for (let idx = 0; idx < rowSpan; idx++) {
-      cellHeight += rowHeights[pr + idx] || 0
-    }
-
-    const bounds = { left: cellLeft, top: cellTop, width: cellWidth, height: cellHeight }
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_`
@@ -2011,7 +1929,7 @@ class TableManager {
     slideManager,
     shapeManager
   ) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
+    const { resolvedTableId } = this.#getTableContext(
       slideIndex,
       tableId,
       slideManager
@@ -2031,46 +1949,10 @@ class TableManager {
       shapeManager.deleteShape(slideIndex, s.name, slideManager)
     }
 
-    const xfrm = frameObj['p:xfrm']
-    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
-    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
-
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
-
-    const trsArr = tblObj['a:tr'] || []
-    const rowHeights = this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, false)
-
-    const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
-    const pr = parent.row
-    const pc = parent.col
-
-    let cellLeft = tableX
-    for (let idx = 0; idx < pc; idx++) {
-      cellLeft += colWidths[idx] || 0
+    const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    if (!bounds) {
+      throw new PPTXError(`Could not calculate bounds for cell (${rowIndex}, ${colIndex})`)
     }
-
-    let cellTop = tableY
-    for (let idx = 0; idx < pr; idx++) {
-      cellTop += rowHeights[idx] || 0
-    }
-
-    const parentCell = trsArr[pr]?.['a:tc']?.[pc]
-    const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
-    const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
-
-    let cellWidth = 0
-    for (let idx = 0; idx < gridSpan; idx++) {
-      cellWidth += colWidths[pc + idx] || 0
-    }
-
-    let cellHeight = 0
-    for (let idx = 0; idx < rowSpan; idx++) {
-      cellHeight += rowHeights[pr + idx] || 0
-    }
-
-    const bounds = { left: cellLeft, top: cellTop, width: cellWidth, height: cellHeight }
 
     const expandedConfigs = this.#expandCellShape(options, bounds)
 

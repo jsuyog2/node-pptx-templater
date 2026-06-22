@@ -161,11 +161,11 @@ class OutputWriter {
           : e.compressionMethod === 0
             ? 'STORE'
             : `UNKNOWN(${e.compressionMethod})`
-      console.log(e.name)
-      console.log(`compressed: ${e.compressedSize}`)
-      console.log(`uncompressed: ${e.uncompressedSize}`)
-      console.log(`crc: ${e.crc32}`)
-      console.log(`method: ${methodStr}`)
+      logger.info(e.name)
+      logger.info(`compressed: ${e.compressedSize}`)
+      logger.info(`uncompressed: ${e.uncompressedSize}`)
+      logger.info(`crc: ${e.crc32}`)
+      logger.info(`method: ${methodStr}`)
     })
     logger.info('--- End of ZIP debug output ---')
   }

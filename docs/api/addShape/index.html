@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>addShape() API Method - node-pptx-templater</title>
-  <meta name="description" content="Adds a new shape dynamically to the targeted slide(s).">
+  <meta name="description" content="Adds a new shape to the targeted slide(s).">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/api/addShape/">
   <link rel="stylesheet" href="../../style.css">
   <script>
@@ -21,7 +21,7 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Adds a new shape dynamically to the targeted slide(s).</p>
+    <p><strong>Description:</strong> Adds a new shape to the targeted slide(s).</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
     
       <h3>Parameters</h3>
@@ -36,7 +36,13 @@
         <tbody>
           
             <tr>
-              <td><strong>options</strong></td>
+              <td><strong>typeOrOptions</strong></td>
+              <td><code>string|Object</code></td>
+              <td></td>
+            </tr>
+          
+            <tr>
+              <td><strong>[options={}]</strong></td>
               <td><code>Object</code></td>
               <td></td>
             </tr>
@@ -46,13 +52,16 @@
     
     
       <h3>Returns</h3>
-      <p><code>this</code> — The chainable presentation templater instance.</p>
+      <p><code>Promise&lt;PPTXTemplater&gt;</code> — The templater instance for chaining.</p>
     
     <h3>OpenXML Impact</h3>
     <p>Creates and appends a `&lt;p:sp&gt;` shape tree node under `&lt;p:spTree&gt;` and updates Z-ordering list.</p>
     <h3>Edge Cases & Error Handling</h3>
     <p><strong>Edge Cases:</strong> Dimensions/coordinates are converted where 1 pixel ≈ 9525 EMUs. Supports shapes: rectangle, square, circle, ellipse, roundedRectangle.</p>
     <p><strong>Errors:</strong> Throws PPTXError if validation fails or target slide structure is invalid.</p>
+    
+      <h3>Code Example</h3>
+      <pre><code>await ppt.addShape(&#039;rect&#039;, { id: &#039;MyShape&#039;, x: 100, y: 100, width: 200, height: 100 });</code></pre>
     
   
     </div>

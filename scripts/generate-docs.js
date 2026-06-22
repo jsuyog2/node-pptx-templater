@@ -112,6 +112,7 @@ const METHOD_CATEGORIES = {
   'removeShape': 'shapes',
   'getShape': 'shapes',
   'validateShape': 'shapes',
+  'alignShapeToCell': 'shapes',
   'updateShapeText': 'shapes',
   'updateShapePosition': 'shapes',
   'updateTextBoxPosition': 'shapes',
