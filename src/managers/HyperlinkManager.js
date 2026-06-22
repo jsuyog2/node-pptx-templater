@@ -100,7 +100,7 @@ class HyperlinkManager {
     const targetInfo = slideManager.getSlideInfo(targetSlideIndex)
 
     // Build relative target path from source to target slide
-    const relativePath = `../slides/${targetInfo.zipPath.split('/').pop()}`
+    const relativePath = targetInfo.zipPath.split('/').pop()
 
     // Add relationship pointing to the target slide
     const rId = relationshipManager.addRelationship(
@@ -130,7 +130,7 @@ class HyperlinkManager {
     const sourceInfo = slideManager.getSlideInfo(sourceSlideIndex)
     const targetInfo = slideManager.getSlideInfo(targetSlideIndex)
 
-    const relativePath = `../slides/${targetInfo.zipPath.split('/').pop()}`
+    const relativePath = targetInfo.zipPath.split('/').pop()
     const rId = relationshipManager.addRelationship(
       sourceInfo.zipPath,
       REL_TYPES.SLIDE,
@@ -167,7 +167,7 @@ class HyperlinkManager {
     const sourceInfo = slideManager.getSlideInfo(sourceSlideIndex)
     const targetInfo = slideManager.getSlideInfo(targetSlideIndex)
 
-    const relativePath = `../slides/${targetInfo.zipPath.split('/').pop()}`
+    const relativePath = targetInfo.zipPath.split('/').pop()
     const rId = relationshipManager.addRelationship(
       sourceInfo.zipPath,
       REL_TYPES.SLIDE,

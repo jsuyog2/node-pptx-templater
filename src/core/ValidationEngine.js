@@ -237,6 +237,18 @@ class ValidationEngine {
         if (!ppt.zipManager.hasFile(resolved)) {
           errors.push(`Relationship ${rel.id} points to non-existent file: ${resolved}`)
         }
+
+        // Catch redundant relative path traversals (e.g., '../slides/slide1.xml' from 'ppt/slides/slide2.xml')
+        const sourceDir = partPath.split('/').slice(0, -1).join('/')
+        const resolvedDir = resolved.split('/').slice(0, -1).join('/')
+        if (sourceDir === resolvedDir) {
+          const expectedTarget = resolved.split('/').pop()
+          if (rel.target !== expectedTarget) {
+            errors.push(
+              `Relationship "${rel.id}" in ${relsPath} uses redundant relative target "${rel.target}" (expected "${expectedTarget}")`
+            )
+          }
+        }
       }
     }
 

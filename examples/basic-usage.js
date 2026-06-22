@@ -38,8 +38,8 @@ async function main() {
   }
 
   try {
-    console.log('📂 Loading template:', TEMPLATE_PATH)
-    const ppt = await PPTXTemplater.load(TEMPLATE_PATH)
+    console.log('📂 Loading template:', TEMPLATE_PATH_PPTX)
+    const ppt = await PPTXTemplater.load(TEMPLATE_PATH_PPTX)
 
     console.log(`📊 Loaded ${ppt.slideCount} slides`)
 
@@ -89,32 +89,53 @@ async function main() {
       sourceSlide: 2,
       targetSlide: 1,
     })
-    const rows = await ppt.getTableRows('Table')
-    console.log(rows)
+    // const rows = await ppt.getTableRows('Table')
+    // console.log(rows)
 
-    ppt.updateTable('Table', [
-      ['Name', '', 'Role', 'Dept'],
-      [
-        'Alice',
-        '',
-        'The final implementation should allow users to build highly visual dashboards and reports.',
-        'Platform',
-      ],
-      ['Bob', '', '     Designer', 'Product'],
-    ])
-    ppt.addTableRow('Table', ['Bob', '', '     Designer', ['Product', 'Value']])
-    ppt.addCellShape('Table', 2, 2, {
-      type: 'rectangle',
-      fill: '#10B981',
-      x: 10,
-      width: 25,
-      height: 15,
+    // ppt.updateTable('Table', [
+    //   ['Name', '', 'Role', 'Dept'],
+    //   [
+    //     'Alice',
+    //     '',
+    //     'The 1',
+    //     'Platform',
+    //   ],
+    //   [
+    //     '',
+    //     '',
+    //     'The 2',
+    //     'Platform',
+    //   ],
+    //   ['Bob', '', '     Designer', 'Product'],
+    // ])
+    // ppt.addTableRow('Table', ['Bob', '', '     Designer', ['Product', 'Value']])
+    ppt.addTableRow('Table', ['Bob', '', 'The final implementation should allow users to build highly visual dashboards and reports.', 'Value', 'Product', 'P'])
+    ppt.addTableRow('Table', ['', '', 'Designer', 'Value', 'Product', 'P'])
+    ppt.addTableRow('Table', ['Bob', '', 'Designer', 'Value', 'Product', 'F'])
+
+    ppt.removeTableRow('Table', 1)
+
+    const rows = await ppt.getTableRows('Table')
+    console.log(rows);
+
+    rows.forEach((d, i) => {
+      ppt.updateCell('Table', (i + 1), 5, '')
+
+      ppt.addCellShape('Table', (i + 1), 5, {
+        type: 'circle',
+        fill: d.STATUS === 'P' ? '#10B981' : '#EF4444',
+        // x: 10,
+        width: 20,
+        height: 20,
+      })
     })
 
+
     // merge all cells of first column with all cells of second col
-    ppt.mergeCells('Table', 0, 0, 0, 1)
-    ppt.mergeCells('Table', 1, 0, 1, 1)
-    ppt.mergeCells('Table', 2, 0, 2, 1)
+    ppt.mergeCells('Table', 1, 0, 2, 0)
+    ppt.mergeCells('Table', 1, 1, 2, 1)
+    // ppt.mergeCells('Table', 1, 0, 1, 1)
+    // ppt.mergeCells('Table', 2, 0, 2, 1)
 
     ppt.updateTable('Table2', [
       ['Name', '', 'Role', 'Dept'],

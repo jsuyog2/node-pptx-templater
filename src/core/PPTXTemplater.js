@@ -2727,6 +2727,8 @@ class PPTXTemplater {
 
   /**
    * Dynamically adds a shape inside a table cell based on cell coordinates.
+   * Cell shapes are overlay graphics anchored independently of the table layout,
+   * and adding a cell shape never modifies row heights, column widths, or table dimensions.
    *
    * @param {string} tableId - Table name or shape ID.
    * @param {number} rowIndex - 0-based row index.
