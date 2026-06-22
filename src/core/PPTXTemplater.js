@@ -1569,11 +1569,30 @@ class PPTXTemplater {
   }
 
   /**
-   * Appends one or more rows to a table. Supports flat arrays and nested arrays
-   * for rowspan-merged cells.
+   * Appends one or more rows to a table. Supports flat arrays, nested arrays
+   * for rowspan-merged cells, and **Shape Cell** configuration objects that insert
+   * a graphic indicator directly inside a cell.
+   *
+   * ### Shape Cell Object
+   * Instead of a string value you may pass an object with the following keys:
+   *
+   * | Key | Type | Default | Description |
+   * |-----|------|---------|-------------|
+   * | `type` | `string` | **required** | Shape preset: `'circle'`, `'square'`, `'rectangle'`, `'triangle'`, `'diamond'`, `'hexagon'`, `'line'`. |
+   * | `text` | `string` | `''` | Optional label rendered next to the shape. |
+   * | `color` | `string` | `'#4CAF50'` | Fill colour of the shape (hex). |
+   * | `width` | `number` | `14` | Shape width in points. |
+   * | `height` | `number` | `14` | Shape height in points. |
+   * | `position` | `string` | `'center'` | Alignment inside the cell: `'center'`, `'left'`, `'right'`, `'top'`, `'bottom'`, `'top-left'`, `'top-right'`, `'bottom-left'`, `'bottom-right'`. |
+   * | `offsetX` | `number` | `0` | Additional horizontal offset from the resolved anchor (pt). |
+   * | `offsetY` | `number` | `0` | Additional vertical offset from the resolved anchor (pt). |
+   *
+   * The shape is added as a floating overlay anchored to the cell; the table
+   * dimensions (row heights, column widths) are **never mutated**.
    *
    * @param {string} tableId - Table name or shape ID.
-   * @param {Array<string|Array<string>>} rowData - Row data. Nested arrays create rowspan cells.
+   * @param {Array<string|Array<string>|Object>} rowData - Row data. Each element may be
+   *   a plain string, a nested array (rowspan), or a Shape Cell configuration object.
    * @param {Object} [options] - Row insertion options.
    * @param {'rowspan'|'auto'|'none'} [options.mergeStrategy='rowspan'] - How to handle nested arrays.
    *   `'rowspan'` creates OpenXML vertical spans, `'auto'` merges identical adjacent values,
@@ -1586,12 +1605,33 @@ class PPTXTemplater {
    *
    * // Nested row with rowspan
    * ppt.addTableRow('SalesTable', ['Region', ['Q1', 'Q2'], '$5K'], { mergeStrategy: 'rowspan' });
+   *
+   * // KPI indicator – green circle placed in the cell centre, no label
+   * await ppt.addTableRow('StatusTable', [
+   *   'Alice',
+   *   'Engineering',
+   *   { type: 'circle', color: '#4CAF50', width: 12, height: 12, position: 'center' },
+   * ]);
+   *
+   * // Status badge – shape with accompanying text label, aligned to the left
+   * await ppt.addTableRow('StatusTable', [
+   *   'Bob',
+   *   'Design',
+   *   { type: 'circle', color: '#F44336', text: 'Blocked', position: 'left' },
+   * ]);
    */
   addTableRow(tableId, rowData, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
-      this.#tableManager.addTableRow(idx, tableId, rowData, this.#slideManager, options)
+      this.#tableManager.addTableRow(
+        idx,
+        tableId,
+        rowData,
+        this.#slideManager,
+        this.#shapeManager,
+        options
+      )
     }
     return this
   }
@@ -1610,7 +1650,13 @@ class PPTXTemplater {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
-      this.#tableManager.removeTableRow(idx, tableId, rowIndex, this.#slideManager)
+      this.#tableManager.removeTableRow(
+        idx,
+        tableId,
+        rowIndex,
+        this.#slideManager,
+        this.#shapeManager
+      )
     }
     return this
   }
@@ -1630,7 +1676,14 @@ class PPTXTemplater {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
-      this.#tableManager.insertTableRow(idx, tableId, rowIndex, rowData, this.#slideManager)
+      this.#tableManager.insertTableRow(
+        idx,
+        tableId,
+        rowIndex,
+        rowData,
+        this.#slideManager,
+        this.#shapeManager
+      )
     }
     return this
   }
@@ -1655,7 +1708,8 @@ class PPTXTemplater {
         tableId,
         sourceRowIndex,
         targetRowIndex,
-        this.#slideManager
+        this.#slideManager,
+        this.#shapeManager
       )
     }
     return this
@@ -1735,7 +1789,16 @@ class PPTXTemplater {
     }
 
     for (const idx of targetIndices) {
-      this.#tableManager.mergeCells(idx, tableId, sRow, sCol, eRow, eCol, this.#slideManager)
+      this.#tableManager.mergeCells(
+        idx,
+        tableId,
+        sRow,
+        sCol,
+        eRow,
+        eCol,
+        this.#slideManager,
+        this.#shapeManager
+      )
     }
     return this
   }
@@ -1786,9 +1849,25 @@ class PPTXTemplater {
 
     for (const idx of targetIndices) {
       if (isCellCoord) {
-        this.#tableManager.unmergeCells(idx, tableId, cellRow, cellCol, this.#slideManager)
+        this.#tableManager.unmergeCells(
+          idx,
+          tableId,
+          cellRow,
+          cellCol,
+          this.#slideManager,
+          this.#shapeManager
+        )
       } else {
-        this.#tableManager.unmergeCells(idx, tableId, sRow, sCol, eRow, eCol, this.#slideManager)
+        this.#tableManager.unmergeCells(
+          idx,
+          tableId,
+          sRow,
+          sCol,
+          eRow,
+          eCol,
+          this.#slideManager,
+          this.#shapeManager
+        )
       }
     }
     return this

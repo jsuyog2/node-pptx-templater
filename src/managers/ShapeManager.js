@@ -424,6 +424,131 @@ class ShapeManager {
   }
 
   /**
+   * Cleans hex color values and maps color/border aliases.
+   *
+   * @param {Object} options Shape configuration options.
+   * @returns {Object} Normalized shape options.
+   */
+  normalizeShapeOptions(options) {
+    if (!options) return options
+    const normalized = { ...options }
+
+    // 1. Map color alias to fill
+    const fillVal = options.fill !== undefined ? options.fill : options.color
+    if (fillVal !== undefined) {
+      normalized.fill = fillVal
+    }
+
+    // 2. Opacity to transparency mapping
+    if (options.opacity !== undefined) {
+      normalized.transparency = Math.round((1 - parseFloat(options.opacity)) * 100)
+    }
+
+    // 3. Border/Stroke mapping
+    const strokeVal = options.stroke !== undefined ? options.stroke : options.border
+    if (strokeVal !== undefined && strokeVal !== null) {
+      const strokeWidth =
+        options.strokeWidth !== undefined
+          ? options.strokeWidth
+          : options.borderWidth !== undefined
+            ? options.borderWidth
+            : 1
+      if (typeof strokeVal === 'string') {
+        normalized.border = {
+          color: strokeVal,
+          width: parseFloat(strokeWidth),
+        }
+      } else if (typeof strokeVal === 'object') {
+        normalized.border = {
+          color: strokeVal.color || strokeVal.fill || '#000000',
+          width: parseFloat(strokeVal.width !== undefined ? strokeVal.width : strokeWidth),
+        }
+      }
+    } else if (options.strokeWidth !== undefined || options.borderWidth !== undefined) {
+      const strokeWidth =
+        options.strokeWidth !== undefined ? options.strokeWidth : options.borderWidth
+      normalized.border = {
+        color: '#000000',
+        width: parseFloat(strokeWidth),
+      }
+    }
+
+    // 4. Hex Color cleaning
+    const cleanHexColor = colorStr => {
+      if (typeof colorStr !== 'string') return colorStr
+      let clean = colorStr.replace('#', '').trim()
+      if (clean.length === 3) {
+        clean = clean[0] + clean[0] + clean[1] + clean[1] + clean[2] + clean[2]
+      } else if (clean.length === 8) {
+        // Support RRGGBBAA format: slice RRGGBB and use AA to override transparency if not explicitly set
+        const rgbPart = clean.slice(0, 6)
+        const alphaPart = clean.slice(6, 8)
+        if (options.opacity === undefined && options.transparency === undefined) {
+          const alphaVal = parseInt(alphaPart, 16)
+          normalized.transparency = Math.round((1 - alphaVal / 255) * 100)
+        }
+        clean = rgbPart
+      }
+      return '#' + clean.toUpperCase()
+    }
+
+    if (typeof normalized.fill === 'string') {
+      normalized.fill = cleanHexColor(normalized.fill)
+    } else if (typeof normalized.fill === 'object' && normalized.fill?.type === 'gradient') {
+      if (Array.isArray(normalized.fill.colors)) {
+        normalized.fill.colors = normalized.fill.colors.map(c => cleanHexColor(c))
+      }
+    }
+
+    if (normalized.border && typeof normalized.border.color === 'string') {
+      normalized.border.color = cleanHexColor(normalized.border.color)
+    }
+
+    return normalized
+  }
+
+  #reorderSpPrKeys(spPr) {
+    if (!spPr) return
+    const order = [
+      '@_bwMode',
+      'a:xfrm',
+      'a:custGeom',
+      'a:prstGeom',
+      'a:noFill',
+      'a:solidFill',
+      'a:gradFill',
+      'a:blipFill',
+      'a:pattFill',
+      'a:grpFill',
+      'a:ln',
+      'a:effectLst',
+      'a:effectDag',
+      'a:scene3d',
+      'a:sp3d',
+      'a:extLst',
+    ]
+
+    const newSpPr = {}
+    for (const key of order) {
+      if (spPr[key] !== undefined) {
+        newSpPr[key] = spPr[key]
+      }
+    }
+    for (const key of Object.keys(spPr)) {
+      if (!order.includes(key)) {
+        newSpPr[key] = spPr[key]
+      }
+    }
+
+    for (const key of Object.keys(spPr)) {
+      delete spPr[key]
+    }
+    for (const key of Object.keys(newSpPr)) {
+      spPr[key] = newSpPr[key]
+    }
+  }
+
+  /**
    * Validates shape configuration options.
    *
    * @param {Object} options Shape configuration options.
@@ -455,6 +580,9 @@ class ShapeManager {
       'downArrow',
       'leftArrow',
       'rightArrow',
+      'diamond',
+      'hexagon',
+      'line',
     ]
     if (!options.type) {
       errors.push('Shape type is missing.')
@@ -579,7 +707,8 @@ class ShapeManager {
    * Adds a new shape to a slide.
    */
   addShape(slideIndex, options, slideManager) {
-    const errors = this.validateShape(options)
+    const normalized = this.normalizeShapeOptions(options)
+    const errors = this.validateShape(normalized)
     if (errors.length > 0) {
       throw new PPTXError(`Shape validation failed:\n- ${errors.join('\n- ')}`)
     }
@@ -600,55 +729,67 @@ class ShapeManager {
     const newId = maxId + 1
 
     // Build shape XML
-    const type = options.type
+    const type = normalized.type
     let preset = 'rect'
-    let width = options.width || 100
-    let height = options.height || 100
+    let width = normalized.width || 100
+    let height = normalized.height || 100
 
-    if (type === 'square') {
+    if (type === 'square' || type === 'rectangle') {
       preset = 'rect'
-      width = options.size || 100
-      height = options.size || 100
+      if (type === 'square') {
+        width = normalized.size || 100
+        height = normalized.size || 100
+      }
     } else if (type === 'circle') {
       preset = 'ellipse'
-      width = (options.radius || 50) * 2
-      height = (options.radius || 50) * 2
+      width = (normalized.radius || 50) * 2
+      height = (normalized.radius || 50) * 2
     } else if (type === 'ellipse') {
       preset = 'ellipse'
     } else if (type === 'roundedRectangle') {
       preset = 'roundRect'
     } else if (
-      ['triangle', 'star5', 'upArrow', 'downArrow', 'leftArrow', 'rightArrow'].includes(type)
+      [
+        'triangle',
+        'star5',
+        'upArrow',
+        'downArrow',
+        'leftArrow',
+        'rightArrow',
+        'diamond',
+        'hexagon',
+        'line',
+      ].includes(type)
     ) {
       preset = type
     }
 
-    const xEmu = Math.round((options.x || 0) * 9525)
-    const yEmu = Math.round((options.y || 0) * 9525)
+    const xEmu = Math.round((normalized.x || 0) * 9525)
+    const yEmu = Math.round((normalized.y || 0) * 9525)
     const wEmu = Math.round(width * 9525)
     const hEmu = Math.round(height * 9525)
 
-    const name = options.id || `${type.charAt(0).toUpperCase() + type.slice(1)} ${newId}`
+    const name = normalized.id || `${type.charAt(0).toUpperCase() + type.slice(1)} ${newId}`
 
     // Fill properties
     let fillXml = '<a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>' // default
-    if (options.fill) {
-      if (typeof options.fill === 'string') {
-        const hex = options.fill.replace('#', '')
+    if (normalized.fill) {
+      if (typeof normalized.fill === 'string') {
+        const hex = normalized.fill.replace('#', '').toUpperCase()
         const alphaXml =
-          options.transparency !== undefined
-            ? `<a:alpha val="${Math.round((100 - options.transparency) * 1000)}"/>`
+          normalized.transparency !== undefined
+            ? `<a:alpha val="${Math.round((100 - normalized.transparency) * 1000)}"/>`
             : ''
         fillXml = `<a:solidFill><a:srgbClr val="${hex}">${alphaXml}</a:srgbClr></a:solidFill>`
-      } else if (typeof options.fill === 'object' && options.fill.type === 'gradient') {
-        const colors = options.fill.colors || []
-        const transparency = options.transparency
+      } else if (typeof normalized.fill === 'object' && normalized.fill.type === 'gradient') {
+        const colors = normalized.fill.colors || []
+        const transparency = normalized.transparency
         fillXml = `<a:gradFill flip="none" rotWithShape="1">
           <a:gsLst>
             ${colors
               .map((color, i) => {
                 const pos = Math.round((i / (colors.length - 1)) * 100000)
-                const hexColor = color.replace('#', '')
+                const hexColor = color.replace('#', '').toUpperCase()
                 const alphaXml =
                   transparency !== undefined
                     ? `<a:alpha val="${Math.round((100 - transparency) * 1000)}"/>`
@@ -664,9 +805,9 @@ class ShapeManager {
 
     // Border properties
     let borderXml = ''
-    if (options.border) {
-      const bColor = (options.border.color || '#000000').replace('#', '')
-      const bWidth = Math.round((options.border.width || 1) * 9525)
+    if (normalized.border) {
+      const bColor = (normalized.border.color || '#000000').replace('#', '').toUpperCase()
+      const bWidth = Math.round((normalized.border.width || 1) * 9525)
       borderXml = `<a:ln w="${bWidth}">
         <a:solidFill><a:srgbClr val="${bColor}"/></a:solidFill>
       </a:ln>`
@@ -676,11 +817,11 @@ class ShapeManager {
     let avLstXml = '<a:avLst/>'
     if (preset === 'roundRect') {
       let adjVal = 16667 // PPT default
-      if (options.borderRadius !== undefined) {
+      if (normalized.borderRadius !== undefined) {
         const shorterSide = Math.min(width, height)
         adjVal = Math.min(
           50000,
-          Math.max(0, Math.round((options.borderRadius / shorterSide) * 100000))
+          Math.max(0, Math.round((normalized.borderRadius / shorterSide) * 100000))
         )
       }
       avLstXml = `<a:avLst><a:gd name="adj" fmla="val ${adjVal}"/></a:avLst>`
@@ -688,14 +829,14 @@ class ShapeManager {
 
     // Shadow properties
     let shadowXml = ''
-    if (options.shadow) {
+    if (normalized.shadow) {
       let blur = 5
       let distance = 3
       let opacity = 50
-      if (typeof options.shadow === 'object') {
-        if (options.shadow.blur !== undefined) blur = options.shadow.blur
-        if (options.shadow.distance !== undefined) distance = options.shadow.distance
-        if (options.shadow.opacity !== undefined) opacity = options.shadow.opacity
+      if (typeof normalized.shadow === 'object') {
+        if (normalized.shadow.blur !== undefined) blur = normalized.shadow.blur
+        if (normalized.shadow.distance !== undefined) distance = normalized.shadow.distance
+        if (normalized.shadow.opacity !== undefined) opacity = normalized.shadow.opacity
       }
       const blurEmu = Math.round(blur * 9525)
       const distEmu = Math.round(distance * 9525)
@@ -711,12 +852,12 @@ class ShapeManager {
 
     // Rotation attribute
     const rotAttr =
-      options.rotation !== undefined ? ` rot="${Math.round(options.rotation * 60000)}"` : ''
+      normalized.rotation !== undefined ? ` rot="${Math.round(normalized.rotation * 60000)}"` : ''
 
     // Text box body properties
     let txBodyXml = ''
-    if (options.text !== undefined && options.text !== null) {
-      const textStyle = options.textStyle || {}
+    if (normalized.text !== undefined && normalized.text !== null) {
+      const textStyle = normalized.textStyle || {}
       const fontSizeVal = (textStyle.fontSize || 14) * 100
       const boldAttr = textStyle.bold ? ' b="1"' : ''
       const italicAttr = textStyle.italic ? ' i="1"' : ''
@@ -730,11 +871,11 @@ class ShapeManager {
 
       let colorFill = ''
       if (textStyle.color) {
-        const colorHex = textStyle.color.replace('#', '')
+        const colorHex = textStyle.color.replace('#', '').toUpperCase()
         colorFill = `<a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill>`
       }
 
-      const lines = String(options.text).split(/\r?\n/)
+      const lines = String(normalized.text).split(/\r?\n/)
       const paragraphsXml = lines
         .map(line => {
           return `<a:p>
@@ -781,6 +922,9 @@ class ShapeManager {
     const parsed = this.#xmlParser.parse(shapeXml, 'shape.xml')['p:sp']
     const shapeObj = Array.isArray(parsed) ? parsed[0] : parsed
 
+    // Reorder shape properties in-place to comply with schema ordering
+    this.#reorderSpPrKeys(shapeObj['p:spPr'])
+
     if (!spTree['p:sp']) {
       spTree['p:sp'] = []
     }
@@ -814,46 +958,56 @@ class ShapeManager {
       throw new PPTXError(`Invalid shape structure for "${shapeId}" on slide ${slideIndex}`)
     }
 
+    const normalized = this.normalizeShapeOptions(options)
+
     // Update coordinates & dimensions
-    let w = options.width
-    let h = options.height
-    if (options.size !== undefined) {
-      w = options.size
-      h = options.size
-    } else if (options.radius !== undefined) {
-      w = options.radius * 2
-      h = options.radius * 2
+    let w = normalized.width
+    let h = normalized.height
+    if (normalized.size !== undefined) {
+      w = normalized.size
+      h = normalized.size
+    } else if (normalized.radius !== undefined) {
+      w = normalized.radius * 2
+      h = normalized.radius * 2
     }
 
     const xfrm = spPr['a:xfrm']
     if (xfrm) {
-      if (options.x !== undefined) xfrm['a:off']['@_x'] = String(Math.round(options.x * 9525))
-      if (options.y !== undefined) xfrm['a:off']['@_y'] = String(Math.round(options.y * 9525))
+      if (normalized.x !== undefined) xfrm['a:off']['@_x'] = String(Math.round(normalized.x * 9525))
+      if (normalized.y !== undefined) xfrm['a:off']['@_y'] = String(Math.round(normalized.y * 9525))
       if (w !== undefined) xfrm['a:ext']['@_cx'] = String(Math.round(w * 9525))
       if (h !== undefined) xfrm['a:ext']['@_cy'] = String(Math.round(h * 9525))
 
       // Update rotation
-      if (options.rotation !== undefined) {
-        if (options.rotation === null) {
+      if (normalized.rotation !== undefined) {
+        if (normalized.rotation === null) {
           delete xfrm['@_rot']
         } else {
-          xfrm['@_rot'] = String(Math.round(options.rotation * 60000))
+          xfrm['@_rot'] = String(Math.round(normalized.rotation * 60000))
         }
       }
     }
 
     // Update preset geometry type if specified
-    if (options.type) {
+    if (normalized.type) {
       let preset = 'rect'
-      if (options.type === 'square') preset = 'rect'
-      else if (options.type === 'circle' || options.type === 'ellipse') preset = 'ellipse'
-      else if (options.type === 'roundedRectangle') preset = 'roundRect'
+      if (normalized.type === 'square' || normalized.type === 'rectangle') preset = 'rect'
+      else if (normalized.type === 'circle' || normalized.type === 'ellipse') preset = 'ellipse'
+      else if (normalized.type === 'roundedRectangle') preset = 'roundRect'
       else if (
-        ['triangle', 'star5', 'upArrow', 'downArrow', 'leftArrow', 'rightArrow'].includes(
-          options.type
-        )
+        [
+          'triangle',
+          'star5',
+          'upArrow',
+          'downArrow',
+          'leftArrow',
+          'rightArrow',
+          'diamond',
+          'hexagon',
+          'line',
+        ].includes(normalized.type)
       ) {
-        preset = options.type
+        preset = normalized.type
       }
       if (spPr['a:prstGeom']) {
         spPr['a:prstGeom']['@_prst'] = preset
@@ -862,23 +1016,23 @@ class ShapeManager {
 
     // Update fill properties
     let fillXml = ''
-    if (options.fill) {
-      if (typeof options.fill === 'string') {
-        const hex = options.fill.replace('#', '')
+    if (normalized.fill) {
+      if (typeof normalized.fill === 'string') {
+        const hex = normalized.fill.replace('#', '').toUpperCase()
         const alphaXml =
-          options.transparency !== undefined
-            ? `<a:alpha val="${Math.round((100 - options.transparency) * 1000)}"/>`
+          normalized.transparency !== undefined
+            ? `<a:alpha val="${Math.round((100 - normalized.transparency) * 1000)}"/>`
             : ''
         fillXml = `<a:solidFill><a:srgbClr val="${hex}">${alphaXml}</a:srgbClr></a:solidFill>`
-      } else if (typeof options.fill === 'object' && options.fill.type === 'gradient') {
-        const colors = options.fill.colors || []
-        const transparency = options.transparency
+      } else if (typeof normalized.fill === 'object' && normalized.fill.type === 'gradient') {
+        const colors = normalized.fill.colors || []
+        const transparency = normalized.transparency
         fillXml = `<a:gradFill flip="none" rotWithShape="1">
           <a:gsLst>
             ${colors
               .map((color, i) => {
                 const pos = Math.round((i / (colors.length - 1)) * 100000)
-                const hexColor = color.replace('#', '')
+                const hexColor = color.replace('#', '').toUpperCase()
                 const alphaXml =
                   transparency !== undefined
                     ? `<a:alpha val="${Math.round((100 - transparency) * 1000)}"/>`
@@ -902,20 +1056,20 @@ class ShapeManager {
         const fillVal = parsedFill[fillKey]
         spPr[fillKey] = Array.isArray(fillVal) ? fillVal[0] : fillVal
       }
-    } else if (options.transparency !== undefined) {
+    } else if (normalized.transparency !== undefined) {
       // Transparency only
       const solidFill = spPr['a:solidFill']
       if (solidFill && solidFill['a:srgbClr']) {
         const srgbClr = solidFill['a:srgbClr']
-        srgbClr['a:alpha'] = { '@_val': String(Math.round((100 - options.transparency) * 1000)) }
+        srgbClr['a:alpha'] = { '@_val': String(Math.round((100 - normalized.transparency) * 1000)) }
       }
     }
 
     // Update border properties
-    if (options.border) {
+    if (normalized.border) {
       delete spPr['a:ln']
-      const bColor = (options.border.color || '#000000').replace('#', '')
-      const bWidth = Math.round((options.border.width || 1) * 9525)
+      const bColor = (normalized.border.color || '#000000').replace('#', '').toUpperCase()
+      const bWidth = Math.round((normalized.border.width || 1) * 9525)
       const borderXml = `<a:ln w="${bWidth}">
         <a:solidFill><a:srgbClr val="${bColor}"/></a:solidFill>
       </a:ln>`
@@ -924,16 +1078,16 @@ class ShapeManager {
     }
 
     // Update shadow properties
-    if (options.shadow !== undefined) {
+    if (normalized.shadow !== undefined) {
       delete spPr['a:effectLst']
-      if (options.shadow) {
+      if (normalized.shadow) {
         let blur = 5
         let distance = 3
         let opacity = 50
-        if (typeof options.shadow === 'object') {
-          if (options.shadow.blur !== undefined) blur = options.shadow.blur
-          if (options.shadow.distance !== undefined) distance = options.shadow.distance
-          if (options.shadow.opacity !== undefined) opacity = options.shadow.opacity
+        if (typeof normalized.shadow === 'object') {
+          if (normalized.shadow.blur !== undefined) blur = normalized.shadow.blur
+          if (normalized.shadow.distance !== undefined) distance = normalized.shadow.distance
+          if (normalized.shadow.opacity !== undefined) opacity = normalized.shadow.opacity
         }
         const blurEmu = Math.round(blur * 9525)
         const distEmu = Math.round(distance * 9525)
@@ -951,7 +1105,7 @@ class ShapeManager {
     }
 
     // Update border radius
-    if (options.borderRadius !== undefined) {
+    if (normalized.borderRadius !== undefined) {
       const prstGeom = spPr['a:prstGeom']
       if (prstGeom && prstGeom['@_prst'] === 'roundRect') {
         let curW = 100
@@ -963,7 +1117,7 @@ class ShapeManager {
         const shorterSide = Math.min(curW, curH)
         const adjVal = Math.min(
           50000,
-          Math.max(0, Math.round((options.borderRadius / shorterSide) * 100000))
+          Math.max(0, Math.round((normalized.borderRadius / shorterSide) * 100000))
         )
         const avLstXml = `<a:avLst><a:gd name="adj" fmla="val ${adjVal}"/></a:avLst>`
         const parsedAvLst = this.#xmlParser.parse(avLstXml, 'avLst.xml')['a:avLst']
@@ -971,14 +1125,17 @@ class ShapeManager {
       }
     }
 
+    // Reorder shape properties in-place to comply with schema ordering
+    this.#reorderSpPrKeys(spPr)
+
     // Update text
-    if (options.text !== undefined || options.textStyle !== undefined) {
-      let textVal = options.text
+    if (normalized.text !== undefined || normalized.textStyle !== undefined) {
+      let textVal = normalized.text
       if (textVal === undefined) {
         textVal = this.getShapeText(shape) || ''
       }
 
-      const textStyle = options.textStyle || {}
+      const textStyle = normalized.textStyle || {}
       const fontSizeVal = (textStyle.fontSize || 14) * 100
       const boldAttr = textStyle.bold ? ' b="1"' : ''
       const italicAttr = textStyle.italic ? ' i="1"' : ''
@@ -992,7 +1149,7 @@ class ShapeManager {
 
       let colorFill = ''
       if (textStyle.color) {
-        const colorHex = textStyle.color.replace('#', '')
+        const colorHex = textStyle.color.replace('#', '').toUpperCase()
         colorFill = `<a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill>`
       }
 
@@ -1081,6 +1238,36 @@ class ShapeManager {
 
     const type = mapPresetToType(preset, width, height)
 
+    // Extract fill
+    let fill = undefined
+    const solidFill = res.shape['p:spPr']?.['a:solidFill']
+    if (solidFill && solidFill['a:srgbClr']) {
+      fill = '#' + (solidFill['a:srgbClr']['@_val'] || '').toUpperCase()
+    }
+
+    // Extract transparency
+    let transparency = undefined
+    if (solidFill && solidFill['a:srgbClr']?.['a:alpha']?.['@_val']) {
+      transparency = Math.round(
+        (100000 - parseInt(solidFill['a:srgbClr']['a:alpha']['@_val'], 10)) / 1000
+      )
+    }
+
+    // Extract border
+    let border = undefined
+    const ln = res.shape['p:spPr']?.['a:ln']
+    if (ln) {
+      const bColor = ln['a:solidFill']?.['a:srgbClr']?.['@_val']
+      const bWidth = ln['@_w'] ? parseInt(ln['@_w'], 10) / 9525 : 1
+      border = {
+        color: bColor ? '#' + bColor.toUpperCase() : '#000000',
+        width: bWidth,
+      }
+    }
+
+    // Extract text
+    const text = this.getShapeText(res.shape) || undefined
+
     return {
       id,
       type,
@@ -1088,6 +1275,10 @@ class ShapeManager {
       y,
       width,
       height,
+      fill,
+      transparency,
+      border,
+      text,
     }
   }
 }
@@ -1111,7 +1302,19 @@ function mapPresetToType(preset, w, h) {
   if (preset === 'roundRect') {
     return 'roundedRectangle'
   }
-  if (['triangle', 'star5', 'upArrow', 'downArrow', 'leftArrow', 'rightArrow'].includes(preset)) {
+  if (
+    [
+      'triangle',
+      'star5',
+      'upArrow',
+      'downArrow',
+      'leftArrow',
+      'rightArrow',
+      'diamond',
+      'hexagon',
+      'line',
+    ].includes(preset)
+  ) {
     return preset
   }
   return 'rectangle'

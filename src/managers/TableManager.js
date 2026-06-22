@@ -49,6 +49,19 @@ class TableManager {
   #xmlParser
 
   /**
+   * In-memory registry mapping cellshape names to their original config.
+   * Used to reposition shapes after table structure mutations (row removal,
+   * insertion, merge, etc.).
+   *
+   * Key:   shape name (e.g. "cellshape_Table_2_5_0")
+   * Value: { slideIndex, resolvedTableId, tableId, rowIndex, colIndex, shapeIndex, config }
+   *
+   * @private
+   * @type {Map<string, {slideIndex: number, resolvedTableId: string, tableId: string, rowIndex: number, colIndex: number, shapeIndex: string|number, config: Object}>}
+   */
+  #cellShapeAnchors = new Map()
+
+  /**
    * @param {XMLParser} xmlParser
    */
   constructor(xmlParser) {
@@ -253,13 +266,25 @@ class TableManager {
    * @param {string[]} rowData
    * @param {SlideManager} slideManager
    */
-  addTableRow(slideIndex, tableId, rowData, slideManager, options = {}) {
+  addTableRow(slideIndex, tableId, rowData, slideManager, shapeManagerOrOptions, options = {}) {
+    let shapeManager = null
+    let actualOptions = options
+    if (shapeManagerOrOptions && typeof shapeManagerOrOptions.getShapes === 'function') {
+      shapeManager = shapeManagerOrOptions
+    } else if (shapeManagerOrOptions && typeof shapeManagerOrOptions === 'object') {
+      actualOptions = shapeManagerOrOptions
+    }
+
     const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (trs.length === 0) {
       throw new PPTXError('No rows to clone from')
     }
+
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
 
     const lastRow = trs[trs.length - 1]
     const numCols = lastRow['a:tc']?.length || 0
@@ -273,7 +298,7 @@ class TableManager {
 
     // Expand each column value to targetHeight
     const expandedCols = []
-    const strategy = options.mergeStrategy || 'auto'
+    const strategy = actualOptions.mergeStrategy || 'auto'
     for (let c = 0; c < numCols; c++) {
       let colCells = this.#expandCellVal(rowData[c], targetHeight)
       if (strategy === 'none') {
@@ -288,6 +313,12 @@ class TableManager {
         colCells = this.#applyAutoMerge(colCells)
       }
       expandedCols.push(colCells)
+    }
+
+    const startRowIndex = trs.length
+    const shapeCellsToCreate = []
+    const isShapeConfig = val => {
+      return val && typeof val === 'object' && typeof val.type === 'string'
     }
 
     // Clone and append rows
@@ -312,10 +343,117 @@ class TableManager {
         } else {
           let text = cellDef.value
           let cellOpts = {}
-          if (cellDef.value && typeof cellDef.value === 'object') {
+
+          if (isShapeConfig(cellDef.value)) {
+            const config = cellDef.value
+            const globalRowIndex = startRowIndex + r
+
+            const isStandardShape = [
+              'circle',
+              'square',
+              'rectangle',
+              'triangle',
+              'diamond',
+              'hexagon',
+              'line',
+            ].includes(config.type)
+
+            const shapeConfig = { ...config }
+
+            if (isStandardShape) {
+              text =
+                config.text !== undefined
+                  ? config.text
+                  : config.value !== undefined
+                    ? config.value
+                    : ''
+              delete shapeConfig.text // DO NOT render text inside the shape overlay!
+            } else {
+              text = '' // for badges/icons/progressBars, cell text is empty!
+            }
+
+            shapeCellsToCreate.push({
+              rowIndex: globalRowIndex,
+              colIndex: c,
+              config: shapeConfig,
+            })
+
+            cellOpts = {}
+            if (config.cellFill) cellOpts.fill = config.cellFill
+            if (config.cellAlign) cellOpts.align = config.cellAlign
+
+            // Estimate shape dimensions to set margins
+            const colWidth_emu = colWidths[c] || 0
+            const colWidth_px = colWidth_emu / 9525
+
+            const parseLength = (val, maxVal) => {
+              if (typeof val === 'string' && val.endsWith('%')) {
+                return (parseFloat(val) / 100) * maxVal
+              }
+              return val !== undefined ? parseFloat(val) : undefined
+            }
+
+            let shapeWidth = 12
+            let shapeHeight = 12
+
+            if (config.width !== undefined) {
+              shapeWidth = parseLength(config.width, colWidth_px) || 12
+            } else if (config.size !== undefined) {
+              shapeWidth = parseLength(config.size, colWidth_px) || 12
+            } else if (config.radius !== undefined) {
+              shapeWidth = (parseLength(config.radius, colWidth_px) || 6) * 2
+            }
+
+            if (config.height !== undefined) {
+              shapeHeight = parseLength(config.height, 50) || 12
+            } else if (config.size !== undefined) {
+              shapeHeight = parseLength(config.size, 50) || 12
+            } else if (config.radius !== undefined) {
+              shapeHeight = (parseLength(config.radius, 25) || 6) * 2
+            }
+
+            if (isStandardShape && text !== '') {
+              const position = config.position || (config.text ? 'left' : 'center')
+              const tcPr = tcObj['a:tcPr'] || {}
+              const currentMarL =
+                tcPr['@_marL'] !== undefined ? parseInt(tcPr['@_marL'], 10) : 91440
+              const currentMarR =
+                tcPr['@_marR'] !== undefined ? parseInt(tcPr['@_marR'], 10) : 91440
+              const currentMarT =
+                tcPr['@_marT'] !== undefined ? parseInt(tcPr['@_marT'], 10) : 45720
+              const currentMarB =
+                tcPr['@_marB'] !== undefined ? parseInt(tcPr['@_marB'], 10) : 45720
+
+              tcObj['a:tcPr'] = tcObj['a:tcPr'] || {}
+
+              const isLeft = position.includes('left') || position === 'left'
+              const isRight = position.includes('right') || position === 'right'
+              const isTop = position === 'top' || position.startsWith('top-')
+              const isBottom = position === 'bottom' || position.startsWith('bottom-')
+
+              if (isLeft) {
+                tcObj['a:tcPr']['@_marL'] = String(
+                  currentMarL + Math.round(shapeWidth * 9525) + 57150
+                )
+              } else if (isRight) {
+                tcObj['a:tcPr']['@_marR'] = String(
+                  currentMarR + Math.round(shapeWidth * 9525) + 57150
+                )
+              } else if (isTop) {
+                tcObj['a:tcPr']['@_marT'] = String(
+                  currentMarT + Math.round(shapeHeight * 9525) + 57150
+                )
+              } else if (isBottom) {
+                tcObj['a:tcPr']['@_marB'] = String(
+                  currentMarB + Math.round(shapeHeight * 9525) + 57150
+                )
+              }
+            }
+          } else if (cellDef.value && typeof cellDef.value === 'object') {
             text = cellDef.value.value !== undefined ? cellDef.value.value : ''
             cellOpts = cellDef.value
           }
+
           this.#setCellTextObj(tcObj, text)
           if (cellDef.rowSpan && cellDef.rowSpan > 1 && strategy !== 'none') {
             tcObj['@_rowSpan'] = String(cellDef.rowSpan)
@@ -327,6 +465,25 @@ class TableManager {
     }
 
     slideManager.markSlideObjDirty(slideIndex)
+
+    if (shapeCellsToCreate.length > 0 && shapeManager) {
+      for (const item of shapeCellsToCreate) {
+        const resolvedConfig = { ...item.config }
+        if (!resolvedConfig.position) {
+          resolvedConfig.position = resolvedConfig.text ? 'left' : 'center'
+        }
+
+        this.addCellShape(
+          slideIndex,
+          tableId,
+          item.rowIndex,
+          item.colIndex,
+          resolvedConfig,
+          slideManager,
+          shapeManager
+        )
+      }
+    }
   }
 
   /**
@@ -337,8 +494,8 @@ class TableManager {
    * @param {number} rowIndex - 0-based row index.
    * @param {SlideManager} slideManager
    */
-  removeTableRow(slideIndex, tableId, rowIndex, slideManager) {
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+  removeTableRow(slideIndex, tableId, rowIndex, slideManager, shapeManager = null) {
+    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (rowIndex < 0 || rowIndex >= trs.length) {
@@ -348,6 +505,18 @@ class TableManager {
     trs.splice(rowIndex, 1)
 
     slideManager.markSlideObjDirty(slideIndex)
+
+    if (shapeManager) {
+      this.#adjustCellShapesAfterRowShift(
+        slideIndex,
+        resolvedTableId,
+        tableId,
+        rowIndex,
+        -1,
+        slideManager,
+        shapeManager
+      )
+    }
   }
 
   /**
@@ -359,8 +528,8 @@ class TableManager {
    * @param {string[]} rowData
    * @param {SlideManager} slideManager
    */
-  insertTableRow(slideIndex, tableId, rowIndex, rowData, slideManager) {
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+  insertTableRow(slideIndex, tableId, rowIndex, rowData, slideManager, shapeManager = null) {
+    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (rowIndex < 0 || rowIndex > trs.length) {
@@ -387,6 +556,18 @@ class TableManager {
     trs.splice(rowIndex, 0, newRow)
 
     slideManager.markSlideObjDirty(slideIndex)
+
+    if (shapeManager) {
+      this.#adjustCellShapesAfterRowShift(
+        slideIndex,
+        resolvedTableId,
+        tableId,
+        rowIndex,
+        +1,
+        slideManager,
+        shapeManager
+      )
+    }
   }
 
   /**
@@ -398,8 +579,15 @@ class TableManager {
    * @param {number} targetRowIndex
    * @param {SlideManager} slideManager
    */
-  cloneTableRow(slideIndex, tableId, sourceRowIndex, targetRowIndex, slideManager) {
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+  cloneTableRow(
+    slideIndex,
+    tableId,
+    sourceRowIndex,
+    targetRowIndex,
+    slideManager,
+    shapeManager = null
+  ) {
+    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (sourceRowIndex < 0 || sourceRowIndex >= trs.length) {
@@ -416,6 +604,18 @@ class TableManager {
     trs.splice(targetRowIndex, 0, newRow)
 
     slideManager.markSlideObjDirty(slideIndex)
+
+    if (shapeManager) {
+      this.#adjustCellShapesAfterRowShift(
+        slideIndex,
+        resolvedTableId,
+        tableId,
+        targetRowIndex,
+        +1,
+        slideManager,
+        shapeManager
+      )
+    }
   }
 
   /**
@@ -563,7 +763,16 @@ class TableManager {
    * @param {number} endCol
    * @param {SlideManager} slideManager
    */
-  mergeCells(slideIndex, tableId, startRow, startCol, endRow, endCol, slideManager) {
+  mergeCells(
+    slideIndex,
+    tableId,
+    startRow,
+    startCol,
+    endRow,
+    endCol,
+    slideManager,
+    shapeManager = null
+  ) {
     const validation = this.validateMergeRegion(
       slideIndex,
       tableId,
@@ -577,7 +786,7 @@ class TableManager {
       throw new PPTXError(`Invalid merge region: ${validation.errors.join('; ')}`)
     }
 
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
     const trs = tblObj['a:tr'] || []
 
     const allTexts = []
@@ -630,6 +839,20 @@ class TableManager {
     this.#setCellTextObj(originCell, combinedText)
 
     slideManager.markSlideObjDirty(slideIndex)
+
+    if (shapeManager) {
+      this.#repositionCellShapesInRegion(
+        slideIndex,
+        tableId,
+        resolvedTableId,
+        startRow,
+        startCol,
+        endRow,
+        endCol,
+        slideManager,
+        shapeManager
+      )
+    }
   }
 
   /**
@@ -643,7 +866,16 @@ class TableManager {
    * @param {number} endCol
    * @param {SlideManager} slideManager
    */
-  unmergeCells(slideIndex, tableId, startRow, startCol, endRow, endCol, slideManager) {
+  unmergeCells(
+    slideIndex,
+    tableId,
+    startRow,
+    startCol,
+    endRow,
+    endCol,
+    slideManager,
+    shapeManager = null
+  ) {
     let actualSlideManager = slideManager
     let actualEndRow = endRow
     let actualEndCol = endCol
@@ -679,6 +911,21 @@ class TableManager {
           if (cell['@_rowSpan'] !== undefined) delete cell['@_rowSpan']
         }
       }
+
+      if (shapeManager) {
+        const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, actualSlideManager)
+        this.#repositionCellShapesInRegion(
+          slideIndex,
+          tableId,
+          resolvedTableId,
+          R.startRow,
+          R.startCol,
+          R.endRow,
+          R.endCol,
+          actualSlideManager,
+          shapeManager
+        )
+      }
     } else {
       for (let r = startRow; r <= actualEndRow; r++) {
         const rowObj = trs[r]
@@ -692,6 +939,21 @@ class TableManager {
           if (cell['@_gridSpan'] !== undefined) delete cell['@_gridSpan']
           if (cell['@_rowSpan'] !== undefined) delete cell['@_rowSpan']
         }
+      }
+
+      if (shapeManager) {
+        const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, actualSlideManager)
+        this.#repositionCellShapesInRegion(
+          slideIndex,
+          tableId,
+          resolvedTableId,
+          startRow,
+          startCol,
+          actualEndRow,
+          actualEndCol,
+          actualSlideManager,
+          shapeManager
+        )
       }
     }
 
@@ -714,25 +976,89 @@ class TableManager {
     }
 
     const trs = tblObj['a:tr'] || []
-    const merged = []
+    const numRows = trs.length
+    if (numRows === 0) return []
+    const numCols = trs[0]['a:tc']?.length || 0
 
-    for (let r = 0; r < trs.length; r++) {
+    const merged = []
+    const visited = Array.from({ length: numRows }, () => Array(numCols).fill(false))
+
+    for (let r = 0; r < numRows; r++) {
       const row = trs[r]
       const tcs = row['a:tc'] || []
       for (let c = 0; c < tcs.length; c++) {
+        if (visited[r][c]) continue
         const cell = tcs[c]
         if (!cell) continue
 
-        const gridSpan = parseInt(cell['@_gridSpan'] || 1, 10)
-        const rowSpan = parseInt(cell['@_rowSpan'] || 1, 10)
+        const isVMerged =
+          cell['@_vMerge'] === '1' || cell['@_vMerge'] === 'true' || cell['@_vMerge'] === true
+        const isHMerged =
+          cell['@_hMerge'] === '1' || cell['@_hMerge'] === 'true' || cell['@_hMerge'] === true
 
-        if (gridSpan > 1 || rowSpan > 1) {
+        if (isVMerged || isHMerged) {
+          continue
+        }
+
+        // Determine colSpan
+        let colSpan = 1
+        if (cell['@_gridSpan'] !== undefined) {
+          colSpan = parseInt(cell['@_gridSpan'], 10)
+        } else {
+          let nextCol = c + 1
+          while (nextCol < numCols) {
+            const nextCell = tcs[nextCol]
+            if (
+              nextCell &&
+              (nextCell['@_hMerge'] === '1' ||
+                nextCell['@_hMerge'] === 'true' ||
+                nextCell['@_hMerge'] === true)
+            ) {
+              colSpan++
+              nextCol++
+            } else {
+              break
+            }
+          }
+        }
+
+        // Determine rowSpan
+        let rowSpan = 1
+        if (cell['@_rowSpan'] !== undefined) {
+          rowSpan = parseInt(cell['@_rowSpan'], 10)
+        } else {
+          let nextRow = r + 1
+          while (nextRow < numRows) {
+            const nextCell = trs[nextRow]['a:tc']?.[c]
+            if (
+              nextCell &&
+              (nextCell['@_vMerge'] === '1' ||
+                nextCell['@_vMerge'] === 'true' ||
+                nextCell['@_vMerge'] === true)
+            ) {
+              rowSpan++
+              nextRow++
+            } else {
+              break
+            }
+          }
+        }
+
+        if (colSpan > 1 || rowSpan > 1) {
           merged.push({
             startRow: r,
             startCol: c,
             endRow: r + rowSpan - 1,
-            endCol: c + gridSpan - 1,
+            endCol: c + colSpan - 1,
           })
+
+          for (let i = r; i < r + rowSpan; i++) {
+            for (let j = c; j < c + colSpan; j++) {
+              if (i < numRows && j < numCols) {
+                visited[i][j] = true
+              }
+            }
+          }
         }
       }
     }
@@ -804,12 +1130,20 @@ class TableManager {
     const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
     const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
 
-    const trsArr = tblObj['a:tr'] || []
     const rowHeights = this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, false)
 
-    const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
-    const pr = parent.row
-    const pc = parent.col
+    const R = this.getMergeRegion(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    let pr = rowIndex
+    let pc = colIndex
+    let gridSpan = 1
+    let rowSpan = 1
+
+    if (R) {
+      pr = R.startRow
+      pc = R.startCol
+      gridSpan = R.endCol - R.startCol + 1
+      rowSpan = R.endRow - R.startRow + 1
+    }
 
     let cellLeft = tableX
     for (let idx = 0; idx < pc; idx++) {
@@ -820,10 +1154,6 @@ class TableManager {
     for (let idx = 0; idx < pr; idx++) {
       cellTop += rowHeights[idx] || 0
     }
-
-    const parentCell = trsArr[pr]?.['a:tc']?.[pc]
-    const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
-    const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
 
     let cellWidth = 0
     for (let idx = 0; idx < gridSpan; idx++) {
@@ -1389,74 +1719,70 @@ class TableManager {
     }
 
     // 2. Determine alignment settings
-    let alignX = config.alignX || config.horizontal
-    let alignY = config.alignY || config.vertical
+    let alignX = undefined
+    let alignY = undefined
 
-    if (alignX) {
-      alignX = String(alignX).toLowerCase()
-      if (alignX === 'middle') alignX = 'center'
-    }
-    if (alignY) {
-      alignY = String(alignY).toLowerCase()
-      if (alignY === 'center') alignY = 'middle'
-    }
-
-    if (config.position) {
-      switch (config.position) {
-        case 'top-left':
-          if (!alignX) alignX = 'left'
-          if (!alignY) alignY = 'top'
-          break
-        case 'top-center':
-        case 'top':
-          if (!alignX) alignX = 'center'
-          if (!alignY) alignY = 'top'
-          break
-        case 'top-right':
-          if (!alignX) alignX = 'right'
-          if (!alignY) alignY = 'top'
-          break
-        case 'middle-left':
-        case 'left':
-          if (!alignX) alignX = 'left'
-          if (!alignY) alignY = 'middle'
-          break
-        case 'center':
-        case 'middle-center':
-          if (!alignX) alignX = 'center'
-          if (!alignY) alignY = 'middle'
-          break
-        case 'middle-right':
-        case 'right':
-          if (!alignX) alignX = 'right'
-          if (!alignY) alignY = 'middle'
-          break
-        case 'bottom-left':
-          if (!alignX) alignX = 'left'
-          if (!alignY) alignY = 'bottom'
-          break
-        case 'bottom-center':
-        case 'bottom':
-          if (!alignX) alignX = 'center'
-          if (!alignY) alignY = 'bottom'
-          break
-        case 'bottom-right':
-          if (!alignX) alignX = 'right'
-          if (!alignY) alignY = 'bottom'
-          break
+    const pos = String(config.position || '')
+      .toLowerCase()
+      .trim()
+    if (pos) {
+      if (pos === 'left') {
+        alignX = 'left'
+        alignY = 'middle'
+      } else if (pos === 'right') {
+        alignX = 'right'
+        alignY = 'middle'
+      } else if (pos === 'center' || pos === 'middle') {
+        alignX = 'center'
+        alignY = 'middle'
+      } else if (pos === 'top') {
+        alignX = 'center'
+        alignY = 'top'
+      } else if (pos === 'bottom') {
+        alignX = 'center'
+        alignY = 'bottom'
+      } else if (pos === 'top-left') {
+        alignX = 'left'
+        alignY = 'top'
+      } else if (pos === 'top-right') {
+        alignX = 'right'
+        alignY = 'top'
+      } else if (pos === 'bottom-left') {
+        alignX = 'left'
+        alignY = 'bottom'
+      } else if (pos === 'bottom-right') {
+        alignX = 'right'
+        alignY = 'bottom'
       }
     }
 
-    if (alignX && !alignY && config.y === undefined) {
-      alignY = 'middle'
+    if (!alignX) {
+      const ax = config.alignX || config.horizontal
+      if (ax) {
+        alignX = String(ax).toLowerCase().trim()
+        if (alignX === 'middle') alignX = 'center'
+      }
     }
-    if (alignY && !alignX && config.x === undefined) {
-      alignX = 'center'
+    if (!alignY) {
+      const ay = config.alignY || config.vertical
+      if (ay) {
+        alignY = String(ay).toLowerCase().trim()
+        if (alignY === 'center') alignY = 'middle'
+      }
     }
 
-    if (!alignX && !alignY && config.x === undefined && config.y === undefined) {
-      alignX = 'center'
+    if (!alignX && !alignY) {
+      if (config.x !== undefined || config.y !== undefined) {
+        alignX = 'left'
+        alignY = 'top'
+      } else {
+        alignX = 'center'
+        alignY = 'middle'
+      }
+    } else if (alignX && !alignY) {
       alignY = 'middle'
+    } else if (alignY && !alignX) {
+      alignX = 'center'
     }
 
     // 3. Compute coordinates
@@ -1464,60 +1790,48 @@ class TableManager {
     let shapeTop = cellTop_px
 
     if (isCellAnchored) {
+      let dx = 0
+      const hasOffsetValX =
+        config.offsetX !== undefined || config.xOffset !== undefined || config.x !== undefined
+      if (config.offsetX !== undefined) dx = parseFloat(config.offsetX)
+      else if (config.xOffset !== undefined) dx = parseFloat(config.xOffset)
+      else if (config.x !== undefined) dx = parseFloat(config.x)
+
+      let dy = 0
+      const hasOffsetValY =
+        config.offsetY !== undefined || config.yOffset !== undefined || config.y !== undefined
+      if (config.offsetY !== undefined) dy = parseFloat(config.offsetY)
+      else if (config.yOffset !== undefined) dy = parseFloat(config.yOffset)
+      else if (config.y !== undefined) dy = parseFloat(config.y)
+
+      shapeLeft = cellLeft_px
       if (alignX === 'left') {
-        shapeLeft = cellLeft_px + (config.x !== undefined ? config.x : 5)
+        const padding = hasOffsetValX ? dx : 5
+        shapeLeft = cellLeft_px + padding
       } else if (alignX === 'center') {
-        shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2 + (config.x || 0)
+        shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2 + dx
       } else if (alignX === 'right') {
-        shapeLeft =
-          cellLeft_px + cellWidth_px - shapeWidth - (config.x !== undefined ? config.x : 5)
-      } else {
-        shapeLeft =
-          cellLeft_px + (config.x !== undefined ? config.x : (cellWidth_px - shapeWidth) / 2)
+        const padding = hasOffsetValX ? dx : 5
+        shapeLeft = cellLeft_px + cellWidth_px - shapeWidth - padding
       }
 
+      shapeTop = cellTop_px
       if (alignY === 'top') {
-        shapeTop = cellTop_px + (config.y !== undefined ? config.y : 5)
+        const padding = hasOffsetValY ? dy : 5
+        shapeTop = cellTop_px + padding
       } else if (alignY === 'middle') {
-        shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2 + (config.y || 0)
+        shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2 + dy
       } else if (alignY === 'bottom') {
-        shapeTop =
-          cellTop_px + cellHeight_px - shapeHeight - (config.y !== undefined ? config.y : 5)
-      } else {
-        shapeTop =
-          cellTop_px + (config.y !== undefined ? config.y : (cellHeight_px - shapeHeight) / 2)
+        const padding = hasOffsetValY ? dy : 5
+        shapeTop = cellTop_px + cellHeight_px - shapeHeight - padding
       }
 
       // 4. Boundary Constraints Validation/Enforcement
-      if (shapeWidth > cellWidth_px) {
-        if (alignX === 'center') {
-          shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2
-        } else if (alignX === 'right') {
-          shapeLeft = cellLeft_px + cellWidth_px - shapeWidth
-        } else {
-          shapeLeft = cellLeft_px
-        }
-      } else {
-        shapeLeft = Math.max(
-          cellLeft_px,
-          Math.min(shapeLeft, cellLeft_px + cellWidth_px - shapeWidth)
-        )
-      }
-
-      if (shapeHeight > cellHeight_px) {
-        if (alignY === 'middle') {
-          shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2
-        } else if (alignY === 'bottom') {
-          shapeTop = cellTop_px + cellHeight_px - shapeHeight
-        } else {
-          shapeTop = cellTop_px
-        }
-      } else {
-        shapeTop = Math.max(
-          cellTop_px,
-          Math.min(shapeTop, cellTop_px + cellHeight_px - shapeHeight)
-        )
-      }
+      shapeLeft = Math.max(
+        cellLeft_px,
+        Math.min(shapeLeft, cellLeft_px + cellWidth_px - shapeWidth)
+      )
+      shapeTop = Math.max(cellTop_px, Math.min(shapeTop, cellTop_px + cellHeight_px - shapeHeight))
     } else {
       shapeLeft = config.x || 0
       shapeTop = config.y || 0
@@ -1920,6 +2234,18 @@ class TableManager {
       expandedConfig.id = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${finalShapeIndex}`
 
       shapeManager.addShape(slideIndex, expandedConfig, slideManager)
+
+      // Register this shape's original config so it can be repositioned after
+      // any subsequent table mutations (row removal, insertion, merge, etc.)
+      this.#cellShapeAnchors.set(expandedConfig.id, {
+        slideIndex,
+        resolvedTableId,
+        tableId,
+        rowIndex,
+        colIndex,
+        shapeIndex: finalShapeIndex,
+        config: { ...options },
+      })
     })
   }
 
@@ -1979,6 +2305,8 @@ class TableManager {
 
     for (const s of matchingShapes) {
       shapeManager.deleteShape(slideIndex, s.name, slideManager)
+      // Deregister from anchor registry
+      this.#cellShapeAnchors.delete(s.name)
     }
   }
 
@@ -1994,6 +2322,188 @@ class TableManager {
     if (!primaryShape) return null
 
     return shapeManager.getShape(slideIndex, primaryShape.name, slideManager)
+  }
+
+  /**
+   * Adjusts all registered cell shapes for a table after a row is removed (delta=-1)
+   * or inserted (delta=+1) at `pivotRowIndex`.
+   *
+   * - For delta=-1 and shapes at pivotRowIndex: the shape is deleted (its row is gone).
+   * - For shapes at rows that shifted: delete the old shape and re-add it at the new
+   *   row index so that `getCellBounds` can compute correct coordinates from the
+   *   updated table layout.
+   *
+   * @private
+   */
+  #adjustCellShapesAfterRowShift(
+    slideIndex,
+    resolvedTableId,
+    tableId,
+    pivotRowIndex,
+    delta,
+    slideManager,
+    shapeManager
+  ) {
+    if (!shapeManager) return
+
+    // Collect entries first (avoid mutating map while iterating)
+    const toDelete = []
+    const toReindex = []
+
+    for (const [name, anchor] of this.#cellShapeAnchors) {
+      if (anchor.slideIndex !== slideIndex || anchor.resolvedTableId !== resolvedTableId) continue
+
+      if (delta < 0 && anchor.rowIndex === pivotRowIndex) {
+        // Row was removed — delete the shape
+        toDelete.push(name)
+      } else if (delta < 0 && anchor.rowIndex > pivotRowIndex) {
+        // Row shifted up (removal below pivot)
+        toReindex.push({ name, anchor, newRowIndex: anchor.rowIndex + delta })
+      } else if (delta > 0 && anchor.rowIndex >= pivotRowIndex) {
+        // Row shifted down (insertion at or above this row)
+        toReindex.push({ name, anchor, newRowIndex: anchor.rowIndex + delta })
+      }
+    }
+
+    // Delete shapes for the removed row
+    for (const name of toDelete) {
+      try {
+        shapeManager.deleteShape(slideIndex, name, slideManager)
+      } catch (e) {
+        logger.warn(`Failed to delete cell shape "${name}": ${e.message}`)
+      }
+      this.#cellShapeAnchors.delete(name)
+    }
+
+    // Sort toReindex: first by newRowIndex, then by colIndex, then by shapeIndex (base index)
+    toReindex.sort((a, b) => {
+      if (a.newRowIndex !== b.newRowIndex) {
+        return a.newRowIndex - b.newRowIndex
+      }
+      if (a.anchor.colIndex !== b.anchor.colIndex) {
+        return a.anchor.colIndex - b.anchor.colIndex
+      }
+      const aBase =
+        typeof a.anchor.shapeIndex === 'string'
+          ? parseInt(a.anchor.shapeIndex.split('_')[0], 10)
+          : a.anchor.shapeIndex
+      const bBase =
+        typeof b.anchor.shapeIndex === 'string'
+          ? parseInt(b.anchor.shapeIndex.split('_')[0], 10)
+          : b.anchor.shapeIndex
+      return aBase - bBase
+    })
+
+    // Phase 1: delete all old shapes to prevent collisions when re-adding
+    for (const { name } of toReindex) {
+      try {
+        shapeManager.deleteShape(slideIndex, name, slideManager)
+      } catch (e) {
+        logger.warn(`Failed to delete cell shape "${name}" during reindex: ${e.message}`)
+      }
+      this.#cellShapeAnchors.delete(name)
+    }
+
+    // Phase 2: re-add all shapes at their newRowIndex
+    for (const { anchor, newRowIndex } of toReindex) {
+      try {
+        this.addCellShape(
+          slideIndex,
+          anchor.tableId,
+          newRowIndex,
+          anchor.colIndex,
+          anchor.config,
+          slideManager,
+          shapeManager
+        )
+      } catch (e) {
+        logger.warn(
+          `Failed to re-add cell shape for (${newRowIndex}, ${anchor.colIndex}): ${e.message}`
+        )
+      }
+    }
+  }
+
+  /**
+   * Repositions all registered cell shapes that fall within a table region
+   * (e.g. after a merge or unmerge). Shapes in the region are deleted and
+   * re-added targeting `(startRow, startCol)` so their coordinates are
+   * recomputed against the merged cell's full bounding box.
+   *
+   * @private
+   */
+  #repositionCellShapesInRegion(
+    slideIndex,
+    tableId,
+    resolvedTableId,
+    startRow,
+    startCol,
+    endRow,
+    endCol,
+    slideManager,
+    shapeManager
+  ) {
+    if (!shapeManager) return
+
+    const toReposition = []
+
+    for (const [name, anchor] of this.#cellShapeAnchors) {
+      if (anchor.slideIndex !== slideIndex || anchor.resolvedTableId !== resolvedTableId) continue
+      if (
+        anchor.rowIndex >= startRow &&
+        anchor.rowIndex <= endRow &&
+        anchor.colIndex >= startCol &&
+        anchor.colIndex <= endCol
+      ) {
+        toReposition.push({ name, anchor })
+      }
+    }
+
+    // Sort toReposition: first by original rowIndex, then by colIndex, then by shapeIndex (base index)
+    toReposition.sort((a, b) => {
+      if (a.anchor.rowIndex !== b.anchor.rowIndex) {
+        return a.anchor.rowIndex - b.anchor.rowIndex
+      }
+      if (a.anchor.colIndex !== b.anchor.colIndex) {
+        return a.anchor.colIndex - b.anchor.colIndex
+      }
+      const aBase =
+        typeof a.anchor.shapeIndex === 'string'
+          ? parseInt(a.anchor.shapeIndex.split('_')[0], 10)
+          : a.anchor.shapeIndex
+      const bBase =
+        typeof b.anchor.shapeIndex === 'string'
+          ? parseInt(b.anchor.shapeIndex.split('_')[0], 10)
+          : b.anchor.shapeIndex
+      return aBase - bBase
+    })
+
+    // Phase 1: delete all old shapes first
+    for (const { name } of toReposition) {
+      try {
+        shapeManager.deleteShape(slideIndex, name, slideManager)
+      } catch (e) {
+        logger.warn(`Failed to delete cell shape "${name}" during reposition: ${e.message}`)
+      }
+      this.#cellShapeAnchors.delete(name)
+    }
+
+    // Phase 2: re-add all shapes targeting startRow, startCol
+    for (const { anchor } of toReposition) {
+      try {
+        this.addCellShape(
+          slideIndex,
+          anchor.tableId,
+          startRow,
+          startCol,
+          anchor.config,
+          slideManager,
+          shapeManager
+        )
+      } catch (e) {
+        logger.warn(`Failed to reposition cell shape for (${startRow}, ${startCol}): ${e.message}`)
+      }
+    }
   }
 
   /**
