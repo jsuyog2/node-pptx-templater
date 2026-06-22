@@ -731,4 +731,221 @@ describe('Table Cell Shapes Integration Tests', () => {
     const report = await ppt.validatePresentation()
     expect(report.valid).toBe(true)
   })
+
+  it('should support adding table rows with Shape Cells (KPIs/badges) and correct text margins', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    const metaBefore = ppt.getTableRows('Table', { includeMetadata: true })
+    const countBefore = metaBefore.rowCount
+
+    await ppt.addTableRow('Table', [
+      {
+        type: 'circle',
+        fill: '#EF4444',
+        radius: 6,
+        position: 'center',
+      },
+      {
+        type: 'rectangle',
+        fill: '#3B82F6',
+        text: 'In Progress',
+        width: 20,
+        height: 14,
+        position: 'left',
+      },
+      'Row Added Value',
+    ])
+
+    const metaAfter = ppt.getTableRows('Table', { includeMetadata: true })
+    expect(metaAfter.rowCount).toBe(countBefore + 1)
+
+    const rawRows = ppt.getTableRows('Table', { raw: true })
+    const lastRow = rawRows[rawRows.length - 1]
+    expect(lastRow[0]).toBe('')
+    expect(lastRow[1]).toBe('In Progress')
+    expect(lastRow[2]).toBe('Row Added Value')
+
+    const shape1 = ppt.getCellShape('Table', countBefore, 0, 0)
+    expect(shape1).not.toBeNull()
+    expect(shape1.type).toBe('circle')
+    expect(shape1.width).toBe(12)
+    expect(shape1.height).toBe(12)
+
+    const shape2 = ppt.getCellShape('Table', countBefore, 1, 0)
+    expect(shape2).not.toBeNull()
+    expect(shape2.type).toBe('rectangle')
+    expect(shape2.width).toBe(20)
+    expect(shape2.height).toBe(14)
+
+    const bounds = ppt.getCellBounds('Table', countBefore, 1)
+    const shapeXExpected = bounds.x + 5
+    expect(shape2.x).toBe(shapeXExpected)
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
+
+  it('should support other preset shapes like diamond, hexagon, and line inside Shape Cells', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    const metaBefore = ppt.getTableRows('Table', { includeMetadata: true })
+    const countBefore = metaBefore.rowCount
+
+    await ppt.addTableRow('Table', [
+      {
+        type: 'diamond',
+        fill: '#F59E0B',
+        width: 10,
+        height: 10,
+      },
+      {
+        type: 'hexagon',
+        fill: '#10B981',
+        width: 12,
+        height: 12,
+      },
+      {
+        type: 'line',
+        stroke: '#EF4444',
+        strokeWidth: 2,
+        width: 20,
+        height: 2,
+      },
+    ])
+
+    const shape1 = ppt.getCellShape('Table', countBefore, 0, 0)
+    expect(shape1).not.toBeNull()
+    expect(shape1.type).toBe('diamond')
+
+    const shape2 = ppt.getCellShape('Table', countBefore, 1, 0)
+    expect(shape2).not.toBeNull()
+    expect(shape2.type).toBe('hexagon')
+
+    const shape3 = ppt.getCellShape('Table', countBefore, 2, 0)
+    expect(shape3).not.toBeNull()
+    expect(shape3.type).toBe('line')
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
+
+  it('should verify shape styling, border, all alignment options, merged cells, and duplicate text prevention', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    const metaBefore = ppt.getTableRows('Table', { includeMetadata: true })
+    const countBefore = metaBefore.rowCount
+
+    // 1. Shape fill color (with 8-char hex and opacity mapping) and stroke styling
+    await ppt.addTableRow('Table', [
+      {
+        type: 'circle',
+        color: '#ff0000aa', // 8-char hex
+        stroke: '#0000ff',
+        strokeWidth: 3,
+        width: 15,
+        height: 15,
+        position: 'center',
+      },
+      {
+        type: 'rectangle',
+        fill: '#00ff00',
+        border: { color: '#ffff00', width: 2 },
+        width: 18,
+        height: 12,
+        position: 'top-left',
+      },
+      'Just a cell',
+    ])
+
+    const rowIdx1 = countBefore
+    const shapeColor = ppt.getCellShape('Table', rowIdx1, 0, 0)
+    expect(shapeColor).not.toBeNull()
+    expect(shapeColor.fill).toBe('#FF0000') // Cleaned hex
+    expect(shapeColor.transparency).toBe(Math.round((1 - 0xaa / 255) * 100)) // Transparency resolved from 8-char hex
+    expect(shapeColor.border).toEqual({ color: '#0000FF', width: 3 }) // Normalized stroke
+
+    const shapeBorder = ppt.getCellShape('Table', rowIdx1, 1, 0)
+    expect(shapeBorder).not.toBeNull()
+    expect(shapeBorder.fill).toBe('#00FF00')
+    expect(shapeBorder.border).toEqual({ color: '#FFFF00', width: 2 })
+
+    // 2. Center, left, right, top, bottom, and corners alignments
+
+    // Top-left alignment test
+    await ppt.addCellShape('Table', rowIdx1, 2, {
+      type: 'square',
+      size: 10,
+      position: 'top-left',
+      offsetX: 2,
+      offsetY: 4,
+    })
+    const shapeTopLeft = ppt.getCellShape('Table', rowIdx1, 2, 0)
+    const boundsTopLeft = ppt.getCellBounds('Table', rowIdx1, 2)
+    expect(shapeTopLeft.x).toBe(boundsTopLeft.x + 2)
+    expect(shapeTopLeft.y).toBe(boundsTopLeft.y + 4)
+
+    // Bottom-right alignment test
+    await ppt.addCellShape('Table', rowIdx1, 2, {
+      type: 'square',
+      size: 10,
+      position: 'bottom-right',
+      offsetX: 1,
+      offsetY: 3,
+    })
+    const shapeBottomRight = ppt.getCellShape('Table', rowIdx1, 2, 1)
+    expect(shapeBottomRight.x).toBe(boundsTopLeft.x + boundsTopLeft.width - 10 - 1)
+    expect(shapeBottomRight.y).toBe(boundsTopLeft.y + boundsTopLeft.height - 10 - 3)
+
+    // 3. Merged cells alignment test (resolve full merged bounds)
+    // Let's merge rowIdx1 and rowIdx1 + 1 (new row) in column 2
+    await ppt.addTableRow('Table', ['A', 'B', 'C'])
+    const rowIdx2 = rowIdx1 + 1
+    ppt.mergeCells('Table', rowIdx1, 2, rowIdx2, 2)
+
+    // Verify cell bounds span both rows
+    const boundsMerged = ppt.getCellBounds('Table', rowIdx1, 2)
+    const boundsR1 = ppt.getCellBounds('Table', rowIdx1, 2)
+    const boundsR2 = ppt.getCellBounds('Table', rowIdx2, 2)
+    // Since getCellBounds is merge-aware, boundsR1 and boundsR2 should return the same merged bounds
+    expect(boundsR1).toEqual(boundsMerged)
+    expect(boundsR2).toEqual(boundsMerged)
+
+    // Center alignment in merged region
+    await ppt.addCellShape('Table', rowIdx1, 2, {
+      type: 'circle',
+      radius: 5,
+      position: 'center',
+    })
+    const shapeMerged = ppt.getCellShape('Table', rowIdx1, 2, 2)
+    expect(shapeMerged.x).toBe(Math.round(boundsMerged.x + (boundsMerged.width - 10) / 2))
+    expect(shapeMerged.y).toBe(Math.round(boundsMerged.y + (boundsMerged.height - 10) / 2))
+
+    // 4. Verification that text appears only once (duplicate text prevention)
+    await ppt.addTableRow('Table', [
+      {
+        type: 'circle',
+        fill: '#FF0000',
+        text: 'UniqueText',
+        position: 'left',
+      },
+      'Test 2',
+      'Test 3',
+    ])
+    const rowIdx3 = rowIdx2 + 1
+    const rawRows = ppt.getTableRows('Table', { raw: true })
+    const lastRow = rawRows[rawRows.length - 1]
+
+    // Text goes into table cell
+    expect(lastRow[0]).toBe('UniqueText')
+
+    // But text property on standard shape must be deleted (undefined) to avoid duplication
+    const shapeTextTest = ppt.getCellShape('Table', rowIdx3, 0, 0)
+    expect(shapeTextTest.text).toBeUndefined()
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
 })
