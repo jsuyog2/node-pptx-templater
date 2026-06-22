@@ -192,6 +192,78 @@ async function main() {
       list: ['Fast PPTX generation', 'OpenXML based', 'Chart updates', 'Table updates'],
     })
 
+    ppt.useSlide(5)
+
+    let TeamData = [
+      [
+        'Team A',
+        'Bob',
+        'Designer',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '40',
+        'N',
+        'A',
+      ],
+      [
+        '',
+        'Charlie',
+        'Admin',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '30',
+        'P',
+        'B',
+      ],
+      [
+        '',
+        'David',
+        'Developer',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '100',
+        'P',
+        'A',
+      ],
+      [
+        'Team B',
+        'User',
+        'Tester',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '60',
+        'N',
+        'A',
+      ],
+      [
+        '',
+        'Alice',
+        'Manager',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '85',
+        'P',
+        'B',
+      ]
+    ]
+    TeamData.forEach(element => {
+      ppt.addTableRow('Table', element)
+    });
+    ppt.removeTableRow('Table', 1)
+
+    ppt.mergeCells('Table', 1, 0, 3, 0)
+    ppt.mergeCells('Table', 4, 0, 5, 0)
+    TeamData.forEach((element, rowIndex) => {
+      element.forEach((cell, colIndex) => {
+        if (colIndex === 6 && cell === 'A' || cell === 'B') {
+          ppt.addCellShape('Table', (rowIndex + 1), colIndex, {
+            type: 'circle',
+            fill: cell === 'A' ? '#10B981' : '#EF4444',
+            width: 15,
+            height: 15,
+            position: 'center',
+          })
+
+          ppt.updateCell('Table', rowIndex, colIndex, '')
+        }
+      })
+    });
+
     // Step 3: Save to file
     await ppt.saveToFile(OUTPUT_PATH)
     console.log('💾 Saved to:', OUTPUT_PATH)
