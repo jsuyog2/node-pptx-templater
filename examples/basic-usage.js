@@ -109,19 +109,26 @@ async function main() {
     //   ['Bob', '', '     Designer', 'Product'],
     // ])
     // ppt.addTableRow('Table', ['Bob', '', '     Designer', ['Product', 'Value']])
-    ppt.addTableRow('Table', ['Bob', '', 'The final implementation should allow users to build highly visual dashboards and reports.', 'Value', 'Product', 'P'])
+    ppt.addTableRow('Table', [
+      'Bob',
+      '',
+      'The final implementation should allow users to build highly visual dashboards and reports.',
+      'Value',
+      'Product',
+      'P',
+    ])
     ppt.addTableRow('Table', ['', '', 'Designer', 'Value', 'Product', 'P'])
     ppt.addTableRow('Table', ['Bob', '', 'Designer', 'Value', 'Product', 'F'])
 
     ppt.removeTableRow('Table', 1)
 
     const rows = await ppt.getTableRows('Table')
-    console.log(rows);
+    console.log(rows)
 
     rows.forEach((d, i) => {
-      ppt.updateCell('Table', (i + 1), 5, '')
+      ppt.updateCell('Table', i + 1, 5, '')
 
-      ppt.addCellShape('Table', (i + 1), 5, {
+      ppt.addCellShape('Table', i + 1, 5, {
         type: 'circle',
         fill: d.STATUS === 'P' ? '#10B981' : '#EF4444',
         // x: 10,
@@ -129,7 +136,6 @@ async function main() {
         height: 20,
       })
     })
-
 
     // merge all cells of first column with all cells of second col
     ppt.mergeCells('Table', 1, 0, 2, 0)
