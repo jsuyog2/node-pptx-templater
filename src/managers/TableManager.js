@@ -1768,44 +1768,6 @@ class TableManager {
       }
     }
 
-    // 2. Determine alignment settings
-    let alignX = undefined
-    let alignY = undefined
-
-    const pos = String(config.position || '')
-      .toLowerCase()
-      .trim()
-    if (pos) {
-      if (pos === 'left') {
-        alignX = 'left'
-        alignY = 'middle'
-      } else if (pos === 'right') {
-        alignX = 'right'
-        alignY = 'middle'
-      } else if (pos === 'center' || pos === 'middle') {
-        alignX = 'center'
-        alignY = 'middle'
-      } else if (pos === 'top') {
-        alignX = 'center'
-        alignY = 'top'
-      } else if (pos === 'bottom') {
-        alignX = 'center'
-        alignY = 'bottom'
-      } else if (pos === 'top-left') {
-        alignX = 'left'
-        alignY = 'top'
-      } else if (pos === 'top-right') {
-        alignX = 'right'
-        alignY = 'top'
-      } else if (pos === 'bottom-left') {
-        alignX = 'left'
-        alignY = 'bottom'
-      } else if (pos === 'bottom-right') {
-        alignX = 'right'
-        alignY = 'bottom'
-      }
-    }
-
     if (!alignX) {
       const ax = config.alignX || config.horizontal
       if (ax) {
@@ -2107,7 +2069,7 @@ class TableManager {
     slideManager,
     shapeManager,
     tblObj,
-    _frameObj
+    frameObj
   ) {
     if (!cellShapes || !shapeManager) return
 

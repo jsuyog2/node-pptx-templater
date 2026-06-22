@@ -1289,7 +1289,7 @@ class PPTXTemplater {
           found = true
           break
         }
-      } catch (e) { }
+      } catch (e) {}
     }
     if (!found) logger.info('Chart not found.')
     return this

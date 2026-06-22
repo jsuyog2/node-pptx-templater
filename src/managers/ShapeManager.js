@@ -433,6 +433,14 @@ class ShapeManager {
     if (!options) return options
     const normalized = { ...options }
 
+    // Fallback mapping between id and name for compatibility
+    if (normalized.id === undefined && normalized.name !== undefined) {
+      normalized.id = normalized.name
+    }
+    if (normalized.name === undefined && normalized.id !== undefined) {
+      normalized.name = normalized.id
+    }
+
     // 1. Map color alias to fill
     const fillVal = options.fill !== undefined ? options.fill : options.color
     if (fillVal !== undefined) {

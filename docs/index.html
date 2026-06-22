@@ -407,6 +407,8 @@
           
             <li><a href="#method-getShape" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">getShape()</a></li>
           
+            <li><a href="#method-alignShapeToCell" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">alignShapeToCell()</a></li>
+          
         </ul>
       </div>
     
@@ -2724,16 +2726,16 @@ regions.forEach(reg =&gt; {
             </div>
           </div>
           
-          <p class="text-sm text-gray-300 leading-relaxed">Dynamically adds a shape inside a table cell based on cell coordinates. Cell shapes are anchored/rendered independently of the table layout as overlays and do not modify row heights, column widths, or cell margins.</p>
+          <p class="text-sm text-gray-300 leading-relaxed">Dynamically adds a shape inside a table cell based on cell coordinates. Cell shapes are overlay graphics anchored independently of the table layout, and adding a cell shape never modifies row heights, column widths, or table dimensions.</p>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
             <div>
               <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
-              <p>Index must fall within table bounds. Offsets are relative to the cell's top-left corner. Oversized shapes are scaled down proportionally to fit the cell and log a warning in debug mode.</p>
+              <p>Index must fall within table bounds. Coordinates outside structural table dimensions align relative to cell borders.</p>
             </div>
             <div>
               <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
-              <p>Appends a `&lt;p:sp&gt;` shape node aligned to cell EMUs inside the slide's shape tree, leaving the table XML untouched.</p>
+              <p>Appends a `&lt;p:sp&gt;` shape node aligned to cell EMUs.</p>
             </div>
           </div>
           
@@ -2788,15 +2790,15 @@ regions.forEach(reg =&gt; {
           <div class="mt-4 space-y-4">
             <div>
               <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">await ppt.addCellShape(&#039;Table&#039;, 1, 2, { type: &#039;circle&#039;, fill: &#039;#10B981&#039;, width: 12, height: 12 });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">await ppt.addCellShape(&#039;Table&#039;, 1, 2, { type: &#039;circle&#039;, fill: &#039;#10B981&#039; });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
             <div>
-              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Offset Usage</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">await ppt.addCellShape(&#039;Table&#039;, 1, 2, { type: &#039;circle&#039;, x: 4, y: 2, width: 10, height: 10, fill: &#039;#3B82F6&#039; });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto"></code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
             <div>
-              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Status Badge Indicator</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">await ppt.addCellShape(&#039;Table&#039;, 2, 1, { type: &#039;badge&#039;, text: &#039;Active&#039;, fill: &#039;#10B981&#039;, textStyle: { color: &#039;#FFFFFF&#039;, fontSize: 9 } });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto"></code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
           </div>
         
@@ -3086,7 +3088,7 @@ regions.forEach(reg =&gt; {
               <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getCellBounds</h3>
             </div>
             <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
-              getCellBounds(tableId, rowIndex, colIndex)
+              getCellBounds(tableIdOrObj, rowIndex, colIndex)
             </div>
           </div>
           
@@ -3116,9 +3118,9 @@ regions.forEach(reg =&gt; {
               <tbody class="divide-y divide-white/5">
                 
                   <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableId</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
-                    <td class="px-4 py-2.5 text-gray-300">Table name or shape ID.</td>
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableIdOrObj</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string|Object</td>
+                    <td class="px-4 py-2.5 text-gray-300">Table name, shape ID, or table object.</td>
                   </tr>
                 
                   <tr class="hover:bg-white/[0.02]">
@@ -3170,11 +3172,11 @@ regions.forEach(reg =&gt; {
               <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getCellPosition</h3>
             </div>
             <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
-              getCellPosition(tableId, rowIndex, colIndex)
+              getCellPosition(tableIdOrObj, rowIndex, colIndex, shapeWidthOrOptions, shapeHeight)
             </div>
           </div>
           
-          <p class="text-sm text-gray-300 leading-relaxed">Retrieves final rendered position of a table cell in pixels.</p>
+          <p class="text-sm text-gray-300 leading-relaxed">Retrieves final rendered position of a table cell in pixels. Optionally calculates centered top-left coordinates for a shape of given dimensions.</p>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
             <div>
@@ -3200,9 +3202,9 @@ regions.forEach(reg =&gt; {
               <tbody class="divide-y divide-white/5">
                 
                   <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableId</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
-                    <td class="px-4 py-2.5 text-gray-300">Table name or shape ID.</td>
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableIdOrObj</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string|Object</td>
+                    <td class="px-4 py-2.5 text-gray-300">Table name, shape ID, or table object.</td>
                   </tr>
                 
                   <tr class="hover:bg-white/[0.02]">
@@ -3217,6 +3219,18 @@ regions.forEach(reg =&gt; {
                     <td class="px-4 py-2.5 text-gray-300">0-based column index.</td>
                   </tr>
                 
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[shapeWidthOrOptions]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number|Object</td>
+                    <td class="px-4 py-2.5 text-gray-300">Width of the shape in pixels, or options object.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[shapeHeight]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300">Height of the shape in pixels.</td>
+                  </tr>
+                
               </tbody>
             </table>
           </div>
@@ -3225,7 +3239,7 @@ regions.forEach(reg =&gt; {
           <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
             <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
             <span class="font-mono text-emerald-400 font-semibold">Object|null</span>
-            <span class="text-gray-300">Cell position { row, column, x, y } in pixels, or null.</span>
+            <span class="text-gray-300">Cell position { row, column, x, y, width, height } in pixels, or null.</span>
           </div>
         
           
@@ -6648,18 +6662,6 @@ items.forEach((item, index) =&gt; {
                     <td class="px-4 py-2.5 text-gray-300">Text string, or list configuration object.</td>
                   </tr>
                 
-                  <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tag</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
-                    <td class="px-4 py-2.5 text-gray-300">Shape name/ID or placeholder tag.</td>
-                  </tr>
-                
-                  <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">data</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">string|Object</td>
-                    <td class="px-4 py-2.5 text-gray-300">Text string, or list configuration object.</td>
-                  </tr>
-                
               </tbody>
             </table>
           </div>
@@ -7412,12 +7414,12 @@ for (let i = 0; i &lt; users.length; i++) {
         
         </div>
       
-        <!-- Method getImages Card -->
-        <div id="method-getImages" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+        <!-- Method removeImage Card -->
+        <div id="method-removeImage" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
             <div class="flex items-center gap-2">
               <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
-              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getImages</h3>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">removeImage</h3>
             </div>
             <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
               removeImage(imageIdOrName)
@@ -7488,26 +7490,12 @@ for (let i = 0; i &lt; users.length; i++) {
         
         </div>
       
-        </div>
-      </section>
-    
-      <!-- Category shapes Section -->
-      <section id="api-shapes" class="doc-section space-y-6 hidden">
-        <div class="flex items-center gap-3 border-b border-white/5 pb-4">
-          <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[10px] font-bold uppercase tracking-wider">category</span>
-          <h1 class="font-title text-3xl font-extrabold text-white">Shapes API</h1>
-        </div>
-        
-        <p class="text-sm text-gray-400 leading-relaxed">Modify text within shapes, clone layout blocks, and delete shapes.</p>
-        
-        <div class="grid grid-cols-1 gap-6 mt-6">
-    
-        <!-- Method updateShapeText Card -->
-        <div id="method-updateShapeText" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+        <!-- Method getImages Card -->
+        <div id="method-getImages" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
             <div class="flex items-center gap-2">
               <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
-              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">updateShapeText</h3>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getImages</h3>
             </div>
             <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
               getImages()
@@ -7528,33 +7516,6 @@ for (let i = 0; i &lt; users.length; i++) {
           </div>
           
           
-          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
-            <table class="w-full text-xs text-gray-400">
-              <thead class="bg-white/5 text-gray-200">
-                <tr>
-                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
-                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
-                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-white/5">
-                
-                  <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">shapeId</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
-                    <td class="px-4 py-2.5 text-gray-300">Shape name or ID.</td>
-                  </tr>
-                
-                  <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">text</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
-                    <td class="px-4 py-2.5 text-gray-300">New text content.</td>
-                  </tr>
-                
-              </tbody>
-            </table>
-          </div>
-        
           
           <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
             <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
@@ -7762,198 +7723,6 @@ for (let i = 0; i &lt; users.length; i++) {
             <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
             <span class="font-mono text-emerald-400 font-semibold">this</span>
             <span class="text-gray-300">The chainable presentation engine instance.</span>
-          </div>
-        
-          
-          <div class="mt-4 space-y-4">
-            <div>
-              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).updateTextBoxPosition(&#039;TextBox 2&#039;, { x: 1000000, y: 1500000 });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
-            </div>
-            <div>
-              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.updateTextBoxPosition(&#039;TextBox 2&#039;, {
-  x: 2000000,
-  y: 3000000,
-  width: 4000000,
-  height: 500000
-});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
-            </div>
-            <div>
-              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">// Relocate a textbox dynamically based on slide width
-const slideWidth = 12192000;
-ppt.useSlide(1).updateTextBoxPosition(&#039;StatusBox&#039;, {
-  x: slideWidth - 3000000,
-  width: 2500000
-});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
-            </div>
-          </div>
-        
-        </div>
-      
-        <!-- Method cloneShape Card -->
-        <div id="method-cloneShape" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
-            <div class="flex items-center gap-2">
-              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
-              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">cloneShape</h3>
-            </div>
-            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
-              cloneShape(shapeId, newShapeId, options = {})
-            </div>
-          </div>
-          
-          <p class="text-sm text-gray-300 leading-relaxed">Duplicates an existing shape with a new ID, optionally at a different position.</p>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
-            <div>
-              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
-              <p>Offsets are in English Metric Units (EMU). Offset parameters specify position displacement.</p>
-            </div>
-            <div>
-              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
-              <p>Duplicates the target shape element XML node (`p:sp`) and adds positioning coordinates.</p>
-            </div>
-          </div>
-          
-          
-          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
-            <table class="w-full text-xs text-gray-400">
-              <thead class="bg-white/5 text-gray-200">
-                <tr>
-                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
-                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
-                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-white/5">
-                
-                  <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">shapeId</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
-                    <td class="px-4 py-2.5 text-gray-300">Source shape name or ID.</td>
-                  </tr>
-                
-                  <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">newShapeId</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
-                    <td class="px-4 py-2.5 text-gray-300">Name/ID for the cloned shape.</td>
-                  </tr>
-                
-                  <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options]</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">Object</td>
-                    <td class="px-4 py-2.5 text-gray-300">Position overrides for the clone.</td>
-                  </tr>
-                
-                  <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.x]</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
-                    <td class="px-4 py-2.5 text-gray-300">X offset for the clone (EMUs).</td>
-                  </tr>
-                
-                  <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.y]</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
-                    <td class="px-4 py-2.5 text-gray-300">Y offset for the clone (EMUs).</td>
-                  </tr>
-                
-              </tbody>
-            </table>
-          </div>
-        
-          
-          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
-            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
-            <span class="font-mono text-emerald-400 font-semibold">PPTXTemplater</span>
-            <span class="text-gray-300">this (chainable)</span>
-          </div>
-        
-          
-          <div class="mt-4 space-y-4">
-            <div>
-              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).cloneShape(&#039;card-bg&#039;, &#039;card-bg-2&#039;);</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
-            </div>
-            <div>
-              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">// Clone with specific displacement offsets
-ppt.useSlide(1).cloneShape(&#039;card-bg&#039;, &#039;card-bg-2&#039;, {
-  offsetX: 360000, // 360,000 EMUs = ~1 inch
-  offsetY: 0
-});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
-            </div>
-            <div>
-              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">const items = [&#039;Speed&#039;, &#039;Stability&#039;, &#039;Scalability&#039;];
-items.forEach((item, index) =&gt; {
-  if (index &gt; 0) {
-    ppt.cloneShape(&#039;bullet-template&#039;, `bullet-${index}`, {
-      offsetX: 0,
-      offsetY: index * 400000
-    }).updateShapeText(`bullet-${index}`, item);
-  } else {
-    ppt.updateShapeText(&#039;bullet-template&#039;, item);
-  }
-});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
-            </div>
-          </div>
-        
-        </div>
-      
-        <!-- Method deleteShape Card -->
-        <div id="method-deleteShape" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
-            <div class="flex items-center gap-2">
-              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
-              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">deleteShape</h3>
-            </div>
-            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
-              deleteShape(shapeId)
-            </div>
-          </div>
-          
-          <p class="text-sm text-gray-300 leading-relaxed">Removes a shape from the targeted slide(s). Alias for `removeShape()`.</p>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
-            <div>
-              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
-              <p>No critical edge cases documented. Verify argument boundaries.</p>
-            </div>
-            <div>
-              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
-              <p>Modifies underlying OpenXML nodes to reflect updates on slide serialization.</p>
-            </div>
-          </div>
-          
-          
-          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
-            <table class="w-full text-xs text-gray-400">
-              <thead class="bg-white/5 text-gray-200">
-                <tr>
-                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
-                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
-                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-white/5">
-                
-                  <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">shapeId</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
-                    <td class="px-4 py-2.5 text-gray-300">Shape name or ID to delete.</td>
-                  </tr>
-                
-              </tbody>
-            </table>
-          </div>
-        
-          
-          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
-            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
-            <span class="font-mono text-emerald-400 font-semibold">PPTXTemplater</span>
-            <span class="text-gray-300">this (chainable)</span>
           </div>
         
           
@@ -8431,11 +8200,11 @@ if (errors.length === 0) {
               <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">addShape</h3>
             </div>
             <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
-              addShape(options)
+              addShape(typeOrOptions, options = {})
             </div>
           </div>
           
-          <p class="text-sm text-gray-300 leading-relaxed">Adds a new shape dynamically to the targeted slide(s).</p>
+          <p class="text-sm text-gray-300 leading-relaxed">Adds a new shape to the targeted slide(s).</p>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
             <div>
@@ -8461,7 +8230,13 @@ if (errors.length === 0) {
               <tbody class="divide-y divide-white/5">
                 
                   <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">options</td>
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">typeOrOptions</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string|Object</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options={}]</td>
                     <td class="px-4 py-2.5 font-mono text-pink-400">Object</td>
                     <td class="px-4 py-2.5 text-gray-300"></td>
                   </tr>
@@ -8473,8 +8248,8 @@ if (errors.length === 0) {
           
           <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
             <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
-            <span class="font-mono text-emerald-400 font-semibold">this</span>
-            <span class="text-gray-300">The chainable presentation templater instance.</span>
+            <span class="font-mono text-emerald-400 font-semibold">Promise&lt;PPTXTemplater&gt;</span>
+            <span class="text-gray-300">The templater instance for chaining.</span>
           </div>
         
           
@@ -8791,6 +8566,118 @@ if (card) {
     width: card.width,
     height: card.height
   });
+}</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method alignShapeToCell Card -->
+        <div id="method-alignShapeToCell" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">alignShapeToCell</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              alignShapeToCell(shapeId, tableIdOrObj, rowIndex, colIndex, options = {})
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Aligns an existing shape to a table cell&#039;s position.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>No critical edge cases documented. Verify argument boundaries.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Modifies underlying OpenXML nodes to reflect updates on slide serialization.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">shapeId</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300">Unique shape name/id in the template.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableIdOrObj</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string|Object</td>
+                    <td class="px-4 py-2.5 text-gray-300">Table ID string, or table object.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">rowIndex</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300">0-based row index.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">colIndex</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300">0-based column index.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">Object</td>
+                    <td class="px-4 py-2.5 text-gray-300">Alignment options.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.horizontal=&#039;center&#039;]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">&#039;left&#039;|&#039;center&#039;|&#039;right&#039;</td>
+                    <td class="px-4 py-2.5 text-gray-300">Horizontal alignment.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.vertical=&#039;middle&#039;]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">&#039;top&#039;|&#039;middle&#039;|&#039;bottom&#039;</td>
+                    <td class="px-4 py-2.5 text-gray-300">Vertical alignment.</td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">this</span>
+            <span class="text-gray-300">The chainable presentation templater instance.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).alignShapeToCell(shapeId, tableIdOrObj, rowIndex, colIndex, options = {});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).alignShapeToCell(shapeId, tableIdOrObj, rowIndex, colIndex, options = {}); // Fluent wrapper implementation</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">try {
+  ppt.useSlide(1).alignShapeToCell(shapeId, tableIdOrObj, rowIndex, colIndex, options = {});
+} catch (err) {
+  console.error(&#039;API Error: &#039;, err);
 }</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
           </div>
@@ -13095,9 +12982,35 @@ if (!status.valid) {
         <h1 class="font-title text-4xl font-extrabold text-white">Changelog &amp; Releases</h1>
         <p class="text-sm text-gray-300">Detailed release notes and updates for node-pptx-templater:</p>
         <div class="glass-card p-6 rounded-2xl border border-white/5 space-y-4 max-h-[600px] overflow-y-auto font-sans text-sm text-gray-300 leading-relaxed">
-          <h1>Changelog</h1><p></p>All notable changes to this project will be documented in this file.<p></p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
-and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.<p></p><h2>[1.1.0] - 2026-06-12</h2><p></p><h3>Added</h3><p></p><ul><li><strong>Runtime Log Level Control</strong>: <code>PPTXTemplater.load(path, { logLevel: 'debug' })</code> — configure logging at load time without environment variables. Also added <code>PPTXTemplater.setLogLevel(level)</code> static method and <code>ppt.enableDebug()</code> instance shortcut. Supported levels: <code>verbose</code>, <code>debug</code>, <code>info</code>, <code>warn</code> (default), <code>error</code>, <code>silent</code>. The new <code>setGlobalLogLevel()</code> and <code>resetLogLevel()</code> functions are now exported from the public API.</li><p></p><li><strong><code>verbose</code> Log Level</strong>: New log level below <code>debug</code> for maximum diagnostic output. Use <code>PPTXTemplater.setLogLevel('verbose')</code> to enable.</li><p></p><li><strong><code>getTableRows(tableId, options)</code></strong>: Extract table data as structured JSON. Supports three modes: default (array of objects using header row as keys), <code>{ raw: true }</code> (array of string arrays), and <code>{ includeMetadata: true }</code> (full metadata including row/column count and merged cell info).</li><p></p><li><strong>Nested <code>addTableRow()</code> with <code>mergeStrategy</code></strong>: Add rows with nested arrays to create rowspan-merged cells. Options: <code>'rowspan'</code> (OpenXML vertical spans), <code>'auto'</code> (merge identical adjacent values), <code>'none'</code> (expand to flat rows).</li><p></p><li><strong>8 new example files</strong> in <code>examples/</code>: <code>image-operations.js</code>, <code>shape-operations.js</code>, <code>z-order.js</code>, <code>slide-import.js</code>, <code>text-search.js</code>, <code>table-extraction.js</code>, <code>nested-table-rows.js</code>, <code>xml-folder-workflow.js</code>.</li><p></p><li><strong>Documentation Validation Tooling</strong> (<code>scripts/validate-docs.js</code>): Checks that every public method has JSDoc. Exits with code 1 on violations. Run via <code>npm run docs:validate</code>.</li><p></p><li><strong>Feature Inventory Generator</strong> (<code>scripts/generate-feature-inventory.js</code>): Parses <code>PPTXTemplater.js</code> and outputs <code>docs/feature-inventory.json</code> and <code>docs/feature-inventory.md</code> with all methods grouped by category. Run via <code>npm run docs:inventory</code>.</li><p></p><li><strong>Professional logo</strong> (<code>assets/logo.png</code>): Library logo suitable for GitHub, NPM, and documentation.</li><p></p><li><strong>New npm scripts</strong>: <code>docs:validate</code>, <code>docs:inventory</code>, <code>example:images</code>, <code>example:shapes</code>, <code>example:zorder</code>, <code>example:slide-import</code>, <code>example:text-search</code>, <code>example:table-extraction</code>, <code>example:nested-rows</code>, <code>example:xml-folder</code>.</li><p></p><h3>Fixed</h3><p></p><li><strong>Horizontal merge preservation</strong>: Fixed PowerPoint "repair mode" errors when using <code>addTableRow()</code> with rows containing <code>gridSpan</code>/<code>hMerge</code> attributes. The cloning logic now correctly preserves horizontal merge attributes and only clears vertical merge state.</li><p></p><li><strong><code>console.log</code> violations</strong> in <code>ChartManager.js</code> (3 calls in <code>updateChartAsync()</code>), <code>OutputWriter.js</code> (5 calls in <code>printDebugZip()</code>), and <code>PPTXTemplater.js</code> (8 calls across <code>debugRelationships()</code>, <code>inspectSlide()</code>, <code>inspectXML()</code>, <code>inspectChart()</code>, <code>debugChartRelationships()</code>). All replaced with structured <code>logger.debug()</code> / <code>logger.info()</code> calls that respect the configured log level. <strong>The library is now completely silent by default</strong> — no terminal output at all unless explicitly enabled.</li><p></p><h3>Changed</h3><p></p><li><strong>Logger system overhauled</strong>: Added <code>verbose</code> level, runtime <code>setGlobalLogLevel()</code> function, <code>resetLogLevel()</code> function, and module-level <code>runtimeLevel</code> override. All logger instances now share a mutable runtime level for live updates.</li><p></p><li><strong>README</strong>: Rewritten to be concise, modern, and SEO-friendly. Detailed API docs now live at https://jsuyog2.github.io/node-pptx-templater/.</li><p></p><li><strong>Version</strong>: Bumped from <code>1.0.21</code> → <code>1.1.0</code>.</li></ul><p></p>---<p></p><h2>[1.0.6] - 2026-06-02</h2><p></p>
-<h3>Added</h3><p></p><ul><li><strong>XML Validation &amp; Diagnostics Engine</strong>: Introduced a suite of tools in <code>src/utils/xmlUtils.js</code> for XML safety and diagnostics:</li></ul>
+          <h1>Changelog</h1>
+
+All notable changes to this project will be documented in this file.
+
+The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
+and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.
+
+<h2>[1.1.0] - 2026-06-12</h2>
+
+<h3>Added</h3>
+
+<ul><li><strong>Runtime Log Level Control</strong>: <code>PPTXTemplater.load(path, { logLevel: 'debug' })</code> — configure logging at load time without environment variables. Also added <code>PPTXTemplater.setLogLevel(level)</code> static method and <code>ppt.enableDebug()</code> instance shortcut. Supported levels: <code>verbose</code>, <code>debug</code>, <code>info</code>, <code>warn</code> (default), <code>error</code>, <code>silent</code>. The new <code>setGlobalLogLevel()</code> and <code>resetLogLevel()</code> functions are now exported from the public API.</li><li><strong><code>verbose</code> Log Level</strong>: New log level below <code>debug</code> for maximum diagnostic output. Use <code>PPTXTemplater.setLogLevel('verbose')</code> to enable.</li><li><strong><code>getTableRows(tableId, options)</code></strong>: Extract table data as structured JSON. Supports three modes: default (array of objects using header row as keys), <code>{ raw: true }</code> (array of string arrays), and <code>{ includeMetadata: true }</code> (full metadata including row/column count and merged cell info).</li><li><strong>Nested <code>addTableRow()</code> with <code>mergeStrategy</code></strong>: Add rows with nested arrays to create rowspan-merged cells. Options: <code>'rowspan'</code> (OpenXML vertical spans), <code>'auto'</code> (merge identical adjacent values), <code>'none'</code> (expand to flat rows).</li><li><strong>8 new example files</strong> in <code>examples/</code>: <code>image-operations.js</code>, <code>shape-operations.js</code>, <code>z-order.js</code>, <code>slide-import.js</code>, <code>text-search.js</code>, <code>table-extraction.js</code>, <code>nested-table-rows.js</code>, <code>xml-folder-workflow.js</code>.</li><li><strong>Documentation Validation Tooling</strong> (<code>scripts/validate-docs.js</code>): Checks that every public method has JSDoc. Exits with code 1 on violations. Run via <code>npm run docs:validate</code>.</li><li><strong>Feature Inventory Generator</strong> (<code>scripts/generate-feature-inventory.js</code>): Parses <code>PPTXTemplater.js</code> and outputs <code>docs/feature-inventory.json</code> and <code>docs/feature-inventory.md</code> with all methods grouped by category. Run via <code>npm run docs:inventory</code>.</li><li><strong>Professional logo</strong> (<code>assets/logo.png</code>): Library logo suitable for GitHub, NPM, and documentation.</li><li><strong>New npm scripts</strong>: <code>docs:validate</code>, <code>docs:inventory</code>, <code>example:images</code>, <code>example:shapes</code>, <code>example:zorder</code>, <code>example:slide-import</code>, <code>example:text-search</code>, <code>example:table-extraction</code>, <code>example:nested-rows</code>, <code>example:xml-folder</code>.</li></ul>
+
+<h3>Fixed</h3>
+
+<ul><li><strong>Horizontal merge preservation</strong>: Fixed PowerPoint "repair mode" errors when using <code>addTableRow()</code> with rows containing <code>gridSpan</code>/<code>hMerge</code> attributes. The cloning logic now correctly preserves horizontal merge attributes and only clears vertical merge state.</li><li><strong><code>console.log</code> violations</strong> in <code>ChartManager.js</code> (3 calls in <code>updateChartAsync()</code>), <code>OutputWriter.js</code> (5 calls in <code>printDebugZip()</code>), and <code>PPTXTemplater.js</code> (8 calls across <code>debugRelationships()</code>, <code>inspectSlide()</code>, <code>inspectXML()</code>, <code>inspectChart()</code>, <code>debugChartRelationships()</code>). All replaced with structured <code>logger.debug()</code> / <code>logger.info()</code> calls that respect the configured log level. <strong>The library is now completely silent by default</strong> — no terminal output at all unless explicitly enabled.</li></ul>
+
+<h3>Changed</h3>
+
+<ul><li><strong>Logger system overhauled</strong>: Added <code>verbose</code> level, runtime <code>setGlobalLogLevel()</code> function, <code>resetLogLevel()</code> function, and module-level <code>runtimeLevel</code> override. All logger instances now share a mutable runtime level for live updates.</li><li><strong>README</strong>: Rewritten to be concise, modern, and SEO-friendly. Detailed API docs now live at https://jsuyog2.github.io/node-pptx-templater/.</li><li><strong>Version</strong>: Bumped from <code>1.0.21</code> → <code>1.1.0</code>.</li></ul>
+
+---
+
+<h2>[1.0.6] - 2026-06-02</h2>
+
+
+<h3>Added</h3>
+
+<ul><li><strong>XML Validation &amp; Diagnostics Engine</strong>: Introduced a suite of tools in <code>src/utils/xmlUtils.js</code> for XML safety and diagnostics:</li></ul>
   - <code>validateXml(xmlString)</code> — Validates that an XML string is secure and well-formed, checking for DTDs, custom/recursive entities, and XXE.
   - <code>safeParseXml(xmlString, file)</code> — Unified wrapper that runs validation and captures detailed diagnostic error logs (file, line, col, error details, and recommendations) on failure.
   - <code>scanForEntities(xmlString)</code> — Scans and classifies all XML entity references (standard, custom, numeric, and hex).
