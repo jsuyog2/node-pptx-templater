@@ -114,38 +114,12 @@ class RelationshipManager {
       relFiles.map(async relsPath => {
         const content = await zipManager.readFile(relsPath)
         if (content) {
-          const normalizedPath = this.#normalizeRelsPath(relsPath)
-          this.#relationships.set(normalizedPath, this.#parseRels(content, relsPath))
+          this.#relationships.set(relsPath, this.#parseRels(content, relsPath))
         }
       })
     )
 
     logger.debug(`Loaded ${this.#relationships.size} relationship files`)
-  }
-
-  /**
-   * Normalizes path separators and strips leading slashes for robust lookup.
-   * @private
-   * @param {string} path
-   * @returns {string}
-   */
-  #normalizeRelsPath(path) {
-    if (!path) return ''
-    let normalized = path.replace(/\\/g, '/')
-    if (normalized.startsWith('/')) {
-      normalized = normalized.substring(1)
-    }
-    return normalized
-  }
-
-  /**
-   * Gets the normalized key for a part's relationships map.
-   * @private
-   * @param {string} partPath
-   * @returns {string}
-   */
-  #getNormalizedKey(partPath) {
-    return this.#normalizeRelsPath(this.getRelsPath(partPath))
   }
 
   /**
@@ -159,10 +133,9 @@ class RelationshipManager {
    * @returns {string} Path to the corresponding .rels file.
    */
   getRelsPath(partPath) {
-    const normalizedPartPath = partPath.replace(/\\/g, '/')
-    const lastSlash = normalizedPartPath.lastIndexOf('/')
-    const dir = lastSlash >= 0 ? normalizedPartPath.substring(0, lastSlash) : ''
-    const file = lastSlash >= 0 ? normalizedPartPath.substring(lastSlash + 1) : normalizedPartPath
+    const lastSlash = partPath.lastIndexOf('/')
+    const dir = lastSlash >= 0 ? partPath.substring(0, lastSlash) : ''
+    const file = lastSlash >= 0 ? partPath.substring(lastSlash + 1) : partPath
     return dir ? `${dir}/_rels/${file}.rels` : `_rels/${file}.rels`
   }
 
@@ -173,8 +146,8 @@ class RelationshipManager {
    * @returns {Relationship[]} Array of relationships.
    */
   getRelationships(partPath) {
-    const key = this.#getNormalizedKey(partPath)
-    return this.#relationships.get(key) || []
+    const relsPath = this.getRelsPath(partPath)
+    return this.#relationships.get(relsPath) || []
   }
 
   /**
@@ -211,20 +184,20 @@ class RelationshipManager {
    * @returns {string} The assigned relationship ID (e.g., 'rId3').
    */
   addRelationship(partPath, type, target, targetMode) {
-    const key = this.#getNormalizedKey(partPath)
+    const relsPath = this.getRelsPath(partPath)
 
-    if (!this.#relationships.has(key)) {
-      this.#relationships.set(key, [])
+    if (!this.#relationships.has(relsPath)) {
+      this.#relationships.set(relsPath, [])
     }
 
-    const existing = this.#relationships.get(key)
+    const existing = this.#relationships.get(relsPath)
     const newId = generateRelationshipId(existing.map(r => r.id))
 
     const rel = { id: newId, type, target }
     if (targetMode) rel.targetMode = targetMode
 
     existing.push(rel)
-    this.#flushRels(key, partPath)
+    this.#flushRels(relsPath, partPath)
 
     logger.debug(`Added relationship ${newId} (${type.split('/').pop()}) to ${partPath}`)
     return newId
@@ -237,11 +210,11 @@ class RelationshipManager {
    * @param {string} rId - Relationship ID to remove.
    */
   removeRelationship(partPath, rId) {
-    const key = this.#getNormalizedKey(partPath)
-    const existing = this.#relationships.get(key) || []
+    const relsPath = this.getRelsPath(partPath)
+    const existing = this.#relationships.get(relsPath) || []
     const filtered = existing.filter(r => r.id !== rId)
-    this.#relationships.set(key, filtered)
-    this.#flushRels(key, partPath)
+    this.#relationships.set(relsPath, filtered)
+    this.#flushRels(relsPath, partPath)
   }
 
   /**
@@ -252,12 +225,12 @@ class RelationshipManager {
    * @param {string} newTarget - New target value.
    */
   updateRelationshipTarget(partPath, rId, newTarget) {
-    const key = this.#getNormalizedKey(partPath)
-    const existing = this.#relationships.get(key) || []
+    const relsPath = this.getRelsPath(partPath)
+    const existing = this.#relationships.get(relsPath) || []
     const rel = existing.find(r => r.id === rId)
     if (rel) {
       rel.target = newTarget
-      this.#flushRels(key, partPath)
+      this.#flushRels(relsPath, partPath)
     }
   }
 
@@ -272,14 +245,14 @@ class RelationshipManager {
    */
   copyRelationships(sourcePath, destPath, excludeTypes = []) {
     const sourceRels = this.getRelationships(sourcePath)
-    const destKey = this.#getNormalizedKey(destPath)
+    const destRelsPath = this.getRelsPath(destPath)
     const idMap = new Map()
 
-    if (!this.#relationships.has(destKey)) {
-      this.#relationships.set(destKey, [])
+    if (!this.#relationships.has(destRelsPath)) {
+      this.#relationships.set(destRelsPath, [])
     }
 
-    const destRels = this.#relationships.get(destKey)
+    const destRels = this.#relationships.get(destRelsPath)
 
     for (const rel of sourceRels) {
       if (excludeTypes.includes(rel.type)) continue
@@ -289,7 +262,7 @@ class RelationshipManager {
       idMap.set(rel.id, newId)
     }
 
-    this.#flushRels(destKey, destPath)
+    this.#flushRels(destRelsPath, destPath)
     return idMap
   }
 
@@ -356,11 +329,10 @@ class RelationshipManager {
    * @param {string} partPath - For logging.
    */
   #flushRels(relsPath, _partPath) {
-    const key = this.#normalizeRelsPath(relsPath)
-    const rels = this.#relationships.get(key) || []
+    const rels = this.#relationships.get(relsPath) || []
     const xml = this.#buildRelsXml(rels)
     if (this.#zipManager) {
-      this.#zipManager.writeFile(key, xml)
+      this.#zipManager.writeFile(relsPath, xml)
     }
   }
 

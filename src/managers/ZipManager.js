@@ -214,19 +214,6 @@ class ZipManager {
   }
 
   /**
-   * Normalizes path separators and strips leading slashes.
-   * @private
-   */
-  #normalizePath(zipPath) {
-    if (!zipPath) return ''
-    let normal = zipPath.replace(/\\/g, '/')
-    if (normal.startsWith('/')) {
-      normal = normal.substring(1)
-    }
-    return normal
-  }
-
-  /**
    * Reads and caches a text file from the ZIP archive.
    *
    * @param {string} zipPath - Path within the ZIP (e.g., 'ppt/slides/slide1.xml').
@@ -234,7 +221,7 @@ class ZipManager {
    */
   async readFile(zipPath) {
     // Normalize path separators
-    const normalPath = this.#normalizePath(zipPath)
+    const normalPath = zipPath.replace(/\\/g, '/')
 
     // Return cached version if available and not dirty
     if (this.#xmlCache.has(normalPath) && !this.#dirtyFiles.has(normalPath)) {
@@ -252,11 +239,8 @@ class ZipManager {
       if (entry.type === 'text') {
         content = entry.content
       } else {
-        const decoder =
-          typeof globalThis.TextDecoder !== 'undefined'
-            ? new globalThis.TextDecoder('utf-8')
-            : new (require('util').TextDecoder)('utf-8')
-        content = decoder.decode(entry.content)
+        const { TextDecoder } = require('util')
+        content = new TextDecoder('utf-8').decode(entry.content)
       }
       this.#xmlCache.set(normalPath, content)
       return content
@@ -294,7 +278,7 @@ class ZipManager {
    * @returns {string|null} Cached content or null.
    */
   readCachedFile(zipPath) {
-    const normalPath = this.#normalizePath(zipPath)
+    const normalPath = zipPath.replace(/\\/g, '/')
     if (this.#dirtyFiles.has(normalPath)) {
       return this.#dirtyFiles.get(normalPath)
     }
@@ -307,11 +291,8 @@ class ZipManager {
       if (entry.type === 'text') {
         content = entry.content
       } else {
-        const decoder =
-          typeof globalThis.TextDecoder !== 'undefined'
-            ? new globalThis.TextDecoder('utf-8')
-            : new (require('util').TextDecoder)('utf-8')
-        content = decoder.decode(entry.content)
+        const { TextDecoder } = require('util')
+        content = new TextDecoder('utf-8').decode(entry.content)
       }
       this.#xmlCache.set(normalPath, content)
       return content
@@ -326,7 +307,7 @@ class ZipManager {
    * @returns {Promise<Uint8Array|null>} Binary content or null if not found.
    */
   async readBinaryFile(zipPath) {
-    const normalPath = this.#normalizePath(zipPath)
+    const normalPath = zipPath.replace(/\\/g, '/')
     if (this.#dirtyBinaryFiles.has(normalPath)) {
       return this.#dirtyBinaryFiles.get(normalPath)
     }
@@ -348,7 +329,7 @@ class ZipManager {
   }
 
   writeFile(zipPath, content) {
-    const normalPath = this.#normalizePath(zipPath)
+    const normalPath = zipPath.replace(/\\/g, '/')
     this.#dirtyFiles.set(normalPath, content)
     this.#xmlCache.set(normalPath, content)
     this.#removedFiles.delete(normalPath)
@@ -359,7 +340,7 @@ class ZipManager {
   }
 
   writeBinaryFile(zipPath, data) {
-    const normalPath = this.#normalizePath(zipPath)
+    const normalPath = zipPath.replace(/\\/g, '/')
     this.#dirtyBinaryFiles.set(normalPath, data)
     this.#removedFiles.delete(normalPath)
     if (this.#zip) {
@@ -399,7 +380,7 @@ class ZipManager {
    * @param {string} zipPath - Path to remove.
    */
   removeFile(zipPath) {
-    const normalPath = this.#normalizePath(zipPath)
+    const normalPath = zipPath.replace(/\\/g, '/')
     this.#removedFiles.add(normalPath)
     this.#xmlCache.delete(normalPath)
     this.#dirtyFiles.delete(normalPath)
@@ -416,7 +397,7 @@ class ZipManager {
    * @returns {boolean}
    */
   hasFile(zipPath) {
-    const normalPath = this.#normalizePath(zipPath)
+    const normalPath = zipPath.replace(/\\/g, '/')
     if (this.#removedFiles.has(normalPath)) return false
     if (this.#dirtyFiles.has(normalPath) || this.#dirtyBinaryFiles.has(normalPath)) return true
     if (this.#cachedFiles && this.#cachedFiles.has(normalPath)) return true
