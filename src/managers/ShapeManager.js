@@ -863,6 +863,10 @@ class ShapeManager {
       normalized.rotation !== undefined ? ` rot="${Math.round(normalized.rotation * 60000)}"` : ''
 
     // Text box body properties
+    // NOTE: p:txBody is REQUIRED on every p:sp element per the OOXML spec.
+    // PowerPoint will trigger a repair dialog if it is missing, even for purely
+    // graphical shapes (circles, rectangles used as visual indicators, etc.).
+    // When no text is provided we emit an empty body with an end-paragraph run.
     let txBodyXml = ''
     if (normalized.text !== undefined && normalized.text !== null) {
       const textStyle = normalized.textStyle || {}
@@ -886,46 +890,18 @@ class ShapeManager {
       const lines = String(normalized.text).split(/\r?\n/)
       const paragraphsXml = lines
         .map(line => {
-          return `<a:p>
-          ${alignAttr}
-          <a:r>
-            <a:rPr lang="en-US" sz="${fontSizeVal}"${boldAttr}${italicAttr}>
-              ${colorFill}
-            </a:rPr>
-            <a:t>${escapeXml(line)}</a:t>
-          </a:r>
-        </a:p>`
+          return `<a:p>${alignAttr}<a:r><a:rPr lang="en-US" sz="${fontSizeVal}"${boldAttr}${italicAttr}>${colorFill}</a:rPr><a:t>${escapeXml(line)}</a:t></a:r></a:p>`
         })
         .join('')
 
-      txBodyXml = `<p:txBody>
-        <a:bodyPr wrap="square" rtlCol="0">
-          <a:normAutofit/>
-        </a:bodyPr>
-        <a:lstStyle/>
-        ${paragraphsXml}
-      </p:txBody>`
+      txBodyXml = `<p:txBody><a:bodyPr wrap="square" rtlCol="0"><a:normAutofit/></a:bodyPr><a:lstStyle/>${paragraphsXml}</p:txBody>`
+    } else {
+      // Graphical-only shape: emit a minimal empty txBody to satisfy the OOXML schema
+      txBodyXml = `<p:txBody><a:bodyPr rtlCol="0"/><a:lstStyle/><a:p><a:endParaRPr lang="en-US" dirty="0"/></a:p></p:txBody>`
     }
 
     // Build shape XML block
-    const shapeXml = `<p:sp>
-      <p:nvSpPr>
-        <p:cNvPr id="${newId}" name="${escapeXml(name)}"/>
-        <p:cNvSpPr/>
-        <p:nvPr/>
-      </p:nvSpPr>
-      <p:spPr>
-        <a:xfrm${rotAttr}>
-          <a:off x="${xEmu}" y="${yEmu}"/>
-          <a:ext cx="${wEmu}" cy="${hEmu}"/>
-        </a:xfrm>
-        <a:prstGeom prst="${preset}">${avLstXml}</a:prstGeom>
-        ${fillXml}
-        ${borderXml}
-        ${shadowXml}
-      </p:spPr>
-      ${txBodyXml}
-    </p:sp>`
+    const shapeXml = `<p:sp><p:nvSpPr><p:cNvPr id="${newId}" name="${escapeXml(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm${rotAttr}><a:off x="${xEmu}" y="${yEmu}"/><a:ext cx="${wEmu}" cy="${hEmu}"/></a:xfrm><a:prstGeom prst="${preset}">${avLstXml}</a:prstGeom>${fillXml}${borderXml}${shadowXml}</p:spPr>${txBodyXml}</p:sp>`
 
     const parsed = this.#xmlParser.parse(shapeXml, 'shape.xml')['p:sp']
     const shapeObj = Array.isArray(parsed) ? parsed[0] : parsed

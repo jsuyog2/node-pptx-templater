@@ -63,7 +63,7 @@ async function main() {
     await fsExtra.ensureDir(resolve(__dirname, './output'))
 
     // Duplicate Slide
-    ppt.cloneSlide(3);
+    ppt.cloneSlide(3)
 
     await ppt.saveToFile(OUTPUT)
     console.log('💾 Saved table output to:', OUTPUT)

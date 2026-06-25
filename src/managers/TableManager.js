@@ -1166,8 +1166,8 @@ class TableManager {
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
     const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
 
-    const colWidths = this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
-    const rowHeights = this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
+    const colWidths = this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, false)
+    const rowHeights = this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, false)
 
     const R = this.getMergeRegion(slideIndex, tableId, rowIndex, colIndex, slideManager)
     let pr = rowIndex

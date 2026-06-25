@@ -303,14 +303,14 @@ class ChartManager {
         const xlsxPath = relationshipManager.resolveTarget(chartZipPath, rel.target)
         const buffer = await this.#zipManager.readBinaryFile(xlsxPath)
         if (buffer) {
-          console.log(`Found embedded workbook: ${xlsxPath}`)
+          logger.debug(`Found embedded workbook: ${xlsxPath}`)
           const updatedXlsx = await ChartWorkbookUpdater.updateWorkbook(buffer, cleanNumericData)
           if (updatedXlsx) {
-            console.log(`Writing updated workbook to: ${xlsxPath}, size: ${updatedXlsx.length}`)
+            logger.debug(`Writing updated workbook to: ${xlsxPath}, size: ${updatedXlsx.length}`)
             this.#zipManager.writeBinaryFile(xlsxPath, updatedXlsx)
           }
         } else {
-          console.log(`Could not find workbook at: ${xlsxPath}`)
+          logger.debug(`Could not find workbook at: ${xlsxPath}`)
         }
       }
     }

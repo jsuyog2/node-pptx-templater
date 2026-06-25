@@ -198,6 +198,56 @@ async function main() {
       [
         '',
         'Team A',
+        'Bob 1',
+        'Designer',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '40',
+        'N',
+        'A',
+      ],
+      [
+        '',
+        '',
+        'Charlie 1',
+        'Admin',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '30',
+        'P',
+        'B',
+      ],
+      [
+        '',
+        '',
+        'David 1',
+        'Developer',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '100',
+        'P',
+        'A',
+      ],
+      [
+        '',
+        'Team B',
+        'User 1',
+        'Tester',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '60',
+        'N',
+        'A',
+      ],
+      [
+        '',
+        '',
+        'Alice 1',
+        'Manager',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '85',
+        'P',
+        'B',
+      ],
+      [
+        '',
+        'Team A',
         'Bob',
         'Designer',
         'The final implementation should allow users to build highly visual dashboards and reports.',
@@ -246,20 +296,31 @@ async function main() {
         'B',
       ],
     ]
-    TeamData.forEach(element => {
+    const totalSlide = TeamData.length / 5
+    var slideNumber = 5
+    for (let index = 1; index <= totalSlide - 1; index++) {
+      ppt.duplicateSlide(slideNumber, slideNumber + index)
+    }
+    TeamData.forEach((element, i) => {
+      if (i % 5 === 0 && i !== 0) {
+        ppt.removeTableRow('Table', 1)
+        ppt.useSlide(slideNumber + 1)
+        slideNumber++
+      }
       ppt.addTableRow('Table', element)
     })
     ppt.removeTableRow('Table', 1)
 
-    ppt.mergeCells('Table', 1, 0, 3, 0)
-    ppt.mergeCells('Table', 1, 1, 3, 1)
-    ppt.mergeCells('Table', 4, 0, 5, 0)
-    ppt.mergeCells('Table', 4, 1, 5, 1)
-
+    ppt.useSlide(5)
+    let row = 0
     TeamData.forEach((element, rowIndex) => {
       element.forEach((cell, colIndex) => {
+        if (rowIndex % 5 === 0 && rowIndex !== 0) {
+          row = 0
+          ppt.useSlide(6)
+        }
         if (colIndex === 7 && (cell === 'A' || cell === 'B')) {
-          ppt.addCellShape('Table', rowIndex + 1, colIndex, {
+          ppt.addCellShape('Table', row + 1, colIndex, {
             type: 'circle',
             fill: cell === 'A' ? '#10B981' : '#EF4444',
             width: 15,
@@ -267,10 +328,25 @@ async function main() {
             position: 'center',
           })
 
-          ppt.updateCell('Table', rowIndex + 1, colIndex, '')
+          ppt.updateCell('Table', row + 1, colIndex, '')
+          row++
         }
       })
     })
+
+    ppt.mergeCells('Table', 1, 0, 3, 0)
+    ppt.mergeCells('Table', 1, 1, 3, 1)
+    ppt.mergeCells('Table', 4, 0, 5, 0)
+    ppt.mergeCells('Table', 4, 1, 5, 1)
+
+    ppt.alignShapeToCell('Team A Logo', 'Table', 1, 0)
+    ppt.alignShapeToCell('Team B Logo', 'Table', 4, 0)
+
+    ppt.useSlide(5)
+    ppt.mergeCells('Table', 1, 0, 3, 0)
+    ppt.mergeCells('Table', 1, 1, 3, 1)
+    ppt.mergeCells('Table', 4, 0, 5, 0)
+    ppt.mergeCells('Table', 4, 1, 5, 1)
 
     ppt.alignShapeToCell('Team A Logo', 'Table', 1, 0)
     ppt.alignShapeToCell('Team B Logo', 'Table', 4, 0)

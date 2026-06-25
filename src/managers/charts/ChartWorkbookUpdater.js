@@ -58,7 +58,6 @@ class ChartWorkbookUpdater {
         compressionOptions: { level: 6 },
       })
     } catch (err) {
-      console.error('Failed to update embedded workbook', err)
       logger.error('Failed to update embedded workbook', err)
       return workbookData // Return original if failed
     }

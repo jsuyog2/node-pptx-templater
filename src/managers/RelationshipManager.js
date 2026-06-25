@@ -245,6 +245,16 @@ class RelationshipManager {
   }
 
   /**
+   * Completely removes all relationships for a part from the cache.
+   *
+   * @param {string} partPath - ZIP path of the part.
+   */
+  deleteRelationships(partPath) {
+    const key = this.#getNormalizedKey(partPath)
+    this.#relationships.delete(key)
+  }
+
+  /**
    * Updates the target of an existing relationship.
    *
    * @param {string} partPath - ZIP path of the owning part.

@@ -433,7 +433,7 @@ class SlideManager {
   cloneSlide(sourceIndex, atPosition, relationshipManager) {
     this.#assertSlideExists(sourceIndex)
     const sourceInfo = this.#slides.get(sourceIndex)
-    console.log('[DEBUG] Source Slide Info:', sourceInfo)
+    logger.debug('Source Slide Info:', sourceInfo)
 
     const newIndex = this.#slides.size + 1
     let nextFileIndex = 1
@@ -445,21 +445,18 @@ class SlideManager {
 
     // Copy the source XML
     let sourceXml = this.getSlideXml(sourceIndex)
-    console.log('[DEBUG] Source XML length:', sourceXml ? sourceXml.length : 0)
+    logger.debug('Source XML length:', sourceXml ? sourceXml.length : 0)
 
     // Copy relationships
     const sourceRels = relationshipManager.getRelationships(sourceInfo.zipPath)
-    console.log(
-      '[DEBUG] Source Rels Path searched:',
-      relationshipManager.getRelsPath(sourceInfo.zipPath)
-    )
-    console.log('[DEBUG] Source Rels found:', sourceRels)
+    logger.debug('Source Rels Path searched:', relationshipManager.getRelsPath(sourceInfo.zipPath))
+    logger.debug('Source Rels found:', sourceRels)
 
     // Copy relationships from source slide (excluding notes, which are slide-specific)
     const idMap = relationshipManager.copyRelationships(sourceInfo.zipPath, slideZipPath, [
       REL_TYPES.NOTES_SLIDE,
     ])
-    console.log('[DEBUG] Copied relationship ID map:', Array.from(idMap.entries()))
+    logger.debug('Copied relationship ID map:', Array.from(idMap.entries()))
 
     // Remap relationship IDs in the cloned XML to match the new targets
     sourceXml = remapRelationshipIds(sourceXml, idMap)
@@ -498,7 +495,7 @@ class SlideManager {
       tableMap: new Map(),
       chartMap: new Map(),
     })
-    this.#addSlideToPresentation(rId, newSlideId)
+    this.#addSlideToPresentation(rId, newSlideId, sourceInfo.slideId)
     this.#registerSlideContentType(slideFileName)
 
     logger.debug(`Cloned slide ${sourceIndex} to new slide ${newIndex}`)
@@ -526,6 +523,9 @@ class SlideManager {
 
     // Remove relationship from presentation.xml
     this.#relationshipManager.removeRelationship('ppt/presentation.xml', info.relationshipId)
+
+    // Remove relationships cache
+    this.#relationshipManager.deleteRelationships(info.zipPath)
 
     // Remove content type from [Content_Types].xml
     this.#contentTypesManager.removeOverride(info.zipPath)
@@ -910,10 +910,60 @@ class SlideManager {
   }
 
   /**
+   * Adds a slide ID to sections in presentation.xml.
+   * @private
+   */
+  #addSlideToSections(slideId, sourceSlideId = null) {
+    if (!this.#presentationObj) return
+    const extLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:extLst')
+    if (!extLst?.['p:ext']) return
+
+    const exts = Array.isArray(extLst['p:ext']) ? extLst['p:ext'] : [extLst['p:ext']]
+    for (const ext of exts) {
+      const sectionLst = ext['p14:sectionLst']
+      if (!sectionLst?.['p14:section']) continue
+
+      const sections = sectionLst['p14:section']
+      const targetIdStr = String(slideId)
+      const sourceIdStr = sourceSlideId ? String(sourceSlideId) : null
+
+      if (sourceIdStr) {
+        for (const section of sections) {
+          const sldIdLst = section['p14:sldIdLst']
+          if (!sldIdLst?.['p14:sldId']) continue
+
+          const sldIds = sldIdLst['p14:sldId']
+          const idx = sldIds.findIndex(s => String(s['@_id']) === sourceIdStr)
+          if (idx !== -1) {
+            logger.debug(
+              `Inserting slide ${targetIdStr} after slide ${sourceIdStr} in section "${section['@_name']}"`
+            )
+            sldIds.splice(idx + 1, 0, { '@_id': targetIdStr })
+            return
+          }
+        }
+      }
+
+      if (sections.length > 0) {
+        const lastSection = sections[sections.length - 1]
+        if (!lastSection['p14:sldIdLst']) {
+          lastSection['p14:sldIdLst'] = { 'p14:sldId': [] }
+        }
+        if (!lastSection['p14:sldIdLst']['p14:sldId']) {
+          lastSection['p14:sldIdLst']['p14:sldId'] = []
+        }
+        const sldIds = lastSection['p14:sldIdLst']['p14:sldId']
+        logger.debug(`Appending slide ${targetIdStr} to last section "${lastSection['@_name']}"`)
+        sldIds.push({ '@_id': targetIdStr })
+      }
+    }
+  }
+
+  /**
    * Updates the presentation.xml sldIdLst with a new slide entry.
    * @private
    */
-  #addSlideToPresentation(rId, slideId) {
+  #addSlideToPresentation(rId, slideId, sourceSlideId = null) {
     if (!this.#presentationObj) return
 
     let sldIdLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldIdLst')
@@ -928,6 +978,7 @@ class SlideManager {
     }
 
     sldIdLst['p:sldId'].push({ '@_id': slideId, '@_r:id': rId })
+    this.#addSlideToSections(slideId, sourceSlideId)
     this.#flushPresentation()
   }
 

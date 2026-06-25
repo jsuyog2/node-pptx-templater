@@ -289,4 +289,147 @@ describe('Shape Management Integration Tests', () => {
     expect(order[1].id).toBe('layer-1')
     expect(order[2].id).toBe('layer-2')
   })
+
+  test('should always include p:txBody in generated shapes (OOXML compliance)', async () => {
+    const { ppt, slideIndex } = await createTestEngine()
+
+    // Graphical-only shapes (no text) — must still have p:txBody
+    const shapeTypes = [
+      { type: 'rectangle', id: 'xml-rect', x: 10, y: 10, width: 100, height: 50 },
+      { type: 'circle', id: 'xml-circle', x: 10, y: 70, radius: 25 },
+      { type: 'ellipse', id: 'xml-ellipse', x: 10, y: 130, width: 100, height: 50 },
+      { type: 'square', id: 'xml-square', x: 10, y: 200, size: 50 },
+      { type: 'triangle', id: 'xml-triangle', x: 10, y: 260, width: 80, height: 80 },
+      { type: 'diamond', id: 'xml-diamond', x: 10, y: 350, width: 80, height: 80 },
+      {
+        type: 'roundedRectangle',
+        id: 'xml-rrect',
+        x: 10,
+        y: 440,
+        width: 100,
+        height: 50,
+        borderRadius: 10,
+      },
+    ]
+
+    ppt.useSlide(slideIndex)
+    for (const opts of shapeTypes) {
+      await ppt.addShape(opts)
+    }
+
+    // Shape with text — must have p:txBody with content
+    await ppt.addShape({
+      type: 'rectangle',
+      id: 'xml-text',
+      x: 200,
+      y: 10,
+      width: 150,
+      height: 60,
+      text: 'Hello World',
+      fill: '#2563EB',
+    })
+
+    // Export to buffer and inspect the raw XML
+    const buffer = await ppt.toBuffer()
+    expect(buffer).toBeTruthy()
+
+    const JSZip = require('jszip')
+    const zip = await JSZip.loadAsync(buffer)
+
+    // Find the slide XML (last slide)
+    const slideFiles = Object.keys(zip.files)
+      .filter(f => f.match(/^ppt\/slides\/slide\d+\.xml$/))
+      .sort((a, b) => {
+        const na = parseInt(a.match(/\d+/)[0], 10)
+        const nb = parseInt(b.match(/\d+/)[0], 10)
+        return nb - na
+      })
+
+    expect(slideFiles.length).toBeGreaterThan(0)
+    const slideXml = await zip.file(slideFiles[0]).async('string')
+
+    // Extract all p:sp shapes from the XML
+    const spRegex = /<p:sp>[\s\S]*?<\/p:sp>/g
+    const spMatches = slideXml.match(spRegex) || []
+
+    // Every shape must contain p:txBody
+    for (const sp of spMatches) {
+      const nameMatch = sp.match(/name="([^"]+)"/)
+      const shapeName = nameMatch ? nameMatch[1] : 'unknown'
+      const hasTxBody = sp.includes('<p:txBody>') || sp.includes('<p:txBody ')
+      expect(hasTxBody, `Shape "${shapeName}" is missing required <p:txBody> element`).toBe(true)
+    }
+
+    // Shape count: title + 7 graphical + 1 text shape = 9 total
+    expect(spMatches.length).toBeGreaterThanOrEqual(8)
+
+    // Shape with text must have actual text content
+    const textShapeMatch = spMatches.find(sp => sp.includes('name="xml-text"'))
+    expect(textShapeMatch).toBeTruthy()
+    expect(textShapeMatch).toContain('Hello World')
+  })
+
+  test('should generate spec-compliant XML for shapes with fill, border, and shadow', async () => {
+    const { ppt, slideIndex } = await createTestEngine()
+
+    ppt.useSlide(slideIndex)
+
+    // Shape with all styling options
+    await ppt.addShape({
+      type: 'rectangle',
+      id: 'styled-shape',
+      x: 50,
+      y: 50,
+      width: 200,
+      height: 100,
+      fill: '#10B981',
+      border: { color: '#EF4444', width: 2 },
+      shadow: { blur: 5, distance: 3, opacity: 50 },
+      transparency: 20,
+    })
+
+    // Gradient fill shape
+    await ppt.addShape({
+      type: 'circle',
+      id: 'gradient-circle',
+      x: 300,
+      y: 50,
+      radius: 40,
+      fill: { type: 'gradient', colors: ['#2563EB', '#7C3AED'] },
+    })
+
+    const buffer = await ppt.toBuffer()
+    const JSZip = require('jszip')
+    const zip = await JSZip.loadAsync(buffer)
+
+    const slideFiles = Object.keys(zip.files)
+      .filter(f => f.match(/^ppt\/slides\/slide\d+\.xml$/))
+      .sort((a, b) => {
+        const na = parseInt(a.match(/\d+/)[0], 10)
+        const nb = parseInt(b.match(/\d+/)[0], 10)
+        return nb - na
+      })
+
+    const slideXml = await zip.file(slideFiles[0]).async('string')
+
+    // Verify solid fill is correctly encoded
+    expect(slideXml).toContain('val="10B981"')
+
+    // Verify border is encoded
+    expect(slideXml).toContain('val="EF4444"')
+
+    // Verify gradient fill is encoded
+    expect(slideXml).toContain('a:gradFill')
+    expect(slideXml).toContain('val="2563EB"')
+    expect(slideXml).toContain('val="7C3AED"')
+
+    // Verify all shapes still have p:txBody
+    const spMatches = slideXml.match(/<p:sp>[\s\S]*?<\/p:sp>/g) || []
+    for (const sp of spMatches) {
+      const nameMatch = sp.match(/name="([^"]+)"/)
+      const shapeName = nameMatch ? nameMatch[1] : 'unknown'
+      const hasTxBody = sp.includes('<p:txBody>') || sp.includes('<p:txBody ')
+      expect(hasTxBody, `Shape "${shapeName}" is missing required <p:txBody>`).toBe(true)
+    }
+  })
 })
