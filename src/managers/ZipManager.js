@@ -252,9 +252,10 @@ class ZipManager {
       if (entry.type === 'text') {
         content = entry.content
       } else {
-        const decoder = typeof globalThis.TextDecoder !== 'undefined'
-          ? new globalThis.TextDecoder('utf-8')
-          : new (require('util').TextDecoder)('utf-8')
+        const decoder =
+          typeof globalThis.TextDecoder !== 'undefined'
+            ? new globalThis.TextDecoder('utf-8')
+            : new (require('util').TextDecoder)('utf-8')
         content = decoder.decode(entry.content)
       }
       this.#xmlCache.set(normalPath, content)
@@ -306,9 +307,10 @@ class ZipManager {
       if (entry.type === 'text') {
         content = entry.content
       } else {
-        const decoder = typeof globalThis.TextDecoder !== 'undefined'
-          ? new globalThis.TextDecoder('utf-8')
-          : new (require('util').TextDecoder)('utf-8')
+        const decoder =
+          typeof globalThis.TextDecoder !== 'undefined'
+            ? new globalThis.TextDecoder('utf-8')
+            : new (require('util').TextDecoder)('utf-8')
         content = decoder.decode(entry.content)
       }
       this.#xmlCache.set(normalPath, content)
