@@ -15,7 +15,7 @@
     }
   },
   "bin": {
-    "node-pptx-templater": "./src/cli/index.js"
+    "node-pptx-templater": "src/cli/index.js"
   },
   "scripts": {
     "test": "vitest run",
@@ -167,7 +167,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jsuyog2/node-pptx-templater.git"
+    "url": "git+https://github.com/jsuyog2/node-pptx-templater.git"
   },
   "bugs": {
     "url": "https://github.com/jsuyog2/node-pptx-templater/issues"
