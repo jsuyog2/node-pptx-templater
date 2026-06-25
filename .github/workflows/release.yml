@@ -12,6 +12,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v6
 
@@ -20,7 +21,20 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false  # never use caching in release builds
+
       - run: npm ci
       - run: npm run build --if-present
       - run: npm test
-      - run: npm publish
+
+      - name: Publish to npm
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Publishing version: $VERSION"
+
+          if [[ "$VERSION" == *"-alpha."* ]]; then
+            echo "Detected alpha release"
+            npm publish --tag alpha
+          else
+            echo "Detected stable release"
+            npm publish
+          fi
