@@ -433,6 +433,7 @@ class SlideManager {
   cloneSlide(sourceIndex, atPosition, relationshipManager) {
     this.#assertSlideExists(sourceIndex)
     const sourceInfo = this.#slides.get(sourceIndex)
+    console.log('[DEBUG] Source Slide Info:', sourceInfo);
 
     const newIndex = this.#slides.size + 1
     let nextFileIndex = 1
@@ -444,11 +445,18 @@ class SlideManager {
 
     // Copy the source XML
     let sourceXml = this.getSlideXml(sourceIndex)
+    console.log('[DEBUG] Source XML length:', sourceXml ? sourceXml.length : 0);
+
+    // Copy relationships
+    const sourceRels = relationshipManager.getRelationships(sourceInfo.zipPath);
+    console.log('[DEBUG] Source Rels Path searched:', relationshipManager.getRelsPath(sourceInfo.zipPath));
+    console.log('[DEBUG] Source Rels found:', sourceRels);
 
     // Copy relationships from source slide (excluding notes, which are slide-specific)
     const idMap = relationshipManager.copyRelationships(sourceInfo.zipPath, slideZipPath, [
       REL_TYPES.NOTES_SLIDE,
     ])
+    console.log('[DEBUG] Copied relationship ID map:', Array.from(idMap.entries()));
 
     // Remap relationship IDs in the cloned XML to match the new targets
     sourceXml = remapRelationshipIds(sourceXml, idMap)
