@@ -1,11 +1,16 @@
 {
   "name": "node-pptx-templater",
-  "version": "1.1.1",
+  "version": "1.1.8",
   "description": "High-performance, low-level PowerPoint (PPTX) OpenXML template engine for Node.js. Dynamically replace text, insert images, update charts (with Excel workbook data caching), and merge table cells without PowerPoint corruption or Repair Mode prompts.",
   "main": "./src/index.js",
+  "module": "./src/index.mjs",
+  "types": "./src/index.d.ts",
   "type": "commonjs",
+  "sideEffects": false,
   "exports": {
     ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.mjs",
       "require": "./src/index.js"
     }
   },
@@ -169,26 +174,39 @@
   },
   "homepage": "https://jsuyog2.github.io/node-pptx-templater",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.12.0"
   },
   "dependencies": {
-    "fast-xml-parser": "^4.3.6",
-    "jszip": "^3.10.1",
-    "fs-extra": "^11.2.0",
-    "commander": "^12.0.0",
     "chalk": "^4.1.2",
+    "commander": "^12.0.0",
+    "fast-xml-parser": "^5.9.3",
+    "fs-extra": "^11.2.0",
+    "jszip": "^3.10.1",
     "ora": "^5.4.1"
   },
   "devDependencies": {
-    "vitest": "^1.6.0",
-    "@vitest/coverage-v8": "^1.6.0",
+    "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^8.57.0",
-    "prettier": "^3.2.5"
+    "prettier": "^3.2.5",
+    "vitest": "^4.1.9"
   },
   "files": [
     "src/",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
-  ]
+  ],
+  "browser": {
+    "fs": false,
+    "path": false,
+    "os": false,
+    "stream": false,
+    "fs-extra": false,
+    "ora": false,
+    "chalk": false,
+    "commander": false
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

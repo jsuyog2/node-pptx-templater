@@ -87,4 +87,27 @@ describe('PPTXTemplater - Slide Import & Slide Navigation Hyperlinks', () => {
     expect(slideXml).toContain('action="ppaction://hlinkshowjump?s=lastslide"')
     expect(slideXml).not.toContain('r:id=""')
   })
+
+  it('should successfully add slide-to-slide jumping links with slide type relationships', async () => {
+    const sourceEngine = await PPTXTemplater.load(fixtureFile)
+
+    // Add inter-slide link
+    sourceEngine.addSlideLink({
+      element: 'Hello {{title}}',
+      sourceSlide: 1,
+      targetSlide: 2,
+    })
+
+    const outPath = resolve(OUTPUT_DIR, 'slide-link-test.pptx')
+    await sourceEngine.saveToFile(outPath)
+
+    const zip = await JSZip.loadAsync(await fsExtra.readFile(outPath))
+    const relsXml = await zip.file('ppt/slides/_rels/slide1.xml.rels').async('text')
+
+    // Verify relationship has type slide and target slide2.xml
+    expect(relsXml).toContain(
+      'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"'
+    )
+    expect(relsXml).toContain('Target="slide2.xml"')
+  })
 })

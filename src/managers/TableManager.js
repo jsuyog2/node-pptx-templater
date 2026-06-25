@@ -49,6 +49,19 @@ class TableManager {
   #xmlParser
 
   /**
+   * In-memory registry mapping cellshape names to their original config.
+   * Used to reposition shapes after table structure mutations (row removal,
+   * insertion, merge, etc.).
+   *
+   * Key:   shape name (e.g. "cellshape_Table_2_5_0")
+   * Value: { slideIndex, resolvedTableId, tableId, rowIndex, colIndex, shapeIndex, config }
+   *
+   * @private
+   * @type {Map<string, {slideIndex: number, resolvedTableId: string, tableId: string, rowIndex: number, colIndex: number, shapeIndex: string|number, config: Object}>}
+   */
+  #cellShapeAnchors = new Map()
+
+  /**
    * @param {XMLParser} xmlParser
    */
   constructor(xmlParser) {
@@ -67,11 +80,7 @@ class TableManager {
    * @throws {TableNotFoundError} If the table is not found.
    */
   updateTable(slideIndex, tableId, data, slideManager, shapeManager) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
-      slideIndex,
-      tableId,
-      slideManager
-    )
+    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (trs.length === 0) {
@@ -223,7 +232,8 @@ class TableManager {
       )
     }
 
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
+    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
 
     if (cellShapes) {
       this.#processCellShapes(
@@ -235,9 +245,12 @@ class TableManager {
         cellShapes,
         slideManager,
         shapeManager,
-        tblObj,
-        frameObj
+        tblObj
       )
+    }
+
+    if (shapeManager) {
+      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
     }
 
     logger.debug(
@@ -253,13 +266,25 @@ class TableManager {
    * @param {string[]} rowData
    * @param {SlideManager} slideManager
    */
-  addTableRow(slideIndex, tableId, rowData, slideManager, options = {}) {
+  addTableRow(slideIndex, tableId, rowData, slideManager, shapeManagerOrOptions, options = {}) {
+    let shapeManager = null
+    let actualOptions = options
+    if (shapeManagerOrOptions && typeof shapeManagerOrOptions.getShapes === 'function') {
+      shapeManager = shapeManagerOrOptions
+    } else if (shapeManagerOrOptions && typeof shapeManagerOrOptions === 'object') {
+      actualOptions = shapeManagerOrOptions
+    }
+
     const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (trs.length === 0) {
       throw new PPTXError('No rows to clone from')
     }
+
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
 
     const lastRow = trs[trs.length - 1]
     const numCols = lastRow['a:tc']?.length || 0
@@ -273,7 +298,7 @@ class TableManager {
 
     // Expand each column value to targetHeight
     const expandedCols = []
-    const strategy = options.mergeStrategy || 'auto'
+    const strategy = actualOptions.mergeStrategy || 'auto'
     for (let c = 0; c < numCols; c++) {
       let colCells = this.#expandCellVal(rowData[c], targetHeight)
       if (strategy === 'none') {
@@ -288,6 +313,12 @@ class TableManager {
         colCells = this.#applyAutoMerge(colCells)
       }
       expandedCols.push(colCells)
+    }
+
+    const startRowIndex = trs.length
+    const shapeCellsToCreate = []
+    const isShapeConfig = val => {
+      return val && typeof val === 'object' && typeof val.type === 'string'
     }
 
     // Clone and append rows
@@ -312,10 +343,117 @@ class TableManager {
         } else {
           let text = cellDef.value
           let cellOpts = {}
-          if (cellDef.value && typeof cellDef.value === 'object') {
+
+          if (isShapeConfig(cellDef.value)) {
+            const config = cellDef.value
+            const globalRowIndex = startRowIndex + r
+
+            const isStandardShape = [
+              'circle',
+              'square',
+              'rectangle',
+              'triangle',
+              'diamond',
+              'hexagon',
+              'line',
+            ].includes(config.type)
+
+            const shapeConfig = { ...config }
+
+            if (isStandardShape) {
+              text =
+                config.text !== undefined
+                  ? config.text
+                  : config.value !== undefined
+                    ? config.value
+                    : ''
+              delete shapeConfig.text // DO NOT render text inside the shape overlay!
+            } else {
+              text = '' // for badges/icons/progressBars, cell text is empty!
+            }
+
+            shapeCellsToCreate.push({
+              rowIndex: globalRowIndex,
+              colIndex: c,
+              config: shapeConfig,
+            })
+
+            cellOpts = {}
+            if (config.cellFill) cellOpts.fill = config.cellFill
+            if (config.cellAlign) cellOpts.align = config.cellAlign
+
+            // Estimate shape dimensions to set margins
+            const colWidth_emu = colWidths[c] || 0
+            const colWidth_px = colWidth_emu / 9525
+
+            const parseLength = (val, maxVal) => {
+              if (typeof val === 'string' && val.endsWith('%')) {
+                return (parseFloat(val) / 100) * maxVal
+              }
+              return val !== undefined ? parseFloat(val) : undefined
+            }
+
+            let shapeWidth = 12
+            let shapeHeight = 12
+
+            if (config.width !== undefined) {
+              shapeWidth = parseLength(config.width, colWidth_px) || 12
+            } else if (config.size !== undefined) {
+              shapeWidth = parseLength(config.size, colWidth_px) || 12
+            } else if (config.radius !== undefined) {
+              shapeWidth = (parseLength(config.radius, colWidth_px) || 6) * 2
+            }
+
+            if (config.height !== undefined) {
+              shapeHeight = parseLength(config.height, 50) || 12
+            } else if (config.size !== undefined) {
+              shapeHeight = parseLength(config.size, 50) || 12
+            } else if (config.radius !== undefined) {
+              shapeHeight = (parseLength(config.radius, 25) || 6) * 2
+            }
+
+            if (isStandardShape && text !== '') {
+              const position = config.position || (config.text ? 'left' : 'center')
+              const tcPr = tcObj['a:tcPr'] || {}
+              const currentMarL =
+                tcPr['@_marL'] !== undefined ? parseInt(tcPr['@_marL'], 10) : 91440
+              const currentMarR =
+                tcPr['@_marR'] !== undefined ? parseInt(tcPr['@_marR'], 10) : 91440
+              const currentMarT =
+                tcPr['@_marT'] !== undefined ? parseInt(tcPr['@_marT'], 10) : 45720
+              const currentMarB =
+                tcPr['@_marB'] !== undefined ? parseInt(tcPr['@_marB'], 10) : 45720
+
+              tcObj['a:tcPr'] = tcObj['a:tcPr'] || {}
+
+              const isLeft = position.includes('left') || position === 'left'
+              const isRight = position.includes('right') || position === 'right'
+              const isTop = position === 'top' || position.startsWith('top-')
+              const isBottom = position === 'bottom' || position.startsWith('bottom-')
+
+              if (isLeft) {
+                tcObj['a:tcPr']['@_marL'] = String(
+                  currentMarL + Math.round(shapeWidth * 9525) + 57150
+                )
+              } else if (isRight) {
+                tcObj['a:tcPr']['@_marR'] = String(
+                  currentMarR + Math.round(shapeWidth * 9525) + 57150
+                )
+              } else if (isTop) {
+                tcObj['a:tcPr']['@_marT'] = String(
+                  currentMarT + Math.round(shapeHeight * 9525) + 57150
+                )
+              } else if (isBottom) {
+                tcObj['a:tcPr']['@_marB'] = String(
+                  currentMarB + Math.round(shapeHeight * 9525) + 57150
+                )
+              }
+            }
+          } else if (cellDef.value && typeof cellDef.value === 'object') {
             text = cellDef.value.value !== undefined ? cellDef.value.value : ''
             cellOpts = cellDef.value
           }
+
           this.#setCellTextObj(tcObj, text)
           if (cellDef.rowSpan && cellDef.rowSpan > 1 && strategy !== 'none') {
             tcObj['@_rowSpan'] = String(cellDef.rowSpan)
@@ -327,6 +465,32 @@ class TableManager {
     }
 
     slideManager.markSlideObjDirty(slideIndex)
+
+    if (shapeCellsToCreate.length > 0 && shapeManager) {
+      for (const item of shapeCellsToCreate) {
+        const resolvedConfig = { ...item.config }
+        if (!resolvedConfig.position) {
+          resolvedConfig.position = resolvedConfig.text ? 'left' : 'center'
+        }
+
+        this.addCellShape(
+          slideIndex,
+          tableId,
+          item.rowIndex,
+          item.colIndex,
+          resolvedConfig,
+          slideManager,
+          shapeManager
+        )
+      }
+    }
+
+    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
+
+    if (shapeManager) {
+      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
+    }
   }
 
   /**
@@ -337,8 +501,8 @@ class TableManager {
    * @param {number} rowIndex - 0-based row index.
    * @param {SlideManager} slideManager
    */
-  removeTableRow(slideIndex, tableId, rowIndex, slideManager) {
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+  removeTableRow(slideIndex, tableId, rowIndex, slideManager, shapeManager = null) {
+    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (rowIndex < 0 || rowIndex >= trs.length) {
@@ -348,6 +512,21 @@ class TableManager {
     trs.splice(rowIndex, 1)
 
     slideManager.markSlideObjDirty(slideIndex)
+
+    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
+
+    if (shapeManager) {
+      this.#adjustCellShapesAfterRowShift(
+        slideIndex,
+        resolvedTableId,
+        tableId,
+        rowIndex,
+        -1,
+        slideManager,
+        shapeManager
+      )
+    }
   }
 
   /**
@@ -359,8 +538,8 @@ class TableManager {
    * @param {string[]} rowData
    * @param {SlideManager} slideManager
    */
-  insertTableRow(slideIndex, tableId, rowIndex, rowData, slideManager) {
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+  insertTableRow(slideIndex, tableId, rowIndex, rowData, slideManager, shapeManager = null) {
+    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (rowIndex < 0 || rowIndex > trs.length) {
@@ -387,6 +566,21 @@ class TableManager {
     trs.splice(rowIndex, 0, newRow)
 
     slideManager.markSlideObjDirty(slideIndex)
+
+    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
+
+    if (shapeManager) {
+      this.#adjustCellShapesAfterRowShift(
+        slideIndex,
+        resolvedTableId,
+        tableId,
+        rowIndex,
+        +1,
+        slideManager,
+        shapeManager
+      )
+    }
   }
 
   /**
@@ -398,8 +592,15 @@ class TableManager {
    * @param {number} targetRowIndex
    * @param {SlideManager} slideManager
    */
-  cloneTableRow(slideIndex, tableId, sourceRowIndex, targetRowIndex, slideManager) {
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+  cloneTableRow(
+    slideIndex,
+    tableId,
+    sourceRowIndex,
+    targetRowIndex,
+    slideManager,
+    shapeManager = null
+  ) {
+    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const trs = tblObj['a:tr'] || []
     if (sourceRowIndex < 0 || sourceRowIndex >= trs.length) {
@@ -416,6 +617,18 @@ class TableManager {
     trs.splice(targetRowIndex, 0, newRow)
 
     slideManager.markSlideObjDirty(slideIndex)
+
+    if (shapeManager) {
+      this.#adjustCellShapesAfterRowShift(
+        slideIndex,
+        resolvedTableId,
+        tableId,
+        targetRowIndex,
+        +1,
+        slideManager,
+        shapeManager
+      )
+    }
   }
 
   /**
@@ -429,7 +642,16 @@ class TableManager {
    * @param {Object} options
    * @param {SlideManager} slideManager
    */
-  updateCell(slideIndex, tableId, rowIndex, colIndex, value, options = {}, slideManager) {
+  updateCell(
+    slideIndex,
+    tableId,
+    rowIndex,
+    colIndex,
+    value,
+    options = {},
+    slideManager,
+    shapeManager = null
+  ) {
     const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const row = tblObj['a:tr']?.[rowIndex]
@@ -480,6 +702,13 @@ class TableManager {
     }
 
     slideManager.markSlideObjDirty(slideIndex)
+
+    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
+
+    if (shapeManager) {
+      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
+    }
   }
 
   /**
@@ -563,7 +792,16 @@ class TableManager {
    * @param {number} endCol
    * @param {SlideManager} slideManager
    */
-  mergeCells(slideIndex, tableId, startRow, startCol, endRow, endCol, slideManager) {
+  mergeCells(
+    slideIndex,
+    tableId,
+    startRow,
+    startCol,
+    endRow,
+    endCol,
+    slideManager,
+    shapeManager = null
+  ) {
     const validation = this.validateMergeRegion(
       slideIndex,
       tableId,
@@ -577,7 +815,7 @@ class TableManager {
       throw new PPTXError(`Invalid merge region: ${validation.errors.join('; ')}`)
     }
 
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
     const trs = tblObj['a:tr'] || []
 
     const allTexts = []
@@ -630,6 +868,24 @@ class TableManager {
     this.#setCellTextObj(originCell, combinedText)
 
     slideManager.markSlideObjDirty(slideIndex)
+
+    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
+
+    if (shapeManager) {
+      this.#repositionCellShapesInRegion(
+        slideIndex,
+        tableId,
+        resolvedTableId,
+        startRow,
+        startCol,
+        endRow,
+        endCol,
+        slideManager,
+        shapeManager
+      )
+      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
+    }
   }
 
   /**
@@ -643,7 +899,16 @@ class TableManager {
    * @param {number} endCol
    * @param {SlideManager} slideManager
    */
-  unmergeCells(slideIndex, tableId, startRow, startCol, endRow, endCol, slideManager) {
+  unmergeCells(
+    slideIndex,
+    tableId,
+    startRow,
+    startCol,
+    endRow,
+    endCol,
+    slideManager,
+    shapeManager = null
+  ) {
     let actualSlideManager = slideManager
     let actualEndRow = endRow
     let actualEndCol = endCol
@@ -679,6 +944,21 @@ class TableManager {
           if (cell['@_rowSpan'] !== undefined) delete cell['@_rowSpan']
         }
       }
+
+      if (shapeManager) {
+        const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, actualSlideManager)
+        this.#repositionCellShapesInRegion(
+          slideIndex,
+          tableId,
+          resolvedTableId,
+          R.startRow,
+          R.startCol,
+          R.endRow,
+          R.endCol,
+          actualSlideManager,
+          shapeManager
+        )
+      }
     } else {
       for (let r = startRow; r <= actualEndRow; r++) {
         const rowObj = trs[r]
@@ -693,6 +973,28 @@ class TableManager {
           if (cell['@_rowSpan'] !== undefined) delete cell['@_rowSpan']
         }
       }
+
+      if (shapeManager) {
+        const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, actualSlideManager)
+        this.#repositionCellShapesInRegion(
+          slideIndex,
+          tableId,
+          resolvedTableId,
+          startRow,
+          startCol,
+          actualEndRow,
+          actualEndCol,
+          actualSlideManager,
+          shapeManager
+        )
+      }
+    }
+
+    this.#calculateColumnWidths(slideIndex, tableId, actualSlideManager, tblObj, true)
+    this.#calculateRowHeights(slideIndex, tableId, actualSlideManager, tblObj, true)
+
+    if (shapeManager) {
+      this.#repositionAllTableCellShapes(slideIndex, tableId, actualSlideManager, shapeManager)
     }
 
     actualSlideManager.markSlideObjDirty(slideIndex)
@@ -714,25 +1016,89 @@ class TableManager {
     }
 
     const trs = tblObj['a:tr'] || []
-    const merged = []
+    const numRows = trs.length
+    if (numRows === 0) return []
+    const numCols = trs[0]['a:tc']?.length || 0
 
-    for (let r = 0; r < trs.length; r++) {
+    const merged = []
+    const visited = Array.from({ length: numRows }, () => Array(numCols).fill(false))
+
+    for (let r = 0; r < numRows; r++) {
       const row = trs[r]
       const tcs = row['a:tc'] || []
       for (let c = 0; c < tcs.length; c++) {
+        if (visited[r][c]) continue
         const cell = tcs[c]
         if (!cell) continue
 
-        const gridSpan = parseInt(cell['@_gridSpan'] || 1, 10)
-        const rowSpan = parseInt(cell['@_rowSpan'] || 1, 10)
+        const isVMerged =
+          cell['@_vMerge'] === '1' || cell['@_vMerge'] === 'true' || cell['@_vMerge'] === true
+        const isHMerged =
+          cell['@_hMerge'] === '1' || cell['@_hMerge'] === 'true' || cell['@_hMerge'] === true
 
-        if (gridSpan > 1 || rowSpan > 1) {
+        if (isVMerged || isHMerged) {
+          continue
+        }
+
+        // Determine colSpan
+        let colSpan = 1
+        if (cell['@_gridSpan'] !== undefined) {
+          colSpan = parseInt(cell['@_gridSpan'], 10)
+        } else {
+          let nextCol = c + 1
+          while (nextCol < numCols) {
+            const nextCell = tcs[nextCol]
+            if (
+              nextCell &&
+              (nextCell['@_hMerge'] === '1' ||
+                nextCell['@_hMerge'] === 'true' ||
+                nextCell['@_hMerge'] === true)
+            ) {
+              colSpan++
+              nextCol++
+            } else {
+              break
+            }
+          }
+        }
+
+        // Determine rowSpan
+        let rowSpan = 1
+        if (cell['@_rowSpan'] !== undefined) {
+          rowSpan = parseInt(cell['@_rowSpan'], 10)
+        } else {
+          let nextRow = r + 1
+          while (nextRow < numRows) {
+            const nextCell = trs[nextRow]['a:tc']?.[c]
+            if (
+              nextCell &&
+              (nextCell['@_vMerge'] === '1' ||
+                nextCell['@_vMerge'] === 'true' ||
+                nextCell['@_vMerge'] === true)
+            ) {
+              rowSpan++
+              nextRow++
+            } else {
+              break
+            }
+          }
+        }
+
+        if (colSpan > 1 || rowSpan > 1) {
           merged.push({
             startRow: r,
             startCol: c,
             endRow: r + rowSpan - 1,
-            endCol: c + gridSpan - 1,
+            endCol: c + colSpan - 1,
           })
+
+          for (let i = r; i < r + rowSpan; i++) {
+            for (let j = c; j < c + colSpan; j++) {
+              if (i < numRows && j < numCols) {
+                visited[i][j] = true
+              }
+            }
+          }
         }
       }
     }
@@ -796,22 +1162,25 @@ class TableManager {
   getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager) {
     const { tblObj, frameObj } = this.#getTableContext(slideIndex, tableId, slideManager)
 
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
-
     const xfrm = frameObj['p:xfrm']
     const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
     const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
 
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
+    const colWidths = this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
+    const rowHeights = this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
 
-    const trsArr = tblObj['a:tr'] || []
-    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
+    const R = this.getMergeRegion(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    let pr = rowIndex
+    let pc = colIndex
+    let gridSpan = 1
+    let rowSpan = 1
 
-    const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
-    const pr = parent.row
-    const pc = parent.col
+    if (R) {
+      pr = R.startRow
+      pc = R.startCol
+      gridSpan = R.endCol - R.startCol + 1
+      rowSpan = R.endRow - R.startRow + 1
+    }
 
     let cellLeft = tableX
     for (let idx = 0; idx < pc; idx++) {
@@ -822,10 +1191,6 @@ class TableManager {
     for (let idx = 0; idx < pr; idx++) {
       cellTop += rowHeights[idx] || 0
     }
-
-    const parentCell = trsArr[pr]?.['a:tc']?.[pc]
-    const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
-    const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
 
     let cellWidth = 0
     for (let idx = 0; idx < gridSpan; idx++) {
@@ -1304,10 +1669,10 @@ class TableManager {
   }
 
   #expandCellShape(config, cellBounds) {
-    const cellLeft_px = Math.round(cellBounds.left / 9525)
-    const cellTop_px = Math.round(cellBounds.top / 9525)
-    const cellWidth_px = Math.round(cellBounds.width / 9525)
-    const cellHeight_px = Math.round(cellBounds.height / 9525)
+    const cellLeft_px = cellBounds.x
+    const cellTop_px = cellBounds.y
+    const cellWidth_px = cellBounds.width
+    const cellHeight_px = cellBounds.height
 
     const parseLength = (val, maxVal) => {
       if (typeof val === 'string' && val.endsWith('%')) {
@@ -1391,17 +1756,8 @@ class TableManager {
     }
 
     // 2. Determine alignment settings
-    let alignX = config.alignX || config.horizontal
-    let alignY = config.alignY || config.vertical
-
-    if (alignX) {
-      alignX = String(alignX).toLowerCase()
-      if (alignX === 'middle') alignX = 'center'
-    }
-    if (alignY) {
-      alignY = String(alignY).toLowerCase()
-      if (alignY === 'center') alignY = 'middle'
-    }
+    let alignX = config.alignX
+    let alignY = config.alignY
 
     if (config.position) {
       switch (config.position) {
@@ -1449,16 +1805,33 @@ class TableManager {
       }
     }
 
-    if (alignX && !alignY && config.y === undefined) {
-      alignY = 'middle'
+    if (!alignX) {
+      const ax = config.alignX || config.horizontal
+      if (ax) {
+        alignX = String(ax).toLowerCase().trim()
+        if (alignX === 'middle') alignX = 'center'
+      }
     }
-    if (alignY && !alignX && config.x === undefined) {
-      alignX = 'center'
+    if (!alignY) {
+      const ay = config.alignY || config.vertical
+      if (ay) {
+        alignY = String(ay).toLowerCase().trim()
+        if (alignY === 'center') alignY = 'middle'
+      }
     }
 
-    if (!alignX && !alignY && config.x === undefined && config.y === undefined) {
-      alignX = 'center'
+    if (!alignX && !alignY) {
+      if (config.x !== undefined || config.y !== undefined) {
+        alignX = 'left'
+        alignY = 'top'
+      } else {
+        alignX = 'center'
+        alignY = 'middle'
+      }
+    } else if (alignX && !alignY) {
       alignY = 'middle'
+    } else if (alignY && !alignX) {
+      alignX = 'center'
     }
 
     // 3. Compute coordinates
@@ -1466,60 +1839,48 @@ class TableManager {
     let shapeTop = cellTop_px
 
     if (isCellAnchored) {
+      let dx = 0
+      const hasOffsetValX =
+        config.offsetX !== undefined || config.xOffset !== undefined || config.x !== undefined
+      if (config.offsetX !== undefined) dx = parseFloat(config.offsetX)
+      else if (config.xOffset !== undefined) dx = parseFloat(config.xOffset)
+      else if (config.x !== undefined) dx = parseFloat(config.x)
+
+      let dy = 0
+      const hasOffsetValY =
+        config.offsetY !== undefined || config.yOffset !== undefined || config.y !== undefined
+      if (config.offsetY !== undefined) dy = parseFloat(config.offsetY)
+      else if (config.yOffset !== undefined) dy = parseFloat(config.yOffset)
+      else if (config.y !== undefined) dy = parseFloat(config.y)
+
+      shapeLeft = cellLeft_px
       if (alignX === 'left') {
-        shapeLeft = cellLeft_px + (config.x !== undefined ? config.x : 5)
+        const padding = hasOffsetValX ? dx : 5
+        shapeLeft = cellLeft_px + padding
       } else if (alignX === 'center') {
-        shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2 + (config.x || 0)
+        shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2 + dx
       } else if (alignX === 'right') {
-        shapeLeft =
-          cellLeft_px + cellWidth_px - shapeWidth - (config.x !== undefined ? config.x : 5)
-      } else {
-        shapeLeft =
-          cellLeft_px + (config.x !== undefined ? config.x : (cellWidth_px - shapeWidth) / 2)
+        const padding = hasOffsetValX ? dx : 5
+        shapeLeft = cellLeft_px + cellWidth_px - shapeWidth - padding
       }
 
+      shapeTop = cellTop_px
       if (alignY === 'top') {
-        shapeTop = cellTop_px + (config.y !== undefined ? config.y : 5)
+        const padding = hasOffsetValY ? dy : 5
+        shapeTop = cellTop_px + padding
       } else if (alignY === 'middle') {
-        shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2 + (config.y || 0)
+        shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2 + dy
       } else if (alignY === 'bottom') {
-        shapeTop =
-          cellTop_px + cellHeight_px - shapeHeight - (config.y !== undefined ? config.y : 5)
-      } else {
-        shapeTop =
-          cellTop_px + (config.y !== undefined ? config.y : (cellHeight_px - shapeHeight) / 2)
+        const padding = hasOffsetValY ? dy : 5
+        shapeTop = cellTop_px + cellHeight_px - shapeHeight - padding
       }
 
       // 4. Boundary Constraints Validation/Enforcement
-      if (shapeWidth > cellWidth_px) {
-        if (alignX === 'center') {
-          shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2
-        } else if (alignX === 'right') {
-          shapeLeft = cellLeft_px + cellWidth_px - shapeWidth
-        } else {
-          shapeLeft = cellLeft_px
-        }
-      } else {
-        shapeLeft = Math.max(
-          cellLeft_px,
-          Math.min(shapeLeft, cellLeft_px + cellWidth_px - shapeWidth)
-        )
-      }
-
-      if (shapeHeight > cellHeight_px) {
-        if (alignY === 'middle') {
-          shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2
-        } else if (alignY === 'bottom') {
-          shapeTop = cellTop_px + cellHeight_px - shapeHeight
-        } else {
-          shapeTop = cellTop_px
-        }
-      } else {
-        shapeTop = Math.max(
-          cellTop_px,
-          Math.min(shapeTop, cellTop_px + cellHeight_px - shapeHeight)
-        )
-      }
+      shapeLeft = Math.max(
+        cellLeft_px,
+        Math.min(shapeLeft, cellLeft_px + cellWidth_px - shapeWidth)
+      )
+      shapeTop = Math.max(cellTop_px, Math.min(shapeTop, cellTop_px + cellHeight_px - shapeHeight))
     } else {
       shapeLeft = config.x || 0
       shapeTop = config.y || 0
@@ -1744,8 +2105,7 @@ class TableManager {
     cellShapes,
     slideManager,
     shapeManager,
-    tblObj,
-    frameObj
+    tblObj
   ) {
     if (!cellShapes || !shapeManager) return
 
@@ -1763,62 +2123,16 @@ class TableManager {
       }
     }
 
-    const xfrm = frameObj['p:xfrm']
-    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
-    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
-
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
-
-    const trsArr = tblObj['a:tr'] || []
-    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
-
-    const getCellBounds = (r, c) => {
-      const parent = this.getMergeParent(slideIndex, tableId, r, c, slideManager)
-      const pr = parent.row
-      const pc = parent.col
-
-      let cellLeft = tableX
-      for (let idx = 0; idx < pc; idx++) {
-        cellLeft += colWidths[idx] || 0
-      }
-
-      let cellTop = tableY
-      for (let idx = 0; idx < pr; idx++) {
-        cellTop += rowHeights[idx] || 0
-      }
-
-      const parentCell = trsArr[pr]?.['a:tc']?.[pc]
-      const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
-      const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
-
-      let cellWidth = 0
-      for (let idx = 0; idx < gridSpan; idx++) {
-        cellWidth += colWidths[pc + idx] || 0
-      }
-
-      let cellHeight = 0
-      for (let idx = 0; idx < rowSpan; idx++) {
-        cellHeight += rowHeights[pr + idx] || 0
-      }
-
-      return {
-        left: cellLeft,
-        top: cellTop,
-        width: cellWidth,
-        height: cellHeight,
-      }
-    }
-
     const shapesToCreate = []
-    const headerNames = (trsArr[0]?.['a:tc'] || []).map(cell => this.#getCellText(cell).trim())
+    const headerNames = (tblObj['a:tr']?.[0]?.['a:tc'] || []).map(cell =>
+      this.#getCellText(cell).trim()
+    )
 
     for (let i = 0; i < rowsData.length; i++) {
       const rowData = rowsData[i]
       const finalRowIndex = isObjectRows ? i + 1 : i
 
-      const numCols = trsArr[finalRowIndex]?.['a:tc']?.length || 0
+      const numCols = tblObj['a:tr']?.[finalRowIndex]?.['a:tc']?.length || 0
       for (let j = 0; j < numCols; j++) {
         const headerName = headerNames[j]
         let shapeFn = null
@@ -1853,16 +2167,24 @@ class TableManager {
     shapesToCreate.sort((a, b) => (a.config.zIndex || 0) - (b.config.zIndex || 0))
 
     shapesToCreate.forEach(item => {
-      const bounds = getCellBounds(item.rowIndex, item.colIndex)
-      const expandedConfigs = this.#expandCellShape(item.config, bounds)
+      const bounds = this.getCellBounds(
+        slideIndex,
+        tableId,
+        item.rowIndex,
+        item.colIndex,
+        slideManager
+      )
+      if (bounds) {
+        const expandedConfigs = this.#expandCellShape(item.config, bounds)
 
-      expandedConfigs.forEach((expandedConfig, expIdx) => {
-        const finalShapeIndex =
-          expandedConfigs.length > 1 ? `${item.shapeIndex}_${expIdx}` : item.shapeIndex
-        expandedConfig.id = `cellshape_${resolvedTableId}_${item.rowIndex}_${item.colIndex}_${finalShapeIndex}`
+        expandedConfigs.forEach((expandedConfig, expIdx) => {
+          const finalShapeIndex =
+            expandedConfigs.length > 1 ? `${item.shapeIndex}_${expIdx}` : item.shapeIndex
+          expandedConfig.id = `cellshape_${resolvedTableId}_${item.rowIndex}_${item.colIndex}_${finalShapeIndex}`
 
-        shapeManager.addShape(slideIndex, expandedConfig, slideManager)
-      })
+          shapeManager.addShape(slideIndex, expandedConfig, slideManager)
+        })
+      }
     })
   }
 
@@ -1930,54 +2252,12 @@ class TableManager {
   }
 
   addCellShape(slideIndex, tableId, rowIndex, colIndex, options, slideManager, shapeManager) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
-      slideIndex,
-      tableId,
-      slideManager
-    )
+    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
-
-    const xfrm = frameObj['p:xfrm']
-    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
-    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
-
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
-
-    const trsArr = tblObj['a:tr'] || []
-    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
-
-    const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
-    const pr = parent.row
-    const pc = parent.col
-
-    let cellLeft = tableX
-    for (let idx = 0; idx < pc; idx++) {
-      cellLeft += colWidths[idx] || 0
+    const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    if (!bounds) {
+      throw new PPTXError(`Could not calculate bounds for cell (${rowIndex}, ${colIndex})`)
     }
-
-    let cellTop = tableY
-    for (let idx = 0; idx < pr; idx++) {
-      cellTop += rowHeights[idx] || 0
-    }
-
-    const parentCell = trsArr[pr]?.['a:tc']?.[pc]
-    const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
-    const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
-
-    let cellWidth = 0
-    for (let idx = 0; idx < gridSpan; idx++) {
-      cellWidth += colWidths[pc + idx] || 0
-    }
-
-    let cellHeight = 0
-    for (let idx = 0; idx < rowSpan; idx++) {
-      cellHeight += rowHeights[pr + idx] || 0
-    }
-
-    const bounds = { left: cellLeft, top: cellTop, width: cellWidth, height: cellHeight }
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_`
@@ -2002,6 +2282,18 @@ class TableManager {
       expandedConfig.id = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${finalShapeIndex}`
 
       shapeManager.addShape(slideIndex, expandedConfig, slideManager)
+
+      // Register this shape's original config so it can be repositioned after
+      // any subsequent table mutations (row removal, insertion, merge, etc.)
+      this.#cellShapeAnchors.set(expandedConfig.id, {
+        slideIndex,
+        resolvedTableId,
+        tableId,
+        rowIndex,
+        colIndex,
+        shapeIndex: finalShapeIndex,
+        config: { ...options },
+      })
     })
   }
 
@@ -2015,13 +2307,7 @@ class TableManager {
     slideManager,
     shapeManager
   ) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
-      slideIndex,
-      tableId,
-      slideManager
-    )
-
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj)
+    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
 
     const shapes = shapeManager.getShapes(slideIndex, slideManager)
     const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
@@ -2037,46 +2323,10 @@ class TableManager {
       shapeManager.deleteShape(slideIndex, s.name, slideManager)
     }
 
-    const xfrm = frameObj['p:xfrm']
-    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
-    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
-
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
-
-    const trsArr = tblObj['a:tr'] || []
-    const rowHeights = trsArr.map(row => parseInt(row['@_h'] || 0, 10))
-
-    const parent = this.getMergeParent(slideIndex, tableId, rowIndex, colIndex, slideManager)
-    const pr = parent.row
-    const pc = parent.col
-
-    let cellLeft = tableX
-    for (let idx = 0; idx < pc; idx++) {
-      cellLeft += colWidths[idx] || 0
+    const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
+    if (!bounds) {
+      throw new PPTXError(`Could not calculate bounds for cell (${rowIndex}, ${colIndex})`)
     }
-
-    let cellTop = tableY
-    for (let idx = 0; idx < pr; idx++) {
-      cellTop += rowHeights[idx] || 0
-    }
-
-    const parentCell = trsArr[pr]?.['a:tc']?.[pc]
-    const gridSpan = parentCell?.['@_gridSpan'] ? parseInt(parentCell['@_gridSpan'], 10) : 1
-    const rowSpan = parentCell?.['@_rowSpan'] ? parseInt(parentCell['@_rowSpan'], 10) : 1
-
-    let cellWidth = 0
-    for (let idx = 0; idx < gridSpan; idx++) {
-      cellWidth += colWidths[pc + idx] || 0
-    }
-
-    let cellHeight = 0
-    for (let idx = 0; idx < rowSpan; idx++) {
-      cellHeight += rowHeights[pr + idx] || 0
-    }
-
-    const bounds = { left: cellLeft, top: cellTop, width: cellWidth, height: cellHeight }
 
     const expandedConfigs = this.#expandCellShape(options, bounds)
 
@@ -2103,6 +2353,8 @@ class TableManager {
 
     for (const s of matchingShapes) {
       shapeManager.deleteShape(slideIndex, s.name, slideManager)
+      // Deregister from anchor registry
+      this.#cellShapeAnchors.delete(s.name)
     }
   }
 
@@ -2118,6 +2370,435 @@ class TableManager {
     if (!primaryShape) return null
 
     return shapeManager.getShape(slideIndex, primaryShape.name, slideManager)
+  }
+
+  /**
+   * Adjusts all registered cell shapes for a table after a row is removed (delta=-1)
+   * or inserted (delta=+1) at `pivotRowIndex`.
+   *
+   * - For delta=-1 and shapes at pivotRowIndex: the shape is deleted (its row is gone).
+   * - For shapes at rows that shifted: delete the old shape and re-add it at the new
+   *   row index so that `getCellBounds` can compute correct coordinates from the
+   *   updated table layout.
+   *
+   * @private
+   */
+  #adjustCellShapesAfterRowShift(
+    slideIndex,
+    resolvedTableId,
+    tableId,
+    pivotRowIndex,
+    delta,
+    slideManager,
+    shapeManager
+  ) {
+    if (!shapeManager) return
+
+    // Collect entries first (avoid mutating map while iterating)
+    const toDelete = []
+    const toReindex = []
+
+    for (const [name, anchor] of this.#cellShapeAnchors) {
+      if (anchor.slideIndex !== slideIndex || anchor.resolvedTableId !== resolvedTableId) continue
+
+      if (delta < 0 && anchor.rowIndex === pivotRowIndex) {
+        // Row was removed — delete the shape
+        toDelete.push(name)
+      } else if (delta < 0 && anchor.rowIndex > pivotRowIndex) {
+        // Row shifted up (removal below pivot)
+        toReindex.push({ name, anchor, newRowIndex: anchor.rowIndex + delta })
+      } else if (delta > 0 && anchor.rowIndex >= pivotRowIndex) {
+        // Row shifted down (insertion at or above this row)
+        toReindex.push({ name, anchor, newRowIndex: anchor.rowIndex + delta })
+      }
+    }
+
+    // Delete shapes for the removed row
+    for (const name of toDelete) {
+      try {
+        shapeManager.deleteShape(slideIndex, name, slideManager)
+      } catch (e) {
+        logger.warn(`Failed to delete cell shape "${name}": ${e.message}`)
+      }
+      this.#cellShapeAnchors.delete(name)
+    }
+
+    // Sort toReindex: first by newRowIndex, then by colIndex, then by shapeIndex (base index)
+    toReindex.sort((a, b) => {
+      if (a.newRowIndex !== b.newRowIndex) {
+        return a.newRowIndex - b.newRowIndex
+      }
+      if (a.anchor.colIndex !== b.anchor.colIndex) {
+        return a.anchor.colIndex - b.anchor.colIndex
+      }
+      const aBase =
+        typeof a.anchor.shapeIndex === 'string'
+          ? parseInt(a.anchor.shapeIndex.split('_')[0], 10)
+          : a.anchor.shapeIndex
+      const bBase =
+        typeof b.anchor.shapeIndex === 'string'
+          ? parseInt(b.anchor.shapeIndex.split('_')[0], 10)
+          : b.anchor.shapeIndex
+      return aBase - bBase
+    })
+
+    // Phase 1: delete all old shapes to prevent collisions when re-adding
+    for (const { name } of toReindex) {
+      try {
+        shapeManager.deleteShape(slideIndex, name, slideManager)
+      } catch (e) {
+        logger.warn(`Failed to delete cell shape "${name}" during reindex: ${e.message}`)
+      }
+      this.#cellShapeAnchors.delete(name)
+    }
+
+    // Phase 2: re-add all shapes at their newRowIndex
+    for (const { anchor, newRowIndex } of toReindex) {
+      try {
+        this.addCellShape(
+          slideIndex,
+          anchor.tableId,
+          newRowIndex,
+          anchor.colIndex,
+          anchor.config,
+          slideManager,
+          shapeManager
+        )
+      } catch (e) {
+        logger.warn(
+          `Failed to re-add cell shape for (${newRowIndex}, ${anchor.colIndex}): ${e.message}`
+        )
+      }
+    }
+  }
+
+  /**
+   * Repositions all registered cell shapes that fall within a table region
+   * (e.g. after a merge or unmerge). Shapes in the region are deleted and
+   * re-added targeting `(startRow, startCol)` so their coordinates are
+   * recomputed against the merged cell's full bounding box.
+   *
+   * @private
+   */
+  #repositionCellShapesInRegion(
+    slideIndex,
+    tableId,
+    resolvedTableId,
+    startRow,
+    startCol,
+    endRow,
+    endCol,
+    slideManager,
+    shapeManager
+  ) {
+    if (!shapeManager) return
+
+    const toReposition = []
+
+    for (const [name, anchor] of this.#cellShapeAnchors) {
+      if (anchor.slideIndex !== slideIndex || anchor.resolvedTableId !== resolvedTableId) continue
+      if (
+        anchor.rowIndex >= startRow &&
+        anchor.rowIndex <= endRow &&
+        anchor.colIndex >= startCol &&
+        anchor.colIndex <= endCol
+      ) {
+        toReposition.push({ name, anchor })
+      }
+    }
+
+    // Sort toReposition: first by original rowIndex, then by colIndex, then by shapeIndex (base index)
+    toReposition.sort((a, b) => {
+      if (a.anchor.rowIndex !== b.anchor.rowIndex) {
+        return a.anchor.rowIndex - b.anchor.rowIndex
+      }
+      if (a.anchor.colIndex !== b.anchor.colIndex) {
+        return a.anchor.colIndex - b.anchor.colIndex
+      }
+      const aBase =
+        typeof a.anchor.shapeIndex === 'string'
+          ? parseInt(a.anchor.shapeIndex.split('_')[0], 10)
+          : a.anchor.shapeIndex
+      const bBase =
+        typeof b.anchor.shapeIndex === 'string'
+          ? parseInt(b.anchor.shapeIndex.split('_')[0], 10)
+          : b.anchor.shapeIndex
+      return aBase - bBase
+    })
+
+    // Phase 1: delete all old shapes first
+    for (const { name } of toReposition) {
+      try {
+        shapeManager.deleteShape(slideIndex, name, slideManager)
+      } catch (e) {
+        logger.warn(`Failed to delete cell shape "${name}" during reposition: ${e.message}`)
+      }
+      this.#cellShapeAnchors.delete(name)
+    }
+
+    // Phase 2: re-add all shapes targeting startRow, startCol
+    for (const { anchor } of toReposition) {
+      try {
+        this.addCellShape(
+          slideIndex,
+          anchor.tableId,
+          startRow,
+          startCol,
+          anchor.config,
+          slideManager,
+          shapeManager
+        )
+      } catch (e) {
+        logger.warn(`Failed to reposition cell shape for (${startRow}, ${startCol}): ${e.message}`)
+      }
+    }
+  }
+
+  #calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, writeToXml = true) {
+    const trsArr = tblObj['a:tr'] || []
+    if (trsArr.length === 0) return []
+
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const originalWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
+    const totalTableWidth = originalWidths.reduce((sum, w) => sum + w, 0)
+    const numCols = originalWidths.length
+    if (numCols === 0) return []
+
+    // Helper to get paragraph font info
+    const getParagraphFontInfo = p => {
+      let maxSz = null
+      let typeface = null
+
+      const getTypeface = pr => {
+        if (!pr) return null
+        if (pr['a:latin']?.['@_typeface']) return pr['a:latin']['@_typeface']
+        if (pr['a:ea']?.['@_typeface']) return pr['a:ea']['@_typeface']
+        if (pr['a:cs']?.['@_typeface']) return pr['a:cs']['@_typeface']
+        return null
+      }
+
+      if (p['a:pPr']?.['a:defRPr']) {
+        const defRPr = p['a:pPr']['a:defRPr']
+        if (defRPr['@_sz']) {
+          maxSz = parseInt(defRPr['@_sz'], 10) / 100
+        }
+        typeface = getTypeface(defRPr)
+      }
+
+      if (p['a:r']) {
+        const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+        for (const r of runs) {
+          if (r['a:rPr']) {
+            const rPr = r['a:rPr']
+            if (rPr['@_sz']) {
+              const szVal = parseInt(rPr['@_sz'], 10) / 100
+              if (maxSz === null || szVal > maxSz) {
+                maxSz = szVal
+              }
+            }
+            const tf = getTypeface(rPr)
+            if (tf) {
+              typeface = tf
+            }
+          }
+        }
+      }
+
+      if (maxSz === null && p['a:endParaRPr']) {
+        const endParaRPr = p['a:endParaRPr']
+        if (endParaRPr['@_sz']) {
+          maxSz = parseInt(endParaRPr['@_sz'], 10) / 100
+        }
+        const tf = getTypeface(endParaRPr)
+        if (tf) {
+          typeface = tf
+        }
+      }
+
+      return {
+        fontSize: maxSz !== null ? maxSz : 14,
+        typeface: typeface || 'Arial',
+      }
+    }
+
+    const getFontAspect = tf => {
+      if (!tf) return 0.55
+      const name = String(tf).toLowerCase()
+      if (name.includes('algerian')) return 0.85
+      return 0.55
+    }
+
+    const getCellMargins = cell => {
+      const tcPr = cell['a:tcPr']
+      const marL = tcPr?.['@_marL'] !== undefined ? parseInt(tcPr['@_marL'], 10) : 91440
+      const marR = tcPr?.['@_marR'] !== undefined ? parseInt(tcPr['@_marR'], 10) : 91440
+      return { marL, marR }
+    }
+
+    const colWeights = new Array(numCols).fill(0)
+    const hasText = new Array(numCols).fill(false)
+
+    for (let c = 0; c < numCols; c++) {
+      let maxCellWeight = 0
+
+      for (let r = 0; r < trsArr.length; r++) {
+        const row = trsArr[r]
+        const cell = row['a:tc']?.[c]
+        if (!cell || cell['@_hMerge']) continue
+
+        const gridSpan = cell['@_gridSpan'] ? parseInt(cell['@_gridSpan'], 10) : 1
+        if (gridSpan > 1) continue
+
+        const { marL, marR } = getCellMargins(cell)
+        let cellTextWidth = 0
+
+        const txBody = cell['a:txBody']
+        if (txBody) {
+          const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+          for (const p of paras) {
+            const fontInfo = getParagraphFontInfo(p)
+            const aspect = getFontAspect(fontInfo.typeface)
+            let pText = ''
+            if (p['a:r']) {
+              const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+              for (const r of runs) {
+                if (r['a:t']) {
+                  pText += String(r['a:t'])
+                }
+              }
+            }
+
+            if (pText.trim()) {
+              hasText[c] = true
+              const words = pText.split(/\s+/)
+              let longestWordLen = 0
+              for (const w of words) {
+                if (w.length > longestWordLen) longestWordLen = w.length
+              }
+
+              const minWordWidth = longestWordLen * fontInfo.fontSize * aspect * 9525 + marL + marR
+              const idealChars = Math.min(30, pText.length)
+              const idealTextWidth = idealChars * fontInfo.fontSize * aspect * 9525 + marL + marR
+
+              const cellIdeal = Math.max(minWordWidth, idealTextWidth)
+              if (cellIdeal > cellTextWidth) {
+                cellTextWidth = cellIdeal
+              }
+            }
+          }
+        }
+
+        const cellMin = cellTextWidth
+        if (cellMin > maxCellWeight) {
+          maxCellWeight = cellMin
+        }
+      }
+
+      colWeights[c] = maxCellWeight
+    }
+
+    const preferredWidths = new Array(numCols).fill(0)
+    for (let c = 0; c < numCols; c++) {
+      let floor = 500000
+      if (!hasText[c]) {
+        floor = Math.min(originalWidths[c] || 500000, 500000)
+      }
+      preferredWidths[c] = Math.max(colWeights[c], floor)
+    }
+
+    const sumPreferred = preferredWidths.reduce((sum, w) => sum + w, 0)
+
+    let finalWidths = [...preferredWidths]
+    if (sumPreferred > 0) {
+      const scale = totalTableWidth / sumPreferred
+      finalWidths = preferredWidths.map((w, idx) => {
+        const scaled = Math.round(w * scale)
+        const minAllowed = Math.min(originalWidths[idx] || 300000, 300000)
+        return Math.max(scaled, minAllowed)
+      })
+    }
+
+    const sumFinal = finalWidths.reduce((sum, w) => sum + w, 0)
+    const diff = totalTableWidth - sumFinal
+    if (diff !== 0 && finalWidths.length > 0) {
+      finalWidths[finalWidths.length - 1] += diff
+    }
+
+    if (writeToXml) {
+      const tblGrid = tblObj['a:tblGrid']
+      if (tblGrid) {
+        if (Array.isArray(tblGrid['a:gridCol'])) {
+          finalWidths.forEach((w, idx) => {
+            if (tblGrid['a:gridCol'][idx]) {
+              tblGrid['a:gridCol'][idx]['@_w'] = String(w)
+            }
+          })
+        } else if (tblGrid['a:gridCol'] && numCols === 1) {
+          tblGrid['a:gridCol']['@_w'] = String(finalWidths[0])
+        }
+      }
+    }
+
+    return finalWidths
+  }
+
+  #repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager) {
+    if (!shapeManager) return
+
+    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
+
+    const anchorsToReposition = []
+    for (const [name, anchor] of this.#cellShapeAnchors) {
+      if (anchor.slideIndex === slideIndex && anchor.resolvedTableId === resolvedTableId) {
+        anchorsToReposition.push({ name, anchor })
+      }
+    }
+
+    anchorsToReposition.sort((a, b) => {
+      if (a.anchor.rowIndex !== b.anchor.rowIndex) {
+        return a.anchor.rowIndex - b.anchor.rowIndex
+      }
+      if (a.anchor.colIndex !== b.anchor.colIndex) {
+        return a.anchor.colIndex - b.anchor.colIndex
+      }
+      const aBase =
+        typeof a.anchor.shapeIndex === 'string'
+          ? parseInt(a.anchor.shapeIndex.split('_')[0], 10)
+          : a.anchor.shapeIndex
+      const bBase =
+        typeof b.anchor.shapeIndex === 'string'
+          ? parseInt(b.anchor.shapeIndex.split('_')[0], 10)
+          : b.anchor.shapeIndex
+      return aBase - bBase
+    })
+
+    for (const { name } of anchorsToReposition) {
+      try {
+        shapeManager.deleteShape(slideIndex, name, slideManager)
+      } catch (e) {
+        logger.warn(`Failed to delete cell shape "${name}" during table reposition: ${e.message}`)
+      }
+      this.#cellShapeAnchors.delete(name)
+    }
+
+    for (const { anchor } of anchorsToReposition) {
+      try {
+        this.addCellShape(
+          slideIndex,
+          anchor.tableId,
+          anchor.rowIndex,
+          anchor.colIndex,
+          anchor.config,
+          slideManager,
+          shapeManager
+        )
+      } catch (e) {
+        logger.warn(
+          `Failed to reposition cell shape for (${anchor.rowIndex}, ${anchor.colIndex}): ${e.message}`
+        )
+      }
+    }
   }
 
   /**
@@ -2158,7 +2839,7 @@ class TableManager {
     }
   }
 
-  #calculateRowHeights(slideIndex, tableId, slideManager, tblObj) {
+  #calculateRowHeights(slideIndex, tableId, slideManager, tblObj, writeToXml = true) {
     const trsArr = tblObj['a:tr'] || []
     if (trsArr.length === 0) return []
 
@@ -2169,35 +2850,76 @@ class TableManager {
     const numRows = trsArr.length
     const numCols = colWidths.length
 
-    // Initialize rowHeights with original height or a safe minimum floor of 228600 EMUs (~24px/pt)
     const rowHeights = trsArr.map(row => {
       const h = parseInt(row['@_h'] || 0, 10)
-      return Math.max(h, 228600)
+      return h > 0 ? h : 228600
     })
 
-    // Helper to get paragraph font size
-    const getParagraphFontSize = p => {
-      let maxSz = 14 // default 14pt
-      if (p['a:pPr']?.['a:defRPr']?.['@_sz']) {
-        maxSz = parseInt(p['a:pPr']['a:defRPr']['@_sz'], 10) / 100
+    const getParagraphFontInfo = p => {
+      let maxSz = null
+      let typeface = null
+
+      const getTypeface = pr => {
+        if (!pr) return null
+        if (pr['a:latin']?.['@_typeface']) return pr['a:latin']['@_typeface']
+        if (pr['a:ea']?.['@_typeface']) return pr['a:ea']['@_typeface']
+        if (pr['a:cs']?.['@_typeface']) return pr['a:cs']['@_typeface']
+        return null
       }
+
+      if (p['a:pPr']?.['a:defRPr']) {
+        const defRPr = p['a:pPr']['a:defRPr']
+        if (defRPr['@_sz']) {
+          maxSz = parseInt(defRPr['@_sz'], 10) / 100
+        }
+        typeface = getTypeface(defRPr)
+      }
+
       if (p['a:r']) {
         const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
         for (const r of runs) {
-          if (r['a:rPr']?.['@_sz']) {
-            const szVal = parseInt(r['a:rPr']['@_sz'], 10) / 100
-            if (szVal > maxSz) {
-              maxSz = szVal
+          if (r['a:rPr']) {
+            const rPr = r['a:rPr']
+            if (rPr['@_sz']) {
+              const szVal = parseInt(rPr['@_sz'], 10) / 100
+              if (maxSz === null || szVal > maxSz) {
+                maxSz = szVal
+              }
+            }
+            const tf = getTypeface(rPr)
+            if (tf) {
+              typeface = tf
             }
           }
         }
       }
-      return maxSz
+
+      if (maxSz === null && p['a:endParaRPr']) {
+        const endParaRPr = p['a:endParaRPr']
+        if (endParaRPr['@_sz']) {
+          maxSz = parseInt(endParaRPr['@_sz'], 10) / 100
+        }
+        const tf = getTypeface(endParaRPr)
+        if (tf) {
+          typeface = tf
+        }
+      }
+
+      return {
+        fontSize: maxSz !== null ? maxSz : 14,
+        typeface: typeface || 'Arial',
+      }
     }
 
-    // Helper to wrap text
-    const wrapText = (text, availWidth_px, fontSize) => {
-      const charWidth = fontSize * 0.65
+    const getFontAspect = tf => {
+      if (!tf) return 0.55
+      const name = String(tf).toLowerCase()
+      if (name.includes('algerian')) return 0.85
+      return 0.55
+    }
+
+    const wrapText = (text, availWidth_px, fontSize, aspect = 0.55) => {
+      const charWidth = fontSize * aspect
       const words = text.split(/(\s+)/)
       let linesCount = 0
       let currentLineLen = 0
@@ -2230,7 +2952,6 @@ class TableManager {
       return linesCount
     }
 
-    // Helper to get cell margins
     const getCellMargins = cell => {
       const tcPr = cell['a:tcPr']
       const marL = tcPr?.['@_marL'] !== undefined ? parseInt(tcPr['@_marL'], 10) : 91440
@@ -2240,7 +2961,6 @@ class TableManager {
       return { marL, marR, marT, marB }
     }
 
-    // Calculate required height for each cell
     const cellHeights = Array.from({ length: numRows }, () => new Array(numCols).fill(0))
 
     for (let r = 0; r < numRows; r++) {
@@ -2253,7 +2973,6 @@ class TableManager {
         const parent = this.getMergeParent(slideIndex, tableId, r, c, slideManager)
         const gridSpan = cell['@_gridSpan'] ? parseInt(cell['@_gridSpan'], 10) : 1
 
-        // Calculate cell width
         let cellWidth = 0
         for (let idx = 0; idx < gridSpan; idx++) {
           cellWidth += colWidths[parent.col + idx] || 0
@@ -2263,13 +2982,15 @@ class TableManager {
         const availWidth = cellWidth - marL - marR
         const availWidth_px = Math.max(1, availWidth / 9525)
 
-        // Calculate text height
         const txBody = cell['a:txBody']
         let textHeight_emu = 0
         if (txBody) {
           const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
           for (const p of paras) {
-            const fontSize = getParagraphFontSize(p)
+            const fontInfo = getParagraphFontInfo(p)
+            const fontSize = fontInfo.fontSize
+            const aspect = getFontAspect(fontInfo.typeface)
+
             let pText = ''
             if (p['a:r']) {
               const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
@@ -2280,8 +3001,8 @@ class TableManager {
               }
             }
 
-            const linesCount = wrapText(pText, availWidth_px, fontSize)
-            const lineHeight_emu = fontSize * 20780 // 1.4 line height multiplier
+            const linesCount = wrapText(pText, availWidth_px, fontSize, aspect)
+            const lineHeight_emu = fontSize * 20780
 
             let pHeight_emu = linesCount * lineHeight_emu
             if (p['a:pPr']?.['a:spcBef']?.['a:spcPts']?.['@_val']) {
@@ -2295,14 +3016,14 @@ class TableManager {
         }
 
         const totalCellHeight_emu = marT + marB + textHeight_emu
-        cellHeights[r][c] = Math.max(totalCellHeight_emu, 228600)
+        const rowTemplateHeight = parseInt(row['@_h'] || 0, 10)
+        const minFloor = rowTemplateHeight > 0 ? rowTemplateHeight : 228600
+        cellHeights[r][c] = Math.max(totalCellHeight_emu, minFloor)
       }
     }
 
-    // Now resolve row heights based on required cell heights
-    // First, non-vertically-merged cells define row heights directly
     for (let r = 0; r < numRows; r++) {
-      let maxCellHeight = rowHeights[r] // Start with original template height as floor
+      let maxCellHeight = rowHeights[r]
       const row = trsArr[r]
       const tcs = row['a:tc'] || []
       for (let c = 0; c < numCols; c++) {
@@ -2318,7 +3039,6 @@ class TableManager {
       rowHeights[r] = maxCellHeight
     }
 
-    // Next, adjust for vertically merged cells (rowSpan > 1)
     for (let r = 0; r < numRows; r++) {
       const row = trsArr[r]
       const tcs = row['a:tc'] || []
@@ -2328,13 +3048,11 @@ class TableManager {
         const rowSpan = cell['@_rowSpan'] ? parseInt(cell['@_rowSpan'], 10) : 1
         if (rowSpan > 1) {
           const reqHeight = cellHeights[r][c]
-          // Sum currently allocated row heights for spanned rows
           let currentSpanHeight = 0
           for (let idx = 0; idx < rowSpan; idx++) {
             currentSpanHeight += rowHeights[r + idx] || 0
           }
           if (reqHeight > currentSpanHeight) {
-            // Distribute the extra required height equally across all spanned rows
             const diff = reqHeight - currentSpanHeight
             const extraPerRow = Math.ceil(diff / rowSpan)
             for (let idx = 0; idx < rowSpan; idx++) {
@@ -2345,11 +3063,11 @@ class TableManager {
       }
     }
 
-    // Update row heights in XML
-    for (let r = 0; r < numRows; r++) {
-      trsArr[r]['@_h'] = String(rowHeights[r])
+    if (writeToXml) {
+      for (let r = 0; r < numRows; r++) {
+        trsArr[r]['@_h'] = String(rowHeights[r])
+      }
     }
-
     return rowHeights
   }
 

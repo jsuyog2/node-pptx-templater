@@ -479,4 +479,473 @@ describe('Table Cell Shapes Integration Tests', () => {
     const report = await ppt.validatePresentation()
     expect(report.valid).toBe(true)
   })
+
+  it('should not modify row heights or column widths when calling addCellShape()', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    const getRowHeights = xml => {
+      const regex = /<a:tr\s+h="(\d+)">/g
+      const heights = []
+      let match
+      while ((match = regex.exec(xml)) !== null) {
+        heights.push(match[1])
+      }
+      return heights
+    }
+
+    const getColWidths = xml => {
+      const regex = /<a:gridCol\s+w="(\d+)">/g
+      const widths = []
+      let match
+      while ((match = regex.exec(xml)) !== null) {
+        widths.push(match[1])
+      }
+      return widths
+    }
+
+    const slideXmlBefore = await ppt.slideManager.getSlideXmlAsync(3)
+    const heightsBefore = getRowHeights(slideXmlBefore)
+    const widthsBefore = getColWidths(slideXmlBefore)
+
+    // Call addCellShape multiple times
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'circle',
+      fill: '#EF4444',
+      width: 10,
+      height: 10,
+      horizontal: 'center',
+      vertical: 'top',
+    })
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'rectangle',
+      fill: '#3B82F6',
+      width: 15,
+      height: 15,
+      horizontal: 'center',
+      vertical: 'bottom',
+    })
+
+    const slideXmlAfter = await ppt.slideManager.getSlideXmlAsync(3)
+    const heightsAfter = getRowHeights(slideXmlAfter)
+    const widthsAfter = getColWidths(slideXmlAfter)
+
+    expect(heightsAfter).toEqual(heightsBefore)
+    expect(widthsAfter).toEqual(widthsBefore)
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
+
+  it('should calculate coordinates correctly for vertically and horizontally merged cells and respect alignments/offsets', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    // Populate the table with 4 data rows first to avoid out-of-bounds error
+    ppt.updateTable('Table', {
+      rows: [
+        { A: 'Row 1', V: 'Val 1', B: 10 },
+        { A: 'Row 2', V: 'Val 2', B: 20 },
+        { A: 'Row 3', V: 'Val 3', B: 30 },
+        { A: 'Row 4', V: 'Val 4', B: 40 },
+      ],
+    })
+
+    // 1. Vertical and Horizontal merge: Merge rows 1-2 and columns 1-2 (2x2 merged cell)
+    ppt.mergeCells('Table', 1, 1, 2, 2)
+
+    // Add shapes to verify all combinations of alignments/offsets
+    // - Shape 1: Center-Middle, no offset (true centering)
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'circle',
+      fill: '#EF4444',
+      width: 10,
+      height: 10,
+      alignX: 'center',
+      alignY: 'middle',
+    })
+
+    // - Shape 2: Top-Left alignment with explicit offset (x: 5, y: 3)
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'rectangle',
+      fill: '#10B981',
+      width: 15,
+      height: 15,
+      alignX: 'left',
+      alignY: 'top',
+      x: 5,
+      y: 3,
+    })
+
+    // - Shape 3: Bottom-Right alignment with explicit offset (x: 4, y: 2)
+    await ppt.addCellShape('Table', 1, 1, {
+      type: 'star5',
+      fill: '#3B82F6',
+      width: 12,
+      height: 12,
+      alignX: 'right',
+      alignY: 'bottom',
+      x: 4,
+      y: 2,
+    })
+
+    // Get cell bounds and shapes
+    const bounds = ppt.getCellBounds('Table', 1, 1)
+    const shapeCenter = ppt.getCellShape('Table', 1, 1, 0)
+    const shapeTopLeft = ppt.getCellShape('Table', 1, 1, 1)
+    const shapeBottomRight = ppt.getCellShape('Table', 1, 1, 2)
+
+    expect(shapeCenter).not.toBeNull()
+    expect(shapeTopLeft).not.toBeNull()
+    expect(shapeBottomRight).not.toBeNull()
+
+    // 1. Verify true centering in merged cell bounds
+    expect(shapeCenter.x).toBe(Math.round(bounds.x + (bounds.width - 10) / 2))
+    expect(shapeCenter.y).toBe(Math.round(bounds.y + (bounds.height - 10) / 2))
+
+    // 2. Verify Top-Left with offset (x: 5, y: 3)
+    expect(shapeTopLeft.x).toBe(Math.round(bounds.x + 5))
+    expect(shapeTopLeft.y).toBe(Math.round(bounds.y + 3))
+
+    // 3. Verify Bottom-Right with offset (x: 4, y: 2)
+    expect(shapeBottomRight.x).toBe(Math.round(bounds.x + bounds.width - 12 - 4))
+    expect(shapeBottomRight.y).toBe(Math.round(bounds.y + bounds.height - 12 - 2))
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
+
+  it('should calculate correct cell coordinates for standard, merged, wrapped-text, and dynamic/inserted rows with object signatures', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    // 1. Set up a dynamic table with dynamic row text (including very long text that wraps and expands the row height),
+    // and custom dimensions.
+    ppt.updateTable('Table', {
+      rows: [
+        { A: 'Standard Text', V: 'Normal status', B: 10 },
+        {
+          A: 'This is a very long text that wraps across multiple lines and expands the row height significantly. We expect this row to be much taller than the template default.',
+          V: 'Wrapped status',
+          B: 20,
+        },
+        { A: 'Row 3 Col 0', V: 'Status 3', B: 30 },
+        { A: 'Row 4 Col 0', V: 'Status 4', B: 40 },
+      ],
+    })
+
+    // 2. Insert an additional row dynamically using insertTableRow
+    ppt.insertTableRow('Table', 3, ['Inserted Row X', 'Status X', 99])
+
+    // Now table has:
+    // Row 0: Header
+    // Row 1: 'Standard Text'
+    // Row 2: (Wrapped Row)
+    // Row 3: 'Inserted Row X'
+    // Row 4: 'Row 3 Col 0'
+    // Row 5: 'Row 4 Col 0'
+    // Let's verify the row count is 6 (1 header + 5 data rows)
+    const rowsMeta = ppt.getTableRows('Table', { includeMetadata: true })
+    expect(rowsMeta.rowCount).toBe(6)
+
+    // 3. Merge cells in the table (vertical merge spanning the wrapped row and the inserted row)
+    // Merge Row 2 and Row 3 of Column 1 (index 1)
+    ppt.mergeCells('Table', 2, 1, 3, 1)
+
+    // 4. Call addCellShape with both positional and object-based call signatures
+    // - Shape 1: Positional call signature on Row 2 Column 1 (merged cell)
+    await ppt.addCellShape('Table', 2, 1, {
+      type: 'circle',
+      width: 10,
+      height: 10,
+      alignX: 'center',
+      alignY: 'middle',
+    })
+
+    // - Shape 2: Object-based call signature targeting the same merged cell
+    await ppt.addCellShape('Table', {
+      row: 2,
+      column: 1,
+      type: 'circle',
+      width: 10,
+      height: 10,
+      alignX: 'center',
+      alignY: 'middle',
+    })
+
+    // - Shape 3: Center-aligned shape in the wrapped cell (Row 2, Column 0) using object signature
+    await ppt.addCellShape('Table', {
+      row: 2,
+      column: 0,
+      type: 'rectangle',
+      width: 15,
+      height: 15,
+      alignX: 'center',
+      alignY: 'middle',
+    })
+
+    // - Shape 4: Explicit offset (x: 5, y: 3) shape in standard cell using object signature
+    await ppt.addCellShape('Table', {
+      row: 1,
+      column: 2,
+      type: 'star5',
+      width: 12,
+      height: 12,
+      x: 5,
+      y: 3,
+    })
+
+    // 5. Assert bounds and shape coordinate correctness
+    const boundsMerged = ppt.getCellBounds('Table', 2, 1)
+    const boundsMergedObj = ppt.getCellBounds('Table', { row: 2, column: 1 })
+    // getCellBounds with object and positional signature must return exactly the same bounds
+    expect(boundsMergedObj).toEqual(boundsMerged)
+
+    const shapePositional = ppt.getCellShape('Table', 2, 1, 0)
+    const shapeObject = ppt.getCellShape('Table', 2, 1, 1)
+    expect(shapePositional).not.toBeNull()
+    expect(shapeObject).not.toBeNull()
+
+    // Shapes added to the same target using different signatures must be positioned at the exact same coordinates!
+    expect(shapeObject.x).toBe(shapePositional.x)
+    expect(shapeObject.y).toBe(shapePositional.y)
+
+    // Verify true centering in the merged cell (which includes the wrapped row and the inserted row heights)
+    expect(shapePositional.x).toBe(Math.round(boundsMerged.x + (boundsMerged.width - 10) / 2))
+    expect(shapePositional.y).toBe(Math.round(boundsMerged.y + (boundsMerged.height - 10) / 2))
+
+    // Verify wrapped row (Row 2, Column 0) centering
+    const boundsWrapped = ppt.getCellBounds('Table', 2, 0)
+    const shapeWrapped = ppt.getCellShape('Table', 2, 0, 0)
+    expect(shapeWrapped).not.toBeNull()
+    expect(shapeWrapped.x).toBe(Math.round(boundsWrapped.x + (boundsWrapped.width - 15) / 2))
+    expect(shapeWrapped.y).toBe(Math.round(boundsWrapped.y + (boundsWrapped.height - 15) / 2))
+
+    // Verify explicit offset (x: 5, y: 3) relative to the cell's top-left corner
+    const boundsOffset = ppt.getCellBounds('Table', 1, 2)
+    const shapeOffset = ppt.getCellShape('Table', 1, 2, 0)
+    expect(shapeOffset).not.toBeNull()
+    expect(shapeOffset.x).toBe(boundsOffset.x + 5)
+    expect(shapeOffset.y).toBe(boundsOffset.y + 3)
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
+
+  it('should support adding table rows with Shape Cells (KPIs/badges) and correct text margins', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    const metaBefore = ppt.getTableRows('Table', { includeMetadata: true })
+    const countBefore = metaBefore.rowCount
+
+    await ppt.addTableRow('Table', [
+      {
+        type: 'circle',
+        fill: '#EF4444',
+        radius: 6,
+        position: 'center',
+      },
+      {
+        type: 'rectangle',
+        fill: '#3B82F6',
+        text: 'In Progress',
+        width: 20,
+        height: 14,
+        position: 'left',
+      },
+      'Row Added Value',
+    ])
+
+    const metaAfter = ppt.getTableRows('Table', { includeMetadata: true })
+    expect(metaAfter.rowCount).toBe(countBefore + 1)
+
+    const rawRows = ppt.getTableRows('Table', { raw: true })
+    const lastRow = rawRows[rawRows.length - 1]
+    expect(lastRow[0]).toBe('')
+    expect(lastRow[1]).toBe('In Progress')
+    expect(lastRow[2]).toBe('Row Added Value')
+
+    const shape1 = ppt.getCellShape('Table', countBefore, 0, 0)
+    expect(shape1).not.toBeNull()
+    expect(shape1.type).toBe('circle')
+    expect(shape1.width).toBe(12)
+    expect(shape1.height).toBe(12)
+
+    const shape2 = ppt.getCellShape('Table', countBefore, 1, 0)
+    expect(shape2).not.toBeNull()
+    expect(shape2.type).toBe('rectangle')
+    expect(shape2.width).toBe(20)
+    expect(shape2.height).toBe(14)
+
+    const bounds = ppt.getCellBounds('Table', countBefore, 1)
+    const shapeXExpected = bounds.x + 5
+    expect(shape2.x).toBe(shapeXExpected)
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
+
+  it('should support other preset shapes like diamond, hexagon, and line inside Shape Cells', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    const metaBefore = ppt.getTableRows('Table', { includeMetadata: true })
+    const countBefore = metaBefore.rowCount
+
+    await ppt.addTableRow('Table', [
+      {
+        type: 'diamond',
+        fill: '#F59E0B',
+        width: 10,
+        height: 10,
+      },
+      {
+        type: 'hexagon',
+        fill: '#10B981',
+        width: 12,
+        height: 12,
+      },
+      {
+        type: 'line',
+        stroke: '#EF4444',
+        strokeWidth: 2,
+        width: 20,
+        height: 2,
+      },
+    ])
+
+    const shape1 = ppt.getCellShape('Table', countBefore, 0, 0)
+    expect(shape1).not.toBeNull()
+    expect(shape1.type).toBe('diamond')
+
+    const shape2 = ppt.getCellShape('Table', countBefore, 1, 0)
+    expect(shape2).not.toBeNull()
+    expect(shape2.type).toBe('hexagon')
+
+    const shape3 = ppt.getCellShape('Table', countBefore, 2, 0)
+    expect(shape3).not.toBeNull()
+    expect(shape3.type).toBe('line')
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
+
+  it('should verify shape styling, border, all alignment options, merged cells, and duplicate text prevention', async () => {
+    const ppt = await PPTXTemplater.load(FIXTURE_FILE)
+    ppt.useSlide(3)
+
+    const metaBefore = ppt.getTableRows('Table', { includeMetadata: true })
+    const countBefore = metaBefore.rowCount
+
+    // 1. Shape fill color (with 8-char hex and opacity mapping) and stroke styling
+    await ppt.addTableRow('Table', [
+      {
+        type: 'circle',
+        color: '#ff0000aa', // 8-char hex
+        stroke: '#0000ff',
+        strokeWidth: 3,
+        width: 15,
+        height: 15,
+        position: 'center',
+      },
+      {
+        type: 'rectangle',
+        fill: '#00ff00',
+        border: { color: '#ffff00', width: 2 },
+        width: 18,
+        height: 12,
+        position: 'top-left',
+      },
+      'Just a cell',
+    ])
+
+    const rowIdx1 = countBefore
+    const shapeColor = ppt.getCellShape('Table', rowIdx1, 0, 0)
+    expect(shapeColor).not.toBeNull()
+    expect(shapeColor.fill).toBe('#FF0000') // Cleaned hex
+    expect(shapeColor.transparency).toBe(Math.round((1 - 0xaa / 255) * 100)) // Transparency resolved from 8-char hex
+    expect(shapeColor.border).toEqual({ color: '#0000FF', width: 3 }) // Normalized stroke
+
+    const shapeBorder = ppt.getCellShape('Table', rowIdx1, 1, 0)
+    expect(shapeBorder).not.toBeNull()
+    expect(shapeBorder.fill).toBe('#00FF00')
+    expect(shapeBorder.border).toEqual({ color: '#FFFF00', width: 2 })
+
+    // 2. Center, left, right, top, bottom, and corners alignments
+
+    // Top-left alignment test
+    await ppt.addCellShape('Table', rowIdx1, 2, {
+      type: 'square',
+      size: 10,
+      position: 'top-left',
+      offsetX: 2,
+      offsetY: 4,
+    })
+    const shapeTopLeft = ppt.getCellShape('Table', rowIdx1, 2, 0)
+    const boundsTopLeft = ppt.getCellBounds('Table', rowIdx1, 2)
+    expect(shapeTopLeft.x).toBe(boundsTopLeft.x + 2)
+    expect(shapeTopLeft.y).toBe(boundsTopLeft.y + 4)
+
+    // Bottom-right alignment test
+    await ppt.addCellShape('Table', rowIdx1, 2, {
+      type: 'square',
+      size: 10,
+      position: 'bottom-right',
+      offsetX: 1,
+      offsetY: 3,
+    })
+    const shapeBottomRight = ppt.getCellShape('Table', rowIdx1, 2, 1)
+    expect(shapeBottomRight.x).toBe(boundsTopLeft.x + boundsTopLeft.width - 10 - 1)
+    expect(shapeBottomRight.y).toBe(boundsTopLeft.y + boundsTopLeft.height - 10 - 3)
+
+    // 3. Merged cells alignment test (resolve full merged bounds)
+    // Let's merge rowIdx1 and rowIdx1 + 1 (new row) in column 2
+    await ppt.addTableRow('Table', ['A', 'B', 'C'])
+    const rowIdx2 = rowIdx1 + 1
+    ppt.mergeCells('Table', rowIdx1, 2, rowIdx2, 2)
+
+    // Verify cell bounds span both rows
+    const boundsMerged = ppt.getCellBounds('Table', rowIdx1, 2)
+    const boundsR1 = ppt.getCellBounds('Table', rowIdx1, 2)
+    const boundsR2 = ppt.getCellBounds('Table', rowIdx2, 2)
+    // Since getCellBounds is merge-aware, boundsR1 and boundsR2 should return the same merged bounds
+    expect(boundsR1).toEqual(boundsMerged)
+    expect(boundsR2).toEqual(boundsMerged)
+
+    // Center alignment in merged region
+    await ppt.addCellShape('Table', rowIdx1, 2, {
+      type: 'circle',
+      radius: 5,
+      position: 'center',
+    })
+    const shapeMerged = ppt.getCellShape('Table', rowIdx1, 2, 2)
+    expect(shapeMerged.x).toBe(Math.round(boundsMerged.x + (boundsMerged.width - 10) / 2))
+    expect(shapeMerged.y).toBe(Math.round(boundsMerged.y + (boundsMerged.height - 10) / 2))
+
+    // 4. Verification that text appears only once (duplicate text prevention)
+    await ppt.addTableRow('Table', [
+      {
+        type: 'circle',
+        fill: '#FF0000',
+        text: 'UniqueText',
+        position: 'left',
+      },
+      'Test 2',
+      'Test 3',
+    ])
+    const rowIdx3 = rowIdx2 + 1
+    const rawRows = ppt.getTableRows('Table', { raw: true })
+    const lastRow = rawRows[rawRows.length - 1]
+
+    // Text goes into table cell
+    expect(lastRow[0]).toBe('UniqueText')
+
+    // But text property on standard shape must be deleted (undefined) to avoid duplication
+    const shapeTextTest = ppt.getCellShape('Table', rowIdx3, 0, 0)
+    expect(shapeTextTest.text).toBeUndefined()
+
+    const report = await ppt.validatePresentation()
+    expect(report.valid).toBe(true)
+  })
 })

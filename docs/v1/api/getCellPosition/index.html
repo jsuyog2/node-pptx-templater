@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>getCellPosition() API Method - node-pptx-templater</title>
-  <meta name="description" content="Retrieves final rendered position of a table cell in pixels.">
+  <meta name="description" content="Retrieves final rendered position of a table cell in pixels. Optionally calculates centered top-left coordinates for a shape of given dimensions.">
   <link rel="canonical" href="https://jsuyog2.github.io/node-pptx-templater/v1/api/getCellPosition/">
   <link rel="stylesheet" href="../../../style.css">
   <script>
@@ -21,7 +21,7 @@
     
     <div class="prose prose-invert max-w-none">
       
-    <p><strong>Description:</strong> Retrieves final rendered position of a table cell in pixels.</p>
+    <p><strong>Description:</strong> Retrieves final rendered position of a table cell in pixels. Optionally calculates centered top-left coordinates for a shape of given dimensions.</p>
     <p><strong>Class:</strong> PPTXTemplater | <strong>File:</strong> <code>src/core/PPTXTemplater.js</code></p>
     
       <h3>Parameters</h3>
@@ -36,9 +36,9 @@
         <tbody>
           
             <tr>
-              <td><strong>tableId</strong></td>
-              <td><code>string</code></td>
-              <td>Table name or shape ID.</td>
+              <td><strong>tableIdOrObj</strong></td>
+              <td><code>string|Object</code></td>
+              <td>Table name, shape ID, or table object.</td>
             </tr>
           
             <tr>
@@ -53,12 +53,24 @@
               <td>0-based column index.</td>
             </tr>
           
+            <tr>
+              <td><strong>[shapeWidthOrOptions]</strong></td>
+              <td><code>number|Object</code></td>
+              <td>Width of the shape in pixels, or options object.</td>
+            </tr>
+          
+            <tr>
+              <td><strong>[shapeHeight]</strong></td>
+              <td><code>number</code></td>
+              <td>Height of the shape in pixels.</td>
+            </tr>
+          
         </tbody>
       </table>
     
     
       <h3>Returns</h3>
-      <p><code>Object|null</code> — Cell position { row, column, x, y } in pixels, or null.</p>
+      <p><code>Object|null</code> — Cell position { row, column, x, y, width, height } in pixels, or null.</p>
     
     <h3>OpenXML Impact</h3>
     <p>Reads cell positioning data in pixels. No write impact on slide XML.</p>

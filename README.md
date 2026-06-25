@@ -13,7 +13,7 @@
   <a href="https://github.com/jsuyog2/node-pptx-templater/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/jsuyog2/node-pptx-templater/ci.yml?branch=main&style=flat-square&color=34d399" alt="CI"></a>
   <a href="https://www.npmjs.com/package/node-pptx-templater"><img src="https://img.shields.io/npm/dm/node-pptx-templater.svg?style=flat-square&color=a855f7" alt="Downloads"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="MIT License"></a>
-  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=flat-square" alt="Node.js 18+"></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D20.12.0-brightgreen?style=flat-square" alt="Node.js 20.12.0+"></a>
 </p>
 
 <p align="center">

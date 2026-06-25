@@ -407,6 +407,8 @@
           
             <li><a href="#method-getShape" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">getShape()</a></li>
           
+            <li><a href="#method-alignShapeToCell" class="nav-item block px-3 py-1 text-[11px] text-gray-500 hover:text-white rounded-md transition-colors pl-4 font-mono">alignShapeToCell()</a></li>
+          
         </ul>
       </div>
     
@@ -2724,16 +2726,16 @@ regions.forEach(reg =&gt; {
             </div>
           </div>
           
-          <p class="text-sm text-gray-300 leading-relaxed">Dynamically adds a shape inside a table cell based on cell coordinates. Cell shapes are anchored/rendered independently of the table layout as overlays and do not modify row heights, column widths, or cell margins.</p>
+          <p class="text-sm text-gray-300 leading-relaxed">Dynamically adds a shape inside a table cell based on cell coordinates. Cell shapes are overlay graphics anchored independently of the table layout, and adding a cell shape never modifies row heights, column widths, or table dimensions.</p>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
             <div>
               <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
-              <p>Index must fall within table bounds. Offsets are relative to the cell's top-left corner. Oversized shapes are scaled down proportionally to fit the cell and log a warning in debug mode.</p>
+              <p>Index must fall within table bounds. Coordinates outside structural table dimensions align relative to cell borders.</p>
             </div>
             <div>
               <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
-              <p>Appends a `&lt;p:sp&gt;` shape node aligned to cell EMUs inside the slide's shape tree, leaving the table XML untouched.</p>
+              <p>Appends a `&lt;p:sp&gt;` shape node aligned to cell EMUs.</p>
             </div>
           </div>
           
@@ -2788,15 +2790,15 @@ regions.forEach(reg =&gt; {
           <div class="mt-4 space-y-4">
             <div>
               <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">await ppt.addCellShape(&#039;Table&#039;, 1, 2, { type: &#039;circle&#039;, fill: &#039;#10B981&#039;, width: 12, height: 12 });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">await ppt.addCellShape(&#039;Table&#039;, 1, 2, { type: &#039;circle&#039;, fill: &#039;#10B981&#039; });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
             <div>
-              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Offset Usage</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">await ppt.addCellShape(&#039;Table&#039;, 1, 2, { type: &#039;circle&#039;, x: 4, y: 2, width: 10, height: 10, fill: &#039;#3B82F6&#039; });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto"></code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
             <div>
-              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Status Badge Indicator</span>
-              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">await ppt.addCellShape(&#039;Table&#039;, 2, 1, { type: &#039;badge&#039;, text: &#039;Active&#039;, fill: &#039;#10B981&#039;, textStyle: { color: &#039;#FFFFFF&#039;, fontSize: 9 } });</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto"></code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
           </div>
         
@@ -3086,7 +3088,7 @@ regions.forEach(reg =&gt; {
               <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getCellBounds</h3>
             </div>
             <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
-              getCellBounds(tableId, rowIndex, colIndex)
+              getCellBounds(tableIdOrObj, rowIndex, colIndex)
             </div>
           </div>
           
@@ -3116,9 +3118,9 @@ regions.forEach(reg =&gt; {
               <tbody class="divide-y divide-white/5">
                 
                   <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableId</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
-                    <td class="px-4 py-2.5 text-gray-300">Table name or shape ID.</td>
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableIdOrObj</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string|Object</td>
+                    <td class="px-4 py-2.5 text-gray-300">Table name, shape ID, or table object.</td>
                   </tr>
                 
                   <tr class="hover:bg-white/[0.02]">
@@ -3170,11 +3172,11 @@ regions.forEach(reg =&gt; {
               <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">getCellPosition</h3>
             </div>
             <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
-              getCellPosition(tableId, rowIndex, colIndex)
+              getCellPosition(tableIdOrObj, rowIndex, colIndex, shapeWidthOrOptions, shapeHeight)
             </div>
           </div>
           
-          <p class="text-sm text-gray-300 leading-relaxed">Retrieves final rendered position of a table cell in pixels.</p>
+          <p class="text-sm text-gray-300 leading-relaxed">Retrieves final rendered position of a table cell in pixels. Optionally calculates centered top-left coordinates for a shape of given dimensions.</p>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
             <div>
@@ -3200,9 +3202,9 @@ regions.forEach(reg =&gt; {
               <tbody class="divide-y divide-white/5">
                 
                   <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableId</td>
-                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
-                    <td class="px-4 py-2.5 text-gray-300">Table name or shape ID.</td>
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableIdOrObj</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string|Object</td>
+                    <td class="px-4 py-2.5 text-gray-300">Table name, shape ID, or table object.</td>
                   </tr>
                 
                   <tr class="hover:bg-white/[0.02]">
@@ -3217,6 +3219,18 @@ regions.forEach(reg =&gt; {
                     <td class="px-4 py-2.5 text-gray-300">0-based column index.</td>
                   </tr>
                 
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[shapeWidthOrOptions]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number|Object</td>
+                    <td class="px-4 py-2.5 text-gray-300">Width of the shape in pixels, or options object.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[shapeHeight]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300">Height of the shape in pixels.</td>
+                  </tr>
+                
               </tbody>
             </table>
           </div>
@@ -3225,7 +3239,7 @@ regions.forEach(reg =&gt; {
           <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
             <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
             <span class="font-mono text-emerald-400 font-semibold">Object|null</span>
-            <span class="text-gray-300">Cell position { row, column, x, y } in pixels, or null.</span>
+            <span class="text-gray-300">Cell position { row, column, x, y, width, height } in pixels, or null.</span>
           </div>
         
           
@@ -8186,11 +8200,11 @@ if (errors.length === 0) {
               <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">addShape</h3>
             </div>
             <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
-              addShape(options)
+              addShape(typeOrOptions, options = {})
             </div>
           </div>
           
-          <p class="text-sm text-gray-300 leading-relaxed">Adds a new shape dynamically to the targeted slide(s).</p>
+          <p class="text-sm text-gray-300 leading-relaxed">Adds a new shape to the targeted slide(s).</p>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
             <div>
@@ -8216,7 +8230,13 @@ if (errors.length === 0) {
               <tbody class="divide-y divide-white/5">
                 
                   <tr class="hover:bg-white/[0.02]">
-                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">options</td>
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">typeOrOptions</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string|Object</td>
+                    <td class="px-4 py-2.5 text-gray-300"></td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options={}]</td>
                     <td class="px-4 py-2.5 font-mono text-pink-400">Object</td>
                     <td class="px-4 py-2.5 text-gray-300"></td>
                   </tr>
@@ -8228,8 +8248,8 @@ if (errors.length === 0) {
           
           <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
             <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
-            <span class="font-mono text-emerald-400 font-semibold">this</span>
-            <span class="text-gray-300">The chainable presentation templater instance.</span>
+            <span class="font-mono text-emerald-400 font-semibold">Promise&lt;PPTXTemplater&gt;</span>
+            <span class="text-gray-300">The templater instance for chaining.</span>
           </div>
         
           
@@ -8546,6 +8566,118 @@ if (card) {
     width: card.width,
     height: card.height
   });
+}</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+          </div>
+        
+        </div>
+      
+        <!-- Method alignShapeToCell Card -->
+        <div id="method-alignShapeToCell" class="glass-card method-card p-6 bg-slate-900/30 border border-white/5 rounded-2xl space-y-4 relative overflow-hidden transition-all duration-300 hover:border-brand-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 font-mono text-[9px] font-bold uppercase tracking-wider">method</span>
+              <h3 class="font-title text-xl font-bold text-white hover:text-brand-400 transition-colors">alignShapeToCell</h3>
+            </div>
+            <div class="font-mono text-xs text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full">
+              alignShapeToCell(shapeId, tableIdOrObj, rowIndex, colIndex, options = {})
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-300 leading-relaxed">Aligns an existing shape to a table cell&#039;s position.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+            <div>
+              <strong class="text-gray-300 block mb-1">🛡️ Edge Cases & Warnings</strong>
+              <p>No critical edge cases documented. Verify argument boundaries.</p>
+            </div>
+            <div>
+              <strong class="text-gray-300 block mb-1">🏗️ OpenXML & ZIP Impact</strong>
+              <p>Modifies underlying OpenXML nodes to reflect updates on slide serialization.</p>
+            </div>
+          </div>
+          
+          
+          <div class="overflow-x-auto mt-4 border border-white/5 rounded-xl bg-slate-900/10">
+            <table class="w-full text-xs text-gray-400">
+              <thead class="bg-white/5 text-gray-200">
+                <tr>
+                  <th class="px-4 py-2.5 text-left font-semibold">Parameter</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Type</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">shapeId</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string</td>
+                    <td class="px-4 py-2.5 text-gray-300">Unique shape name/id in the template.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">tableIdOrObj</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">string|Object</td>
+                    <td class="px-4 py-2.5 text-gray-300">Table ID string, or table object.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">rowIndex</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300">0-based row index.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">colIndex</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">number</td>
+                    <td class="px-4 py-2.5 text-gray-300">0-based column index.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">Object</td>
+                    <td class="px-4 py-2.5 text-gray-300">Alignment options.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.horizontal=&#039;center&#039;]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">&#039;left&#039;|&#039;center&#039;|&#039;right&#039;</td>
+                    <td class="px-4 py-2.5 text-gray-300">Horizontal alignment.</td>
+                  </tr>
+                
+                  <tr class="hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5 font-semibold text-indigo-300 font-mono">[options.vertical=&#039;middle&#039;]</td>
+                    <td class="px-4 py-2.5 font-mono text-pink-400">&#039;top&#039;|&#039;middle&#039;|&#039;bottom&#039;</td>
+                    <td class="px-4 py-2.5 text-gray-300">Vertical alignment.</td>
+                  </tr>
+                
+              </tbody>
+            </table>
+          </div>
+        
+          
+          <div class="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs text-gray-400 flex items-center gap-2">
+            <span class="font-semibold text-gray-200 uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">returns</span>
+            <span class="font-mono text-emerald-400 font-semibold">this</span>
+            <span class="text-gray-300">The chainable presentation templater instance.</span>
+          </div>
+        
+          
+          <div class="mt-4 space-y-4">
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Basic Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).alignShapeToCell(shapeId, tableIdOrObj, rowIndex, colIndex, options = {});</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Advanced Usage</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">ppt.useSlide(1).alignShapeToCell(shapeId, tableIdOrObj, rowIndex, colIndex, options = {}); // Fluent wrapper implementation</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold text-gray-500 block mb-1 font-title uppercase tracking-wider">Production Setup</span>
+              <pre class="relative group"><code class="language-javascript block p-4 bg-[#05070c] border border-white/5 rounded-xl text-indigo-300 font-mono text-xs overflow-x-auto">try {
+  ppt.useSlide(1).alignShapeToCell(shapeId, tableIdOrObj, rowIndex, colIndex, options = {});
+} catch (err) {
+  console.error(&#039;API Error: &#039;, err);
 }</code><button class="copy-btn absolute top-3.5 right-3.5 text-[10px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 transition-all">Copy</button></pre>
             </div>
           </div>
@@ -12850,15 +12982,55 @@ if (!status.valid) {
         <h1 class="font-title text-4xl font-extrabold text-white">Changelog &amp; Releases</h1>
         <p class="text-sm text-gray-300">Detailed release notes and updates for node-pptx-templater:</p>
         <div class="glass-card p-6 rounded-2xl border border-white/5 space-y-4 max-h-[600px] overflow-y-auto font-sans text-sm text-gray-300 leading-relaxed">
-          <h1>Changelog</h1><p></p>All notable changes to this project will be documented in this file.<p></p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
-and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.<p></p><h2>[1.1.0] - 2026-06-12</h2><p></p><h3>Added</h3><p></p><ul><li><strong>Runtime Log Level Control</strong>: <code>PPTXTemplater.load(path, { logLevel: 'debug' })</code> — configure logging at load time without environment variables. Also added <code>PPTXTemplater.setLogLevel(level)</code> static method and <code>ppt.enableDebug()</code> instance shortcut. Supported levels: <code>verbose</code>, <code>debug</code>, <code>info</code>, <code>warn</code> (default), <code>error</code>, <code>silent</code>. The new <code>setGlobalLogLevel()</code> and <code>resetLogLevel()</code> functions are now exported from the public API.</li><p></p><li><strong><code>verbose</code> Log Level</strong>: New log level below <code>debug</code> for maximum diagnostic output. Use <code>PPTXTemplater.setLogLevel('verbose')</code> to enable.</li><p></p><li><strong><code>getTableRows(tableId, options)</code></strong>: Extract table data as structured JSON. Supports three modes: default (array of objects using header row as keys), <code>{ raw: true }</code> (array of string arrays), and <code>{ includeMetadata: true }</code> (full metadata including row/column count and merged cell info).</li><p></p><li><strong>Nested <code>addTableRow()</code> with <code>mergeStrategy</code></strong>: Add rows with nested arrays to create rowspan-merged cells. Options: <code>'rowspan'</code> (OpenXML vertical spans), <code>'auto'</code> (merge identical adjacent values), <code>'none'</code> (expand to flat rows).</li><p></p><li><strong>8 new example files</strong> in <code>examples/</code>: <code>image-operations.js</code>, <code>shape-operations.js</code>, <code>z-order.js</code>, <code>slide-import.js</code>, <code>text-search.js</code>, <code>table-extraction.js</code>, <code>nested-table-rows.js</code>, <code>xml-folder-workflow.js</code>.</li><p></p><li><strong>Documentation Validation Tooling</strong> (<code>scripts/validate-docs.js</code>): Checks that every public method has JSDoc. Exits with code 1 on violations. Run via <code>npm run docs:validate</code>.</li><p></p><li><strong>Feature Inventory Generator</strong> (<code>scripts/generate-feature-inventory.js</code>): Parses <code>PPTXTemplater.js</code> and outputs <code>docs/feature-inventory.json</code> and <code>docs/feature-inventory.md</code> with all methods grouped by category. Run via <code>npm run docs:inventory</code>.</li><p></p><li><strong>Professional logo</strong> (<code>assets/logo.png</code>): Library logo suitable for GitHub, NPM, and documentation.</li><p></p><li><strong>New npm scripts</strong>: <code>docs:validate</code>, <code>docs:inventory</code>, <code>example:images</code>, <code>example:shapes</code>, <code>example:zorder</code>, <code>example:slide-import</code>, <code>example:text-search</code>, <code>example:table-extraction</code>, <code>example:nested-rows</code>, <code>example:xml-folder</code>.</li><p></p><h3>Fixed</h3><p></p><li><strong>Horizontal merge preservation</strong>: Fixed PowerPoint "repair mode" errors when using <code>addTableRow()</code> with rows containing <code>gridSpan</code>/<code>hMerge</code> attributes. The cloning logic now correctly preserves horizontal merge attributes and only clears vertical merge state.</li><p></p><li><strong><code>console.log</code> violations</strong> in <code>ChartManager.js</code> (3 calls in <code>updateChartAsync()</code>), <code>OutputWriter.js</code> (5 calls in <code>printDebugZip()</code>), and <code>PPTXTemplater.js</code> (8 calls across <code>debugRelationships()</code>, <code>inspectSlide()</code>, <code>inspectXML()</code>, <code>inspectChart()</code>, <code>debugChartRelationships()</code>). All replaced with structured <code>logger.debug()</code> / <code>logger.info()</code> calls that respect the configured log level. <strong>The library is now completely silent by default</strong> — no terminal output at all unless explicitly enabled.</li><p></p><h3>Changed</h3><p></p><li><strong>Logger system overhauled</strong>: Added <code>verbose</code> level, runtime <code>setGlobalLogLevel()</code> function, <code>resetLogLevel()</code> function, and module-level <code>runtimeLevel</code> override. All logger instances now share a mutable runtime level for live updates.</li><p></p><li><strong>README</strong>: Rewritten to be concise, modern, and SEO-friendly. Detailed API docs now live at https://jsuyog2.github.io/node-pptx-templater/.</li><p></p><li><strong>Version</strong>: Bumped from <code>1.0.21</code> → <code>1.1.0</code>.</li></ul><p></p>---<p></p><h2>[1.0.6] - 2026-06-02</h2><p></p>
-<h3>Added</h3><p></p><ul><li><strong>XML Validation &amp; Diagnostics Engine</strong>: Introduced a suite of tools in <code>src/utils/xmlUtils.js</code> for XML safety and diagnostics:</li></ul>
+          <h1>Changelog</h1>
+
+All notable changes to this project will be documented in this file.
+
+The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
+and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.
+
+<h2>[1.1.0] - 2026-06-12</h2>
+
+<h3>Added</h3>
+
+<ul><li><strong>Runtime Log Level Control</strong>: <code>PPTXTemplater.load(path, { logLevel: 'debug' })</code> — configure logging at load time without environment variables. Also added <code>PPTXTemplater.setLogLevel(level)</code> static method and <code>ppt.enableDebug()</code> instance shortcut. Supported levels: <code>verbose</code>, <code>debug</code>, <code>info</code>, <code>warn</code> (default), <code>error</code>, <code>silent</code>. The new <code>setGlobalLogLevel()</code> and <code>resetLogLevel()</code> functions are now exported from the public API.</li><li><strong><code>verbose</code> Log Level</strong>: New log level below <code>debug</code> for maximum diagnostic output. Use <code>PPTXTemplater.setLogLevel('verbose')</code> to enable.</li><li><strong><code>getTableRows(tableId, options)</code></strong>: Extract table data as structured JSON. Supports three modes: default (array of objects using header row as keys), <code>{ raw: true }</code> (array of string arrays), and <code>{ includeMetadata: true }</code> (full metadata including row/column count and merged cell info).</li><li><strong>Nested <code>addTableRow()</code> with <code>mergeStrategy</code></strong>: Add rows with nested arrays to create rowspan-merged cells. Options: <code>'rowspan'</code> (OpenXML vertical spans), <code>'auto'</code> (merge identical adjacent values), <code>'none'</code> (expand to flat rows).</li><li><strong>8 new example files</strong> in <code>examples/</code>: <code>image-operations.js</code>, <code>shape-operations.js</code>, <code>z-order.js</code>, <code>slide-import.js</code>, <code>text-search.js</code>, <code>table-extraction.js</code>, <code>nested-table-rows.js</code>, <code>xml-folder-workflow.js</code>.</li><li><strong>Documentation Validation Tooling</strong> (<code>scripts/validate-docs.js</code>): Checks that every public method has JSDoc. Exits with code 1 on violations. Run via <code>npm run docs:validate</code>.</li><li><strong>Feature Inventory Generator</strong> (<code>scripts/generate-feature-inventory.js</code>): Parses <code>PPTXTemplater.js</code> and outputs <code>docs/feature-inventory.json</code> and <code>docs/feature-inventory.md</code> with all methods grouped by category. Run via <code>npm run docs:inventory</code>.</li><li><strong>Professional logo</strong> (<code>assets/logo.png</code>): Library logo suitable for GitHub, NPM, and documentation.</li><li><strong>New npm scripts</strong>: <code>docs:validate</code>, <code>docs:inventory</code>, <code>example:images</code>, <code>example:shapes</code>, <code>example:zorder</code>, <code>example:slide-import</code>, <code>example:text-search</code>, <code>example:table-extraction</code>, <code>example:nested-rows</code>, <code>example:xml-folder</code>.</li></ul>
+
+<h3>Fixed</h3>
+
+<ul><li><strong>Horizontal merge preservation</strong>: Fixed PowerPoint "repair mode" errors when using <code>addTableRow()</code> with rows containing <code>gridSpan</code>/<code>hMerge</code> attributes. The cloning logic now correctly preserves horizontal merge attributes and only clears vertical merge state.</li><li><strong><code>console.log</code> violations</strong> in <code>ChartManager.js</code> (3 calls in <code>updateChartAsync()</code>), <code>OutputWriter.js</code> (5 calls in <code>printDebugZip()</code>), and <code>PPTXTemplater.js</code> (8 calls across <code>debugRelationships()</code>, <code>inspectSlide()</code>, <code>inspectXML()</code>, <code>inspectChart()</code>, <code>debugChartRelationships()</code>). All replaced with structured <code>logger.debug()</code> / <code>logger.info()</code> calls that respect the configured log level. <strong>The library is now completely silent by default</strong> — no terminal output at all unless explicitly enabled.</li></ul>
+
+<h3>Changed</h3>
+
+<ul><li><strong>Logger system overhauled</strong>: Added <code>verbose</code> level, runtime <code>setGlobalLogLevel()</code> function, <code>resetLogLevel()</code> function, and module-level <code>runtimeLevel</code> override. All logger instances now share a mutable runtime level for live updates.</li><li><strong>README</strong>: Rewritten to be concise, modern, and SEO-friendly. Detailed API docs now live at https://jsuyog2.github.io/node-pptx-templater/.</li><li><strong>Version</strong>: Bumped from <code>1.0.21</code> → <code>1.1.0</code>.</li></ul>
+
+---
+
+<h2>[1.0.6] - 2026-06-02</h2>
+
+
+<h3>Added</h3>
+
+<ul><li><strong>XML Validation &amp; Diagnostics Engine</strong>: Introduced a suite of tools in <code>src/utils/xmlUtils.js</code> for XML safety and diagnostics:</li></ul>
   - <code>validateXml(xmlString)</code> — Validates that an XML string is secure and well-formed, checking for DTDs, custom/recursive entities, and XXE.
   - <code>safeParseXml(xmlString, file)</code> — Unified wrapper that runs validation and captures detailed diagnostic error logs (file, line, col, error details, and recommendations) on failure.
   - <code>scanForEntities(xmlString)</code> — Scans and classifies all XML entity references (standard, custom, numeric, and hex).
   - <code>analyzeXmlFile(xmlString)</code> — Computes core file sizing and stats (bytes, lines, elements, attributes, entities).
   - <code>reportXmlComplexity(xmlString)</code> — Inspects structural metrics (maximum tag nesting depth, node count, text-to-markup ratio).
-<ul><li><strong>Public API Exports</strong>: The new tools are exported from the main library entry point <code>src/index.js</code>.</li><p></p><h3>Fixed</h3><p></p><li><strong>XML Entity Expansion Limit Resolution</strong>: Permanently resolved the <code>Entity expansion limit exceeded</code> parser crashes on large template files. Deactivated internal entity expansion in <code>fast-xml-parser</code> and replaced it with a fast, secure, non-recursive unescaper handling the 5 standard XML/HTML entities and numeric references (decimal and hex code points) natively.</li><li><strong>Vulnerability Protections</strong>: Integrated strict security checks directly into the validator to block DTD abuse, XML bombs (Billion Laughs), and XXE attacks safely before the parser processes them.</li><p></p><h3>Tests</h3><p></p><li>Added 13 new unit and integration tests in <code>tests/unit/XMLSecurity.test.js</code> validating security protections, large-scale entity processing, diagnostics error recovery, and complexity analysis.</li><li>Total test count increased from 108 → 121 (all passing).</li><p></p><h2>[1.0.5] - 2026-06-02</h2><p></p><h3>Added</h3><p></p><li><strong>Z-Order (Layer Management) System</strong>: Full stacking control for all slide drawing objects — shapes, images, charts, tables, groups, connectors, and SmartArt. Directly manipulates the OpenXML <code>&lt;p:spTree&gt;</code> element order, matching PowerPoint's native Bring Forward / Send Backward behavior exactly. New APIs:</li></ul>
+<ul><li><strong>Public API Exports</strong>: The new tools are exported from the main library entry point <code>src/index.js</code>.</li></ul>
+
+<h3>Fixed</h3>
+
+<ul><li><strong>XML Entity Expansion Limit Resolution</strong>: Permanently resolved the <code>Entity expansion limit exceeded</code> parser crashes on large template files. Deactivated internal entity expansion in <code>fast-xml-parser</code> and replaced it with a fast, secure, non-recursive unescaper handling the 5 standard XML/HTML entities and numeric references (decimal and hex code points) natively.</li><li><strong>Vulnerability Protections</strong>: Integrated strict security checks directly into the validator to block DTD abuse, XML bombs (Billion Laughs), and XXE attacks safely before the parser processes them.</li></ul>
+
+<h3>Tests</h3>
+
+<ul><li>Added 13 new unit and integration tests in <code>tests/unit/XMLSecurity.test.js</code> validating security protections, large-scale entity processing, diagnostics error recovery, and complexity analysis.</li><li>Total test count increased from 108 → 121 (all passing).</li></ul>
+
+<h2>[1.0.5] - 2026-06-02</h2>
+
+<h3>Added</h3>
+
+<ul><li><strong>Z-Order (Layer Management) System</strong>: Full stacking control for all slide drawing objects — shapes, images, charts, tables, groups, connectors, and SmartArt. Directly manipulates the OpenXML <code>&lt;p:spTree&gt;</code> element order, matching PowerPoint's native Bring Forward / Send Backward behavior exactly. New APIs:</li></ul>
   - <code>getObjectOrder(slideIndex)</code> — Returns ordered metadata (id, type, zIndex) for every element on a slide, bottom-to-top.
   - <code>bringForward(options)</code> — Moves an object one layer up in the stack.
   - <code>sendBackward(options)</code> — Moves an object one layer down.
@@ -12873,7 +13045,53 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   - <code>sortObjects(slideIndex, compareFn)</code> — Sorts the stack using a custom comparator.
   - <code>getTopMostObject(slideIndex)</code> / <code>getBottomMostObject(slideIndex)</code> — Inspection helpers.
   - <code>normalizeZOrder(slideIndex)</code> — Re-derives and resets internal Z-order state from the current XML.
-<ul><li><strong>Z_ORDER_SYMBOL Export</strong>: The <code>Z_ORDER_SYMBOL</code> is now exported from <code>src/index.js</code> for advanced integrations.</li><li><strong>ZOrderManager</strong>: New dedicated manager class (<code>src/managers/ZOrderManager.js</code>) encapsulating all layer logic.</li><p></p><h3>Fixed</h3><p></p><li><strong><code>PPTXTemplater.create()</code> synchronous readiness</strong>: Added <code>preloadAll()</code> call to <code>#initializeBlank()</code>. Previously, the blank PPTX template's pre-existing slides were registered but their XML was not cached, causing all synchronous operations (including ZOrderManager) to throw <code>"Slide N XML not pre-loaded"</code>.</li><p></p><h3>Changed</h3><p></p><li><strong><code>XMLParser</code> hybrid parsing</strong>: Added a secondary <code>preserveOrder: true</code> fast-xml-parser pass that runs during <code>parse()</code> whenever a slide <code>&lt;p:spTree&gt;</code> is detected. Extracts DOM element order and attaches it via <code>Z_ORDER_SYMBOL</code> to each container. The <code>build()</code> method uses a new <code>serializeContainer()</code> recursive function to serialize containers in Z_ORDER_SYMBOL order, injecting the result back into the output XML.</li><li><strong><code>ValidationEngine</code></strong>: <code>validate()</code> now audits the shape tree for duplicate shape IDs, reporting them as errors.</li><p></p><h3>Tests</h3><p></p><li>Added 12 new integration tests in <code>tests/integration/ZOrder.test.js</code> covering all Z-order operations.</li><li>Total test count increased from 96 → 108 (all passing).</li><p></p><h2>[1.0.3] - 2026-06-02</h2><p></p><h3>Added</h3><p></p><li><strong>Dynamic Formatting in updateTable</strong>: Added support for inline cell styling (color fill <code>fill</code>, text alignment <code>align</code>, and <code>fontSize</code>) directly on cell objects passed to <code>updateTable</code>.</li><li><strong>Comprehensive Tailwind Site</strong>: Overhauled doc builder script to generate a premium Tailwind CSS documentation portal with clientside search, clipboard copying, sitemap.xml, robots.txt, and Schema.org metadata.</li><p></p><h3>Fixed</h3><p></p><li><strong>XML Element Ordering</strong>: Enforced strict schema-valid element sequence (<code>a:pPr</code> -&gt; runs -&gt; <code>a:endParaRPr</code>) in slide table cell paragraphs. This resolves the bug where split cells inheriting from template merged cells had their text runs ignored by PowerPoint's XML compiler.</li><li><strong>Template Style Inheritance</strong>: Fixed a bug in <code>updateTable</code> where cloned rows always copied the first data row (<code>trs[1]</code>). The engine now correctly inherits formatting, alignment, and fill styles from matching indices in the template (<code>trs[i]</code>) when available.</li><p></p><h2>[1.0.2] - 2026-06-02</h2><p></p><h3>Added</h3><p></p><li><strong>Table Cell Merging &amp; Unmerging Engine</strong>: Fully implemented horizontal cell spans (<code>gridSpan</code>, <code>hMerge</code>), vertical cell spans (<code>rowSpan</code>, <code>vMerge</code>), and rectangular block merges.</li><li><strong>PowerPoint Repair Protection</strong>: Implemented unique 32-bit unsigned <code>rowId</code> generation inside <code>&lt;a16:rowId&gt;</code> XML tags for all cloned and inserted rows, eliminating PowerPoint's "Repair Mode" error prompts.</li><li><strong>Merge Integrations</strong>: Integrated template-driven merges (<code>merge</code> configs array and cell-level <code>colSpan</code>/<code>rowSpan</code>) inside the main <code>updateTable</code> orchestrator.</li><li><strong>Integration Test Suite</strong>: Added a comprehensive merge test script under <code>tests/integration/PPTXMerge.test.js</code>.</li><p></p><h2>[1.0.1] - 2026-05-19</h2><p></p><h3>Changed</h3><p></p><li><strong>CommonJS Target Conversion</strong>: Converted the source code modules compilation and packaging layout from pure ES Modules (ESM) to CommonJS (CJS) to ensure compatibility with standard Node.js deployment, packaging, and edge runtime environments.</li><p></p><h2>[1.0.0] - 2026-05-17</h2><p></p><h3>Added</h3><p></p><li><code>PPTXTemplater</code> — main orchestrator class with fluent chainable API</li><li><code>ZipManager</code> — PPTX ZIP archive loading, reading, writing, and re-packaging</li><li><code>XMLParser</code> — high-performance XML parsing/building via <code>fast-xml-parser</code></li><li><code>RelationshipManager</code> — OpenXML <code>.rels</code> file parsing and management</li><li><code>SlideManager</code> — slide discovery, ordering, addition, cloning, and removal</li><li><code>ChartManager</code> — direct chart XML data updates (bar, line, pie, area, scatter)</li><li><code>TableManager</code> — table row replacement preserving all formatting</li><li><code>HyperlinkManager</code> — external URL and slide-to-slide hyperlink injection</li><li><code>MediaManager</code> — image embedding with SHA-1 deduplication</li><li><code>TemplateEngine</code> — <code>{{placeholder}}</code> replacement with fragmented run normalization</li><li><code>OutputWriter</code> — file, buffer, and stream output</li><li>CLI: <code>build</code>, <code>validate</code>, <code>inspect</code>, <code>extract</code>, <code>debug</code> commands</li><li>Full JSDoc documentation throughout codebase</li><li>Unit tests for all core components (Vitest)</li><li>Integration tests with fixture-based testing</li><li>Performance benchmarks</li><li>GitHub Actions: CI, release, docs workflows</li><li>ESLint + Prettier configuration</li><li>MIT License</li><p></p><h3>Architecture</h3><p></p><li>Zero PPTX generation library dependencies</li><li>Only uses: <code>jszip</code>, <code>fast-xml-parser</code>, <code>fs-extra</code>, <code>commander</code>, <code>chalk</code>, <code>ora</code></li><li>Async/await throughout</li><li>Private class fields (<code>#field</code>) for encapsulation</li><li>Modular architecture following SOLID principles</li></ul><p></p>[1.0.4]: https://github.com/jsuyog2/node-pptx-templater/compare/v1.0.3...v1.0.4
+<ul><li><strong>Z_ORDER_SYMBOL Export</strong>: The <code>Z_ORDER_SYMBOL</code> is now exported from <code>src/index.js</code> for advanced integrations.</li><li><strong>ZOrderManager</strong>: New dedicated manager class (<code>src/managers/ZOrderManager.js</code>) encapsulating all layer logic.</li></ul>
+
+<h3>Fixed</h3>
+
+<ul><li><strong><code>PPTXTemplater.create()</code> synchronous readiness</strong>: Added <code>preloadAll()</code> call to <code>#initializeBlank()</code>. Previously, the blank PPTX template's pre-existing slides were registered but their XML was not cached, causing all synchronous operations (including ZOrderManager) to throw <code>"Slide N XML not pre-loaded"</code>.</li></ul>
+
+<h3>Changed</h3>
+
+<ul><li><strong><code>XMLParser</code> hybrid parsing</strong>: Added a secondary <code>preserveOrder: true</code> fast-xml-parser pass that runs during <code>parse()</code> whenever a slide <code>&lt;p:spTree&gt;</code> is detected. Extracts DOM element order and attaches it via <code>Z_ORDER_SYMBOL</code> to each container. The <code>build()</code> method uses a new <code>serializeContainer()</code> recursive function to serialize containers in Z_ORDER_SYMBOL order, injecting the result back into the output XML.</li><li><strong><code>ValidationEngine</code></strong>: <code>validate()</code> now audits the shape tree for duplicate shape IDs, reporting them as errors.</li></ul>
+
+<h3>Tests</h3>
+
+<ul><li>Added 12 new integration tests in <code>tests/integration/ZOrder.test.js</code> covering all Z-order operations.</li><li>Total test count increased from 96 → 108 (all passing).</li></ul>
+
+<h2>[1.0.3] - 2026-06-02</h2>
+
+<h3>Added</h3>
+
+<ul><li><strong>Dynamic Formatting in updateTable</strong>: Added support for inline cell styling (color fill <code>fill</code>, text alignment <code>align</code>, and <code>fontSize</code>) directly on cell objects passed to <code>updateTable</code>.</li><li><strong>Comprehensive Tailwind Site</strong>: Overhauled doc builder script to generate a premium Tailwind CSS documentation portal with clientside search, clipboard copying, sitemap.xml, robots.txt, and Schema.org metadata.</li></ul>
+
+<h3>Fixed</h3>
+
+<ul><li><strong>XML Element Ordering</strong>: Enforced strict schema-valid element sequence (<code>a:pPr</code> -&gt; runs -&gt; <code>a:endParaRPr</code>) in slide table cell paragraphs. This resolves the bug where split cells inheriting from template merged cells had their text runs ignored by PowerPoint's XML compiler.</li><li><strong>Template Style Inheritance</strong>: Fixed a bug in <code>updateTable</code> where cloned rows always copied the first data row (<code>trs[1]</code>). The engine now correctly inherits formatting, alignment, and fill styles from matching indices in the template (<code>trs[i]</code>) when available.</li></ul>
+
+<h2>[1.0.2] - 2026-06-02</h2>
+
+<h3>Added</h3>
+
+<ul><li><strong>Table Cell Merging &amp; Unmerging Engine</strong>: Fully implemented horizontal cell spans (<code>gridSpan</code>, <code>hMerge</code>), vertical cell spans (<code>rowSpan</code>, <code>vMerge</code>), and rectangular block merges.</li><li><strong>PowerPoint Repair Protection</strong>: Implemented unique 32-bit unsigned <code>rowId</code> generation inside <code>&lt;a16:rowId&gt;</code> XML tags for all cloned and inserted rows, eliminating PowerPoint's "Repair Mode" error prompts.</li><li><strong>Merge Integrations</strong>: Integrated template-driven merges (<code>merge</code> configs array and cell-level <code>colSpan</code>/<code>rowSpan</code>) inside the main <code>updateTable</code> orchestrator.</li><li><strong>Integration Test Suite</strong>: Added a comprehensive merge test script under <code>tests/integration/PPTXMerge.test.js</code>.</li></ul>
+
+<h2>[1.0.1] - 2026-05-19</h2>
+
+<h3>Changed</h3>
+
+<ul><li><strong>CommonJS Target Conversion</strong>: Converted the source code modules compilation and packaging layout from pure ES Modules (ESM) to CommonJS (CJS) to ensure compatibility with standard Node.js deployment, packaging, and edge runtime environments.</li></ul>
+
+<h2>[1.0.0] - 2026-05-17</h2>
+
+<h3>Added</h3>
+
+<ul><li><code>PPTXTemplater</code> — main orchestrator class with fluent chainable API</li><li><code>ZipManager</code> — PPTX ZIP archive loading, reading, writing, and re-packaging</li><li><code>XMLParser</code> — high-performance XML parsing/building via <code>fast-xml-parser</code></li><li><code>RelationshipManager</code> — OpenXML <code>.rels</code> file parsing and management</li><li><code>SlideManager</code> — slide discovery, ordering, addition, cloning, and removal</li><li><code>ChartManager</code> — direct chart XML data updates (bar, line, pie, area, scatter)</li><li><code>TableManager</code> — table row replacement preserving all formatting</li><li><code>HyperlinkManager</code> — external URL and slide-to-slide hyperlink injection</li><li><code>MediaManager</code> — image embedding with SHA-1 deduplication</li><li><code>TemplateEngine</code> — <code>{{placeholder}}</code> replacement with fragmented run normalization</li><li><code>OutputWriter</code> — file, buffer, and stream output</li><li>CLI: <code>build</code>, <code>validate</code>, <code>inspect</code>, <code>extract</code>, <code>debug</code> commands</li><li>Full JSDoc documentation throughout codebase</li><li>Unit tests for all core components (Vitest)</li><li>Integration tests with fixture-based testing</li><li>Performance benchmarks</li><li>GitHub Actions: CI, release, docs workflows</li><li>ESLint + Prettier configuration</li><li>MIT License</li></ul>
+
+<h3>Architecture</h3>
+
+<ul><li>Zero PPTX generation library dependencies</li><li>Only uses: <code>jszip</code>, <code>fast-xml-parser</code>, <code>fs-extra</code>, <code>commander</code>, <code>chalk</code>, <code>ora</code></li><li>Async/await throughout</li><li>Private class fields (<code>#field</code>) for encapsulation</li><li>Modular architecture following SOLID principles</li></ul>
+
+[1.0.4]: https://github.com/jsuyog2/node-pptx-templater/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/jsuyog2/node-pptx-templater/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/jsuyog2/node-pptx-templater/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/jsuyog2/node-pptx-templater/compare/v1.0.0...v1.0.1

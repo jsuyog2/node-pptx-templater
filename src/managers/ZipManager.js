@@ -646,7 +646,11 @@ class ZipManager {
           await fs.writeFile(targetPath, this.#dirtyBinaryFiles.get(relPath))
         } else {
           const srcPath = path.join(this.#folderRoot, relPath)
-          await fs.copy(srcPath, targetPath)
+          const resolvedSrc = path.resolve(srcPath)
+          const resolvedDest = path.resolve(targetPath)
+          if (resolvedSrc !== resolvedDest) {
+            await fs.copy(srcPath, targetPath)
+          }
         }
       }
     } else {

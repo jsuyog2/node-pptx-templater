@@ -38,8 +38,8 @@ async function main() {
   }
 
   try {
-    console.log('📂 Loading template:', TEMPLATE_PATH)
-    const ppt = await PPTXTemplater.load(TEMPLATE_PATH)
+    console.log('📂 Loading template:', TEMPLATE_PATH_PPTX)
+    const ppt = await PPTXTemplater.load(TEMPLATE_PATH_PPTX)
 
     console.log(`📊 Loaded ${ppt.slideCount} slides`)
 
@@ -102,19 +102,51 @@ async function main() {
       ],
       ['Bob', '', '     Designer', 'Product'],
     ])
-    ppt.addTableRow('Table', ['Bob', '', '     Designer', ['Product', 'Value']])
-    ppt.addCellShape('Table', 2, 2, {
-      type: 'rectangle',
-      fill: '#10B981',
-      x: 10,
-      width: 25,
-      height: 15,
-    })
+    ppt.addTableRow('Table', [
+      '',
+      '',
+      'Designer',
+      'Value',
+      'Product',
+      {
+        type: 'circle',
+        color: '#0021dbff',
+        width: 12,
+        height: 12,
+        position: 'center',
+      },
+    ])
+    ppt.addTableRow('Table', [
+      'Bob',
+      '',
+      'Designer',
+      'Value',
+      'Product',
+      { type: 'circle', color: '#4CAF50', width: 12, height: 12, position: 'center' },
+    ])
+
+    ppt.removeTableRow('Table', 1)
+
+    // const rows = await ppt.getTableRows('Table')
+    // console.log(rows)
+
+    // rows.forEach((d, i) => {
+    //   ppt.updateCell('Table', i + 1, 5, '')
+
+    //   ppt.addCellShape('Table', i + 1, 5, {
+    //     type: 'circle',
+    //     fill: d.STATUS === 'P' ? '#10B981' : '#EF4444',
+    //     // x: 10,
+    //     width: 20,
+    //     height: 20,
+    //   })
+    // })
 
     // merge all cells of first column with all cells of second col
-    ppt.mergeCells('Table', 0, 0, 0, 1)
-    ppt.mergeCells('Table', 1, 0, 1, 1)
-    ppt.mergeCells('Table', 2, 0, 2, 1)
+    ppt.mergeCells('Table', 1, 0, 2, 0)
+    ppt.mergeCells('Table', 1, 1, 2, 1)
+    // ppt.mergeCells('Table', 1, 0, 1, 1)
+    // ppt.mergeCells('Table', 2, 0, 2, 1)
 
     ppt.updateTable('Table2', [
       ['Name', '', 'Role', 'Dept'],
@@ -159,6 +191,89 @@ async function main() {
     ppt.updateText('List', {
       list: ['Fast PPTX generation', 'OpenXML based', 'Chart updates', 'Table updates'],
     })
+
+    ppt.useSlide(5)
+
+    let TeamData = [
+      [
+        '',
+        'Team A',
+        'Bob',
+        'Designer',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '40',
+        'N',
+        'A',
+      ],
+      [
+        '',
+        '',
+        'Charlie',
+        'Admin',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '30',
+        'P',
+        'B',
+      ],
+      [
+        '',
+        '',
+        'David',
+        'Developer',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '100',
+        'P',
+        'A',
+      ],
+      [
+        '',
+        'Team B',
+        'User',
+        'Tester',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '60',
+        'N',
+        'A',
+      ],
+      [
+        '',
+        '',
+        'Alice',
+        'Manager',
+        'The final implementation should allow users to build highly visual dashboards and reports.',
+        '85',
+        'P',
+        'B',
+      ],
+    ]
+    TeamData.forEach(element => {
+      ppt.addTableRow('Table', element)
+    })
+    ppt.removeTableRow('Table', 1)
+
+    ppt.mergeCells('Table', 1, 0, 3, 0)
+    ppt.mergeCells('Table', 1, 1, 3, 1)
+    ppt.mergeCells('Table', 4, 0, 5, 0)
+    ppt.mergeCells('Table', 4, 1, 5, 1)
+
+    TeamData.forEach((element, rowIndex) => {
+      element.forEach((cell, colIndex) => {
+        if (colIndex === 7 && (cell === 'A' || cell === 'B')) {
+          ppt.addCellShape('Table', rowIndex + 1, colIndex, {
+            type: 'circle',
+            fill: cell === 'A' ? '#10B981' : '#EF4444',
+            width: 15,
+            height: 15,
+            position: 'center',
+          })
+
+          ppt.updateCell('Table', rowIndex + 1, colIndex, '')
+        }
+      })
+    })
+
+    ppt.alignShapeToCell('Team A Logo', 'Table', 1, 0)
+    ppt.alignShapeToCell('Team B Logo', 'Table', 4, 0)
 
     // Step 3: Save to file
     await ppt.saveToFile(OUTPUT_PATH)
