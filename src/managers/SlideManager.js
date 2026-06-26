@@ -513,7 +513,10 @@ class SlideManager {
     if (notesRel) {
       const sourceNotesPath = relationshipManager.resolveTarget(sourceInfo.zipPath, notesRel.target)
       let notesXml = this.#zipManager.readCachedFile(sourceNotesPath)
-      
+      if (!notesXml) {
+        notesXml = await this.#zipManager.readFile(sourceNotesPath)
+      }
+
       if (notesXml) {
         let nextNotesIndex = 1
         while (this.#zipManager.hasFile(`ppt/notesSlides/notesSlide${nextNotesIndex}.xml`)) {
@@ -584,8 +587,13 @@ class SlideManager {
   }
 
   /**
-   * Deep-clones slide relationships so embedded parts (charts, images, etc.) are
-   * independent copies — the source slide is never modified.
+   * Deep-clones slide relationships so every embedded part (chart, image, VML drawing,
+   * SmartArt, custom XML, audio/video, etc.) gets its own independent copy.
+   * Shared presentation-level resources (layout, master, theme, tableStyles) are reused.
+   *
+   * IMPORTANT: Every internal part that is unique to a slide MUST be deep-copied here.
+   * Sharing mutable internal parts between slides causes PowerPoint corruption, particularly
+   * in enterprise environments with strict validators (e.g. Boldon James Classifier).
    * @private
    */
   async #deepCloneSlideRelationships(
@@ -603,29 +611,86 @@ class SlideManager {
       if (excludeTypes.includes(rel.type)) continue
 
       let target = rel.target
-      const resolvedTarget = relationshipManager.resolveTarget(sourcePath, rel.target)
+      const resolvedTarget = rel.targetMode === 'External'
+        ? null
+        : relationshipManager.resolveTarget(sourcePath, rel.target)
+      const typeEnd = rel.type.split('/').pop().toLowerCase()
 
-      if (rel.type === REL_TYPES.CHART) {
+      if (rel.targetMode === 'External') {
+        // External hyperlinks, audio/video links — reuse as-is
+      } else if (rel.type === REL_TYPES.CHART) {
+        // Charts → deep copy with independent workbook/style/color
         target = await this.#copyChartPart(resolvedTarget, relationshipManager)
       } else if (rel.type === REL_TYPES.IMAGE) {
+        // Raster/vector images — copy as new media part
         const newMediaPath = await mediaManager.copyMediaAsNewPart(resolvedTarget)
         target = `../media/${newMediaPath.split('/').pop()}`
-      } else if (
-        rel.targetMode === 'External' ||
-        (rel.target && (rel.target.startsWith('http://') || rel.target.startsWith('https://')))
-      ) {
-        // External hyperlinks — reuse target as-is
       } else if (
         rel.type === REL_TYPES.SLIDE_LAYOUT ||
         rel.type === REL_TYPES.SLIDE_MASTER ||
         rel.type === REL_TYPES.THEME ||
         rel.type === REL_TYPES.TABLE_STYLES
       ) {
-        // Shared presentation resources — reuse target
-      } else if (rel.target && !rel.target.startsWith('http')) {
-        const copiedTarget = this.#copyInternalPartForClone(sourcePath, resolvedTarget)
-        if (copiedTarget) {
-          target = copiedTarget
+        // Shared presentation-level resources — reuse same target
+      } else if (typeEnd === 'audio' || typeEnd === 'video' || typeEnd === 'media') {
+        // Embedded audio/video binary — copy to new media file
+        if (this.#zipManager.hasFile(resolvedTarget)) {
+          const newPath = await this.#copyBinaryPart(resolvedTarget)
+          if (newPath) target = `../media/${newPath.split('/').pop()}`
+        }
+      } else if (typeEnd === 'vmldrawing') {
+        // VML drawings (legacy shapes, comment boxes) — must be independent per slide
+        if (this.#zipManager.hasFile(resolvedTarget)) {
+          const newTarget = await this.#copyGenericXmlPart(resolvedTarget)
+          if (newTarget) target = newTarget
+        }
+      } else if (
+        typeEnd === 'diagramdata' ||
+        typeEnd === 'diagramlayout' ||
+        typeEnd === 'diagramquickstyle' ||
+        typeEnd === 'diagramcolors' ||
+        typeEnd === 'diagram'
+      ) {
+        // SmartArt/diagram parts — each slide needs its own copy
+        if (this.#zipManager.hasFile(resolvedTarget)) {
+          const newTarget = await this.#copyGenericXmlPart(resolvedTarget)
+          if (newTarget) target = newTarget
+        }
+      } else if (typeEnd === 'oleobject' || typeEnd === 'activex') {
+        // Non-chart OLE / ActiveX objects — copy binary
+        if (this.#zipManager.hasFile(resolvedTarget)) {
+          const newPath = await this.#copyBinaryPart(resolvedTarget)
+          if (newPath) {
+            const folder = resolvedTarget.split('/').slice(0, -1).join('/')
+            const slideFolder = sourcePath.split('/').slice(0, -1).join('/')
+            const prefix = folder === slideFolder ? '' : '../' + resolvedTarget.split('/').slice(-2, -1)[0] + '/'
+            target = `${prefix}${newPath.split('/').pop()}`
+          }
+        }
+      } else if (rel.target && !rel.target.startsWith('http') && resolvedTarget) {
+        // Catch-all for any other internal part: copy XML if it exists and is text,
+        // otherwise copy as binary. This handles custom XML (e.g. Boldon James classification
+        // parts) and any future unknown relationship types.
+        if (this.#zipManager.hasFile(resolvedTarget)) {
+          const content = this.#zipManager.readCachedFile(resolvedTarget)
+          if (content !== null && content !== undefined) {
+            // Text/XML content
+            const newTarget = await this.#copyGenericXmlPart(resolvedTarget)
+            if (newTarget) target = newTarget
+          } else {
+            // Binary content
+            const newPath = await this.#copyBinaryPart(resolvedTarget)
+            if (newPath) {
+              const folder = resolvedTarget.split('/').slice(0, -1).join('/')
+              const slideFolder = destPath.split('/').slice(0, -1).join('/')
+              target = folder === slideFolder
+                ? newPath.split('/').pop()
+                : this.#makeRelativeTarget(destPath, newPath)
+            }
+          }
+        } else {
+          // Part not in ZIP (may be external or already purged) — keep original target
+          logger.warn(`Clone: part not found in ZIP, reusing original target: ${resolvedTarget}`)
         }
       }
 
@@ -738,21 +803,101 @@ class SlideManager {
   }
 
   /**
-   * Resolves a relative target for slide-to-slide links in the same folder.
+   * Copies a generic XML text part to a new sequentially numbered path in the same
+   * directory as the source. Returns a relative target path from the destination slide,
+   * or null if the copy failed.
    * @private
+   * @param {string} sourcePath - Absolute ZIP path of the source XML part.
+   * @returns {Promise<string|null>} Relative target for the cloned slide relationship.
    */
-  #copyInternalPartForClone(sourceSlidePath, resolvedTarget) {
-    if (!this.#zipManager.hasFile(resolvedTarget)) return null
+  async #copyGenericXmlPart(sourcePath) {
+    let content = this.#zipManager.readCachedFile(sourcePath)
+    if (!content) {
+      content = await this.#zipManager.readFile(sourcePath)
+    }
+    if (!content) return null
 
-    const fileName = resolvedTarget.split('/').pop()
-    const sourceDir = resolvedTarget.split('/').slice(0, -1).join('/')
-    const slideDir = sourceSlidePath.split('/').slice(0, -1).join('/')
+    const parts = sourcePath.split('/')
+    const dir = parts.slice(0, -1).join('/')
+    const fileName = parts[parts.length - 1]
+    // Extract base name and extension: e.g. 'vmlDrawing1.xml' → base='vmlDrawing', ext='xml'
+    const lastDot = fileName.lastIndexOf('.')
+    const ext = lastDot >= 0 ? fileName.slice(lastDot) : ''
+    const base = lastDot >= 0 ? fileName.slice(0, lastDot).replace(/\d+$/, '') : fileName
 
-    if (sourceDir === slideDir) {
-      return fileName
+    let num = 1
+    let destPath = `${dir}/${base}${num}${ext}`
+    while (this.#zipManager.hasFile(destPath)) {
+      num++
+      destPath = `${dir}/${base}${num}${ext}`
     }
 
-    return null
+    this.#zipManager.writeFile(destPath, content)
+
+    // Mirror content type if one exists for the source
+    const srcContentType = this.#contentTypesManager.getOverrideContentType(sourcePath)
+    if (srcContentType) {
+      this.#contentTypesManager.addOverride(destPath, srcContentType)
+    }
+
+    logger.debug(`Cloned XML part: ${sourcePath} → ${destPath}`)
+    return `../${dir.split('/').pop()}/${destPath.split('/').pop()}`
+  }
+
+  /**
+   * Copies a binary part (audio, video, OLE object, etc.) to a new path in the same
+   * directory as the source. Returns the new absolute ZIP path, or null on failure.
+   * @private
+   * @param {string} sourcePath - Absolute ZIP path of the source binary part.
+   * @returns {Promise<string|null>} New absolute ZIP path.
+   */
+  async #copyBinaryPart(sourcePath) {
+    const data = await this.#zipManager.readBinaryFile(sourcePath)
+    if (!data) return null
+
+    const parts = sourcePath.split('/')
+    const dir = parts.slice(0, -1).join('/')
+    const fileName = parts[parts.length - 1]
+    const lastDot = fileName.lastIndexOf('.')
+    const ext = lastDot >= 0 ? fileName.slice(lastDot) : ''
+    const base = lastDot >= 0 ? fileName.slice(0, lastDot).replace(/\d+$/, '') : fileName
+
+    let num = 1
+    let destPath = `${dir}/${base}${num}${ext}`
+    while (this.#zipManager.hasFile(destPath)) {
+      num++
+      destPath = `${dir}/${base}${num}${ext}`
+    }
+
+    this.#zipManager.writeBinaryFile(destPath, data)
+
+    const srcContentType = this.#contentTypesManager.getOverrideContentType(sourcePath)
+    if (srcContentType) {
+      this.#contentTypesManager.addOverride(destPath, srcContentType)
+    }
+
+    logger.debug(`Cloned binary part: ${sourcePath} → ${destPath}`)
+    return destPath
+  }
+
+  /**
+   * Builds a relative target path from a source ZIP part to a destination ZIP path.
+   * @private
+   * @param {string} fromPath - Absolute path of the part containing the relationship.
+   * @param {string} toPath - Absolute ZIP path of the target.
+   * @returns {string} Relative path from fromPath's directory to toPath.
+   */
+  #makeRelativeTarget(fromPath, toPath) {
+    const fromDir = fromPath.split('/').slice(0, -1)
+    const toParts = toPath.split('/')
+    // Find common prefix length
+    let common = 0
+    while (common < fromDir.length && common < toParts.length - 1 && fromDir[common] === toParts[common]) {
+      common++
+    }
+    const ups = fromDir.length - common
+    const downs = toParts.slice(common)
+    return (ups > 0 ? '../'.repeat(ups) : './') + downs.join('/')
   }
 
   /**
