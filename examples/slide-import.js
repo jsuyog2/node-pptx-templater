@@ -34,7 +34,7 @@ async function main() {
   console.log(`✓ Cloned slide 1 — now ${ppt.slideCount} slides`)
 
   // 4. Duplicate slide 2 and insert it after slide 1
-  ppt.duplicateSlide(2, 2)
+  await ppt.duplicateSlide(2, 2)
   console.log(`✓ Duplicated slide 2 — now ${ppt.slideCount} slides`)
 
   // 5. Move the last slide to position 2

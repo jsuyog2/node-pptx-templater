@@ -184,7 +184,7 @@ describe('PPTXTemplater - Extended Features & Safety', () => {
     it('should duplicate, move, insert, and delete slides', async () => {
       const startCount = ppt.slideCount
 
-      ppt.duplicateSlide(1, 2)
+      await ppt.duplicateSlide(1, 2)
       expect(ppt.slideCount).toBe(startCount + 1)
 
       ppt.moveSlide(ppt.slideCount, 1)
