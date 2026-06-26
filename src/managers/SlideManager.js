@@ -529,11 +529,14 @@ class SlideManager {
         const notesIdMap = relationshipManager.copyRelationships(sourceNotesPath, notesZipPath)
         
         // Update target in notes relationships to point back to the new slide
+        // IMPORTANT: patch the back-reference BEFORE flushing to ZIP so the
+        // .rels file on disk contains the correct slide path.
         const notesRels = relationshipManager.getRelationships(notesZipPath)
         const slideRel = notesRels.find(r => r.type === REL_TYPES.SLIDE || r.type.endsWith('/slide'))
         if (slideRel) {
           slideRel.target = `../slides/${slideFileName}`
         }
+        // Flush AFTER the target is patched so the written .rels is correct
         relationshipManager.flushRelationships(notesZipPath)
 
         // Remap relationship IDs in notes XML
@@ -968,7 +971,7 @@ class SlideManager {
     this.#assertSlideExists(slideIndex)
     const info = this.#slides.get(slideIndex)
 
-    // Check for notes slide relationship and remove it
+    // 1. Check for notes slide relationship and remove it first
     const slideRels = this.#relationshipManager.getRelationships(info.zipPath)
     const notesRel = slideRels.find(r => r.type === REL_TYPES.NOTES_SLIDE)
     if (notesRel) {
@@ -977,7 +980,7 @@ class SlideManager {
       // Remove from ZIP
       this.#zipManager.removeFile(notesPath)
       
-      // Remove its relationships file
+      // Remove its relationships file — use getRelsPath for robustness
       const notesRelsPath = this.#relationshipManager.getRelsPath(notesPath)
       this.#zipManager.removeFile(notesRelsPath)
       
@@ -988,32 +991,38 @@ class SlideManager {
       this.#contentTypesManager.removeOverride(notesPath)
     }
 
-    // Remove from ZIP
+    // 2. Remove slide XML from ZIP
     this.#zipManager.removeFile(info.zipPath)
 
-    // Remove its relationships file
-    const relsFileName = info.zipPath.split('/').pop() + '.rels'
-    this.#zipManager.removeFile(`ppt/slides/_rels/${relsFileName}`)
+    // 3. Remove slide .rels file — use getRelsPath so non-standard paths work correctly
+    const slideRelsPath = this.#relationshipManager.getRelsPath(info.zipPath)
+    this.#zipManager.removeFile(slideRelsPath)
 
-    // Remove from cache
+    // 4. Remove slide relationship cache entry
+    this.#relationshipManager.deleteRelationships(info.zipPath)
+
+    // 5. Remove slide XML cache entries
     this.#slideXmlCache.delete(info.zipPath)
     this.#slideStates.delete(slideIndex)
 
-    // Remove relationship from presentation.xml
-    this.#relationshipManager.removeRelationship('ppt/presentation.xml', info.relationshipId)
-
-    // Remove relationships cache
-    this.#relationshipManager.deleteRelationships(info.zipPath)
-
-    // Remove content type from [Content_Types].xml
+    // 6. Remove content type from [Content_Types].xml
     this.#contentTypesManager.removeOverride(info.zipPath)
 
-    // Remove from slides map and reindex
+    // 7. Remove relationship from presentation.xml.rels
+    this.#relationshipManager.removeRelationship('ppt/presentation.xml', info.relationshipId)
+
+    // 8. Remove from presentation.xml sldIdLst and sections BEFORE reindexing.
+    //    This ensures the sldIdLst is consistent with the relationship list.
+    this.#removeSlideFromPresentation(info.slideId)
+
+    // 9. Remove from slides map and reindex remaining slides
     this.#slides.delete(slideIndex)
     this.#reindexSlides()
 
-    // Update presentation.xml
-    this.#removeSlideFromPresentation(info.slideId)
+    // 10. Rebuild sldIdLst and synchronize sections to reflect the updated slide order.
+    //     This is essential: after reindexing, the relationship IDs and slide IDs are
+    //     still valid but the sldIdLst order must be rebuilt so sections match.
+    this.rebuildPresentationSlideOrder()
 
     logger.debug(`Removed slide ${slideIndex}`)
   }
