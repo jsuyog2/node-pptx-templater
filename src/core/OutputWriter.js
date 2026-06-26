@@ -25,6 +25,8 @@ class OutputWriter {
   #zipManager
   /** @private @type {ContentTypesManager} */
   #contentTypesManager
+  /** @private @type {RelationshipManager} */
+  #relationshipManager
 
   /** @type {boolean} */
   debugZip = false
@@ -32,10 +34,12 @@ class OutputWriter {
   /**
    * @param {ZipManager} zipManager
    * @param {ContentTypesManager} contentTypesManager
+   * @param {RelationshipManager} [relationshipManager]
    */
-  constructor(zipManager, contentTypesManager) {
+  constructor(zipManager, contentTypesManager, relationshipManager = null) {
     this.#zipManager = zipManager
     this.#contentTypesManager = contentTypesManager
+    this.#relationshipManager = relationshipManager
   }
 
   /**
@@ -70,6 +74,9 @@ class OutputWriter {
   async flush(slideManager, zipManager) {
     if (slideManager && typeof slideManager.flush === 'function') {
       slideManager.flush()
+    }
+    if (slideManager && typeof slideManager.normalizeStructure === 'function' && this.#relationshipManager) {
+      slideManager.normalizeStructure(this.#relationshipManager, this.#contentTypesManager)
     }
     await this.#flushAllSlides(slideManager, zipManager)
     this.#contentTypesManager.flush(zipManager)
