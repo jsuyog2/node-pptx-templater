@@ -251,13 +251,21 @@ class MediaManager {
     const ext = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : 'png'
     const mimeType = EXT_TO_MIME[ext] || 'application/octet-stream'
 
-    const mediaId = this.#nextMediaId++
-    const zipPath = `ppt/media/image${mediaId}.${ext}`
+    let mediaId = this.#nextMediaId
+    let zipPath = `ppt/media/image${mediaId}.${ext}`
+    while (this.#zipManager.hasFile(zipPath)) {
+      mediaId++
+      zipPath = `ppt/media/image${mediaId}.${ext}`
+    }
+    this.#nextMediaId = mediaId + 1
 
     this.#zipManager.writeBinaryFile(zipPath, data)
-    const hash = this.#hashBytes(data)
-    this.#mediaHashIndex.set(hash, zipPath)
-    this.#mediaRegistry.set(zipPath, { zipPath, hash, mimeType, size: data.length })
+    this.#mediaRegistry.set(zipPath, {
+      zipPath,
+      hash: null,
+      mimeType,
+      size: data.length,
+    })
     this.#registerContentType(ext, mimeType)
 
     logger.debug(`Cloned media to new part: ${zipPath}`)

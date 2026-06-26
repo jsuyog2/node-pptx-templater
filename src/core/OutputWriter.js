@@ -75,12 +75,14 @@ class OutputWriter {
     if (slideManager && typeof slideManager.flush === 'function') {
       slideManager.flush()
     }
+    // Complete all pending async mutations (slide duplication, chart writes, etc.)
+    // BEFORE structural normalization so sldIdLst/rels match the final slide set.
+    await zipManager.waitForPendingWrites()
     if (slideManager && typeof slideManager.normalizeStructure === 'function' && this.#relationshipManager) {
       await slideManager.normalizeStructure(this.#relationshipManager, this.#contentTypesManager)
     }
     await this.#flushAllSlides(slideManager, zipManager)
     this.#contentTypesManager.flush(zipManager)
-    await zipManager.waitForPendingWrites()
   }
 
   /**

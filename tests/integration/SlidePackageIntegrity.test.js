@@ -124,14 +124,22 @@ describe('PPTXTemplater - Slide package structural integrity', () => {
     await assertValidBuffer(await ppt.toBuffer(), 'basic-usage-style mutations')
   })
 
-  it('should keep sldId r:id values aligned with presentation.xml.rels', async () => {
+  it('should keep package integrity when duplicateSlide is not awaited before save', async () => {
     const ppt = await PPTXTemplater.load(fixtureFile)
-    ppt.removeSlide(1)
-    await ppt.duplicateSlide(1, 1)
-    await ppt.duplicateSlide(ppt.slideCount)
+    ppt.removeSlide(2)
+    // Fire-and-forget duplicate — save must still wait for pending clone via flush
+    ppt.duplicateSlide(5, 5)
+    const errors = await validatePackageIntegrity(await ppt.toBuffer())
+    expect(errors).toEqual([])
+    expect(ppt.slideCount).toBe(6)
+  })
 
-    const buffer = await ppt.toBuffer()
-    const errors = await validatePackageIntegrity(buffer)
+  it('should keep package integrity after removeSlide only', async () => {
+    const ppt = await PPTXTemplater.load(fixtureFile)
+    const beforeXml = ppt.slideManager.getSlideXml(1)
+    ppt.removeSlide(2)
+    expect(ppt.slideManager.getSlideXml(1)).toBe(beforeXml)
+    const errors = await validatePackageIntegrity(await ppt.toBuffer())
     expect(errors).toEqual([])
   })
 })

@@ -463,6 +463,15 @@ class SlideManager {
    * @returns {Promise<void>}
    */
   async cloneSlide(sourceIndex, atPosition, relationshipManager, mediaManager) {
+    const promise = this.#cloneSlideInternal(sourceIndex, atPosition, relationshipManager, mediaManager)
+    this.#zipManager.addPendingPromise(promise)
+    return promise
+  }
+
+  /**
+   * @private
+   */
+  async #cloneSlideInternal(sourceIndex, atPosition, relationshipManager, mediaManager) {
     this.#assertSlideExists(sourceIndex)
     const sourceInfo = this.#slides.get(sourceIndex)
     logger.debug('Source Slide Info:', sourceInfo)
@@ -1495,7 +1504,22 @@ class SlideManager {
    * @returns {Promise<number>}
    */
   async duplicateSlide(slideIndex, atPosition, relationshipManager, mediaManager) {
-    await this.cloneSlide(slideIndex, null, relationshipManager, mediaManager)
+    const promise = this.#duplicateSlideInternal(
+      slideIndex,
+      atPosition,
+      relationshipManager,
+      mediaManager
+    )
+    this.#zipManager.addPendingPromise(promise)
+    return promise
+  }
+
+  /**
+   * Internal duplicate implementation.
+   * @private
+   */
+  async #duplicateSlideInternal(slideIndex, atPosition, relationshipManager, mediaManager) {
+    await this.#cloneSlideInternal(slideIndex, null, relationshipManager, mediaManager)
     const count = this.slideCount
     if (atPosition !== undefined && atPosition !== count) {
       const order = []
@@ -1841,6 +1865,32 @@ class SlideManager {
 
     // 7. Rebuild presentation.xml sldIdLst and synchronize sections
     this.rebuildPresentationSlideOrder()
+
+    // 8. Remove orphan slide parts left over from add/remove/duplicate operations
+    this.#purgeOrphanSlideParts(slides, relationshipManager, contentTypesManager)
+  }
+
+  /**
+   * Deletes slide XML/.rels parts that are no longer referenced by the presentation.
+   * @private
+   */
+  #purgeOrphanSlideParts(slides, relationshipManager, contentTypesManager) {
+    const referenced = new Set(slides.map(s => s.zipPath))
+    const slideFiles = this.#zipManager
+      .listFiles('ppt/slides/')
+      .filter(f => /\/slide\d+\.xml$/.test(f))
+
+    for (const zipPath of slideFiles) {
+      if (referenced.has(zipPath)) continue
+
+      this.#zipManager.removeFile(zipPath)
+      const relsPath = relationshipManager.getRelsPath(zipPath)
+      this.#zipManager.removeFile(relsPath)
+      relationshipManager.deleteRelationships(zipPath)
+      contentTypesManager.removeOverride(zipPath)
+      this.#slideXmlCache.delete(zipPath)
+      logger.debug(`Purged orphan slide part: ${zipPath}`)
+    }
   }
 
   /**
