@@ -69,13 +69,17 @@ function isValidRelationshipId(str) {
 function remapRelationshipIds(xml, idMap) {
   if (!idMap || idMap.size === 0) return xml
 
-  // Perform single-pass replacement of relationship IDs inside quotes to prevent clobbering
-  return xml.replace(/([\'"])(rId\d+)([\'"])/g, (match, openQuote, id, closeQuote) => {
-    if (idMap.has(id)) {
-      return `${openQuote}${idMap.get(id)}${closeQuote}`
+  // Only remap OpenXML relationship reference attributes — never arbitrary quoted values
+  // such as shape names that might coincidentally match an rId key.
+  return xml.replace(
+    /\b(r:(?:id|embed|link))=(["'])(rId\d+)\2/g,
+    (match, attr, quote, id) => {
+      if (idMap.has(id)) {
+        return `${attr}=${quote}${idMap.get(id)}${quote}`
+      }
+      return match
     }
-    return match
-  })
+  )
 }
 
 module.exports = {
