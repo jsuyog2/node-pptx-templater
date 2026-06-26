@@ -28,13 +28,21 @@ const { createLogger } = require('../utils/logger.js')
 const { PPTXError, SlideNotFoundError } = require('../utils/errors.js')
 const { REL_TYPES } = require('./RelationshipManager.js')
 const { buildNewSlideXml } = require('../templates/slideTemplate.js')
-const { remapRelationshipIds } = require('../utils/relationshipUtils.js')
+const { remapRelationshipIds, generateRelationshipId } = require('../utils/relationshipUtils.js')
 const { generateSlideId } = require('../utils/idUtils.js')
 
 const logger = createLogger('SlideManager')
 
 /** MIME type for PPTX slide parts. */
 const SLIDE_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
+
+const CHART_CONTENT_TYPE =
+  'application/vnd.openxmlformats-officedocument.drawingml.chart+xml'
+const CHART_STYLE_CONTENT_TYPE = 'application/vnd.ms-office.chartstyle+xml'
+const CHART_COLORS_CONTENT_TYPE = 'application/vnd.ms-office.chartcolorstyle+xml'
+const WORKBOOK_CONTENT_TYPE =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+const ACTIVEX_CONTENT_TYPE = 'application/vnd.ms-office.activeX'
 
 /**
  * @typedef {Object} SlideInfo
@@ -451,8 +459,10 @@ class SlideManager {
    * @param {number} sourceIndex - 1-based source slide number.
    * @param {number} [atPosition] - Insert position (1-based). Default: append.
    * @param {RelationshipManager} relationshipManager
+   * @param {MediaManager} mediaManager
+   * @returns {Promise<void>}
    */
-  cloneSlide(sourceIndex, atPosition, relationshipManager) {
+  async cloneSlide(sourceIndex, atPosition, relationshipManager, mediaManager) {
     this.#assertSlideExists(sourceIndex)
     const sourceInfo = this.#slides.get(sourceIndex)
     logger.debug('Source Slide Info:', sourceInfo)
@@ -465,26 +475,29 @@ class SlideManager {
     const slideFileName = `slide${nextFileIndex}.xml`
     const slideZipPath = `ppt/slides/${slideFileName}`
 
-    // Copy the source XML
-    let sourceXml = this.getSlideXml(sourceIndex)
-    logger.debug('Source XML length:', sourceXml ? sourceXml.length : 0)
+    // Snapshot source XML — never mutate the original slide content
+    const sourceXmlSnapshot = this.getSlideXml(sourceIndex)
+    logger.debug('Source XML length:', sourceXmlSnapshot ? sourceXmlSnapshot.length : 0)
 
-    // Copy relationships
     const sourceRels = relationshipManager.getRelationships(sourceInfo.zipPath)
     logger.debug('Source Rels Path searched:', relationshipManager.getRelsPath(sourceInfo.zipPath))
     logger.debug('Source Rels found:', sourceRels)
 
-    // Copy relationships from source slide (excluding notes, which are slide-specific)
-    const idMap = relationshipManager.copyRelationships(sourceInfo.zipPath, slideZipPath, [
-      REL_TYPES.NOTES_SLIDE,
-    ])
-    logger.debug('Copied relationship ID map:', Array.from(idMap.entries()))
+    const idMap = await this.#deepCloneSlideRelationships(
+      sourceInfo.zipPath,
+      slideZipPath,
+      relationshipManager,
+      mediaManager,
+      sourceRels,
+      [REL_TYPES.NOTES_SLIDE]
+    )
+    logger.debug('Deep-cloned relationship ID map:', Array.from(idMap.entries()))
 
-    // Remap relationship IDs in the cloned XML to match the new targets
-    sourceXml = remapRelationshipIds(sourceXml, idMap)
+    let cloneXml = remapRelationshipIds(sourceXmlSnapshot, idMap)
+    cloneXml = this.#regenerateTableRowIds(cloneXml)
 
-    this.#zipManager.writeFile(slideZipPath, sourceXml)
-    this.#slideXmlCache.set(slideZipPath, sourceXml)
+    this.#zipManager.writeFile(slideZipPath, cloneXml)
+    this.#slideXmlCache.set(slideZipPath, cloneXml)
 
     // Clone notes slide if source slide has one
     const notesRel = sourceRels.find(r => r.type === REL_TYPES.NOTES_SLIDE)
@@ -546,7 +559,7 @@ class SlideManager {
 
     this.#slides.set(newIndex, slideInfo)
     this.#slideStates.set(newIndex, {
-      xmlStr: sourceXml,
+      xmlStr: cloneXml,
       xmlObj: null,
       dirty: false,
       indexBuilt: false,
@@ -559,6 +572,194 @@ class SlideManager {
     this.#registerSlideContentType(slideFileName)
 
     logger.debug(`Cloned slide ${sourceIndex} to new slide ${newIndex}`)
+  }
+
+  /**
+   * Deep-clones slide relationships so embedded parts (charts, images, etc.) are
+   * independent copies — the source slide is never modified.
+   * @private
+   */
+  async #deepCloneSlideRelationships(
+    sourcePath,
+    destPath,
+    relationshipManager,
+    mediaManager,
+    sourceRels,
+    excludeTypes = []
+  ) {
+    const idMap = new Map()
+    const destRels = []
+
+    for (const rel of sourceRels) {
+      if (excludeTypes.includes(rel.type)) continue
+
+      let target = rel.target
+      const resolvedTarget = relationshipManager.resolveTarget(sourcePath, rel.target)
+
+      if (rel.type === REL_TYPES.CHART) {
+        target = await this.#copyChartPart(resolvedTarget, relationshipManager)
+      } else if (rel.type === REL_TYPES.IMAGE) {
+        const newMediaPath = await mediaManager.copyMediaAsNewPart(resolvedTarget)
+        target = `../media/${newMediaPath.split('/').pop()}`
+      } else if (
+        rel.targetMode === 'External' ||
+        (rel.target && (rel.target.startsWith('http://') || rel.target.startsWith('https://')))
+      ) {
+        // External hyperlinks — reuse target as-is
+      } else if (
+        rel.type === REL_TYPES.SLIDE_LAYOUT ||
+        rel.type === REL_TYPES.SLIDE_MASTER ||
+        rel.type === REL_TYPES.THEME ||
+        rel.type === REL_TYPES.TABLE_STYLES
+      ) {
+        // Shared presentation resources — reuse target
+      } else if (rel.target && !rel.target.startsWith('http')) {
+        const copiedTarget = this.#copyInternalPartForClone(sourcePath, resolvedTarget)
+        if (copiedTarget) {
+          target = copiedTarget
+        }
+      }
+
+      const newId = generateRelationshipId(destRels.map(r => r.id))
+      const newRel = { id: newId, type: rel.type, target }
+      if (rel.targetMode) newRel.targetMode = rel.targetMode
+      destRels.push(newRel)
+      idMap.set(rel.id, newId)
+    }
+
+    relationshipManager.setRelationships(destPath, destRels)
+    relationshipManager.flushRelationships(destPath)
+    return idMap
+  }
+
+  /**
+   * Copies a chart part and all of its dependent chart style/color/workbook parts.
+   * @private
+   * @returns {Promise<string>} Relative target for the cloned slide relationship.
+   */
+  async #copyChartPart(sourceChartPath, relationshipManager) {
+    let chartXml = this.#zipManager.readCachedFile(sourceChartPath)
+    if (!chartXml) {
+      chartXml = await this.#zipManager.readFile(sourceChartPath)
+    }
+    if (!chartXml) {
+      throw new PPTXError(`Cannot clone slide: chart not found at ${sourceChartPath}`)
+    }
+
+    const sourceChartRels = relationshipManager.getRelationships(sourceChartPath)
+    let nextChartNum = 1
+    while (this.#zipManager.hasFile(`ppt/charts/chart${nextChartNum}.xml`)) {
+      nextChartNum++
+    }
+    const destChartFileName = `chart${nextChartNum}.xml`
+    const destChartPath = `ppt/charts/${destChartFileName}`
+
+    const destChartRels = []
+    const chartRelIdMap = new Map()
+
+    for (const rel of sourceChartRels) {
+      const resolved = relationshipManager.resolveTarget(sourceChartPath, rel.target)
+      let newTarget = rel.target
+
+      if (rel.type === REL_TYPES.PACKAGE || rel.target.includes('../embeddings/')) {
+        const bytes = await this.#zipManager.readBinaryFile(resolved)
+        if (bytes) {
+          const fileName = resolved.split('/').pop()
+          let nextEmbed = 1
+          let destWorkbookPath = `ppt/embeddings/Microsoft_Excel_Worksheet${nextEmbed}.xlsx`
+          if (fileName.endsWith('.bin')) {
+            destWorkbookPath = `ppt/embeddings/oleObject${nextEmbed}.bin`
+          }
+          while (this.#zipManager.hasFile(destWorkbookPath)) {
+            nextEmbed++
+            destWorkbookPath = fileName.endsWith('.bin')
+              ? `ppt/embeddings/oleObject${nextEmbed}.bin`
+              : `ppt/embeddings/Microsoft_Excel_Worksheet${nextEmbed}.xlsx`
+          }
+          this.#zipManager.writeBinaryFile(destWorkbookPath, bytes)
+          this.#contentTypesManager.addOverride(
+            destWorkbookPath,
+            fileName.endsWith('.bin') ? ACTIVEX_CONTENT_TYPE : WORKBOOK_CONTENT_TYPE
+          )
+          newTarget = `../embeddings/${destWorkbookPath.split('/').pop()}`
+        }
+      } else if (/colors\d+\.xml$/i.test(rel.target)) {
+        newTarget = await this.#copyChartSupportXml(resolved, 'colors', CHART_COLORS_CONTENT_TYPE)
+      } else if (/style\d+\.xml$/i.test(rel.target)) {
+        newTarget = await this.#copyChartSupportXml(resolved, 'style', CHART_STYLE_CONTENT_TYPE)
+      }
+
+      const newId = generateRelationshipId(destChartRels.map(r => r.id))
+      const newRel = { id: newId, type: rel.type, target: newTarget }
+      if (rel.targetMode) newRel.targetMode = rel.targetMode
+      destChartRels.push(newRel)
+      chartRelIdMap.set(rel.id, newId)
+    }
+
+    chartXml = remapRelationshipIds(chartXml, chartRelIdMap)
+    this.#zipManager.writeFile(destChartPath, chartXml)
+    relationshipManager.setRelationships(destChartPath, destChartRels)
+    relationshipManager.flushRelationships(destChartPath)
+    this.#contentTypesManager.addOverride(destChartPath, CHART_CONTENT_TYPE)
+
+    return `../charts/${destChartFileName}`
+  }
+
+  /**
+   * Copies a chart colors/style XML part to a new sequentially numbered file.
+   * @private
+   */
+  async #copyChartSupportXml(sourcePath, prefix, contentType) {
+    let content = this.#zipManager.readCachedFile(sourcePath)
+    if (!content) {
+      content = await this.#zipManager.readFile(sourcePath)
+    }
+    if (!content) return sourcePath.split('/').pop()
+
+    let nextNum = 1
+    let destFileName = `${prefix}${nextNum}.xml`
+    while (this.#zipManager.hasFile(`ppt/charts/${destFileName}`)) {
+      nextNum++
+      destFileName = `${prefix}${nextNum}.xml`
+    }
+    const destPath = `ppt/charts/${destFileName}`
+    this.#zipManager.writeFile(destPath, content)
+    this.#contentTypesManager.addOverride(destPath, contentType)
+    return destFileName
+  }
+
+  /**
+   * Resolves a relative target for slide-to-slide links in the same folder.
+   * @private
+   */
+  #copyInternalPartForClone(sourceSlidePath, resolvedTarget) {
+    if (!this.#zipManager.hasFile(resolvedTarget)) return null
+
+    const fileName = resolvedTarget.split('/').pop()
+    const sourceDir = resolvedTarget.split('/').slice(0, -1).join('/')
+    const slideDir = sourceSlidePath.split('/').slice(0, -1).join('/')
+
+    if (sourceDir === slideDir) {
+      return fileName
+    }
+
+    return null
+  }
+
+  /**
+   * Assigns fresh a16:rowId values in cloned slide XML so table rows are independent.
+   * @private
+   */
+  #regenerateTableRowIds(xml) {
+    const used = new Set()
+    return xml.replace(/(<a16:rowId[^>]*\sval=")([^"]+)(")/g, (_match, prefix, _oldVal, suffix) => {
+      let newVal
+      do {
+        newVal = String(Math.floor(Math.random() * 0xffffffff))
+      } while (used.has(newVal))
+      used.add(newVal)
+      return `${prefix}${newVal}${suffix}`
+    })
   }
 
   /**
@@ -1290,10 +1491,11 @@ class SlideManager {
    * @param {number} slideIndex
    * @param {number} [atPosition]
    * @param {RelationshipManager} relationshipManager
-   * @returns {number}
+   * @param {MediaManager} mediaManager
+   * @returns {Promise<number>}
    */
-  duplicateSlide(slideIndex, atPosition, relationshipManager) {
-    this.cloneSlide(slideIndex, null, relationshipManager)
+  async duplicateSlide(slideIndex, atPosition, relationshipManager, mediaManager) {
+    await this.cloneSlide(slideIndex, null, relationshipManager, mediaManager)
     const count = this.slideCount
     if (atPosition !== undefined && atPosition !== count) {
       const order = []

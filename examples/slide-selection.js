@@ -27,7 +27,7 @@ async function main() {
     console.log(`📊 Loaded ${ppt.slideCount} slides`)
 
     console.log('Duplicating Slide 1 to position 2...')
-    ppt.duplicateSlide(1, 2)
+    await ppt.duplicateSlide(1, 2)
     console.log(`📊 Current slide count: ${ppt.slideCount}`)
 
     console.log('Moving Slide 4 to position 1...')

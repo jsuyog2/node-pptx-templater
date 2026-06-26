@@ -299,7 +299,7 @@ async function main() {
     const totalSlide = TeamData.length / 5
     var slideNumber = 5
     for (let index = 1; index <= totalSlide - 1; index++) {
-      ppt.duplicateSlide(slideNumber, slideNumber + index)
+      await ppt.duplicateSlide(slideNumber, slideNumber + index)
     }
     TeamData.forEach((element, i) => {
       if (i % 5 === 0 && i !== 0) {

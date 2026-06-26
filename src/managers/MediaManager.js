@@ -235,6 +235,36 @@ class MediaManager {
   }
 
   /**
+   * Copies an existing media part to a new unique file without deduplication.
+   * Used when cloning slides so the copy does not share media relationships with the source.
+   *
+   * @param {string} sourceZipPath - Absolute ZIP path to the source media file.
+   * @returns {Promise<string>} ZIP path of the new media file.
+   */
+  async copyMediaAsNewPart(sourceZipPath) {
+    const data = await this.#zipManager.readBinaryFile(sourceZipPath)
+    if (!data) {
+      throw new PPTXError(`Cannot clone slide: media not found at ${sourceZipPath}`)
+    }
+
+    const fileName = sourceZipPath.split('/').pop()
+    const ext = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : 'png'
+    const mimeType = EXT_TO_MIME[ext] || 'application/octet-stream'
+
+    const mediaId = this.#nextMediaId++
+    const zipPath = `ppt/media/image${mediaId}.${ext}`
+
+    this.#zipManager.writeBinaryFile(zipPath, data)
+    const hash = this.#hashBytes(data)
+    this.#mediaHashIndex.set(hash, zipPath)
+    this.#mediaRegistry.set(zipPath, { zipPath, hash, mimeType, size: data.length })
+    this.#registerContentType(ext, mimeType)
+
+    logger.debug(`Cloned media to new part: ${zipPath}`)
+    return zipPath
+  }
+
+  /**
    * Generates the slide XML snippet for an image element.
    *
    * @param {string} rId - Relationship ID pointing to the media file.

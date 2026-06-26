@@ -51,7 +51,7 @@ describe('PPTXTemplater - Slide Sections and Package Structural Normalization', 
     })
 
     // Duplicate slide 1 to position 3
-    ppt.duplicateSlide(1, 3)
+    await ppt.duplicateSlide(1, 3)
     expect(ppt.slideCount).toBe(initialCount)
 
     const outPath = resolve(OUTPUT_DIR, 'structural-normalization-test.pptx')

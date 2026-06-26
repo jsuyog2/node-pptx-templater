@@ -57,20 +57,20 @@ describe('PPTXTemplater - Slide package structural integrity', () => {
 
   it('should produce a valid package when duplicating the first slide', async () => {
     const ppt = await PPTXTemplater.load(fixtureFile)
-    ppt.duplicateSlide(1)
+    await ppt.duplicateSlide(1)
     await assertValidBuffer(await ppt.toBuffer(), 'duplicateSlide(1)')
   })
 
   it('should produce a valid package when duplicating a middle slide', async () => {
     const ppt = await PPTXTemplater.load(fixtureFile)
     const middle = Math.ceil(ppt.slideCount / 2)
-    ppt.duplicateSlide(middle)
+    await ppt.duplicateSlide(middle)
     await assertValidBuffer(await ppt.toBuffer(), `duplicateSlide(${middle})`)
   })
 
   it('should produce a valid package when duplicating the last slide', async () => {
     const ppt = await PPTXTemplater.load(fixtureFile)
-    ppt.duplicateSlide(ppt.slideCount)
+    await ppt.duplicateSlide(ppt.slideCount)
     await assertValidBuffer(await ppt.toBuffer(), 'duplicateSlide(last)')
   })
 
@@ -78,9 +78,9 @@ describe('PPTXTemplater - Slide package structural integrity', () => {
     const ppt = await PPTXTemplater.load(fixtureFile)
     const slideCount = ppt.slideCount
     if (slideCount >= 5) {
-      ppt.duplicateSlide(5, 6)
+      await ppt.duplicateSlide(5, 6)
     } else {
-      ppt.duplicateSlide(1, 1)
+      await ppt.duplicateSlide(1, 1)
     }
     await assertValidBuffer(await ppt.toBuffer(), 'duplicateSlide at position')
   })
@@ -93,13 +93,13 @@ describe('PPTXTemplater - Slide package structural integrity', () => {
       sourceSlide: 2,
       targetSlide: 1,
     })
-    ppt.duplicateSlide(1, 3)
+    await ppt.duplicateSlide(1, 3)
     await assertValidBuffer(await ppt.toBuffer(), 'remove + link + duplicate')
   })
 
   it('should produce a valid package after move and insert operations', async () => {
     const ppt = await PPTXTemplater.load(fixtureFile)
-    ppt.duplicateSlide(1)
+    await ppt.duplicateSlide(1)
     ppt.moveSlide(ppt.slideCount, 1)
     ppt.insertSlide(2, { title: 'Inserted' })
     await assertValidBuffer(await ppt.toBuffer(), 'move + insert')
@@ -117,7 +117,7 @@ describe('PPTXTemplater - Slide package structural integrity', () => {
     let slideNumber = Math.min(5, ppt.slideCount)
     for (let index = 1; index <= totalTeamSlides; index++) {
       if (slideNumber <= ppt.slideCount) {
-        ppt.duplicateSlide(slideNumber, slideNumber + index)
+        await ppt.duplicateSlide(slideNumber, slideNumber + index)
       }
     }
 
@@ -127,8 +127,8 @@ describe('PPTXTemplater - Slide package structural integrity', () => {
   it('should keep sldId r:id values aligned with presentation.xml.rels', async () => {
     const ppt = await PPTXTemplater.load(fixtureFile)
     ppt.removeSlide(1)
-    ppt.duplicateSlide(1, 1)
-    ppt.duplicateSlide(ppt.slideCount)
+    await ppt.duplicateSlide(1, 1)
+    await ppt.duplicateSlide(ppt.slideCount)
 
     const buffer = await ppt.toBuffer()
     const errors = await validatePackageIntegrity(buffer)
