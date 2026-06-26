@@ -90,6 +90,12 @@ class SlideManager {
   #presentationObj = null
 
   /**
+   * Map of old presentation relationship IDs to new sequential IDs.
+   * @private @type {Map<string, string>}
+   */
+  #presentationIdMap = null
+
+  /**
    * @param {XMLParser} xmlParser
    * @param {RelationshipManager} relationshipManager
    * @param {ContentTypesManager} contentTypesManager
@@ -265,6 +271,14 @@ class SlideManager {
       state.dirty = false
     }
 
+    const dirtyContent = this.#zipManager.readCachedFile(info.zipPath)
+    if (dirtyContent && dirtyContent !== state.xmlStr) {
+      state.xmlStr = dirtyContent
+      this.#slideXmlCache.set(info.zipPath, dirtyContent)
+      state.xmlObj = null
+      state.indexBuilt = false
+    }
+
     if (state.xmlStr) {
       return state.xmlStr
     }
@@ -290,6 +304,14 @@ class SlideManager {
     this.#assertSlideExists(slideIndex)
     const info = this.#slides.get(slideIndex)
     const state = this.#slideStates.get(slideIndex)
+
+    const dirtyContent = this.#zipManager.readCachedFile(info.zipPath)
+    if (dirtyContent && dirtyContent !== state.xmlStr) {
+      state.xmlStr = dirtyContent
+      this.#slideXmlCache.set(info.zipPath, dirtyContent)
+      state.xmlObj = null
+      state.indexBuilt = false
+    }
 
     if (!state.xmlStr) {
       const xml = await this.#zipManager.readFile(info.zipPath)
@@ -1061,7 +1083,7 @@ class SlideManager {
             ? sectionLst['p14:section']
             : [sectionLst['p14:section']]
 
-          // 1. Map each slideId to its section name/id (so we can identify its section)
+          // 1. Map each slideId to its original section (so we can identify its section)
           const slideToSectionMap = new Map()
           for (const section of sections) {
             const sldIdLst = section['p14:sldIdLst']
@@ -1086,19 +1108,41 @@ class SlideManager {
             }
           }
 
-          // 3. Re-populate the sections in the new slide order
+          // 3. Re-populate the sections in the new slide order dynamically to keep them contiguous.
+          // If a section is already "closed" (we exited it and entered another section),
+          // slides belonging to it are placed in the current active section to maintain visual contiguity.
+          const seenSections = new Set()
+          let currentSection = null
+
           for (const slideId of orderedSlideIds) {
-            const section = slideToSectionMap.get(slideId)
+            let section = slideToSectionMap.get(slideId)
             if (section) {
-              section['p14:sldIdLst']['p14:sldId'].push({ '@_id': slideId })
-            } else if (sections.length > 0) {
-              // Fallback: if a slide has no section (e.g. newly added without section info),
-              // place it in the last section to maintain contiguity.
-              const lastSection = sections[sections.length - 1]
-              if (!lastSection['p14:sldIdLst']) {
-                lastSection['p14:sldIdLst'] = { 'p14:sldId': [] }
+              if (section !== currentSection) {
+                if (seenSections.has(section)) {
+                  // Already closed section — fallback to current active section
+                  section = currentSection
+                } else {
+                  // Enter new section
+                  currentSection = section
+                  seenSections.add(section)
+                }
               }
-              lastSection['p14:sldIdLst']['p14:sldId'].push({ '@_id': slideId })
+            } else {
+              section = currentSection
+            }
+
+            if (!section && sections.length > 0) {
+              // Fallback to first section if we haven't entered any section yet
+              section = sections[0]
+              currentSection = section
+              seenSections.add(section)
+            }
+
+            if (section) {
+              if (!section['p14:sldIdLst']) {
+                section['p14:sldIdLst'] = { 'p14:sldId': [] }
+              }
+              section['p14:sldIdLst']['p14:sldId'].push({ '@_id': slideId })
             }
           }
         }
@@ -1144,7 +1188,10 @@ class SlideManager {
   #flushPresentation() {
     if (!this.#presentationObj || !this.#zipManager) return
     const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    const xml = this.#xmlParser.build(this.#presentationObj, declaration)
+    let xml = this.#xmlParser.build(this.#presentationObj, declaration)
+    if (this.#presentationIdMap && this.#presentationIdMap.size > 0) {
+      xml = remapRelationshipIds(xml, this.#presentationIdMap)
+    }
     this.#zipManager.writeFile('ppt/presentation.xml', xml)
   }
 
@@ -1364,6 +1411,150 @@ class SlideManager {
     for (const [index, state] of this.#slideStates) {
       if (state.dirty && state.xmlObj) {
         this.getSlideXml(index)
+      }
+    }
+  }
+
+  /**
+   * Normalizes the slide filenames, slide IDs, and relationship IDs on export.
+   * Ensures slide filenames are strictly sequential (slide1.xml, slide2.xml, ...)
+   * and match their visual order, and updates all relationships and content types.
+   *
+   * @param {RelationshipManager} relationshipManager
+   * @param {ContentTypesManager} contentTypesManager
+   */
+  normalizeStructure(relationshipManager, contentTypesManager) {
+    const slides = this.getAllSlideInfo()
+    if (slides.length === 0) return
+
+    // 1. Map old path -> new path, old filename -> new filename
+    const pathMap = new Map()
+    const nameMap = new Map()
+
+    slides.forEach((info, idx) => {
+      const newPath = `ppt/slides/slide${idx + 1}.xml`
+      pathMap.set(info.zipPath, newPath)
+
+      const oldName = info.zipPath.split('/').pop()
+      const newName = `slide${idx + 1}.xml`
+      nameMap.set(oldName, newName)
+    })
+
+    // Read all slide XML contents and relationships into memory first
+    const slideData = []
+    for (const info of slides) {
+      const xml = this.getSlideXml(info.index)
+      const rels = relationshipManager.getRelationships(info.zipPath)
+      slideData.push({
+        info,
+        xml,
+        rels: [...rels],
+      })
+    }
+
+    // Phase 1: Remove all old files from ZIP and clear their cache entries
+    for (const data of slideData) {
+      const oldPath = data.info.zipPath
+      const newPath = pathMap.get(oldPath)
+
+      if (oldPath !== newPath) {
+        // Remove XML file from ZIP
+        this.#zipManager.removeFile(oldPath)
+
+        // Remove .rels file from ZIP and clear RelationshipManager cache
+        const oldRelsKey = relationshipManager.getRelsPath(oldPath)
+        this.#zipManager.removeFile(oldRelsKey)
+        relationshipManager.deleteRelationships(oldPath)
+
+        // Remove content type override
+        contentTypesManager.removeOverride(oldPath)
+      }
+    }
+
+    // Phase 2: Write all new files and update cache entries
+    for (let i = 0; i < slideData.length; i++) {
+      const { info, xml, rels } = slideData[i]
+      const oldPath = info.zipPath
+      const newPath = pathMap.get(oldPath)
+
+      // Update slide XML cache key
+      this.#slideXmlCache.delete(oldPath)
+      this.#slideXmlCache.set(newPath, xml)
+
+      // Update SlideInfo path in memory
+      info.zipPath = newPath
+
+      // Write slide XML to ZIP
+      this.#zipManager.writeFile(newPath, xml)
+
+      // Add content type override
+      contentTypesManager.addOverride(newPath, SLIDE_CONTENT_TYPE)
+
+      // Set relationships for the new path in memory and flush to ZIP
+      relationshipManager.setRelationships(newPath, rels)
+      relationshipManager.flushRelationships(newPath)
+    }
+
+    // 2. Update slide-to-slide hyperlink targets in all slide relationships
+    for (const info of slides) {
+      const rels = relationshipManager.getRelationships(info.zipPath)
+      let dirty = false
+      for (const rel of rels) {
+        if (rel.target && !rel.targetMode) {
+          const targetParts = rel.target.split('/')
+          const targetName = targetParts[targetParts.length - 1]
+          if (nameMap.has(targetName)) {
+            targetParts[targetParts.length - 1] = nameMap.get(targetName)
+            rel.target = targetParts.join('/')
+            dirty = true
+          }
+        }
+      }
+      if (dirty) {
+        relationshipManager.flushRelationships(info.zipPath)
+      }
+    }
+
+    // 3. Re-index presentation.xml relationships sequentially to remove gaps and update slide targets
+    const presRels = relationshipManager.getRelationships('ppt/presentation.xml')
+    const remappedRels = []
+    const presIdMap = new Map()
+
+    presRels.forEach((rel, index) => {
+      const newId = `rId${index + 1}`
+      presIdMap.set(rel.id, newId)
+
+      let target = rel.target
+      if (target) {
+        const targetParts = target.split('/')
+        const targetName = targetParts[targetParts.length - 1]
+        if (nameMap.has(targetName)) {
+          targetParts[targetParts.length - 1] = nameMap.get(targetName)
+          target = targetParts.join('/')
+        }
+      }
+
+      remappedRels.push({
+        ...rel,
+        id: newId,
+        target: target,
+      })
+    })
+
+    // Store the ID map so that #flushPresentation can apply it to the XML string
+    this.#presentationIdMap = presIdMap
+
+    // Set remapped relationships for ppt/presentation.xml in RelationshipManager and flush
+    relationshipManager.setRelationships('ppt/presentation.xml', remappedRels)
+    relationshipManager.flushRelationships('ppt/presentation.xml')
+
+    // 4. Rebuild presentation.xml sldIdLst and synchronize sections
+    this.rebuildPresentationSlideOrder()
+
+    // 5. Update relationship IDs in SlideInfo in memory AFTER flushing presentation.xml
+    for (const info of slides) {
+      if (presIdMap.has(info.relationshipId)) {
+        info.relationshipId = presIdMap.get(info.relationshipId)
       }
     }
   }

@@ -186,7 +186,7 @@ class PPTXTemplater {
     this.#textManager = new TextManager(this.#xmlParser)
     this.#templateEngine = new TemplateEngine(this.#xmlParser)
     this.#zOrderManager = new ZOrderManager(this.#xmlParser)
-    this.#outputWriter = new OutputWriter(this.#zipManager, this.#contentTypesManager)
+    this.#outputWriter = new OutputWriter(this.#zipManager, this.#contentTypesManager, this.#relationshipManager)
 
     this.#profiler = {
       enabled: false,

@@ -408,6 +408,27 @@ class RelationshipManager {
   }
 
   /**
+   * Sets the relationships array for a part in memory.
+   *
+   * @param {string} partPath
+   * @param {Relationship[]} rels
+   */
+  setRelationships(partPath, rels) {
+    const key = this.#getNormalizedKey(partPath)
+    this.#relationships.set(key, rels)
+  }
+
+  /**
+   * Flushes the relationships of a part.
+   *
+   * @param {string} partPath
+   */
+  flushRelationships(partPath) {
+    const key = this.#getNormalizedKey(partPath)
+    this.#flushRels(key, partPath)
+  }
+
+  /**
    * Scans all relationships and removes those pointing to missing internal targets.
    * This is part of the repair functionality.
    *
