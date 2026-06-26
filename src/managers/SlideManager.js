@@ -1048,6 +1048,63 @@ class SlideManager {
     })
 
     sldIdLst['p:sldId'] = ordered
+
+    // Synchronize sections order with the new slide order
+    const orderedSlideIds = ordered.map(o => String(o['@_id']))
+    const extLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:extLst')
+    if (extLst?.['p:ext']) {
+      const exts = Array.isArray(extLst['p:ext']) ? extLst['p:ext'] : [extLst['p:ext']]
+      for (const ext of exts) {
+        const sectionLst = ext['p14:sectionLst']
+        if (sectionLst?.['p14:section']) {
+          const sections = Array.isArray(sectionLst['p14:section'])
+            ? sectionLst['p14:section']
+            : [sectionLst['p14:section']]
+
+          // 1. Map each slideId to its section name/id (so we can identify its section)
+          const slideToSectionMap = new Map()
+          for (const section of sections) {
+            const sldIdLst = section['p14:sldIdLst']
+            if (sldIdLst?.['p14:sldId']) {
+              const sldIds = Array.isArray(sldIdLst['p14:sldId'])
+                ? sldIdLst['p14:sldId']
+                : [sldIdLst['p14:sldId']]
+              for (const sldId of sldIds) {
+                if (sldId && sldId['@_id']) {
+                  slideToSectionMap.set(String(sldId['@_id']), section)
+                }
+              }
+            }
+          }
+
+          // 2. Clear the slide lists of all sections
+          for (const section of sections) {
+            if (!section['p14:sldIdLst']) {
+              section['p14:sldIdLst'] = { 'p14:sldId': [] }
+            } else {
+              section['p14:sldIdLst']['p14:sldId'] = []
+            }
+          }
+
+          // 3. Re-populate the sections in the new slide order
+          for (const slideId of orderedSlideIds) {
+            const section = slideToSectionMap.get(slideId)
+            if (section) {
+              section['p14:sldIdLst']['p14:sldId'].push({ '@_id': slideId })
+            } else if (sections.length > 0) {
+              // Fallback: if a slide has no section (e.g. newly added without section info),
+              // place it in the last section to maintain contiguity.
+              const lastSection = sections[sections.length - 1]
+              if (!lastSection['p14:sldIdLst']) {
+                lastSection['p14:sldIdLst'] = { 'p14:sldId': [] }
+              }
+              lastSection['p14:sldIdLst']['p14:sldId'].push({ '@_id': slideId })
+            }
+          }
+        }
+      }
+    }
+
     this.#flushPresentation()
   }
 
