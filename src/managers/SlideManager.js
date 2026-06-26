@@ -29,6 +29,7 @@ const { PPTXError, SlideNotFoundError } = require('../utils/errors.js')
 const { REL_TYPES } = require('./RelationshipManager.js')
 const { buildNewSlideXml } = require('../templates/slideTemplate.js')
 const { remapRelationshipIds } = require('../utils/relationshipUtils.js')
+const { generateSlideId } = require('../utils/idUtils.js')
 
 const logger = createLogger('SlideManager')
 
@@ -411,9 +412,8 @@ class SlideManager {
     relationshipManager.addRelationship(slideZipPath, REL_TYPES.SLIDE_LAYOUT, relativeLayoutPath)
 
     // Generate a unique slide ID
-    const existingIds = Array.from(this.#slides.values()).map(s => parseInt(s.slideId, 10))
-    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 255
-    const newSlideId = String(maxId + 1)
+    const existingSlideIds = Array.from(this.#slides.values()).map(s => s.slideId)
+    const newSlideId = generateSlideId(existingSlideIds)
 
     const slideInfo = {
       index: newIndex,
@@ -486,6 +486,45 @@ class SlideManager {
     this.#zipManager.writeFile(slideZipPath, sourceXml)
     this.#slideXmlCache.set(slideZipPath, sourceXml)
 
+    // Clone notes slide if source slide has one
+    const notesRel = sourceRels.find(r => r.type === REL_TYPES.NOTES_SLIDE)
+    if (notesRel) {
+      const sourceNotesPath = relationshipManager.resolveTarget(sourceInfo.zipPath, notesRel.target)
+      let notesXml = this.#zipManager.readCachedFile(sourceNotesPath)
+      
+      if (notesXml) {
+        let nextNotesIndex = 1
+        while (this.#zipManager.hasFile(`ppt/notesSlides/notesSlide${nextNotesIndex}.xml`)) {
+          nextNotesIndex++
+        }
+        const notesFileName = `notesSlide${nextNotesIndex}.xml`
+        const notesZipPath = `ppt/notesSlides/${notesFileName}`
+
+        // Copy relationships from source notes slide
+        const notesIdMap = relationshipManager.copyRelationships(sourceNotesPath, notesZipPath)
+        
+        // Update target in notes relationships to point back to the new slide
+        const notesRels = relationshipManager.getRelationships(notesZipPath)
+        const slideRel = notesRels.find(r => r.type === REL_TYPES.SLIDE || r.type.endsWith('/slide'))
+        if (slideRel) {
+          slideRel.target = `../slides/${slideFileName}`
+        }
+        relationshipManager.flushRelationships(notesZipPath)
+
+        // Remap relationship IDs in notes XML
+        notesXml = remapRelationshipIds(notesXml, notesIdMap)
+        
+        // Write the notes slide XML to ZIP
+        this.#zipManager.writeFile(notesZipPath, notesXml)
+        
+        // Add content type override
+        this.#contentTypesManager.addOverride(notesZipPath, 'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml')
+
+        // Add notes slide relationship to the new slide
+        relationshipManager.addRelationship(slideZipPath, REL_TYPES.NOTES_SLIDE, `../notesSlides/${notesFileName}`)
+      }
+    }
+
     // Add to presentation.xml
     const rId = relationshipManager.addRelationship(
       'ppt/presentation.xml',
@@ -493,9 +532,8 @@ class SlideManager {
       `slides/${slideFileName}`
     )
 
-    const existingIds = Array.from(this.#slides.values()).map(s => parseInt(s.slideId, 10))
-    const maxId = Math.max(...existingIds)
-    const newSlideId = String(maxId + 1)
+    const existingSlideIds = Array.from(this.#slides.values()).map(s => s.slideId)
+    const newSlideId = generateSlideId(existingSlideIds)
 
     const slideInfo = {
       index: newIndex,
@@ -531,6 +569,26 @@ class SlideManager {
   removeSlide(slideIndex) {
     this.#assertSlideExists(slideIndex)
     const info = this.#slides.get(slideIndex)
+
+    // Check for notes slide relationship and remove it
+    const slideRels = this.#relationshipManager.getRelationships(info.zipPath)
+    const notesRel = slideRels.find(r => r.type === REL_TYPES.NOTES_SLIDE)
+    if (notesRel) {
+      const notesPath = this.#relationshipManager.resolveTarget(info.zipPath, notesRel.target)
+      
+      // Remove from ZIP
+      this.#zipManager.removeFile(notesPath)
+      
+      // Remove its relationships file
+      const notesRelsPath = this.#relationshipManager.getRelsPath(notesPath)
+      this.#zipManager.removeFile(notesRelsPath)
+      
+      // Remove relationships from cache
+      this.#relationshipManager.deleteRelationships(notesPath)
+      
+      // Remove content type override
+      this.#contentTypesManager.removeOverride(notesPath)
+    }
 
     // Remove from ZIP
     this.#zipManager.removeFile(info.zipPath)
@@ -928,7 +986,20 @@ class SlideManager {
    * @returns {Promise<void>}
    */
   async preloadAll() {
-    await Promise.all(this.getAllSlideIndices().map(i => this.getSlideXmlAsync(i)))
+    await Promise.all(
+      this.getAllSlideIndices().map(async i => {
+        await this.getSlideXmlAsync(i)
+        
+        // Also check and preload notes slide XML
+        const info = this.#slides.get(i)
+        const rels = this.#relationshipManager.getRelationships(info.zipPath)
+        const notesRel = rels.find(r => r.type === REL_TYPES.NOTES_SLIDE)
+        if (notesRel) {
+          const notesPath = this.#relationshipManager.resolveTarget(info.zipPath, notesRel.target)
+          await this.#zipManager.readFile(notesPath)
+        }
+      })
+    )
   }
 
   /**
@@ -1013,9 +1084,10 @@ class SlideManager {
     const sldIdLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldIdLst')
     if (!sldIdLst?.['p:sldId']) return
 
+    const targetIdStr = String(slideId)
     sldIdLst['p:sldId'] = (
       Array.isArray(sldIdLst['p:sldId']) ? sldIdLst['p:sldId'] : [sldIdLst['p:sldId']]
-    ).filter(s => s['@_id'] !== slideId)
+    ).filter(s => String(s['@_id']) !== targetIdStr)
 
     // Also remove from any PowerPoint sections
     this.#removeSlideFromSections(slideId)
@@ -1188,10 +1260,7 @@ class SlideManager {
   #flushPresentation() {
     if (!this.#presentationObj || !this.#zipManager) return
     const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    let xml = this.#xmlParser.build(this.#presentationObj, declaration)
-    if (this.#presentationIdMap && this.#presentationIdMap.size > 0) {
-      xml = remapRelationshipIds(xml, this.#presentationIdMap)
-    }
+    const xml = this.#xmlParser.build(this.#presentationObj, declaration)
     this.#zipManager.writeFile('ppt/presentation.xml', xml)
   }
 
@@ -1419,11 +1488,12 @@ class SlideManager {
    * Normalizes the slide filenames, slide IDs, and relationship IDs on export.
    * Ensures slide filenames are strictly sequential (slide1.xml, slide2.xml, ...)
    * and match their visual order, and updates all relationships and content types.
+   * Also normalizes notes slide filenames to match slide order.
    *
    * @param {RelationshipManager} relationshipManager
    * @param {ContentTypesManager} contentTypesManager
    */
-  normalizeStructure(relationshipManager, contentTypesManager) {
+  async normalizeStructure(relationshipManager, contentTypesManager) {
     const slides = this.getAllSlideInfo()
     if (slides.length === 0) return
 
@@ -1495,7 +1565,7 @@ class SlideManager {
       relationshipManager.flushRelationships(newPath)
     }
 
-    // 2. Update slide-to-slide hyperlink targets in all slide relationships
+    // 2. Update slide-to-slide hyperlink targets and notes slide targets in all slide relationships
     for (const info of slides) {
       const rels = relationshipManager.getRelationships(info.zipPath)
       let dirty = false
@@ -1515,7 +1585,10 @@ class SlideManager {
       }
     }
 
-    // 3. Re-index presentation.xml relationships sequentially to remove gaps and update slide targets
+    // 3. Normalize notes slides: renumber them to match the slide order
+    await this.#normalizeNotesSlides(slides, relationshipManager, contentTypesManager, nameMap)
+
+    // 4. Re-index presentation.xml relationships sequentially to remove gaps and update slide targets
     const presRels = relationshipManager.getRelationships('ppt/presentation.xml')
     const remappedRels = []
     const presIdMap = new Map()
@@ -1541,20 +1614,198 @@ class SlideManager {
       })
     })
 
-    // Store the ID map so that #flushPresentation can apply it to the XML string
-    this.#presentationIdMap = presIdMap
-
     // Set remapped relationships for ppt/presentation.xml in RelationshipManager and flush
     relationshipManager.setRelationships('ppt/presentation.xml', remappedRels)
     relationshipManager.flushRelationships('ppt/presentation.xml')
 
-    // 4. Rebuild presentation.xml sldIdLst and synchronize sections
-    this.rebuildPresentationSlideOrder()
+    // 5. Update relationship IDs directly on the in-memory presentationObj.
+    //    This avoids the brittle regex-on-XML-string approach which could corrupt
+    //    attribute values that are not relationship IDs.
+    if (this.#presentationObj && presIdMap.size > 0) {
+      this.#remapPresentationRIds(this.#presentationObj, presIdMap)
+    }
 
-    // 5. Update relationship IDs in SlideInfo in memory AFTER flushing presentation.xml
+    // Clear any stale presentationIdMap (no longer used by #flushPresentation)
+    this.#presentationIdMap = null
+
+    // 6. Update SlideInfo relationship IDs before rebuilding sldIdLst so r:id values
+    //    match the remapped presentation.xml.rels (rebuildPresentationSlideOrder
+    //    writes sldIdLst from SlideInfo and flushes presentation.xml).
     for (const info of slides) {
       if (presIdMap.has(info.relationshipId)) {
         info.relationshipId = presIdMap.get(info.relationshipId)
+      }
+    }
+
+    // 7. Rebuild presentation.xml sldIdLst and synchronize sections
+    this.rebuildPresentationSlideOrder()
+  }
+
+  /**
+   * Normalizes notes slide filenames so they are sequentially numbered
+   * matching their associated slides and updates all relevant relationships.
+   * @private
+   */
+  async #normalizeNotesSlides(slides, relationshipManager, contentTypesManager, slideNameMap) {
+    const NOTES_CONTENT_TYPE =
+      'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml'
+
+    // Collect current notes slides from slide relationships
+    const notesData = []
+    for (let i = 0; i < slides.length; i++) {
+      const info = slides[i]
+      const rels = relationshipManager.getRelationships(info.zipPath)
+      const notesRel = rels.find(r => r.type === REL_TYPES.NOTES_SLIDE)
+      if (!notesRel) continue
+
+      const oldNotesPath = relationshipManager.resolveTarget(info.zipPath, notesRel.target)
+      const newNotesFileName = `notesSlide${i + 1}.xml`
+      const newNotesPath = `ppt/notesSlides/${newNotesFileName}`
+      notesData.push({
+        slideInfo: info,
+        notesRel,
+        oldNotesPath,
+        newNotesPath,
+        newNotesFileName,
+        slideNewFileName: info.zipPath.split('/').pop(),
+      })
+    }
+
+    if (notesData.length === 0) return
+
+    // Build a map of old notes filename → new notes filename (for cross-references)
+    const notesNameMap = new Map()
+    for (const nd of notesData) {
+      const oldName = nd.oldNotesPath.split('/').pop()
+      notesNameMap.set(oldName, nd.newNotesFileName)
+    }
+
+    // Phase A: Read all notes XML and relationships into memory, then remove old files if path changes
+    for (const nd of notesData) {
+      if (nd.oldNotesPath !== nd.newNotesPath) {
+        // Load cached XML (already preloaded by preloadAll)
+        let notesXml = this.#zipManager.readCachedFile(nd.oldNotesPath)
+        if (!notesXml) {
+          // Fallback: async read from ZIP
+          notesXml = await this.#zipManager.readFile(nd.oldNotesPath)
+        }
+        nd._notesXml = notesXml
+
+        const notesRels = relationshipManager.getRelationships(nd.oldNotesPath)
+        nd._notesRels = [...notesRels]
+
+        // Remove old notes XML, .rels, and content type
+        this.#zipManager.removeFile(nd.oldNotesPath)
+        const oldRelsKey = relationshipManager.getRelsPath(nd.oldNotesPath)
+        this.#zipManager.removeFile(oldRelsKey)
+        relationshipManager.deleteRelationships(nd.oldNotesPath)
+        contentTypesManager.removeOverride(nd.oldNotesPath)
+      }
+    }
+
+    // Phase B: Write new notes files and update relationships
+    for (const nd of notesData) {
+      if (nd.oldNotesPath === nd.newNotesPath) {
+        // Path unchanged — still ensure the back-reference to the slide is correct
+        const notesRels = relationshipManager.getRelationships(nd.newNotesPath)
+        const backRef = notesRels.find(r => r.type === REL_TYPES.SLIDE || r.type.endsWith('/slide'))
+        if (backRef) {
+          const expectedTarget = `../slides/${nd.slideNewFileName}`
+          if (backRef.target !== expectedTarget) {
+            backRef.target = expectedTarget
+            relationshipManager.flushRelationships(nd.newNotesPath)
+          }
+        }
+        continue
+      }
+
+      let notesXml = nd._notesXml
+      const notesRels = nd._notesRels || []
+
+      // Update the notes rels: fix back-reference to the (possibly renamed) slide
+      for (const nr of notesRels) {
+        if (nr.type === REL_TYPES.SLIDE || nr.type.endsWith('/slide')) {
+          nr.target = `../slides/${nd.slideNewFileName}`
+        }
+        // Also fix any notes-master or slide-layout targets using the slide name map
+        if (nr.target && !nr.targetMode) {
+          const parts = nr.target.split('/')
+          const fname = parts[parts.length - 1]
+          if (slideNameMap.has(fname)) {
+            parts[parts.length - 1] = slideNameMap.get(fname)
+            nr.target = parts.join('/')
+          }
+        }
+      }
+
+      // Write new notes XML to ZIP
+      if (notesXml) {
+        this.#zipManager.writeFile(nd.newNotesPath, notesXml)
+      }
+
+      // Write new notes relationships
+      relationshipManager.setRelationships(nd.newNotesPath, notesRels)
+      relationshipManager.flushRelationships(nd.newNotesPath)
+
+      // Register content type
+      contentTypesManager.addOverride(nd.newNotesPath, NOTES_CONTENT_TYPE)
+
+      // Update the slide's notes relationship target to point to the new notes path
+      const slideRels = relationshipManager.getRelationships(nd.slideInfo.zipPath)
+      const slideNotesRel = slideRels.find(r => r.type === REL_TYPES.NOTES_SLIDE)
+      if (slideNotesRel) {
+        slideNotesRel.target = `../notesSlides/${nd.newNotesFileName}`
+        relationshipManager.flushRelationships(nd.slideInfo.zipPath)
+      }
+    }
+
+    // Also update any notes-to-notes cross-references in unchanged notes
+    for (const nd of notesData) {
+      const notesRels = relationshipManager.getRelationships(nd.newNotesPath)
+      let dirty = false
+      for (const nr of notesRels) {
+        if (nr.target && !nr.targetMode) {
+          const parts = nr.target.split('/')
+          const fname = parts[parts.length - 1]
+          if (notesNameMap.has(fname)) {
+            parts[parts.length - 1] = notesNameMap.get(fname)
+            nr.target = parts.join('/')
+            dirty = true
+          }
+        }
+      }
+      if (dirty) {
+        relationshipManager.flushRelationships(nd.newNotesPath)
+      }
+    }
+  }
+
+  /**
+   * Recursively walks an in-memory parsed XML object and remaps @_r:id attribute
+   * values according to the provided ID map. This is more reliable than regex
+   * replacement on the XML string because it only targets actual relationship ID
+   * attributes, not arbitrary attribute values that might match the pattern.
+   * @private
+   * @param {Object} obj
+   * @param {Map<string,string>} idMap
+   */
+  #remapPresentationRIds(obj, idMap) {
+    if (!obj || typeof obj !== 'object') return
+    for (const key of Object.keys(obj)) {
+      if (key === '@_r:id') {
+        const currentVal = obj[key]
+        if (idMap.has(currentVal)) {
+          obj[key] = idMap.get(currentVal)
+        }
+      } else {
+        const child = obj[key]
+        if (Array.isArray(child)) {
+          for (const item of child) {
+            this.#remapPresentationRIds(item, idMap)
+          }
+        } else if (child && typeof child === 'object') {
+          this.#remapPresentationRIds(child, idMap)
+        }
       }
     }
   }

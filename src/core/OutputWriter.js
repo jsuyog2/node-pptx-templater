@@ -76,7 +76,7 @@ class OutputWriter {
       slideManager.flush()
     }
     if (slideManager && typeof slideManager.normalizeStructure === 'function' && this.#relationshipManager) {
-      slideManager.normalizeStructure(this.#relationshipManager, this.#contentTypesManager)
+      await slideManager.normalizeStructure(this.#relationshipManager, this.#contentTypesManager)
     }
     await this.#flushAllSlides(slideManager, zipManager)
     this.#contentTypesManager.flush(zipManager)

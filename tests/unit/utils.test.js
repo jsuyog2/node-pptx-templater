@@ -70,6 +70,16 @@ describe('relationshipUtils', () => {
       expect(result).not.toContain('"rId1"')
       expect(result).not.toContain('"rId2"')
     })
+
+    it('should not remap unrelated quoted attribute values', () => {
+      const xml = '<p:cNvPr name="rId1" descr="rId2"/>'
+      const idMap = new Map([
+        ['rId1', 'rId5'],
+        ['rId2', 'rId6'],
+      ])
+      const result = remapRelationshipIds(xml, idMap)
+      expect(result).toBe(xml)
+    })
   })
 })
 
