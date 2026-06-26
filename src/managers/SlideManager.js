@@ -641,7 +641,7 @@ class SlideManager {
       } else if (typeEnd === 'vmldrawing') {
         // VML drawings (legacy shapes, comment boxes) — must be independent per slide
         if (this.#zipManager.hasFile(resolvedTarget)) {
-          const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath)
+          const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath, relationshipManager)
           if (newTarget) target = newTarget
         }
       } else if (
@@ -653,7 +653,7 @@ class SlideManager {
       ) {
         // SmartArt/diagram parts — each slide needs its own copy
         if (this.#zipManager.hasFile(resolvedTarget)) {
-          const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath)
+          const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath, relationshipManager)
           if (newTarget) target = newTarget
         }
       } else if (typeEnd === 'oleobject' || typeEnd === 'activex') {
@@ -671,7 +671,7 @@ class SlideManager {
         if (this.#zipManager.hasFile(resolvedTarget)) {
           if (resolvedTarget.toLowerCase().endsWith('.xml')) {
             // Text/XML content
-            const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath)
+            const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath, relationshipManager)
             if (newTarget) target = newTarget
           } else {
             // Binary content
@@ -802,7 +802,7 @@ class SlideManager {
    * @param {string} sourcePath - Absolute ZIP path of the source XML part.
    * @returns {Promise<string|null>} Relative target for the cloned slide relationship.
    */
-  async #copyGenericXmlPart(sourcePath, destPath) {
+  async #copyGenericXmlPart(sourcePath, destPath, relationshipManager) {
     let content = this.#zipManager.readCachedFile(sourcePath)
     if (!content) {
       content = await this.#zipManager.readFile(sourcePath)
@@ -832,8 +832,59 @@ class SlideManager {
       this.#contentTypesManager.addOverride(destPartPath, srcContentType)
     }
 
+    // Clone any relationships/dependencies of this XML part recursively
+    await this.#copyPartDependencies(sourcePath, destPartPath, relationshipManager)
+
     logger.debug(`Cloned XML part: ${sourcePath} → ${destPartPath}`)
     return this.#makeRelativeTarget(destPath, destPartPath)
+  }
+
+  /**
+   * Recursively copies relationships and dependency parts for a cloned XML part.
+   * @private
+   * @param {string} sourcePartPath - Absolute ZIP path of the source XML part.
+   * @param {string} destPartPath - Absolute ZIP path of the destination XML part.
+   * @param {RelationshipManager} relationshipManager
+   * @returns {Promise<void>}
+   */
+  async #copyPartDependencies(sourcePartPath, destPartPath, relationshipManager) {
+    const rels = relationshipManager.getRelationships(sourcePartPath)
+    if (!rels || rels.length === 0) return
+
+    // 1. Copy relationships file first (sets up destPath rels list)
+    relationshipManager.copyRelationships(sourcePartPath, destPartPath)
+
+    // 2. Iterate and clone each target part
+    const destRels = relationshipManager.getRelationships(destPartPath)
+    let dirty = false
+
+    for (const rel of destRels) {
+      if (rel.targetMode === 'External' || !rel.target || rel.target.startsWith('http')) continue
+
+      const resolved = relationshipManager.resolveTarget(sourcePartPath, rel.target)
+      if (!this.#zipManager.hasFile(resolved)) continue
+
+      let newTarget = rel.target
+      if (resolved.toLowerCase().endsWith('.xml')) {
+        // XML part - copy recursively
+        newTarget = await this.#copyGenericXmlPart(resolved, destPartPath, relationshipManager)
+      } else {
+        // Binary part
+        const newBinaryPath = await this.#copyBinaryPart(resolved)
+        if (newBinaryPath) {
+          newTarget = this.#makeRelativeTarget(destPartPath, newBinaryPath)
+        }
+      }
+
+      if (newTarget && newTarget !== rel.target) {
+        rel.target = newTarget
+        dirty = true
+      }
+    }
+
+    if (dirty) {
+      relationshipManager.flushRelationships(destPartPath)
+    }
   }
 
   /**
