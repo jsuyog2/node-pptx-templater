@@ -636,12 +636,12 @@ class SlideManager {
         // Embedded audio/video binary — copy to new media file
         if (this.#zipManager.hasFile(resolvedTarget)) {
           const newPath = await this.#copyBinaryPart(resolvedTarget)
-          if (newPath) target = `../media/${newPath.split('/').pop()}`
+          if (newPath) target = this.#makeRelativeTarget(destPath, newPath)
         }
       } else if (typeEnd === 'vmldrawing') {
         // VML drawings (legacy shapes, comment boxes) — must be independent per slide
         if (this.#zipManager.hasFile(resolvedTarget)) {
-          const newTarget = await this.#copyGenericXmlPart(resolvedTarget)
+          const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath)
           if (newTarget) target = newTarget
         }
       } else if (
@@ -653,7 +653,7 @@ class SlideManager {
       ) {
         // SmartArt/diagram parts — each slide needs its own copy
         if (this.#zipManager.hasFile(resolvedTarget)) {
-          const newTarget = await this.#copyGenericXmlPart(resolvedTarget)
+          const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath)
           if (newTarget) target = newTarget
         }
       } else if (typeEnd === 'oleobject' || typeEnd === 'activex') {
@@ -661,31 +661,23 @@ class SlideManager {
         if (this.#zipManager.hasFile(resolvedTarget)) {
           const newPath = await this.#copyBinaryPart(resolvedTarget)
           if (newPath) {
-            const folder = resolvedTarget.split('/').slice(0, -1).join('/')
-            const slideFolder = sourcePath.split('/').slice(0, -1).join('/')
-            const prefix = folder === slideFolder ? '' : '../' + resolvedTarget.split('/').slice(-2, -1)[0] + '/'
-            target = `${prefix}${newPath.split('/').pop()}`
+            target = this.#makeRelativeTarget(destPath, newPath)
           }
         }
       } else if (rel.target && !rel.target.startsWith('http') && resolvedTarget) {
-        // Catch-all for any other internal part: copy XML if it exists and is text,
+        // Catch-all for any other internal part: copy XML if the file extension is .xml,
         // otherwise copy as binary. This handles custom XML (e.g. Boldon James classification
         // parts) and any future unknown relationship types.
         if (this.#zipManager.hasFile(resolvedTarget)) {
-          const content = this.#zipManager.readCachedFile(resolvedTarget)
-          if (content !== null && content !== undefined) {
+          if (resolvedTarget.toLowerCase().endsWith('.xml')) {
             // Text/XML content
-            const newTarget = await this.#copyGenericXmlPart(resolvedTarget)
+            const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath)
             if (newTarget) target = newTarget
           } else {
             // Binary content
             const newPath = await this.#copyBinaryPart(resolvedTarget)
             if (newPath) {
-              const folder = resolvedTarget.split('/').slice(0, -1).join('/')
-              const slideFolder = destPath.split('/').slice(0, -1).join('/')
-              target = folder === slideFolder
-                ? newPath.split('/').pop()
-                : this.#makeRelativeTarget(destPath, newPath)
+              target = this.#makeRelativeTarget(destPath, newPath)
             }
           }
         } else {
@@ -810,7 +802,7 @@ class SlideManager {
    * @param {string} sourcePath - Absolute ZIP path of the source XML part.
    * @returns {Promise<string|null>} Relative target for the cloned slide relationship.
    */
-  async #copyGenericXmlPart(sourcePath) {
+  async #copyGenericXmlPart(sourcePath, destPath) {
     let content = this.#zipManager.readCachedFile(sourcePath)
     if (!content) {
       content = await this.#zipManager.readFile(sourcePath)
@@ -826,22 +818,22 @@ class SlideManager {
     const base = lastDot >= 0 ? fileName.slice(0, lastDot).replace(/\d+$/, '') : fileName
 
     let num = 1
-    let destPath = `${dir}/${base}${num}${ext}`
-    while (this.#zipManager.hasFile(destPath)) {
+    let destPartPath = `${dir}/${base}${num}${ext}`
+    while (this.#zipManager.hasFile(destPartPath)) {
       num++
-      destPath = `${dir}/${base}${num}${ext}`
+      destPartPath = `${dir}/${base}${num}${ext}`
     }
 
-    this.#zipManager.writeFile(destPath, content)
+    this.#zipManager.writeFile(destPartPath, content)
 
     // Mirror content type if one exists for the source
     const srcContentType = this.#contentTypesManager.getOverrideContentType(sourcePath)
     if (srcContentType) {
-      this.#contentTypesManager.addOverride(destPath, srcContentType)
+      this.#contentTypesManager.addOverride(destPartPath, srcContentType)
     }
 
-    logger.debug(`Cloned XML part: ${sourcePath} → ${destPath}`)
-    return `../${dir.split('/').pop()}/${destPath.split('/').pop()}`
+    logger.debug(`Cloned XML part: ${sourcePath} → ${destPartPath}`)
+    return this.#makeRelativeTarget(destPath, destPartPath)
   }
 
   /**
@@ -1510,19 +1502,28 @@ class SlideManager {
             ? sectionLst['p14:section']
             : [sectionLst['p14:section']]
 
-          // 1. Map each slideId to its original section (so we can identify its section)
-          const slideToSectionMap = new Map()
+          // 1. Identify section anchors (first slide of each section)
+          const sectionAnchors = []
           for (const section of sections) {
-            const sldIdLst = section['p14:sldIdLst']
-            if (sldIdLst?.['p14:sldId']) {
-              const sldIds = Array.isArray(sldIdLst['p14:sldId'])
-                ? sldIdLst['p14:sldId']
-                : [sldIdLst['p14:sldId']]
+            const sldIdLstObj = section['p14:sldIdLst']
+            if (sldIdLstObj?.['p14:sldId']) {
+              const sldIds = Array.isArray(sldIdLstObj['p14:sldId'])
+                ? sldIdLstObj['p14:sldId']
+                : [sldIdLstObj['p14:sldId']]
+              // Find the first valid slide ID in this section that is still present in the ordered list
+              let anchorId = null
               for (const sldId of sldIds) {
                 if (sldId && sldId['@_id']) {
-                  slideToSectionMap.set(String(sldId['@_id']), section)
+                  const idStr = String(sldId['@_id'])
+                  if (orderedSlideIds.includes(idStr)) {
+                    anchorId = idStr
+                    break
+                  }
                 }
               }
+              sectionAnchors.push({ section, anchorId })
+            } else {
+              sectionAnchors.push({ section, anchorId: null })
             }
           }
 
@@ -1535,41 +1536,21 @@ class SlideManager {
             }
           }
 
-          // 3. Re-populate the sections in the new slide order dynamically to keep them contiguous.
-          // If a section is already "closed" (we exited it and entered another section),
-          // slides belonging to it are placed in the current active section to maintain visual contiguity.
-          const seenSections = new Set()
-          let currentSection = null
+          // 3. Populate sections by tracing ordered slide IDs and switching sections when an anchor is reached
+          let currentSection = sections[0] || null
 
           for (const slideId of orderedSlideIds) {
-            let section = slideToSectionMap.get(slideId)
-            if (section) {
-              if (section !== currentSection) {
-                if (seenSections.has(section)) {
-                  // Already closed section — fallback to current active section
-                  section = currentSection
-                } else {
-                  // Enter new section
-                  currentSection = section
-                  seenSections.add(section)
-                }
-              }
-            } else {
-              section = currentSection
+            // Check if this slideId is the anchor of another section
+            const matchingAnchor = sectionAnchors.find(sa => sa.anchorId === slideId)
+            if (matchingAnchor) {
+              currentSection = matchingAnchor.section
             }
 
-            if (!section && sections.length > 0) {
-              // Fallback to first section if we haven't entered any section yet
-              section = sections[0]
-              currentSection = section
-              seenSections.add(section)
-            }
-
-            if (section) {
-              if (!section['p14:sldIdLst']) {
-                section['p14:sldIdLst'] = { 'p14:sldId': [] }
+            if (currentSection) {
+              if (!currentSection['p14:sldIdLst']) {
+                currentSection['p14:sldIdLst'] = { 'p14:sldId': [] }
               }
-              section['p14:sldIdLst']['p14:sldId'].push({ '@_id': slideId })
+              currentSection['p14:sldIdLst']['p14:sldId'].push({ '@_id': slideId })
             }
           }
         }

@@ -194,7 +194,7 @@ async function main() {
 
     ppt.useSlide(5)
 
-    let TeamData = [
+    const TeamData = [
       [
         '',
         'Team A',
@@ -297,7 +297,7 @@ async function main() {
       ],
     ]
     const totalSlide = TeamData.length / 5
-    var slideNumber = 5
+    let slideNumber = 5
     for (let index = 1; index <= totalSlide - 1; index++) {
       await ppt.duplicateSlide(slideNumber, slideNumber + index)
     }

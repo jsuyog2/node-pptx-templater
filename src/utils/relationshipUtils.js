@@ -69,10 +69,9 @@ function isValidRelationshipId(str) {
 function remapRelationshipIds(xml, idMap) {
   if (!idMap || idMap.size === 0) return xml
 
-  // Only remap OpenXML relationship reference attributes — never arbitrary quoted values
-  // such as shape names that might coincidentally match an rId key.
+  // Match any relationship ID attribute reference prefixed with r: (e.g. r:id, r:embed, r:link, r:dm, r:lo, r:qs, r:cs)
   return xml.replace(
-    /\b(r:(?:id|embed|link))=(["'])(rId\d+)\2/g,
+    /\b(r:[a-zA-Z0-9_]+)=(["'])(rId\d+)\2/g,
     (match, attr, quote, id) => {
       if (idMap.has(id)) {
         return `${attr}=${quote}${idMap.get(id)}${quote}`
