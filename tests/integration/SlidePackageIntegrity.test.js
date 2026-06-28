@@ -114,7 +114,7 @@ describe('PPTXTemplater - Slide package structural integrity', () => {
     ppt.replaceText({ '{{title}}': 'Updated Title' })
 
     const totalTeamSlides = 2
-    let slideNumber = Math.min(5, ppt.slideCount)
+    const slideNumber = Math.min(5, ppt.slideCount)
     for (let index = 1; index <= totalTeamSlides; index++) {
       if (slideNumber <= ppt.slideCount) {
         await ppt.duplicateSlide(slideNumber, slideNumber + index)

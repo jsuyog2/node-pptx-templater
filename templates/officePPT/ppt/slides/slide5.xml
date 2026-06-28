@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+    xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+    <p:cSld>
+        <p:spTree>
+            <p:nvGrpSpPr>
+                <p:cNvPr id="1" name="">
+                    <a:extLst>
+                        <a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}">
+                            <a16:creationId
+                                xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main"
+                                id="{7E88BBC3-FCFB-D908-8621-21B4D06A1C4C}" />
+                        </a:ext>
+                    </a:extLst>
+                </p:cNvPr>
+                <p:cNvGrpSpPr />
+                <p:nvPr />
+            </p:nvGrpSpPr>
+            <p:grpSpPr>
+                <a:xfrm>
+                    <a:off x="0" y="0" />
+                    <a:ext cx="0" cy="0" />
+                    <a:chOff x="0" y="0" />
+                    <a:chExt cx="0" cy="0" />
+                </a:xfrm>
+            </p:grpSpPr>
+            <p:sp>
+                <p:nvSpPr>
+                    <p:cNvPr id="3" name="List">
+                        <a:extLst>
+                            <a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}">
+                                <a16:creationId
+                                    xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main"
+                                    id="{60020E62-F94D-048C-41EB-CD6F496590D6}" />
+                            </a:ext>
+                        </a:extLst>
+                    </p:cNvPr>
+                    <p:cNvSpPr>
+                        <a:spLocks noGrp="1" />
+                    </p:cNvSpPr>
+                    <p:nvPr>
+                        <p:ph idx="1" />
+                    </p:nvPr>
+                </p:nvSpPr>
+                <p:spPr />
+                <p:txBody>
+                    <a:bodyPr />
+                    <a:lstStyle />
+                    <a:p>
+                        <a:r>
+                            <a:rPr lang="en-US">
+                                <a:latin typeface="Adobe Fan Heiti Std B"
+                                    panose="020B0700000000000000" pitchFamily="34" charset="-128" />
+                                <a:ea typeface="Adobe Fan Heiti Std B" panose="020B0700000000000000"
+                                    pitchFamily="34" charset="-128" />
+                            </a:rPr>
+                            <a:t>1</a:t>
+                        </a:r>
+                        <a:r>
+                            <a:rPr lang="en-US" baseline="30000">
+                                <a:latin typeface="Adobe Fan Heiti Std B"
+                                    panose="020B0700000000000000" pitchFamily="34" charset="-128" />
+                                <a:ea typeface="Adobe Fan Heiti Std B" panose="020B0700000000000000"
+                                    pitchFamily="34" charset="-128" />
+                            </a:rPr>
+                            <a:t>st</a:t>
+                        </a:r>
+                        <a:r>
+                            <a:rPr lang="en-US">
+                                <a:latin typeface="Adobe Fan Heiti Std B"
+                                    panose="020B0700000000000000" pitchFamily="34" charset="-128" />
+                                <a:ea typeface="Adobe Fan Heiti Std B" panose="020B0700000000000000"
+                                    pitchFamily="34" charset="-128" />
+                            </a:rPr>
+                            <a:t> item</a:t>
+                        </a:r>
+                    </a:p>
+                    <a:p>
+                        <a:r>
+                            <a:rPr lang="en-US">
+                                <a:latin typeface="Adobe Garamond Pro Bold"
+                                    panose="02020702060506020403" pitchFamily="18" charset="0" />
+                            </a:rPr>
+                            <a:t>2</a:t>
+                        </a:r>
+                        <a:r>
+                            <a:rPr lang="en-US" baseline="30000">
+                                <a:latin typeface="Adobe Garamond Pro Bold"
+                                    panose="02020702060506020403" pitchFamily="18" charset="0" />
+                            </a:rPr>
+                            <a:t>nd</a:t>
+                        </a:r>
+                        <a:r>
+                            <a:rPr lang="en-US">
+                                <a:latin typeface="Adobe Garamond Pro Bold"
+                                    panose="02020702060506020403" pitchFamily="18" charset="0" />
+                            </a:rPr>
+                            <a:t> item</a:t>
+                        </a:r>
+                    </a:p>
+                    <a:p>
+                        <a:r>
+                            <a:rPr lang="en-US" sz="1600" />
+                            <a:t>3</a:t>
+                        </a:r>
+                        <a:r>
+                            <a:rPr lang="en-US" sz="1600" baseline="30000" />
+                            <a:t>rd</a:t>
+                        </a:r>
+                        <a:r>
+                            <a:rPr lang="en-US" sz="1600" />
+                            <a:t> item</a:t>
+                        </a:r>
+                        <a:endParaRPr lang="en-IN" sz="1600" />
+                    </a:p>
+                </p:txBody>
+            </p:sp>
+            <p:sp>
+                <p:nvSpPr>
+                    <p:cNvPr id="4" name="Footer Placeholder 3">
+                        <a:extLst>
+                            <a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}">
+                                <a16:creationId
+                                    xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main"
+                                    id="{704A712B-7D94-412A-AD53-6AE8FF5AB34D}" />
+                            </a:ext>
+                        </a:extLst>
+                    </p:cNvPr>
+                    <p:cNvSpPr>
+                        <a:spLocks noGrp="1" />
+                    </p:cNvSpPr>
+                    <p:nvPr>
+                        <p:ph type="ftr" sz="quarter" idx="11" />
+                        <p:custDataLst>
+                            <p:tags r:id="rId1" />
+                        </p:custDataLst>
+                    </p:nvPr>
+                </p:nvSpPr>
+                <p:spPr />
+                <p:txBody>
+                    <a:bodyPr />
+                    <a:lstStyle />
+                    <a:p>
+                        <a:r>
+                            <a:rPr lang="en-IN" />
+                            <a:t>Public</a:t>
+                        </a:r>
+                    </a:p>
+                </p:txBody>
+            </p:sp>
+        </p:spTree>
+        <p:extLst>
+            <p:ext uri="{BB962C8B-B14F-4D97-AF65-F5344CB8AC3E}">
+                <p14:creationId xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"
+                    val="4113158550" />
+            </p:ext>
+        </p:extLst>
+    </p:cSld>
+    <p:clrMapOvr>
+        <a:masterClrMapping />
+    </p:clrMapOvr>
+</p:sld>
