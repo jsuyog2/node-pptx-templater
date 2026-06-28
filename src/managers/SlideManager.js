@@ -36,12 +36,10 @@ const logger = createLogger('SlideManager')
 /** MIME type for PPTX slide parts. */
 const SLIDE_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
 
-const CHART_CONTENT_TYPE =
-  'application/vnd.openxmlformats-officedocument.drawingml.chart+xml'
+const CHART_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.drawingml.chart+xml'
 const CHART_STYLE_CONTENT_TYPE = 'application/vnd.ms-office.chartstyle+xml'
 const CHART_COLORS_CONTENT_TYPE = 'application/vnd.ms-office.chartcolorstyle+xml'
-const WORKBOOK_CONTENT_TYPE =
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+const WORKBOOK_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 const ACTIVEX_CONTENT_TYPE = 'application/vnd.ms-office.activeX'
 
 /**
@@ -463,6 +461,20 @@ class SlideManager {
    * @returns {Promise<void>}
    */
   async cloneSlide(sourceIndex, atPosition, relationshipManager, mediaManager) {
+    const promise = this.#cloneSlideInternal(
+      sourceIndex,
+      atPosition,
+      relationshipManager,
+      mediaManager
+    )
+    this.#zipManager.addPendingPromise(promise)
+    return promise
+  }
+
+  /**
+   * @private
+   */
+  async #cloneSlideInternal(sourceIndex, atPosition, relationshipManager, mediaManager) {
     this.#assertSlideExists(sourceIndex)
     const sourceInfo = this.#slides.get(sourceIndex)
     logger.debug('Source Slide Info:', sourceInfo)
@@ -504,7 +516,10 @@ class SlideManager {
     if (notesRel) {
       const sourceNotesPath = relationshipManager.resolveTarget(sourceInfo.zipPath, notesRel.target)
       let notesXml = this.#zipManager.readCachedFile(sourceNotesPath)
-      
+      if (!notesXml) {
+        notesXml = await this.#zipManager.readFile(sourceNotesPath)
+      }
+
       if (notesXml) {
         let nextNotesIndex = 1
         while (this.#zipManager.hasFile(`ppt/notesSlides/notesSlide${nextNotesIndex}.xml`)) {
@@ -513,28 +528,47 @@ class SlideManager {
         const notesFileName = `notesSlide${nextNotesIndex}.xml`
         const notesZipPath = `ppt/notesSlides/${notesFileName}`
 
-        // Copy relationships from source notes slide
-        const notesIdMap = relationshipManager.copyRelationships(sourceNotesPath, notesZipPath)
-        
+        // Deep-clone relationships from source notes slide (so slide-specific resources like tags are also copied)
+        const sourceNotesRels = relationshipManager.getRelationships(sourceNotesPath)
+        const notesIdMap = await this.#deepCloneSlideRelationships(
+          sourceNotesPath,
+          notesZipPath,
+          relationshipManager,
+          mediaManager,
+          sourceNotesRels
+        )
+
         // Update target in notes relationships to point back to the new slide
+        // IMPORTANT: patch the back-reference BEFORE flushing to ZIP so the
+        // .rels file on disk contains the correct slide path.
         const notesRels = relationshipManager.getRelationships(notesZipPath)
-        const slideRel = notesRels.find(r => r.type === REL_TYPES.SLIDE || r.type.endsWith('/slide'))
+        const slideRel = notesRels.find(
+          r => r.type === REL_TYPES.SLIDE || r.type.endsWith('/slide')
+        )
         if (slideRel) {
           slideRel.target = `../slides/${slideFileName}`
         }
+        // Flush AFTER the target is patched so the written .rels is correct
         relationshipManager.flushRelationships(notesZipPath)
 
         // Remap relationship IDs in notes XML
         notesXml = remapRelationshipIds(notesXml, notesIdMap)
-        
+
         // Write the notes slide XML to ZIP
         this.#zipManager.writeFile(notesZipPath, notesXml)
-        
+
         // Add content type override
-        this.#contentTypesManager.addOverride(notesZipPath, 'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml')
+        this.#contentTypesManager.addOverride(
+          notesZipPath,
+          'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml'
+        )
 
         // Add notes slide relationship to the new slide
-        relationshipManager.addRelationship(slideZipPath, REL_TYPES.NOTES_SLIDE, `../notesSlides/${notesFileName}`)
+        relationshipManager.addRelationship(
+          slideZipPath,
+          REL_TYPES.NOTES_SLIDE,
+          `../notesSlides/${notesFileName}`
+        )
       }
     }
 
@@ -575,8 +609,13 @@ class SlideManager {
   }
 
   /**
-   * Deep-clones slide relationships so embedded parts (charts, images, etc.) are
-   * independent copies — the source slide is never modified.
+   * Deep-clones slide relationships so every embedded part (chart, image, VML drawing,
+   * SmartArt, custom XML, audio/video, etc.) gets its own independent copy.
+   * Shared presentation-level resources (layout, master, theme, tableStyles) are reused.
+   *
+   * IMPORTANT: Every internal part that is unique to a slide MUST be deep-copied here.
+   * Sharing mutable internal parts between slides causes PowerPoint corruption, particularly
+   * in enterprise environments with strict validators (e.g. Boldon James Classifier).
    * @private
    */
   async #deepCloneSlideRelationships(
@@ -594,29 +633,96 @@ class SlideManager {
       if (excludeTypes.includes(rel.type)) continue
 
       let target = rel.target
-      const resolvedTarget = relationshipManager.resolveTarget(sourcePath, rel.target)
+      const resolvedTarget =
+        rel.targetMode === 'External'
+          ? null
+          : relationshipManager.resolveTarget(sourcePath, rel.target)
+      const typeEnd = rel.type.split('/').pop().toLowerCase()
 
-      if (rel.type === REL_TYPES.CHART) {
+      if (rel.targetMode === 'External') {
+        // External hyperlinks, audio/video links — reuse as-is
+      } else if (rel.type === REL_TYPES.CHART) {
+        // Charts → deep copy with independent workbook/style/color
         target = await this.#copyChartPart(resolvedTarget, relationshipManager)
       } else if (rel.type === REL_TYPES.IMAGE) {
+        // Raster/vector images — copy as new media part
         const newMediaPath = await mediaManager.copyMediaAsNewPart(resolvedTarget)
         target = `../media/${newMediaPath.split('/').pop()}`
-      } else if (
-        rel.targetMode === 'External' ||
-        (rel.target && (rel.target.startsWith('http://') || rel.target.startsWith('https://')))
-      ) {
-        // External hyperlinks — reuse target as-is
       } else if (
         rel.type === REL_TYPES.SLIDE_LAYOUT ||
         rel.type === REL_TYPES.SLIDE_MASTER ||
         rel.type === REL_TYPES.THEME ||
-        rel.type === REL_TYPES.TABLE_STYLES
+        rel.type === REL_TYPES.TABLE_STYLES ||
+        rel.type ===
+          'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster' ||
+        rel.type ===
+          'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide' ||
+        rel.type === REL_TYPES.SLIDE
       ) {
-        // Shared presentation resources — reuse target
-      } else if (rel.target && !rel.target.startsWith('http')) {
-        const copiedTarget = this.#copyInternalPartForClone(sourcePath, resolvedTarget)
-        if (copiedTarget) {
-          target = copiedTarget
+        // Shared presentation-level resources — reuse same target
+      } else if (typeEnd === 'audio' || typeEnd === 'video' || typeEnd === 'media') {
+        // Embedded audio/video binary — copy to new media file
+        if (this.#zipManager.hasFile(resolvedTarget)) {
+          const newPath = await this.#copyBinaryPart(resolvedTarget)
+          if (newPath) target = this.#makeRelativeTarget(destPath, newPath)
+        }
+      } else if (typeEnd === 'vmldrawing') {
+        // VML drawings (legacy shapes, comment boxes) — must be independent per slide
+        if (this.#zipManager.hasFile(resolvedTarget)) {
+          const newTarget = await this.#copyGenericXmlPart(
+            resolvedTarget,
+            destPath,
+            relationshipManager
+          )
+          if (newTarget) target = newTarget
+        }
+      } else if (
+        typeEnd === 'diagramdata' ||
+        typeEnd === 'diagramlayout' ||
+        typeEnd === 'diagramquickstyle' ||
+        typeEnd === 'diagramcolors' ||
+        typeEnd === 'diagram'
+      ) {
+        // SmartArt/diagram parts — each slide needs its own copy
+        if (this.#zipManager.hasFile(resolvedTarget)) {
+          const newTarget = await this.#copyGenericXmlPart(
+            resolvedTarget,
+            destPath,
+            relationshipManager
+          )
+          if (newTarget) target = newTarget
+        }
+      } else if (typeEnd === 'oleobject' || typeEnd === 'activex') {
+        // Non-chart OLE / ActiveX objects — copy binary
+        if (this.#zipManager.hasFile(resolvedTarget)) {
+          const newPath = await this.#copyBinaryPart(resolvedTarget)
+          if (newPath) {
+            target = this.#makeRelativeTarget(destPath, newPath)
+          }
+        }
+      } else if (rel.target && !rel.target.startsWith('http') && resolvedTarget) {
+        // Catch-all for any other internal part: copy XML if the file extension is .xml,
+        // otherwise copy as binary. This handles custom XML (e.g. Boldon James classification
+        // parts) and any future unknown relationship types.
+        if (this.#zipManager.hasFile(resolvedTarget)) {
+          if (resolvedTarget.toLowerCase().endsWith('.xml')) {
+            // Text/XML content
+            const newTarget = await this.#copyGenericXmlPart(
+              resolvedTarget,
+              destPath,
+              relationshipManager
+            )
+            if (newTarget) target = newTarget
+          } else {
+            // Binary content
+            const newPath = await this.#copyBinaryPart(resolvedTarget)
+            if (newPath) {
+              target = this.#makeRelativeTarget(destPath, newPath)
+            }
+          }
+        } else {
+          // Part not in ZIP (may be external or already purged) — keep original target
+          logger.warn(`Clone: part not found in ZIP, reusing original target: ${resolvedTarget}`)
         }
       }
 
@@ -729,21 +835,156 @@ class SlideManager {
   }
 
   /**
-   * Resolves a relative target for slide-to-slide links in the same folder.
+   * Copies a generic XML text part to a new sequentially numbered path in the same
+   * directory as the source. Returns a relative target path from the destination slide,
+   * or null if the copy failed.
    * @private
+   * @param {string} sourcePath - Absolute ZIP path of the source XML part.
+   * @returns {Promise<string|null>} Relative target for the cloned slide relationship.
    */
-  #copyInternalPartForClone(sourceSlidePath, resolvedTarget) {
-    if (!this.#zipManager.hasFile(resolvedTarget)) return null
+  async #copyGenericXmlPart(sourcePath, destPath, relationshipManager) {
+    let content = this.#zipManager.readCachedFile(sourcePath)
+    if (!content) {
+      content = await this.#zipManager.readFile(sourcePath)
+    }
+    if (!content) return null
 
-    const fileName = resolvedTarget.split('/').pop()
-    const sourceDir = resolvedTarget.split('/').slice(0, -1).join('/')
-    const slideDir = sourceSlidePath.split('/').slice(0, -1).join('/')
+    const parts = sourcePath.split('/')
+    const dir = parts.slice(0, -1).join('/')
+    const fileName = parts[parts.length - 1]
+    // Extract base name and extension: e.g. 'vmlDrawing1.xml' → base='vmlDrawing', ext='xml'
+    const lastDot = fileName.lastIndexOf('.')
+    const ext = lastDot >= 0 ? fileName.slice(lastDot) : ''
+    const base = lastDot >= 0 ? fileName.slice(0, lastDot).replace(/\d+$/, '') : fileName
 
-    if (sourceDir === slideDir) {
-      return fileName
+    let num = 1
+    let destPartPath = `${dir}/${base}${num}${ext}`
+    while (this.#zipManager.hasFile(destPartPath)) {
+      num++
+      destPartPath = `${dir}/${base}${num}${ext}`
     }
 
-    return null
+    this.#zipManager.writeFile(destPartPath, content)
+
+    // Mirror content type if one exists for the source
+    const srcContentType = this.#contentTypesManager.getOverrideContentType(sourcePath)
+    if (srcContentType) {
+      this.#contentTypesManager.addOverride(destPartPath, srcContentType)
+    }
+
+    // Clone any relationships/dependencies of this XML part recursively
+    await this.#copyPartDependencies(sourcePath, destPartPath, relationshipManager)
+
+    logger.debug(`Cloned XML part: ${sourcePath} → ${destPartPath}`)
+    return this.#makeRelativeTarget(destPath, destPartPath)
+  }
+
+  /**
+   * Recursively copies relationships and dependency parts for a cloned XML part.
+   * @private
+   * @param {string} sourcePartPath - Absolute ZIP path of the source XML part.
+   * @param {string} destPartPath - Absolute ZIP path of the destination XML part.
+   * @param {RelationshipManager} relationshipManager
+   * @returns {Promise<void>}
+   */
+  async #copyPartDependencies(sourcePartPath, destPartPath, relationshipManager) {
+    const rels = relationshipManager.getRelationships(sourcePartPath)
+    if (!rels || rels.length === 0) return
+
+    // 1. Copy relationships file first (sets up destPath rels list)
+    relationshipManager.copyRelationships(sourcePartPath, destPartPath)
+
+    // 2. Iterate and clone each target part
+    const destRels = relationshipManager.getRelationships(destPartPath)
+    let dirty = false
+
+    for (const rel of destRels) {
+      if (rel.targetMode === 'External' || !rel.target || rel.target.startsWith('http')) continue
+
+      const resolved = relationshipManager.resolveTarget(sourcePartPath, rel.target)
+      if (!this.#zipManager.hasFile(resolved)) continue
+
+      let newTarget = rel.target
+      if (resolved.toLowerCase().endsWith('.xml')) {
+        // XML part - copy recursively
+        newTarget = await this.#copyGenericXmlPart(resolved, destPartPath, relationshipManager)
+      } else {
+        // Binary part
+        const newBinaryPath = await this.#copyBinaryPart(resolved)
+        if (newBinaryPath) {
+          newTarget = this.#makeRelativeTarget(destPartPath, newBinaryPath)
+        }
+      }
+
+      if (newTarget && newTarget !== rel.target) {
+        rel.target = newTarget
+        dirty = true
+      }
+    }
+
+    if (dirty) {
+      relationshipManager.flushRelationships(destPartPath)
+    }
+  }
+
+  /**
+   * Copies a binary part (audio, video, OLE object, etc.) to a new path in the same
+   * directory as the source. Returns the new absolute ZIP path, or null on failure.
+   * @private
+   * @param {string} sourcePath - Absolute ZIP path of the source binary part.
+   * @returns {Promise<string|null>} New absolute ZIP path.
+   */
+  async #copyBinaryPart(sourcePath) {
+    const data = await this.#zipManager.readBinaryFile(sourcePath)
+    if (!data) return null
+
+    const parts = sourcePath.split('/')
+    const dir = parts.slice(0, -1).join('/')
+    const fileName = parts[parts.length - 1]
+    const lastDot = fileName.lastIndexOf('.')
+    const ext = lastDot >= 0 ? fileName.slice(lastDot) : ''
+    const base = lastDot >= 0 ? fileName.slice(0, lastDot).replace(/\d+$/, '') : fileName
+
+    let num = 1
+    let destPath = `${dir}/${base}${num}${ext}`
+    while (this.#zipManager.hasFile(destPath)) {
+      num++
+      destPath = `${dir}/${base}${num}${ext}`
+    }
+
+    this.#zipManager.writeBinaryFile(destPath, data)
+
+    const srcContentType = this.#contentTypesManager.getOverrideContentType(sourcePath)
+    if (srcContentType) {
+      this.#contentTypesManager.addOverride(destPath, srcContentType)
+    }
+
+    logger.debug(`Cloned binary part: ${sourcePath} → ${destPath}`)
+    return destPath
+  }
+
+  /**
+   * Builds a relative target path from a source ZIP part to a destination ZIP path.
+   * @private
+   * @param {string} fromPath - Absolute path of the part containing the relationship.
+   * @param {string} toPath - Absolute ZIP path of the target.
+   * @returns {string} Relative path from fromPath's directory to toPath.
+   */
+  #makeRelativeTarget(fromPath, toPath) {
+    const fromDir = fromPath.split('/').slice(0, -1)
+    const toParts = toPath.split('/')
+    // Find common prefix length
+    let common = 0
+    while (
+      common < fromDir.length &&
+      common < toParts.length - 1 &&
+      fromDir[common] === toParts[common]
+    ) {
+      common++
+    }
+    const ups = fromDir.length - common
+    const downs = toParts.slice(common)
+    return (ups > 0 ? '../'.repeat(ups) : './') + downs.join('/')
   }
 
   /**
@@ -771,52 +1012,58 @@ class SlideManager {
     this.#assertSlideExists(slideIndex)
     const info = this.#slides.get(slideIndex)
 
-    // Check for notes slide relationship and remove it
+    // 1. Check for notes slide relationship and remove it first
     const slideRels = this.#relationshipManager.getRelationships(info.zipPath)
     const notesRel = slideRels.find(r => r.type === REL_TYPES.NOTES_SLIDE)
     if (notesRel) {
       const notesPath = this.#relationshipManager.resolveTarget(info.zipPath, notesRel.target)
-      
+
       // Remove from ZIP
       this.#zipManager.removeFile(notesPath)
-      
-      // Remove its relationships file
+
+      // Remove its relationships file — use getRelsPath for robustness
       const notesRelsPath = this.#relationshipManager.getRelsPath(notesPath)
       this.#zipManager.removeFile(notesRelsPath)
-      
+
       // Remove relationships from cache
       this.#relationshipManager.deleteRelationships(notesPath)
-      
+
       // Remove content type override
       this.#contentTypesManager.removeOverride(notesPath)
     }
 
-    // Remove from ZIP
+    // 2. Remove slide XML from ZIP
     this.#zipManager.removeFile(info.zipPath)
 
-    // Remove its relationships file
-    const relsFileName = info.zipPath.split('/').pop() + '.rels'
-    this.#zipManager.removeFile(`ppt/slides/_rels/${relsFileName}`)
+    // 3. Remove slide .rels file — use getRelsPath so non-standard paths work correctly
+    const slideRelsPath = this.#relationshipManager.getRelsPath(info.zipPath)
+    this.#zipManager.removeFile(slideRelsPath)
 
-    // Remove from cache
+    // 4. Remove slide relationship cache entry
+    this.#relationshipManager.deleteRelationships(info.zipPath)
+
+    // 5. Remove slide XML cache entries
     this.#slideXmlCache.delete(info.zipPath)
     this.#slideStates.delete(slideIndex)
 
-    // Remove relationship from presentation.xml
-    this.#relationshipManager.removeRelationship('ppt/presentation.xml', info.relationshipId)
-
-    // Remove relationships cache
-    this.#relationshipManager.deleteRelationships(info.zipPath)
-
-    // Remove content type from [Content_Types].xml
+    // 6. Remove content type from [Content_Types].xml
     this.#contentTypesManager.removeOverride(info.zipPath)
 
-    // Remove from slides map and reindex
+    // 7. Remove relationship from presentation.xml.rels
+    this.#relationshipManager.removeRelationship('ppt/presentation.xml', info.relationshipId)
+
+    // 8. Remove from presentation.xml sldIdLst and sections BEFORE reindexing.
+    //    This ensures the sldIdLst is consistent with the relationship list.
+    this.#removeSlideFromPresentation(info.slideId)
+
+    // 9. Remove from slides map and reindex remaining slides
     this.#slides.delete(slideIndex)
     this.#reindexSlides()
 
-    // Update presentation.xml
-    this.#removeSlideFromPresentation(info.slideId)
+    // 10. Rebuild sldIdLst and synchronize sections to reflect the updated slide order.
+    //     This is essential: after reindexing, the relationship IDs and slide IDs are
+    //     still valid but the sldIdLst order must be rebuilt so sections match.
+    this.rebuildPresentationSlideOrder()
 
     logger.debug(`Removed slide ${slideIndex}`)
   }
@@ -1190,7 +1437,7 @@ class SlideManager {
     await Promise.all(
       this.getAllSlideIndices().map(async i => {
         await this.getSlideXmlAsync(i)
-        
+
         // Also check and preload notes slide XML
         const info = this.#slides.get(i)
         const rels = this.#relationshipManager.getRelationships(info.zipPath)
@@ -1356,19 +1603,28 @@ class SlideManager {
             ? sectionLst['p14:section']
             : [sectionLst['p14:section']]
 
-          // 1. Map each slideId to its original section (so we can identify its section)
-          const slideToSectionMap = new Map()
+          // 1. Identify section anchors (first slide of each section)
+          const sectionAnchors = []
           for (const section of sections) {
-            const sldIdLst = section['p14:sldIdLst']
-            if (sldIdLst?.['p14:sldId']) {
-              const sldIds = Array.isArray(sldIdLst['p14:sldId'])
-                ? sldIdLst['p14:sldId']
-                : [sldIdLst['p14:sldId']]
+            const sldIdLstObj = section['p14:sldIdLst']
+            if (sldIdLstObj?.['p14:sldId']) {
+              const sldIds = Array.isArray(sldIdLstObj['p14:sldId'])
+                ? sldIdLstObj['p14:sldId']
+                : [sldIdLstObj['p14:sldId']]
+              // Find the first valid slide ID in this section that is still present in the ordered list
+              let anchorId = null
               for (const sldId of sldIds) {
                 if (sldId && sldId['@_id']) {
-                  slideToSectionMap.set(String(sldId['@_id']), section)
+                  const idStr = String(sldId['@_id'])
+                  if (orderedSlideIds.includes(idStr)) {
+                    anchorId = idStr
+                    break
+                  }
                 }
               }
+              sectionAnchors.push({ section, anchorId })
+            } else {
+              sectionAnchors.push({ section, anchorId: null })
             }
           }
 
@@ -1381,41 +1637,21 @@ class SlideManager {
             }
           }
 
-          // 3. Re-populate the sections in the new slide order dynamically to keep them contiguous.
-          // If a section is already "closed" (we exited it and entered another section),
-          // slides belonging to it are placed in the current active section to maintain visual contiguity.
-          const seenSections = new Set()
-          let currentSection = null
+          // 3. Populate sections by tracing ordered slide IDs and switching sections when an anchor is reached
+          let currentSection = sections[0] || null
 
           for (const slideId of orderedSlideIds) {
-            let section = slideToSectionMap.get(slideId)
-            if (section) {
-              if (section !== currentSection) {
-                if (seenSections.has(section)) {
-                  // Already closed section — fallback to current active section
-                  section = currentSection
-                } else {
-                  // Enter new section
-                  currentSection = section
-                  seenSections.add(section)
-                }
-              }
-            } else {
-              section = currentSection
+            // Check if this slideId is the anchor of another section
+            const matchingAnchor = sectionAnchors.find(sa => sa.anchorId === slideId)
+            if (matchingAnchor) {
+              currentSection = matchingAnchor.section
             }
 
-            if (!section && sections.length > 0) {
-              // Fallback to first section if we haven't entered any section yet
-              section = sections[0]
-              currentSection = section
-              seenSections.add(section)
-            }
-
-            if (section) {
-              if (!section['p14:sldIdLst']) {
-                section['p14:sldIdLst'] = { 'p14:sldId': [] }
+            if (currentSection) {
+              if (!currentSection['p14:sldIdLst']) {
+                currentSection['p14:sldIdLst'] = { 'p14:sldId': [] }
               }
-              section['p14:sldIdLst']['p14:sldId'].push({ '@_id': slideId })
+              currentSection['p14:sldIdLst']['p14:sldId'].push({ '@_id': slideId })
             }
           }
         }
@@ -1495,7 +1731,22 @@ class SlideManager {
    * @returns {Promise<number>}
    */
   async duplicateSlide(slideIndex, atPosition, relationshipManager, mediaManager) {
-    await this.cloneSlide(slideIndex, null, relationshipManager, mediaManager)
+    const promise = this.#duplicateSlideInternal(
+      slideIndex,
+      atPosition,
+      relationshipManager,
+      mediaManager
+    )
+    this.#zipManager.addPendingPromise(promise)
+    return promise
+  }
+
+  /**
+   * Internal duplicate implementation.
+   * @private
+   */
+  async #duplicateSlideInternal(slideIndex, atPosition, relationshipManager, mediaManager) {
+    await this.#cloneSlideInternal(slideIndex, null, relationshipManager, mediaManager)
     const count = this.slideCount
     if (atPosition !== undefined && atPosition !== count) {
       const order = []
@@ -1790,57 +2041,55 @@ class SlideManager {
     // 3. Normalize notes slides: renumber them to match the slide order
     await this.#normalizeNotesSlides(slides, relationshipManager, contentTypesManager, nameMap)
 
-    // 4. Re-index presentation.xml relationships sequentially to remove gaps and update slide targets
+    // 4. Update slide targets in presentation.xml relationships if slide filenames changed
     const presRels = relationshipManager.getRelationships('ppt/presentation.xml')
-    const remappedRels = []
-    const presIdMap = new Map()
 
-    presRels.forEach((rel, index) => {
-      const newId = `rId${index + 1}`
-      presIdMap.set(rel.id, newId)
-
-      let target = rel.target
+    presRels.forEach(rel => {
+      const target = rel.target
       if (target) {
         const targetParts = target.split('/')
         const targetName = targetParts[targetParts.length - 1]
         if (nameMap.has(targetName)) {
           targetParts[targetParts.length - 1] = nameMap.get(targetName)
-          target = targetParts.join('/')
+          rel.target = targetParts.join('/')
         }
       }
-
-      remappedRels.push({
-        ...rel,
-        id: newId,
-        target: target,
-      })
     })
 
-    // Set remapped relationships for ppt/presentation.xml in RelationshipManager and flush
-    relationshipManager.setRelationships('ppt/presentation.xml', remappedRels)
+    // Flush relationships for ppt/presentation.xml to ZIP
     relationshipManager.flushRelationships('ppt/presentation.xml')
 
-    // 5. Update relationship IDs directly on the in-memory presentationObj.
-    //    This avoids the brittle regex-on-XML-string approach which could corrupt
-    //    attribute values that are not relationship IDs.
-    if (this.#presentationObj && presIdMap.size > 0) {
-      this.#remapPresentationRIds(this.#presentationObj, presIdMap)
-    }
-
-    // Clear any stale presentationIdMap (no longer used by #flushPresentation)
+    // Clear any stale presentationIdMap (no longer used)
     this.#presentationIdMap = null
-
-    // 6. Update SlideInfo relationship IDs before rebuilding sldIdLst so r:id values
-    //    match the remapped presentation.xml.rels (rebuildPresentationSlideOrder
-    //    writes sldIdLst from SlideInfo and flushes presentation.xml).
-    for (const info of slides) {
-      if (presIdMap.has(info.relationshipId)) {
-        info.relationshipId = presIdMap.get(info.relationshipId)
-      }
-    }
 
     // 7. Rebuild presentation.xml sldIdLst and synchronize sections
     this.rebuildPresentationSlideOrder()
+
+    // 8. Remove orphan slide parts left over from add/remove/duplicate operations
+    this.#purgeOrphanSlideParts(slides, relationshipManager, contentTypesManager)
+  }
+
+  /**
+   * Deletes slide XML/.rels parts that are no longer referenced by the presentation.
+   * @private
+   */
+  #purgeOrphanSlideParts(slides, relationshipManager, contentTypesManager) {
+    const referenced = new Set(slides.map(s => s.zipPath))
+    const slideFiles = this.#zipManager
+      .listFiles('ppt/slides/')
+      .filter(f => /\/slide\d+\.xml$/.test(f))
+
+    for (const zipPath of slideFiles) {
+      if (referenced.has(zipPath)) continue
+
+      this.#zipManager.removeFile(zipPath)
+      const relsPath = relationshipManager.getRelsPath(zipPath)
+      this.#zipManager.removeFile(relsPath)
+      relationshipManager.deleteRelationships(zipPath)
+      contentTypesManager.removeOverride(zipPath)
+      this.#slideXmlCache.delete(zipPath)
+      logger.debug(`Purged orphan slide part: ${zipPath}`)
+    }
   }
 
   /**
@@ -1921,16 +2170,14 @@ class SlideManager {
         continue
       }
 
-      let notesXml = nd._notesXml
+      const notesXml = nd._notesXml
       const notesRels = nd._notesRels || []
 
       // Update the notes rels: fix back-reference to the (possibly renamed) slide
       for (const nr of notesRels) {
         if (nr.type === REL_TYPES.SLIDE || nr.type.endsWith('/slide')) {
           nr.target = `../slides/${nd.slideNewFileName}`
-        }
-        // Also fix any notes-master or slide-layout targets using the slide name map
-        if (nr.target && !nr.targetMode) {
+        } else if (nr.target && !nr.targetMode) {
           const parts = nr.target.split('/')
           const fname = parts[parts.length - 1]
           if (slideNameMap.has(fname)) {

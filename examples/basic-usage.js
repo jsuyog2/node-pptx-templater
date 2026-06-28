@@ -11,33 +11,49 @@
  * To run: node examples/basic-usage.js
  */
 
-// import { PPTXTemplater } from '../src/index.js';
-// import { existsSync } from 'fs';
-// import { resolve, dirname } from 'path';
-// import { fileURLToPath } from 'url';
 const { PPTXTemplater } = require('../src/index.js')
 const { existsSync } = require('fs')
 const { resolve } = require('path')
 
-const TEMPLATE_PATH = resolve(__dirname, '../templates/sample/[Content_Types].xml')
-const TEMPLATE_PATH_PPTX = resolve(__dirname, '../templates/sample.pptx')
-const OUTPUT_PATH = resolve(__dirname, '../examples/output/basic-output.pptx')
-const OUTPUT_PATH_EXTRACTION = resolve(__dirname, '../templates/sample')
+async function PPTXTemplaterDemo() {
+  const TEMPLATE_PATH_PPTX = resolve(__dirname, '../templates/sample.pptx')
+  const OUTPUT_PATH_EXTRACTION = resolve(__dirname, '../templates/sample')
+  const OUTPUT_PATH = resolve(__dirname, '../examples/output/basic-output.pptx')
 
-async function main() {
   if (existsSync(TEMPLATE_PATH_PPTX)) {
     await PPTXTemplater.extractPptx(TEMPLATE_PATH_PPTX, OUTPUT_PATH_EXTRACTION, { overwrite: true })
   }
-  // Check if template exists
-  if (!existsSync(TEMPLATE_PATH)) {
-    console.log('ℹ Template file not found at:', TEMPLATE_PATH)
-    console.log('  Place a PPTX file at templates/sample.pptx to run this example.')
-    console.log('\nRunning API demonstration without file I/O...\n')
-    await demonstrateAPI()
-    return
+
+  await main(TEMPLATE_PATH_PPTX, OUTPUT_PATH)
+}
+
+async function PPTXTemplaterCorporateDemo() {
+  const TEMPLATE_PATH_CORPORATE_PPTX = resolve(__dirname, '../templates/officePPT.pptx')
+  const OUTPUT_PATH_CORPORATE = resolve(__dirname, '../examples/output/basic-corporate-output.pptx')
+  const OUTPUT_PATH_CORPORATE_EXTRACTION = resolve(__dirname, '../templates/officePPT')
+
+  if (existsSync(TEMPLATE_PATH_CORPORATE_PPTX)) {
+    await PPTXTemplater.extractPptx(
+      TEMPLATE_PATH_CORPORATE_PPTX,
+      OUTPUT_PATH_CORPORATE_EXTRACTION,
+      { overwrite: true }
+    )
   }
 
+  await main(TEMPLATE_PATH_CORPORATE_PPTX, OUTPUT_PATH_CORPORATE)
+}
+
+async function main(TEMPLATE_PATH_PPTX, OUTPUT_PATH) {
   try {
+    // Check if template exists
+    if (!existsSync(TEMPLATE_PATH_PPTX)) {
+      console.log('ℹ Template file not found at:', TEMPLATE_PATH_PPTX)
+      console.log('  Place a PPTX file at templates/sample.pptx to run this example.')
+      console.log('\nRunning API demonstration without file I/O...\n')
+      await demonstrateAPI()
+      return
+    }
+
     console.log('📂 Loading template:', TEMPLATE_PATH_PPTX)
     const ppt = await PPTXTemplater.load(TEMPLATE_PATH_PPTX)
 
@@ -127,21 +143,6 @@ async function main() {
 
     ppt.removeTableRow('Table', 1)
 
-    // const rows = await ppt.getTableRows('Table')
-    // console.log(rows)
-
-    // rows.forEach((d, i) => {
-    //   ppt.updateCell('Table', i + 1, 5, '')
-
-    //   ppt.addCellShape('Table', i + 1, 5, {
-    //     type: 'circle',
-    //     fill: d.STATUS === 'P' ? '#10B981' : '#EF4444',
-    //     // x: 10,
-    //     width: 20,
-    //     height: 20,
-    //   })
-    // })
-
     // merge all cells of first column with all cells of second col
     ppt.mergeCells('Table', 1, 0, 2, 0)
     ppt.mergeCells('Table', 1, 1, 2, 1)
@@ -194,7 +195,7 @@ async function main() {
 
     ppt.useSlide(5)
 
-    let TeamData = [
+    const TeamData = [
       [
         '',
         'Team A',
@@ -297,7 +298,7 @@ async function main() {
       ],
     ]
     const totalSlide = TeamData.length / 5
-    var slideNumber = 5
+    let slideNumber = 5
     for (let index = 1; index <= totalSlide - 1; index++) {
       await ppt.duplicateSlide(slideNumber, slideNumber + index)
     }
@@ -436,4 +437,5 @@ const stream = await ppt.toStream();
   console.log('=== End of API Demo ===')
 }
 
-main()
+PPTXTemplaterDemo()
+PPTXTemplaterCorporateDemo()

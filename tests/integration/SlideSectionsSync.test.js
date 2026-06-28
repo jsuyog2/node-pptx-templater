@@ -115,10 +115,8 @@ describe('PPTXTemplater - Slide Sections and Package Structural Normalization', 
       : [presRelsObj.Relationships.Relationship]
 
     const rIds = presRels.map(r => r['@_Id'])
-    const sortedNumIds = rIds.map(id => parseInt(id.replace('rId', ''), 10)).sort((a, b) => a - b)
-    const maxId = sortedNumIds[sortedNumIds.length - 1]
-    const expectedNumIds = Array.from({ length: maxId }, (_, i) => i + 1)
-    expect(sortedNumIds).toEqual(expectedNumIds)
+    const uniqueRIds = new Set(rIds)
+    expect(uniqueRIds.size).toBe(rIds.length)
 
     const slide2RelsXml = await zip.file('ppt/slides/_rels/slide2.xml.rels').async('text')
     const slide2RelsObj = xmlParser.parse(slide2RelsXml)

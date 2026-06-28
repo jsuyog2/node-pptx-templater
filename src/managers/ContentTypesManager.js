@@ -151,6 +151,19 @@ class ContentTypesManager {
   }
 
   /**
+   * Gets the override content type for a specific part name, if registered.
+   *
+   * @param {string} partName - Absolute or relative path.
+   * @returns {string|null}
+   */
+  getOverrideContentType(partName) {
+    const normalizedPart = partName.startsWith('/') ? partName : `/${partName}`
+    const overrides = this.#contentTypesObj?.Types?.Override || []
+    const existing = overrides.find(o => o['@_PartName'] === normalizedPart)
+    return existing ? existing['@_ContentType'] : null
+  }
+
+  /**
    * Serializes back to [Content_Types].xml and writes to ZIP.
    *
    * @param {ZipManager} zipManager

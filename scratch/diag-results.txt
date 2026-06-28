@@ -1,0 +1,283 @@
+📂 Loading template: E:\Code\pptx-templater\templates\officePPT.pptx
+📊 Loaded 6 slides
+
+--- Original Slide Rels & Content Types ---
+Original customXml/tag/slide overrides:
+   <Override PartName="/customXml/itemProps1.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.customXmlProperties+xml" />
+   <Override PartName="/customXml/itemProps2.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.customXmlProperties+xml" />
+   <Override PartName="/ppt/slideMasters/slideMaster1.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml" />
+   <Override PartName="/ppt/slides/slide1.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml" />
+   <Override PartName="/ppt/slides/slide2.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml" />
+   <Override PartName="/ppt/slides/slide3.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml" />
+   <Override PartName="/ppt/slides/slide4.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml" />
+   <Override PartName="/ppt/slides/slide5.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml" />
+   <Override PartName="/ppt/slides/slide6.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml" />
+   <Override PartName="/ppt/slideLayouts/slideLayout1.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml" />
+   <Override PartName="/ppt/slideLayouts/slideLayout2.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml" />
+   <Override PartName="/ppt/slideLayouts/slideLayout3.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml" />
+   <Override PartName="/ppt/slideLayouts/slideLayout4.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml" />
+   <Override PartName="/ppt/slideLayouts/slideLayout5.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml" />
+   <Override PartName="/ppt/slideLayouts/slideLayout6.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml" />
+   <Override PartName="/ppt/slideLayouts/slideLayout7.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml" />
+   <Override PartName="/ppt/slideLayouts/slideLayout8.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml" />
+   <Override PartName="/ppt/slideLayouts/slideLayout9.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml" />
+   <Override PartName="/ppt/slideLayouts/slideLayout10.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml" />
+   <Override PartName="/ppt/slideLayouts/slideLayout11.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml" />
+   <Override PartName="/ppt/tags/tag1.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag2.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag3.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag4.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag5.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag6.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag7.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag8.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag9.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag10.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag11.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag12.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag13.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag14.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+   <Override PartName="/ppt/tags/tag15.xml"
+   ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml" />
+
+ duplicating slide 1 -> 2
+Current slide count: 7
+
+ removing slide 3
+Current slide count: 6
+
+💾 Saving modified presentation...
+✅ Saved to: E:\Code\pptx-templater\examples\output\office-modified.pptx
+
+--- Comparing Files in ZIP ---
+Original has 118 files. Modified has 126 files.
+
+Modified ZIP Files:
+   customXml/_rels/item1.xml.rels
+   customXml/_rels/item2.xml.rels
+   customXml/item1.xml
+   customXml/item2.xml
+   customXml/itemProps1.xml
+   customXml/itemProps2.xml
+   ppt/_rels/presentation.xml.rels
+   ppt/slideLayouts/
+   ppt/slideLayouts/_rels/
+   ppt/slideLayouts/_rels/slideLayout1.xml.rels
+   ppt/slideLayouts/_rels/slideLayout10.xml.rels
+   ppt/slideLayouts/_rels/slideLayout11.xml.rels
+   ppt/slideLayouts/_rels/slideLayout2.xml.rels
+   ppt/slideLayouts/_rels/slideLayout3.xml.rels
+   ppt/slideLayouts/_rels/slideLayout4.xml.rels
+   ppt/slideLayouts/_rels/slideLayout5.xml.rels
+   ppt/slideLayouts/_rels/slideLayout6.xml.rels
+   ppt/slideLayouts/_rels/slideLayout7.xml.rels
+   ppt/slideLayouts/_rels/slideLayout8.xml.rels
+   ppt/slideLayouts/_rels/slideLayout9.xml.rels
+   ppt/slideLayouts/slideLayout1.xml
+   ppt/slideLayouts/slideLayout10.xml
+   ppt/slideLayouts/slideLayout11.xml
+   ppt/slideLayouts/slideLayout2.xml
+   ppt/slideLayouts/slideLayout3.xml
+   ppt/slideLayouts/slideLayout4.xml
+   ppt/slideLayouts/slideLayout5.xml
+   ppt/slideLayouts/slideLayout6.xml
+   ppt/slideLayouts/slideLayout7.xml
+   ppt/slideLayouts/slideLayout8.xml
+   ppt/slideLayouts/slideLayout9.xml
+   ppt/slideMasters/
+   ppt/slideMasters/_rels/
+   ppt/slideMasters/_rels/slideMaster1.xml.rels
+   ppt/slideMasters/slideMaster1.xml
+   ppt/slides/
+   ppt/slides/_rels/
+   ppt/slides/_rels/slide1.xml.rels
+   ppt/slides/_rels/slide2.xml.rels
+   ppt/slides/_rels/slide3.xml.rels
+   ppt/slides/_rels/slide4.xml.rels
+   ppt/slides/_rels/slide5.xml.rels
+   ppt/slides/_rels/slide6.xml.rels
+   ppt/slides/slide1.xml
+   ppt/slides/slide2.xml
+   ppt/slides/slide3.xml
+   ppt/slides/slide4.xml
+   ppt/slides/slide5.xml
+   ppt/slides/slide6.xml
+   ppt/tags/
+   ppt/tags/tag1.xml
+   ppt/tags/tag10.xml
+   ppt/tags/tag11.xml
+   ppt/tags/tag12.xml
+   ppt/tags/tag13.xml
+   ppt/tags/tag14.xml
+   ppt/tags/tag15.xml
+   ppt/tags/tag16.xml
+   ppt/tags/tag2.xml
+   ppt/tags/tag3.xml
+   ppt/tags/tag4.xml
+   ppt/tags/tag5.xml
+   ppt/tags/tag6.xml
+   ppt/tags/tag7.xml
+   ppt/tags/tag8.xml
+   ppt/tags/tag9.xml
+
+[Content_Types].xml in Modified ZIP:
+   <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="png" ContentType="image/png"></Default><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"></Default><Default Extension="xml" ContentType="application/xml"></Default><Default Extension="xlsx" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></Default><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"></Override><Override PartName="/customXml/itemProps1.xml" ContentType="application/vnd.openxmlformats-officedocument.customXmlProperties+xml"></Override><Override PartName="/customXml/itemProps2.xml" ContentType="application/vnd.openxmlformats-officedocument.customXmlProperties+xml"></Override><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"></Override><Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"></Override><Override PartName="/ppt/slides/slide3.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"></Override><Override PartName="/ppt/slides/slide4.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"></Override><Override PartName="/ppt/slides/slide5.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"></Override><Override PartName="/ppt/slides/slide6.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"></Override><Override PartName="/ppt/notesMasters/notesMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml"></Override><Override PartName="/ppt/presProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presProps+xml"></Override><Override PartName="/ppt/viewProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.viewProps+xml"></Override><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"></Override><Override PartName="/ppt/tableStyles.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml"></Override><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"></Override><Override PartName="/ppt/slideLayouts/slideLayout2.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"></Override><Override PartName="/ppt/slideLayouts/slideLayout3.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"></Override><Override PartName="/ppt/slideLayouts/slideLayout4.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"></Override><Override PartName="/ppt/slideLayouts/slideLayout5.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"></Override><Override PartName="/ppt/slideLayouts/slideLayout6.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"></Override><Override PartName="/ppt/slideLayouts/slideLayout7.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"></Override><Override PartName="/ppt/slideLayouts/slideLayout8.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"></Override><Override PartName="/ppt/slideLayouts/slideLayout9.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"></Override><Override PartName="/ppt/slideLayouts/slideLayout10.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"></Override><Override PartName="/ppt/slideLayouts/slideLayout11.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"></Override><Override PartName="/ppt/tags/tag1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/tags/tag2.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/theme/theme2.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"></Override><Override PartName="/ppt/tags/tag3.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/tags/tag4.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/notesSlides/notesSlide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"></Override><Override PartName="/ppt/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"></Override><Override PartName="/ppt/charts/style1.xml" ContentType="application/vnd.ms-office.chartstyle+xml"></Override><Override PartName="/ppt/charts/colors1.xml" ContentType="application/vnd.ms-office.chartcolorstyle+xml"></Override><Override PartName="/ppt/tags/tag5.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/tags/tag6.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/charts/chart2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"></Override><Override PartName="/ppt/charts/style2.xml" ContentType="application/vnd.ms-office.chartstyle+xml"></Override><Override PartName="/ppt/charts/colors2.xml" ContentType="application/vnd.ms-office.chartcolorstyle+xml"></Override><Override PartName="/ppt/tags/tag7.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/tags/tag8.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/notesSlides/notesSlide3.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"></Override><Override PartName="/ppt/tags/tag9.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/tags/tag10.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/notesSlides/notesSlide4.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"></Override><Override PartName="/ppt/charts/chart3.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"></Override><Override PartName="/ppt/charts/style3.xml" ContentType="application/vnd.ms-office.chartstyle+xml"></Override><Override PartName="/ppt/charts/colors3.xml" ContentType="application/vnd.ms-office.chartcolorstyle+xml"></Override><Override PartName="/ppt/tags/tag11.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/tags/tag12.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/notesSlides/notesSlide5.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"></Override><Override PartName="/ppt/tags/tag13.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/tags/tag14.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/notesSlides/notesSlide6.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"></Override><Override PartName="/ppt/tags/tag15.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/revisionInfo.xml" ContentType="application/vnd.ms-powerpoint.revisioninfo+xml"></Override><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"></Override><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"></Override><Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"></Override><Override PartName="/ppt/tags/tag16.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tags+xml"></Override><Override PartName="/ppt/embeddings/Microsoft_Excel_Worksheet3.xlsx" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></Override><Override PartName="/ppt/charts/colors4.xml" ContentType="application/vnd.ms-office.chartcolorstyle+xml"></Override><Override PartName="/ppt/charts/style4.xml" ContentType="application/vnd.ms-office.chartstyle+xml"></Override><Override PartName="/ppt/charts/chart4.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"></Override><Override PartName="/ppt/slides/slide2.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"></Override><Override PartName="/ppt/notesSlides/notesSlide2.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"></Override>
+
+Original presentation.xml.rels content:
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId8"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"
+        Target="slides/slide5.xml" />
+    <Relationship Id="rId13"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme"
+        Target="theme/theme1.xml" />
+    <Relationship Id="rId3"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster"
+        Target="slideMasters/slideMaster1.xml" />
+    <Relationship Id="rId7"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"
+        Target="slides/slide4.xml" />
+    <Relationship Id="rId12"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/viewProps"
+        Target="viewProps.xml" />
+    <Relationship Id="rId2"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml"
+        Target="../customXml/item2.xml" />
+    <Relationship Id="rId1"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml"
+        Target="../customXml/item1.xml" />
+    <Relationship Id="rId6"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"
+        Target="slides/slide3.xml" />
+    <Relationship Id="rId11"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/presProps"
+        Target="presProps.xml" />
+    <Relationship Id="rId5"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"
+        Target="slides/slide2.xml" />
+    <Relationship Id="rId15"
+        Type="http://schemas.microsoft.com/office/2015/10/relationships/revisionInfo"
+        Target="revisionInfo.xml" />
+    <Relationship Id="rId10"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster"
+        Target="notesMasters/notesMaster1.xml" />
+    <Relationship Id="rId4"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"
+        Target="slides/slide1.xml" />
+    <Relationship Id="rId9"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"
+        Target="slides/slide6.xml" />
+    <Relationship Id="rId14"
+        Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tableStyles"
+        Target="tableStyles.xml" />
+</Relationships>
+
+Modified presentation.xml.rels content:
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide5.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide4.xml"/>
+  <Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/viewProps" Target="viewProps.xml"/>
+  <Relationship Id="rId6" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml" Target="../customXml/item2.xml"/>
+  <Relationship Id="rId7" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml" Target="../customXml/item1.xml"/>
+  <Relationship Id="rId8" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide3.xml"/>
+  <Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/presProps" Target="presProps.xml"/>
+  <Relationship Id="rId10" Type="http://schemas.microsoft.com/office/2015/10/relationships/revisionInfo" Target="revisionInfo.xml"/>
+  <Relationship Id="rId11" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster" Target="notesMasters/notesMaster1.xml"/>
+  <Relationship Id="rId12" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
+  <Relationship Id="rId13" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide6.xml"/>
+  <Relationship Id="rId14" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tableStyles" Target="tableStyles.xml"/>
+  <Relationship Id="rId15" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide2.xml"/>
+</Relationships>
+
+Modified slide rels:
+
+  --- ppt/slides/_rels/slide1.xml.rels ---
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout2.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tags" Target="../tags/tag4.xml"/>
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart1.xml"/>
+</Relationships>
+
+  --- ppt/slides/_rels/slide2.xml.rels ---
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout2.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tags" Target="../tags/tag16.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart4.xml"/>
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide2.xml"/>
+</Relationships>
+
+  --- ppt/slides/_rels/slide3.xml.rels ---
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide3.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout2.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tags" Target="../tags/tag8.xml"/>
+</Relationships>
+
+  --- ppt/slides/_rels/slide4.xml.rels ---
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide4.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout2.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tags" Target="../tags/tag10.xml"/>
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart3.xml"/>
+</Relationships>
+
+  --- ppt/slides/_rels/slide5.xml.rels ---
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide5.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout2.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tags" Target="../tags/tag12.xml"/>
+</Relationships>
+
+  --- ppt/slides/_rels/slide6.xml.rels ---
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide6.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout2.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tags" Target="../tags/tag14.xml"/>
+  <Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image2.png"/>
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/>
+</Relationships>

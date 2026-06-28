@@ -186,7 +186,11 @@ class PPTXTemplater {
     this.#textManager = new TextManager(this.#xmlParser)
     this.#templateEngine = new TemplateEngine(this.#xmlParser)
     this.#zOrderManager = new ZOrderManager(this.#xmlParser)
-    this.#outputWriter = new OutputWriter(this.#zipManager, this.#contentTypesManager, this.#relationshipManager)
+    this.#outputWriter = new OutputWriter(
+      this.#zipManager,
+      this.#contentTypesManager,
+      this.#relationshipManager
+    )
 
     this.#profiler = {
       enabled: false,
@@ -964,15 +968,16 @@ class PPTXTemplater {
    * @param {number} [atPosition] - Optional position to insert (1-based). Default: append.
    * @returns {PPTXTemplater} this (chainable)
    */
-  async cloneSlide(sourceSlideNumber, atPosition) {
+  cloneSlide(sourceSlideNumber, atPosition) {
     this.#assertLoaded()
-    await this.#slideManager.cloneSlide(
+    const promise = this.#slideManager.cloneSlide(
       sourceSlideNumber,
       atPosition,
       this.#relationshipManager,
       this.#mediaManager
     )
-    return this
+    this.#zipManager.addPendingPromise(promise)
+    return promise.then(() => this)
   }
 
   /**
@@ -1470,15 +1475,16 @@ class PPTXTemplater {
    * @example
    * ppt.duplicateSlide(1, 2); // Copy slide 1 and insert it as slide 2
    */
-  async duplicateSlide(slideIndex, atPosition) {
+  duplicateSlide(slideIndex, atPosition) {
     this.#assertLoaded()
-    await this.#slideManager.duplicateSlide(
+    const promise = this.#slideManager.duplicateSlide(
       slideIndex,
       atPosition,
       this.#relationshipManager,
       this.#mediaManager
     )
-    return this
+    this.#zipManager.addPendingPromise(promise)
+    return promise.then(() => this)
   }
 
   /**
