@@ -36,12 +36,10 @@ const logger = createLogger('SlideManager')
 /** MIME type for PPTX slide parts. */
 const SLIDE_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
 
-const CHART_CONTENT_TYPE =
-  'application/vnd.openxmlformats-officedocument.drawingml.chart+xml'
+const CHART_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.drawingml.chart+xml'
 const CHART_STYLE_CONTENT_TYPE = 'application/vnd.ms-office.chartstyle+xml'
 const CHART_COLORS_CONTENT_TYPE = 'application/vnd.ms-office.chartcolorstyle+xml'
-const WORKBOOK_CONTENT_TYPE =
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+const WORKBOOK_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 const ACTIVEX_CONTENT_TYPE = 'application/vnd.ms-office.activeX'
 
 /**
@@ -463,7 +461,12 @@ class SlideManager {
    * @returns {Promise<void>}
    */
   async cloneSlide(sourceIndex, atPosition, relationshipManager, mediaManager) {
-    const promise = this.#cloneSlideInternal(sourceIndex, atPosition, relationshipManager, mediaManager)
+    const promise = this.#cloneSlideInternal(
+      sourceIndex,
+      atPosition,
+      relationshipManager,
+      mediaManager
+    )
     this.#zipManager.addPendingPromise(promise)
     return promise
   }
@@ -539,7 +542,9 @@ class SlideManager {
         // IMPORTANT: patch the back-reference BEFORE flushing to ZIP so the
         // .rels file on disk contains the correct slide path.
         const notesRels = relationshipManager.getRelationships(notesZipPath)
-        const slideRel = notesRels.find(r => r.type === REL_TYPES.SLIDE || r.type.endsWith('/slide'))
+        const slideRel = notesRels.find(
+          r => r.type === REL_TYPES.SLIDE || r.type.endsWith('/slide')
+        )
         if (slideRel) {
           slideRel.target = `../slides/${slideFileName}`
         }
@@ -553,10 +558,17 @@ class SlideManager {
         this.#zipManager.writeFile(notesZipPath, notesXml)
 
         // Add content type override
-        this.#contentTypesManager.addOverride(notesZipPath, 'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml')
+        this.#contentTypesManager.addOverride(
+          notesZipPath,
+          'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml'
+        )
 
         // Add notes slide relationship to the new slide
-        relationshipManager.addRelationship(slideZipPath, REL_TYPES.NOTES_SLIDE, `../notesSlides/${notesFileName}`)
+        relationshipManager.addRelationship(
+          slideZipPath,
+          REL_TYPES.NOTES_SLIDE,
+          `../notesSlides/${notesFileName}`
+        )
       }
     }
 
@@ -621,9 +633,10 @@ class SlideManager {
       if (excludeTypes.includes(rel.type)) continue
 
       let target = rel.target
-      const resolvedTarget = rel.targetMode === 'External'
-        ? null
-        : relationshipManager.resolveTarget(sourcePath, rel.target)
+      const resolvedTarget =
+        rel.targetMode === 'External'
+          ? null
+          : relationshipManager.resolveTarget(sourcePath, rel.target)
       const typeEnd = rel.type.split('/').pop().toLowerCase()
 
       if (rel.targetMode === 'External') {
@@ -640,8 +653,10 @@ class SlideManager {
         rel.type === REL_TYPES.SLIDE_MASTER ||
         rel.type === REL_TYPES.THEME ||
         rel.type === REL_TYPES.TABLE_STYLES ||
-        rel.type === 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster' ||
-        rel.type === 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide' ||
+        rel.type ===
+          'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster' ||
+        rel.type ===
+          'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide' ||
         rel.type === REL_TYPES.SLIDE
       ) {
         // Shared presentation-level resources — reuse same target
@@ -654,7 +669,11 @@ class SlideManager {
       } else if (typeEnd === 'vmldrawing') {
         // VML drawings (legacy shapes, comment boxes) — must be independent per slide
         if (this.#zipManager.hasFile(resolvedTarget)) {
-          const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath, relationshipManager)
+          const newTarget = await this.#copyGenericXmlPart(
+            resolvedTarget,
+            destPath,
+            relationshipManager
+          )
           if (newTarget) target = newTarget
         }
       } else if (
@@ -666,7 +685,11 @@ class SlideManager {
       ) {
         // SmartArt/diagram parts — each slide needs its own copy
         if (this.#zipManager.hasFile(resolvedTarget)) {
-          const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath, relationshipManager)
+          const newTarget = await this.#copyGenericXmlPart(
+            resolvedTarget,
+            destPath,
+            relationshipManager
+          )
           if (newTarget) target = newTarget
         }
       } else if (typeEnd === 'oleobject' || typeEnd === 'activex') {
@@ -684,7 +707,11 @@ class SlideManager {
         if (this.#zipManager.hasFile(resolvedTarget)) {
           if (resolvedTarget.toLowerCase().endsWith('.xml')) {
             // Text/XML content
-            const newTarget = await this.#copyGenericXmlPart(resolvedTarget, destPath, relationshipManager)
+            const newTarget = await this.#copyGenericXmlPart(
+              resolvedTarget,
+              destPath,
+              relationshipManager
+            )
             if (newTarget) target = newTarget
           } else {
             // Binary content
@@ -948,7 +975,11 @@ class SlideManager {
     const toParts = toPath.split('/')
     // Find common prefix length
     let common = 0
-    while (common < fromDir.length && common < toParts.length - 1 && fromDir[common] === toParts[common]) {
+    while (
+      common < fromDir.length &&
+      common < toParts.length - 1 &&
+      fromDir[common] === toParts[common]
+    ) {
       common++
     }
     const ups = fromDir.length - common

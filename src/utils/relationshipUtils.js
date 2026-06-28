@@ -70,15 +70,12 @@ function remapRelationshipIds(xml, idMap) {
   if (!idMap || idMap.size === 0) return xml
 
   // Match any relationship ID attribute reference prefixed with r: (e.g. r:id, r:embed, r:link, r:dm, r:lo, r:qs, r:cs)
-  return xml.replace(
-    /\b(r:[a-zA-Z0-9_]+)=(["'])(rId\d+)\2/g,
-    (match, attr, quote, id) => {
-      if (idMap.has(id)) {
-        return `${attr}=${quote}${idMap.get(id)}${quote}`
-      }
-      return match
+  return xml.replace(/\b(r:[a-zA-Z0-9_]+)=(["'])(rId\d+)\2/g, (match, attr, quote, id) => {
+    if (idMap.has(id)) {
+      return `${attr}=${quote}${idMap.get(id)}${quote}`
     }
-  )
+    return match
+  })
 }
 
 module.exports = {

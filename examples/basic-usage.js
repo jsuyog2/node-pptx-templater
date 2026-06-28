@@ -16,16 +16,15 @@ const { existsSync } = require('fs')
 const { resolve } = require('path')
 
 async function PPTXTemplaterDemo() {
-  const TEMPLATE_PATH_PPTX = resolve(__dirname, '../templates/sample.pptx');
-  const OUTPUT_PATH_EXTRACTION = resolve(__dirname, '../templates/sample');
-  const OUTPUT_PATH = resolve(__dirname, '../examples/output/basic-output.pptx');
+  const TEMPLATE_PATH_PPTX = resolve(__dirname, '../templates/sample.pptx')
+  const OUTPUT_PATH_EXTRACTION = resolve(__dirname, '../templates/sample')
+  const OUTPUT_PATH = resolve(__dirname, '../examples/output/basic-output.pptx')
 
   if (existsSync(TEMPLATE_PATH_PPTX)) {
     await PPTXTemplater.extractPptx(TEMPLATE_PATH_PPTX, OUTPUT_PATH_EXTRACTION, { overwrite: true })
   }
 
-
-  await main(TEMPLATE_PATH_PPTX, OUTPUT_PATH);
+  await main(TEMPLATE_PATH_PPTX, OUTPUT_PATH)
 }
 
 async function PPTXTemplaterCorporateDemo() {
@@ -41,14 +40,11 @@ async function PPTXTemplaterCorporateDemo() {
     )
   }
 
-  await main(TEMPLATE_PATH_CORPORATE_PPTX, OUTPUT_PATH_CORPORATE);
+  await main(TEMPLATE_PATH_CORPORATE_PPTX, OUTPUT_PATH_CORPORATE)
 }
-
 
 async function main(TEMPLATE_PATH_PPTX, OUTPUT_PATH) {
   try {
-
-
     // Check if template exists
     if (!existsSync(TEMPLATE_PATH_PPTX)) {
       console.log('ℹ Template file not found at:', TEMPLATE_PATH_PPTX)
@@ -145,7 +141,7 @@ async function main(TEMPLATE_PATH_PPTX, OUTPUT_PATH) {
       { type: 'circle', color: '#4CAF50', width: 12, height: 12, position: 'center' },
     ])
 
-    ppt.removeTableRow('Table', 1);
+    ppt.removeTableRow('Table', 1)
 
     // merge all cells of first column with all cells of second col
     ppt.mergeCells('Table', 1, 0, 2, 0)
@@ -441,6 +437,5 @@ const stream = await ppt.toStream();
   console.log('=== End of API Demo ===')
 }
 
-
-PPTXTemplaterDemo();
-PPTXTemplaterCorporateDemo();
+PPTXTemplaterDemo()
+PPTXTemplaterCorporateDemo()

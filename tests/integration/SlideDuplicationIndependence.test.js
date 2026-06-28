@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import { existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -35,16 +35,14 @@ describe('PPTXTemplater - Slide duplication independence', () => {
     const sourceIndex = 1
     const sourceInfo = ppt.slideManager.getSlideInfo(sourceIndex)
     const beforeXml = ppt.slideManager.getSlideXml(sourceIndex)
-    const beforeRels = JSON.stringify(
-      ppt.relationshipManager.getRelationships(sourceInfo.zipPath)
-    )
+    const beforeRels = JSON.stringify(ppt.relationshipManager.getRelationships(sourceInfo.zipPath))
 
     await ppt.duplicateSlide(sourceIndex, 2)
 
     expect(ppt.slideManager.getSlideXml(sourceIndex)).toBe(beforeXml)
-    expect(
-      JSON.stringify(ppt.relationshipManager.getRelationships(sourceInfo.zipPath))
-    ).toBe(beforeRels)
+    expect(JSON.stringify(ppt.relationshipManager.getRelationships(sourceInfo.zipPath))).toBe(
+      beforeRels
+    )
 
     const buffer = await ppt.toBuffer()
     const errors = await validatePackageIntegrity(buffer)
@@ -106,7 +104,10 @@ describe('PPTXTemplater - Slide duplication independence', () => {
       expect(sourceImageRels.some(r => r.target === cloneRel.target)).toBe(false)
       const cloneAbs = ppt.relationshipManager.resolveTarget(cloneInfo.zipPath, cloneRel.target)
       for (const sourceRel of sourceImageRels) {
-        const sourceAbs = ppt.relationshipManager.resolveTarget(sourceInfo.zipPath, sourceRel.target)
+        const sourceAbs = ppt.relationshipManager.resolveTarget(
+          sourceInfo.zipPath,
+          sourceRel.target
+        )
         expect(cloneAbs).not.toBe(sourceAbs)
       }
     }

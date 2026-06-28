@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, beforeAll } from 'vitest'
 import { existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -25,7 +25,9 @@ describe('PPTXTemplater - Corporate Template (officePPT.pptx) Package Integrity'
   async function assertValidBuffer(buffer, label) {
     const errors = await validatePackageIntegrity(buffer)
     if (errors.length > 0) {
-      throw new Error(`${label} failed with OOXML package integrity errors:\n${errors.map(e => `  - ${e}`).join('\n')}`)
+      throw new Error(
+        `${label} failed with OOXML package integrity errors:\n${errors.map(e => `  - ${e}`).join('\n')}`
+      )
     }
   }
 

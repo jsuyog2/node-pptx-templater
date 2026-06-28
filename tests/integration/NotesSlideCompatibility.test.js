@@ -54,7 +54,10 @@ describe('PPTXTemplater - Notes Slide Compatibility', () => {
     ppt.zipManager.writeFile(notesSlideZipPath, notesContent)
 
     // 2. Add override content type
-    ppt.contentTypesManager.addOverride(notesSlideZipPath, 'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml')
+    ppt.contentTypesManager.addOverride(
+      notesSlideZipPath,
+      'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml'
+    )
 
     // 3. Add relationships
     // Rel from slide1 to notesSlide1
@@ -98,7 +101,9 @@ describe('PPTXTemplater - Notes Slide Compatibility', () => {
     expect(slide2RelsContent).toContain('notesSlides/notesSlide2.xml')
 
     // Check relationships of notesSlide2
-    const notes2RelsContent = await zip.file('ppt/notesSlides/_rels/notesSlide2.xml.rels').async('text')
+    const notes2RelsContent = await zip
+      .file('ppt/notesSlides/_rels/notesSlide2.xml.rels')
+      .async('text')
     expect(notes2RelsContent).toContain('slides/slide2.xml')
   })
 
@@ -111,7 +116,10 @@ describe('PPTXTemplater - Notes Slide Compatibility', () => {
     const notesContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:notes xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld/></p:notes>`
 
     ppt.zipManager.writeFile(notesSlideZipPath, notesContent)
-    ppt.contentTypesManager.addOverride(notesSlideZipPath, 'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml')
+    ppt.contentTypesManager.addOverride(
+      notesSlideZipPath,
+      'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml'
+    )
     ppt.relationshipManager.addRelationship(
       sourceSlideZipPath,
       'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide',
