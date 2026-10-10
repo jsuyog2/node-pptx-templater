@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
+      "description": "Local repository filesystem access for inspecting source code, test suites, and XML templates."
+    },
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git", "."],
+      "description": "Git repository operations for status checks, diffing, and inspecting revision history."
+    },
+    "openxml-validator": {
+      "command": "node",
+      "args": ["-e", "const { validateXml, safeParseXml } = require('./src/index.js'); console.log('OpenXML Validator Tooling Ready');"],
+      "description": "Internal XML schema and security validator tool for inspecting OpenXML AST fragments and preventing XXE/DTD injection."
+    }
+  }
+}
