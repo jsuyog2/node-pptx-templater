@@ -24,7 +24,7 @@ class ImageManager {
   }
 
   /**
-   * Replaces an existing image on a slide.
+   * Replaces an existing image on a slide, locking its bounding box and maintaining aspect ratio.
    *
    * @param {number} slideIndex
    * @param {string} imageIdOrName - Shape name or shape ID.
@@ -52,6 +52,46 @@ class ImageManager {
       throw new PPTXError(`No relationship ID found on image shape "${imageIdOrName}"`)
     }
 
+    // Lock bounding box & aspect ratio
+    const { getImageMetadata } = require('../utils/imageMetadata.js')
+    const meta = await getImageMetadata(sourcePathOrBuffer)
+    
+    if (meta && meta.width > 0 && meta.height > 0) {
+      const xfrm = picRes.pic['p:spPr']?.['a:xfrm']
+      if (xfrm && xfrm['a:ext'] && xfrm['a:off']) {
+        const origCx = parseInt(xfrm['a:ext']['@_cx'], 10)
+        const origCy = parseInt(xfrm['a:ext']['@_cy'], 10)
+        const origX = parseInt(xfrm['a:off']['@_x'], 10)
+        const origY = parseInt(xfrm['a:off']['@_y'], 10)
+
+        if (!isNaN(origCx) && !isNaN(origCy) && origCx > 0 && origCy > 0) {
+          const origAspect = origCx / origCy
+          const newAspect = meta.width / meta.height
+
+          let newCx = origCx
+          let newCy = origCy
+          let newX = origX
+          let newY = origY
+
+          if (newAspect > origAspect) {
+            // New image is wider than bounding box
+            newCy = Math.round(origCx / newAspect)
+            newY = origY + Math.round((origCy - newCy) / 2)
+          } else if (newAspect < origAspect) {
+            // New image is taller than bounding box
+            newCx = Math.round(origCy * newAspect)
+            newX = origX + Math.round((origCx - newCx) / 2)
+          }
+
+          xfrm['a:ext']['@_cx'] = String(newCx)
+          xfrm['a:ext']['@_cy'] = String(newCy)
+          xfrm['a:off']['@_x'] = String(newX)
+          xfrm['a:off']['@_y'] = String(newY)
+          slideManager.markSlideObjDirty(slideIndex)
+        }
+      }
+    }
+
     // Embed the new image bytes
     const destMediaZipPath = await mediaManager.embedImage(sourcePathOrBuffer)
     const relativeTarget = `../media/${destMediaZipPath.split('/').pop()}`
@@ -61,6 +101,94 @@ class ImageManager {
     relationshipManager.updateRelationshipTarget(slideInfo.zipPath, rId, relativeTarget)
 
     logger.debug(`Replaced image "${imageIdOrName}" target with "${relativeTarget}"`)
+  }
+
+  /**
+   * Replaces a placeholder shape with an image, locking its bounding box.
+   */
+  async replaceShapeWithImage(
+    slideIndex,
+    shapeIdOrName,
+    sourcePathOrBuffer,
+    slideManager,
+    mediaManager,
+    relationshipManager
+  ) {
+    const res = slideManager.getSlideShape(slideIndex, shapeIdOrName)
+    if (!res) {
+      throw new PPTXError(`Shape "${shapeIdOrName}" not found on slide ${slideIndex}`)
+    }
+
+    // Read shape dimensions
+    const xfrm = res.shape['p:spPr']?.['a:xfrm']
+    if (!xfrm || !xfrm['a:off'] || !xfrm['a:ext']) {
+      throw new PPTXError(`Shape "${shapeIdOrName}" lacks valid bounding box (xfrm)`)
+    }
+
+    const { getImageMetadata } = require('../utils/imageMetadata.js')
+    const meta = await getImageMetadata(sourcePathOrBuffer)
+
+    const origCx = parseInt(xfrm['a:ext']['@_cx'], 10) || 1000000
+    const origCy = parseInt(xfrm['a:ext']['@_cy'], 10) || 1000000
+    const origX = parseInt(xfrm['a:off']['@_x'], 10) || 0
+    const origY = parseInt(xfrm['a:off']['@_y'], 10) || 0
+
+    let newCx = origCx
+    let newCy = origCy
+    let newX = origX
+    let newY = origY
+
+    if (meta && meta.width > 0 && meta.height > 0) {
+      const origAspect = origCx / origCy
+      const newAspect = meta.width / meta.height
+
+      if (newAspect > origAspect) {
+        newCy = Math.round(origCx / newAspect)
+        newY = origY + Math.round((origCy - newCy) / 2)
+      } else if (newAspect < origAspect) {
+        newCx = Math.round(origCy * newAspect)
+        newX = origX + Math.round((origCx - newCx) / 2)
+      }
+    }
+
+    // Delete the old shape and replace with a p:pic
+    const destMediaZipPath = await mediaManager.embedImage(sourcePathOrBuffer)
+    const relativeTarget = `../media/${destMediaZipPath.split('/').pop()}`
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    
+    const rId = relationshipManager.addRelationship(
+      slideInfo.zipPath,
+      'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
+      relativeTarget
+    )
+
+    const picXml = `<p:pic><p:nvPicPr><p:cNvPr id="${res.id}" name="${res.name}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${newX}" y="${newY}"/><a:ext cx="${newCx}" cy="${newCy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`
+
+    const parsedPic = this.#xmlParser.parse(picXml, 'pic.xml')['p:pic']
+
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    
+    if (spTree) {
+      // Find and remove the old shape
+      const shapes = Array.isArray(spTree['p:sp']) ? spTree['p:sp'] : [spTree['p:sp']]
+      const newShapes = shapes.filter(s => s !== res.shape)
+      if (newShapes.length === 1) spTree['p:sp'] = newShapes[0]
+      else if (newShapes.length > 1) spTree['p:sp'] = newShapes
+      else delete spTree['p:sp']
+
+      // Add the new pic
+      if (!spTree['p:pic']) {
+        spTree['p:pic'] = parsedPic
+      } else if (Array.isArray(spTree['p:pic'])) {
+        spTree['p:pic'].push(parsedPic)
+      } else {
+        spTree['p:pic'] = [spTree['p:pic'], parsedPic]
+      }
+      slideManager.markSlideObjDirty(slideIndex)
+    }
+
+    logger.debug(`Replaced shape "${shapeIdOrName}" with image at "${relativeTarget}" (ID: ${rId})`)
   }
 
   /**

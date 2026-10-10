@@ -20,7 +20,6 @@
 
 const { Command } = require('commander')
 const chalk = require('chalk')
-const { readFileSync } = require('fs')
 const { resolve } = require('path')
 const { buildCommand } = require('./commands/build.js')
 const { validateCommand } = require('./commands/validate.js')
@@ -28,8 +27,8 @@ const { inspectCommand } = require('./commands/inspect.js')
 const { extractCommand } = require('./commands/extract.js')
 const { debugCommand } = require('./commands/debug.js')
 
-// Read version from package.json
-const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8'))
+// Read version from package.json (static require — no fs.promises.readFile)
+const pkg = require(resolve(__dirname, '../../package.json'))
 
 /**
  * CLI banner displayed on startup.

@@ -216,6 +216,23 @@ class SlideManager {
    * Returns the total number of slides.
    * @returns {number}
    */
+
+  /**
+   * Retrieves the slide dimensions from presentation.xml
+   * @returns {{width: number, height: number}}
+   */
+  getSlideSize() {
+    if (!this.#presentationObj) return { width: 9144000, height: 5143500 };
+    const sldSz = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldSz');
+    if (sldSz) {
+      return {
+        width: parseInt(sldSz['@_cx'] || '9144000', 10),
+        height: parseInt(sldSz['@_cy'] || '5143500', 10)
+      };
+    }
+    return { width: 9144000, height: 5143500 };
+  }
+
   get slideCount() {
     return this.#slides.size
   }

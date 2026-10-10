@@ -97,6 +97,27 @@ class OutputWriter {
    * @param {Object} [options]
    * @returns {Promise<Buffer>}
    */
+
+  async toArrayBuffer(slideManager, zipManager, options = {}) {
+    const buffer = await this.toBuffer(slideManager, zipManager, options);
+    return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  }
+
+  async toBase64(slideManager, zipManager, options = {}) {
+    const buffer = await this.toBuffer(slideManager, zipManager, options);
+    if (options.dataUri) {
+      return 'data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,' + buffer.toString('base64');
+    }
+    return buffer.toString('base64');
+  }
+
+  async toExpress(slideManager, zipManager, res, filename = 'presentation.pptx', options = {}) {
+    const stream = await this.toStream(slideManager, zipManager, options);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    stream.pipe(res);
+  }
+
   async toBuffer(slideManager, zipManager, options = {}) {
     await this.flush(slideManager, zipManager)
 

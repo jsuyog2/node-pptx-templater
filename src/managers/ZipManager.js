@@ -109,7 +109,7 @@ class ZipManager {
         rootDir = source.root
       } else if (typeof source === 'string') {
         try {
-          const stat = fs.statSync(source)
+          const stat = await fs.stat(source)
           if (stat.isDirectory()) {
             isFolder = true
             rootDir = source
@@ -143,7 +143,7 @@ class ZipManager {
             path.join(rootDir, 'presentation.xml'),
           ]
           for (const cand of candidates) {
-            if (fs.existsSync(cand)) {
+            if (await fs.pathExists(cand)) {
               presentationPath = cand
               break
             }

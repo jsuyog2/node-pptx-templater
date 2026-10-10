@@ -218,7 +218,7 @@ class PPTXTemplater {
    * const ppt = await PPTXTemplater.load('./template.pptx');
    *
    * // From buffer
-   * const buffer = fs.readFileSync('./template.pptx');
+   * const buffer = fs.promises.readFile('./template.pptx');
    * const ppt = await PPTXTemplater.load(buffer);
    */
   static async load(source, options = {}) {
@@ -467,16 +467,16 @@ class PPTXTemplater {
     const resolvedPptx = path.resolve(pptxPath)
     const resolvedOut = path.resolve(outputPath)
 
-    if (!fs.existsSync(resolvedPptx)) {
+    if (!(await fs.pathExists(resolvedPptx))) {
       throw new PPTXError(`Source PPTX file not found: ${pptxPath}`)
     }
 
-    if (fs.existsSync(resolvedOut)) {
-      const stats = fs.statSync(resolvedOut)
+    if (await fs.pathExists(resolvedOut)) {
+      const stats = await fs.stat(resolvedOut)
       if (stats.isFile()) {
         throw new PPTXError(`Destination is a file: ${outputPath}`)
       }
-      const files = fs.readdirSync(resolvedOut)
+      const files = await fs.readdir(resolvedOut)
       if (files.length > 0) {
         if (!options.overwrite) {
           throw new PPTXError(
@@ -493,12 +493,12 @@ class PPTXTemplater {
     const engine = await PPTXTemplater.load(resolvedPptx)
     await engine.#zipManager.toFolder(resolvedOut)
 
-    // Validation
+    // Validation — async pathExists replaces pathExists
     const criticalParts = ['ppt/presentation.xml', 'ppt/slides', 'ppt/_rels', '[Content_Types].xml']
 
     for (const part of criticalParts) {
       const p = path.join(resolvedOut, part)
-      if (!fs.existsSync(p)) {
+      if (!(await fs.pathExists(p))) {
         throw new PPTXError(`Extracted structure is missing critical part: ${part}`)
       }
     }
@@ -519,16 +519,16 @@ class PPTXTemplater {
     const resolvedFolder = path.resolve(folderPath)
     const resolvedPptx = path.resolve(pptxPath)
 
-    if (!fs.existsSync(resolvedFolder)) {
+    if (!(await fs.pathExists(resolvedFolder))) {
       throw new PPTXError(`Source folder not found: ${folderPath}`)
     }
 
-    // Validation of the source folder
+    // Validation of the source folder — async pathExists replaces pathExists
     const criticalParts = ['ppt/presentation.xml', 'ppt/slides', 'ppt/_rels', '[Content_Types].xml']
 
     for (const part of criticalParts) {
       const p = path.join(resolvedFolder, part)
-      if (!fs.existsSync(p)) {
+      if (!(await fs.pathExists(p))) {
         throw new PPTXError(`Source folder is missing critical OpenXML part: ${part}`)
       }
     }
@@ -1407,6 +1407,35 @@ class PPTXTemplater {
    * @param {Object} [options] - Save options.
    * @returns {Promise<Buffer>}
    */
+
+  /**
+   * Returns the PPTX as an ArrayBuffer.
+   * @param {Object} [options]
+   * @returns {Promise<ArrayBuffer>}
+   */
+  async toArrayBuffer(options = {}) {
+    return this.#outputWriter.toArrayBuffer(this.#slideManager, this.#zipManager, options);
+  }
+
+  /**
+   * Returns the PPTX as a Base64 string.
+   * @param {Object} [options] - Pass { dataUri: true } to prepend the Data URI scheme.
+   * @returns {Promise<string>}
+   */
+  async toBase64(options = {}) {
+    return this.#outputWriter.toBase64(this.#slideManager, this.#zipManager, options);
+  }
+
+  /**
+   * Streams the PPTX directly to an Express.js response object.
+   * @param {Object} res - Express HTTP Response object.
+   * @param {string} [filename='presentation.pptx']
+   * @param {Object} [options]
+   */
+  async toExpress(res, filename = 'presentation.pptx', options = {}) {
+    await this.#outputWriter.toExpress(this.#slideManager, this.#zipManager, res, filename, options);
+  }
+
   async toBuffer(options = {}) {
     this.#assertLoaded()
     await this.validateArchive()
@@ -2135,6 +2164,101 @@ class PPTXTemplater {
    * ppt.adjustTable("Table", { rows: "auto", columns: "auto" });
    * ppt.adjustTable("Table", { rows: { auto: true }, columns: { auto: true } });
    */
+
+  /**
+   * Automatically splits a table across consecutive slides if its height exceeds a specified vertical threshold.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {Object} [options={}] - Options.
+   * @param {number} [options.bottomMargin] - Distance from the bottom of the slide (in inches, pts, px, or EMUs) to use as the limit. Default is 0.5 inches (457200 EMUs).
+   * @param {number} [options.repeatHeaders] - Number of header rows to repeat on duplicated slides. Default is 1.
+   * @returns {Promise<this>}
+   */
+  async splitTableOnOverflow(tableId, options = {}) {
+    this.#assertLoaded();
+    const targetIndices = this.#getTargetSlideIndices();
+    if (targetIndices.length === 0) return this;
+    
+    const units = require('../utils/units.js');
+    const bottomMargin = options.bottomMargin !== undefined ? units.toEmu(options.bottomMargin) : 457200;
+    const repeatHeaders = options.repeatHeaders !== undefined ? options.repeatHeaders : 1;
+    
+    const slideSize = this.#slideManager.getSlideSize();
+    const limitY = slideSize.height - bottomMargin;
+
+    // Process from last to first to avoid index shifting issues when duplicating slides
+    for (let i = targetIndices.length - 1; i >= 0; i--) {
+      const slideIndex = targetIndices[i];
+      await this.#splitTableRecursive(slideIndex, tableId, limitY, repeatHeaders);
+    }
+    
+    return this;
+  }
+
+  async #splitTableRecursive(slideIndex, tableId, limitY, repeatHeaders) {
+    const tableRes = this.#slideManager.getSlideTable(slideIndex, tableId);
+    if (!tableRes) return; // Table not found on this slide
+    
+    const tblObj = tableRes.table;
+    const graphicFrame = tableRes.frame;
+    const xfrm = graphicFrame?.['p:xfrm'];
+    if (!xfrm || !xfrm['a:off'] || !xfrm['a:ext']) return;
+    
+    const tableY = parseInt(xfrm['a:off']['@_y'] || 0, 10);
+    
+    // Using private calculation logic, we temporarily expose this or re-calculate
+    // But tableManager already calculates row heights on save, let's trigger it.
+    // Actually, we can get bounds from public API!
+    let totalHeight = 0;
+    const trs = tblObj['a:tr'] || [];
+    const rowHeights = [];
+    
+    for (let r = 0; r < trs.length; r++) {
+      const bounds = this.#tableManager.getCellBounds(slideIndex, tableId, r, 0, this.#slideManager);
+      const h = bounds ? Math.round(bounds.height * 9525) : parseInt(trs[r]['@_h'] || 0, 10);
+      rowHeights.push(h);
+    }
+
+    let splitRowIndex = -1;
+    let currentY = tableY;
+    
+    for (let r = 0; r < rowHeights.length; r++) {
+      currentY += rowHeights[r];
+      if (currentY > limitY) {
+        // If even the first row (or headers) exceeds the limit, we must split after it to avoid infinite loops
+        splitRowIndex = Math.max(r, repeatHeaders); 
+        break;
+      }
+    }
+
+    if (splitRowIndex !== -1 && splitRowIndex < trs.length) {
+      // Split required
+      // 1. Deep clone the slide directly after current slide
+      const newSlideIndex = slideIndex + 1;
+      await this.#slideManager.duplicateSlide(
+        slideIndex, 
+        newSlideIndex, 
+        this.#relationshipManager, 
+        this.#mediaManager
+      );
+      
+      // 2. Original slide: remove rows from splitRowIndex to end
+      const rowsToRemove = trs.length - splitRowIndex;
+      for (let k = 0; k < rowsToRemove; k++) {
+        this.#tableManager.removeTableRow(slideIndex, tableId, splitRowIndex, this.#slideManager);
+      }
+      
+      // 3. New slide: remove rows between headers and splitRowIndex
+      const numToRemoveFromNew = splitRowIndex - repeatHeaders;
+      for (let k = 0; k < numToRemoveFromNew; k++) {
+        this.#tableManager.removeTableRow(newSlideIndex, tableId, repeatHeaders, this.#slideManager);
+      }
+      
+      // 4. Recurse on the new slide in case it still overflows
+      await this.#splitTableRecursive(newSlideIndex, tableId, limitY, repeatHeaders);
+    }
+  }
+
   adjustTable(tableId, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -2161,6 +2285,99 @@ class PPTXTemplater {
    * ppt.resize("Image", { scale: 1.2 });
    * ppt.resize("Chart", { scale: { width: 1.1, height: 0.9 } });
    */
+
+  /**
+   * Retrieves the bounding box of a shape or element on the slide.
+   * @param {string} objectIdOrName
+   * @returns {{x: number, y: number, width: number, height: number}}
+   */
+  getBounds(objectIdOrName) {
+    this.#assertLoaded();
+    const slideIndex = this.#getTargetSlideIndices()[0] || 1;
+    const shape = this.#shapeManager.getShape(slideIndex, objectIdOrName, this.#slideManager);
+    if (!shape) {
+      throw new Error(`Object "${objectIdOrName}" not found on slide ${slideIndex}`);
+    }
+    return {
+      x: shape.x,
+      y: shape.y,
+      width: shape.width,
+      height: shape.height
+    };
+  }
+
+  /**
+   * Sets the bounding box of a shape or element.
+   * @param {string} objectIdOrName
+   * @param {Object} options - { x, y, width, height }
+   */
+  setBounds(objectIdOrName, options = {}) {
+    this.#assertLoaded();
+    const targetIndices = this.#getTargetSlideIndices();
+    const units = require('../utils/units.js');
+
+    const emuOptions = {};
+    if (options.x !== undefined) emuOptions.x = units.toEmu(options.x);
+    if (options.y !== undefined) emuOptions.y = units.toEmu(options.y);
+    if (options.width !== undefined) emuOptions.width = units.toEmu(options.width);
+    if (options.height !== undefined) emuOptions.height = units.toEmu(options.height);
+
+    for (const idx of targetIndices) {
+      this.#shapeManager.updateShapePosition(
+        idx,
+        objectIdOrName,
+        emuOptions,
+        this.#slideManager
+      );
+    }
+    return this;
+  }
+
+  /**
+   * Moves a shape to a new coordinate.
+   * @param {string} objectIdOrName
+   * @param {Object} options - { x, y }
+   */
+  move(objectIdOrName, options = {}) {
+    return this.setBounds(objectIdOrName, { x: options.x, y: options.y });
+  }
+
+  /**
+   * Alias for bringForward. Moves element one layer forward.
+   */
+  stepForward(optionsOrId) {
+    return this.bringForward(optionsOrId);
+  }
+
+  /**
+   * Alias for sendBackward. Moves element one layer backward.
+   */
+  stepBackward(optionsOrId) {
+    return this.sendBackward(optionsOrId);
+  }
+
+  /**
+   * Replaces a placeholder shape with an image, locking its bounding box.
+   * @param {string} shapeIdOrName
+   * @param {string|Buffer} sourcePathOrBuffer
+   */
+  async replaceShape(shapeIdOrName, sourcePathOrBuffer) {
+    this.#assertLoaded();
+    const targetIndices = this.#getTargetSlideIndices();
+
+    for (const idx of targetIndices) {
+      await this.#imageManager.replaceShapeWithImage(
+        idx,
+        shapeIdOrName,
+        sourcePathOrBuffer,
+        this.#slideManager,
+        this.#mediaManager,
+        this.#relationshipManager
+      );
+    }
+    return this;
+  }
+
   resize(objectIdOrName, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()

@@ -618,48 +618,58 @@ async function main(TEMPLATE_PATH_PPTX, OUTPUT_PATH) {
         'B',
       ],
     ]
-    const totalSlide = TeamData.length / 5
-    let slideNumber = 5
-    for (let index = 1; index <= totalSlide - 1; index++) {
-      await ppt.duplicateSlide(slideNumber, slideNumber + index)
+
+    for (const [i, rowData] of TeamData.entries()) {
+      await ppt.addTableRow('Table', rowData);
     }
-    TeamData.forEach((element, i) => {
-      if (i % 5 === 0 && i !== 0) {
-        ppt.removeTableRow('Table', 1)
-        ppt.useSlide(slideNumber + 1)
-        slideNumber++
-      }
-      ppt.addTableRow('Table', element)
-    })
-    ppt.removeTableRow('Table', 1)
 
-    ppt.useSlide(5)
-    let row = 0
-    TeamData.forEach((element, rowIndex) => {
-      element.forEach((cell, colIndex) => {
-        if (rowIndex % 5 === 0 && rowIndex !== 0) {
-          row = 0
-          ppt.useSlide(6)
-        }
-        if (colIndex === 7 && (cell === 'A' || cell === 'B')) {
-          ppt.addCellShape('Table', row + 1, colIndex, {
-            type: 'circle',
-            fill: cell === 'A' ? '#10B981' : '#EF4444',
-            width: 15,
-            height: 15,
-            position: 'center',
-          })
+    await ppt.splitTableOnOverflow('Table', {
+      bottomMargin: '1in',
+      repeatHeaders: 1
+    });
 
-          ppt.updateCell('Table', row + 1, colIndex, '')
-          row++
-        }
-      })
-    })
+    // const totalSlide = TeamData.length / 5
+    // let slideNumber = 5
+    // for (let index = 1; index <= totalSlide - 1; index++) {
+    //   await ppt.duplicateSlide(slideNumber, slideNumber + index)
+    // }
+    // TeamData.forEach((element, i) => {
+    //   if (i % 5 === 0 && i !== 0) {
+    //     ppt.removeTableRow('Table', 1)
+    //     ppt.useSlide(slideNumber + 1)
+    //     slideNumber++
+    //   }
+    //   ppt.addTableRow('Table', element)
+    // })  
+    // ppt.removeTableRow('Table', 1)
 
-    ppt.mergeCells('Table', 1, 0, 3, 0)
-    ppt.mergeCells('Table', 1, 1, 3, 1)
-    ppt.mergeCells('Table', 4, 0, 5, 0)
-    ppt.mergeCells('Table', 4, 1, 5, 1)
+    // ppt.useSlide(5)
+    // let row = 0
+    // TeamData.forEach((element, rowIndex) => {
+    //   element.forEach((cell, colIndex) => {
+    //     if (rowIndex % 5 === 0 && rowIndex !== 0) {
+    //       row = 0
+    //       ppt.useSlide(6)
+    //     }
+    //     if (colIndex === 7 && (cell === 'A' || cell === 'B')) {
+    //       ppt.addCellShape('Table', row + 1, colIndex, {
+    //         type: 'circle',
+    //         fill: cell === 'A' ? '#10B981' : '#EF4444',
+    //         width: 15,
+    //         height: 15,
+    //         position: 'center',
+    //       })
+
+    //       ppt.updateCell('Table', row + 1, colIndex, '')
+    //       row++
+    //     }
+    //   })
+    // })
+
+    // ppt.mergeCells('Table', 1, 0, 3, 0)
+    // ppt.mergeCells('Table', 1, 1, 3, 1)
+    // ppt.mergeCells('Table', 4, 0, 5, 0)
+    // ppt.mergeCells('Table', 4, 1, 5, 1)
 
     ppt.alignShapeToCell('Team A Logo', 'Table', 1, 0)
     ppt.alignShapeToCell('Team B Logo', 'Table', 4, 0)

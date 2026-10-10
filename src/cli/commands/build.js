@@ -4,7 +4,7 @@
 
 const chalk = require('chalk')
 const ora = require('ora')
-const { readFileSync } = require('fs')
+const { readFile } = require('fs/promises')
 const { resolve } = require('path')
 const { PPTXTemplater } = require('../../index.js')
 
@@ -33,7 +33,7 @@ async function buildCommand(templatePath, outputPath, opts) {
     // Apply data from JSON file if provided
     if (opts.data) {
       spinner.start(`Loading data: ${opts.data}`)
-      const data = JSON.parse(readFileSync(resolve(opts.data), 'utf-8'))
+      const data = JSON.parse(await readFile(resolve(opts.data), 'utf-8'))
 
       // Apply text replacements
       if (data.text) {

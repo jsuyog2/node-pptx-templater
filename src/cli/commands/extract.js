@@ -3,7 +3,7 @@
  */
 const chalk = require('chalk')
 const { resolve } = require('path')
-const { writeFileSync } = require('fs')
+const { writeFile } = require('fs/promises')
 const { PPTXTemplater } = require('../../index.js')
 
 async function extractCommand(filePath, opts) {
@@ -26,7 +26,7 @@ async function extractCommand(filePath, opts) {
       const xml = await slideFile.async('text')
 
       if (opts.out) {
-        writeFileSync(resolve(opts.out), xml, 'utf-8')
+        await writeFile(resolve(opts.out), xml, 'utf-8')
         console.log(chalk.green(`✓ Extracted slide ${slideNum} to ${opts.out}`))
       } else {
         console.log(xml)

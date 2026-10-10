@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+scratch/
+docs/
+benchmarks/temp-xml-bench/
+tests/temp-xml-test/
+examples/output/
+*.pptx
+*.zip
+*.log
+.git/
+.turbo/
