@@ -101,6 +101,18 @@ class ShapeManager {
       xfrm['a:ext']['@_cy'] = '0'
     }
 
+    if (options.rotation !== undefined) {
+      xfrm['@_rot'] = String(Math.round(options.rotation * 60000))
+    }
+
+    if (options.flipH !== undefined) {
+      xfrm['@_flipH'] = options.flipH ? '1' : '0'
+    }
+
+    if (options.flipV !== undefined) {
+      xfrm['@_flipV'] = options.flipV ? '1' : '0'
+    }
+
     slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`Updated position/dimensions for shape "${shapeId}" on slide ${slideIndex}`)
   }
@@ -432,6 +444,10 @@ class ShapeManager {
   normalizeShapeOptions(options) {
     if (!options) return options
     const normalized = { ...options }
+
+    if (normalized.type === 'rect') {
+      normalized.type = 'rectangle'
+    }
 
     // Fallback mapping between id and name for compatibility
     if (normalized.id === undefined && normalized.name !== undefined) {
@@ -863,38 +879,9 @@ class ShapeManager {
       normalized.rotation !== undefined ? ` rot="${Math.round(normalized.rotation * 60000)}"` : ''
 
     // Text box body properties
-    // NOTE: p:txBody is REQUIRED on every p:sp element per the OOXML spec.
-    // PowerPoint will trigger a repair dialog if it is missing, even for purely
-    // graphical shapes (circles, rectangles used as visual indicators, etc.).
-    // When no text is provided we emit an empty body with an end-paragraph run.
     let txBodyXml = ''
     if (normalized.text !== undefined && normalized.text !== null) {
-      const textStyle = normalized.textStyle || {}
-      const fontSizeVal = (textStyle.fontSize || 14) * 100
-      const boldAttr = textStyle.bold ? ' b="1"' : ''
-      const italicAttr = textStyle.italic ? ' i="1"' : ''
-
-      let alignAttr = ''
-      if (textStyle.align) {
-        const alignMap = { center: 'ctr', right: 'r', left: 'l', justify: 'just' }
-        const algn = alignMap[textStyle.align] || 'l'
-        alignAttr = `<a:pPr algn="${algn}"/>`
-      }
-
-      let colorFill = ''
-      if (textStyle.color) {
-        const colorHex = textStyle.color.replace('#', '').toUpperCase()
-        colorFill = `<a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill>`
-      }
-
-      const lines = String(normalized.text).split(/\r?\n/)
-      const paragraphsXml = lines
-        .map(line => {
-          return `<a:p>${alignAttr}<a:r><a:rPr lang="en-US" sz="${fontSizeVal}"${boldAttr}${italicAttr}>${colorFill}</a:rPr><a:t>${escapeXml(line)}</a:t></a:r></a:p>`
-        })
-        .join('')
-
-      txBodyXml = `<p:txBody><a:bodyPr wrap="square" rtlCol="0"><a:normAutofit/></a:bodyPr><a:lstStyle/>${paragraphsXml}</p:txBody>`
+      txBodyXml = buildTextBodyXml(normalized.text, normalized.textStyle, normalized)
     } else {
       // Graphical-only shape: emit a minimal empty txBody to satisfy the OOXML schema
       txBodyXml = `<p:txBody><a:bodyPr rtlCol="0"/><a:lstStyle/><a:p><a:endParaRPr lang="en-US" dirty="0"/></a:p></p:txBody>`
@@ -1119,47 +1106,7 @@ class ShapeManager {
         textVal = this.getShapeText(shape) || ''
       }
 
-      const textStyle = normalized.textStyle || {}
-      const fontSizeVal = (textStyle.fontSize || 14) * 100
-      const boldAttr = textStyle.bold ? ' b="1"' : ''
-      const italicAttr = textStyle.italic ? ' i="1"' : ''
-
-      let alignAttr = ''
-      if (textStyle.align) {
-        const alignMap = { center: 'ctr', right: 'r', left: 'l', justify: 'just' }
-        const algn = alignMap[textStyle.align] || 'l'
-        alignAttr = `<a:pPr algn="${algn}"/>`
-      }
-
-      let colorFill = ''
-      if (textStyle.color) {
-        const colorHex = textStyle.color.replace('#', '').toUpperCase()
-        colorFill = `<a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill>`
-      }
-
-      const lines = String(textVal).split(/\r?\n/)
-      const paragraphsXml = lines
-        .map(line => {
-          return `<a:p>
-          ${alignAttr}
-          <a:r>
-            <a:rPr lang="en-US" sz="${fontSizeVal}"${boldAttr}${italicAttr}>
-              ${colorFill}
-            </a:rPr>
-            <a:t>${escapeXml(line)}</a:t>
-          </a:r>
-        </a:p>`
-        })
-        .join('')
-
-      const txBodyXml = `<p:txBody>
-        <a:bodyPr wrap="square" rtlCol="0">
-          <a:normAutofit/>
-        </a:bodyPr>
-        <a:lstStyle/>
-        ${paragraphsXml}
-      </p:txBody>`
-
+      const txBodyXml = buildTextBodyXml(textVal, normalized.textStyle, normalized)
       const parsedTxBody = this.#xmlParser.parse(txBodyXml, 'txBody.xml')['p:txBody']
       shape['p:txBody'] = Array.isArray(parsedTxBody) ? parsedTxBody[0] : parsedTxBody
     }
@@ -1252,6 +1199,11 @@ class ShapeManager {
     // Extract text
     const text = this.getShapeText(res.shape) || undefined
 
+    const rotEmu = xfrm?.['@_rot'] ? parseInt(xfrm['@_rot'], 10) : 0
+    const rotation = rotEmu ? Math.round(rotEmu / 60000) : 0
+    const flipH = xfrm?.['@_flipH'] === '1' || xfrm?.['@_flipH'] === true
+    const flipV = xfrm?.['@_flipV'] === '1' || xfrm?.['@_flipV'] === true
+
     return {
       id,
       type,
@@ -1259,6 +1211,9 @@ class ShapeManager {
       y,
       width,
       height,
+      rotation,
+      flipH,
+      flipV,
       fill,
       transparency,
       border,
@@ -1437,6 +1392,97 @@ function mapPresetToType(preset, w, h) {
     return preset
   }
   return 'rectangle'
+}
+
+function buildTextBodyXml(text, textStyle = {}, options = {}) {
+  const { toEmu } = require('../spatial/units.js')
+  const fontSizeVal = (textStyle.fontSize || 14) * 100
+  const boldAttr = textStyle.bold ? ' b="1"' : ''
+  const italicAttr = textStyle.italic ? ' i="1"' : ''
+  const uAttr = textStyle.underline
+    ? ` u="${typeof textStyle.underline === 'string' ? textStyle.underline : 'sng'}"`
+    : ''
+  const strikeAttr = textStyle.strike
+    ? ` strike="${textStyle.strike === 'double' || textStyle.strike === 'dblStrike' ? 'dblStrike' : 'sngStrike'}"`
+    : ''
+  let baselineAttr = ''
+  if (textStyle.superscript) {
+    baselineAttr = ' baseline="30000"'
+  } else if (textStyle.subscript) {
+    baselineAttr = ' baseline="-25000"'
+  } else if (textStyle.baseline !== undefined) {
+    baselineAttr = ` baseline="${Math.round(textStyle.baseline)}"`
+  }
+  const spcAttr =
+    textStyle.characterSpacing !== undefined || textStyle.tracking !== undefined
+      ? ` spc="${Math.round((textStyle.characterSpacing || textStyle.tracking) * 100)}"`
+      : ''
+
+  let fontXml = ''
+  if (textStyle.fontFamily) {
+    const ff = escapeXml(textStyle.fontFamily)
+    fontXml = `<a:latin typeface="${ff}"/><a:ea typeface="${ff}"/><a:cs typeface="${ff}"/>`
+  }
+
+  let colorFill = ''
+  if (textStyle.color) {
+    const colorHex = textStyle.color.replace('#', '').toUpperCase()
+    colorFill = `<a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill>`
+  }
+
+  // Paragraph properties (alignment, line spacing, spacing before/after)
+  let pPrChildren = ''
+  const alignMap = { center: 'ctr', right: 'r', left: 'l', justify: 'just' }
+  const algn = alignMap[textStyle.align] || 'l'
+  const pPrAttrs = ` algn="${algn}"`
+
+  if (textStyle.lineSpacing !== undefined) {
+    const pctVal =
+      typeof textStyle.lineSpacing === 'number' && textStyle.lineSpacing < 10
+        ? Math.round(textStyle.lineSpacing * 100000)
+        : Math.round(textStyle.lineSpacing * 1000)
+    pPrChildren += `<a:lnSpc><a:spcPct val="${pctVal}"/></a:lnSpc>`
+  } else if (textStyle.lineSpacingPts !== undefined) {
+    pPrChildren += `<a:lnSpc><a:spcPts val="${Math.round(textStyle.lineSpacingPts * 100)}"/></a:lnSpc>`
+  }
+
+  if (textStyle.spaceBefore !== undefined) {
+    pPrChildren += `<a:spcBfr><a:spcPts val="${Math.round(textStyle.spaceBefore * 100)}"/></a:spcBfr>`
+  }
+  if (textStyle.spaceAfter !== undefined) {
+    pPrChildren += `<a:spcAft><a:spcPts val="${Math.round(textStyle.spaceAfter * 100)}"/></a:spcAft>`
+  }
+
+  const pPrXml = `<a:pPr${pPrAttrs}>${pPrChildren}</a:pPr>`
+
+  const lines = String(text).split(/\r?\n/)
+  const paragraphsXml = lines
+    .map(line => {
+      return `<a:p>${pPrXml}<a:r><a:rPr lang="en-US" sz="${fontSizeVal}"${boldAttr}${italicAttr}${uAttr}${strikeAttr}${baselineAttr}${spcAttr}>${colorFill}${fontXml}</a:rPr><a:t>${escapeXml(line)}</a:t></a:r></a:p>`
+    })
+    .join('')
+
+  // BodyPr properties (vertical alignment, padding, wrap)
+  const anchorMap = { top: 't', middle: 'ctr', center: 'ctr', bottom: 'b', just: 'just' }
+  const vAlign = textStyle.verticalAlign || options.verticalAlign
+  const anchorAttr = vAlign && anchorMap[vAlign.toLowerCase()] ? ` anchor="${anchorMap[vAlign.toLowerCase()]}"` : ''
+  const wrapAttr = options.wrap === false || options.wordWrap === false ? ' wrap="none"' : ' wrap="square"'
+
+  let padAttrs = ''
+  const pad = options.padding || textStyle.padding
+  if (pad) {
+    if (typeof pad === 'number') {
+      const emu = toEmu(pad)
+      padAttrs = ` lIns="${emu}" tIns="${emu}" rIns="${emu}" bIns="${emu}"`
+    } else if (typeof pad === 'object') {
+      if (pad.left !== undefined) padAttrs += ` lIns="${toEmu(pad.left)}"`
+      if (pad.top !== undefined) padAttrs += ` tIns="${toEmu(pad.top)}"`
+      if (pad.right !== undefined) padAttrs += ` rIns="${toEmu(pad.right)}"`
+      if (pad.bottom !== undefined) padAttrs += ` bIns="${toEmu(pad.bottom)}"`
+    }
+  }
+
+  return `<p:txBody><a:bodyPr${wrapAttr} rtlCol="0"${anchorAttr}${padAttrs}><a:normAutofit/></a:bodyPr><a:lstStyle/>${paragraphsXml}</p:txBody>`
 }
 
 module.exports = { ShapeManager }

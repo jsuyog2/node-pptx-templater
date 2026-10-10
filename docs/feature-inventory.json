@@ -1,7 +1,7 @@
 {
-  "generated": "2026-06-12T05:42:27.615Z",
-  "totalMethods": 150,
-  "documentedMethods": 136,
+  "generated": "2026-10-10T15:24:58.464Z",
+  "totalMethods": 186,
+  "documentedMethods": 174,
   "categories": {
     "Core": [
       {
@@ -10,7 +10,7 @@
         "isAsync": true,
         "hasDoc": true,
         "description": "const ppt = await PPTXTemplater.load(buffer);",
-        "line": 220
+        "line": 224
       },
       {
         "name": "preload",
@@ -18,7 +18,7 @@
         "isAsync": true,
         "hasDoc": true,
         "description": "const ppt = await PPTXTemplater.fromCache('./template.pptx');",
-        "line": 260
+        "line": 264
       },
       {
         "name": "cache",
@@ -26,7 +26,7 @@
         "isAsync": true,
         "hasDoc": true,
         "description": "await PPTXTemplater.cache('./template.pptx');",
-        "line": 303
+        "line": 307
       },
       {
         "name": "fromCache",
@@ -34,14 +34,14 @@
         "isAsync": true,
         "hasDoc": true,
         "description": "// ppt is ready — no disk I/O on the load",
-        "line": 320
+        "line": 324
       },
       {
         "name": "clearCache",
         "isStatic": true,
         "hasDoc": true,
         "description": "PPTXTemplater.clearCache(); // Force fresh reload on next fromCache()",
-        "line": 349
+        "line": 353
       },
       {
         "name": "fromPresentationXml",
@@ -49,7 +49,7 @@
         "isAsync": true,
         "hasDoc": true,
         "description": "Loads a template from a PowerPoint XML Presentation format.",
-        "line": 429
+        "line": 433
       },
       {
         "name": "create",
@@ -57,7 +57,7 @@
         "isAsync": true,
         "hasDoc": true,
         "description": "await ppt.saveToFile('./new.pptx');",
-        "line": 444
+        "line": 448
       },
       {
         "name": "extractPptx",
@@ -65,7 +65,7 @@
         "isAsync": true,
         "hasDoc": true,
         "description": "Extracts a PPTX file into an unzipped OpenXML folder structure.",
-        "line": 459
+        "line": 463
       },
       {
         "name": "buildPptx",
@@ -73,7 +73,7 @@
         "isAsync": true,
         "hasDoc": true,
         "description": "Rebuilds a PPTX file from an unzipped OpenXML folder structure.",
-        "line": 507
+        "line": 515
       }
     ],
     "Utility": [
@@ -82,86 +82,308 @@
         "isStatic": true,
         "hasDoc": true,
         "description": "PPTXTemplater.setLogLevel('silent'); // Suppress all output",
-        "line": 242
+        "line": 246
+      },
+      {
+        "name": "addTable",
+        "hasDoc": true,
+        "description": "});",
+        "line": 835
+      },
+      {
+        "name": "getHyperlinks",
+        "hasDoc": true,
+        "description": "// ]",
+        "line": 1006
+      },
+      {
+        "name": "removeHyperlink",
+        "hasDoc": true,
+        "description": "ppt.removeHyperlink({ shapeName: 'Button 1' });",
+        "line": 1028
+      },
+      {
+        "name": "toFile",
+        "isAsync": true,
+        "hasDoc": true,
+        "description": "Saves the presentation to a file. Canonical ExportAdapter alias for saveToFile.",
+        "line": 1505
+      },
+      {
+        "name": "toArrayBuffer",
+        "isAsync": true,
+        "hasDoc": true,
+        "description": "Returns the PPTX as an ArrayBuffer.",
+        "line": 1544
+      },
+      {
+        "name": "toBase64",
+        "isAsync": true,
+        "hasDoc": true,
+        "description": "Returns the PPTX as a Base64 string.",
+        "line": 1553
+      },
+      {
+        "name": "toExpress",
+        "isAsync": true,
+        "hasDoc": true,
+        "description": "Streams the PPTX directly to an Express.js response object.",
+        "line": 1563
+      },
+      {
+        "name": "setSlideDimensions",
+        "hasDoc": true,
+        "description": "ppt.setSlideDimensions(12192000, 6858000);",
+        "line": 1732
+      },
+      {
+        "name": "setSlideSize",
+        "hasDoc": true,
+        "description": "Sets slide dimensions (alias for setSlideDimensions).",
+        "line": 1745
+      },
+      {
+        "name": "setAspectRatio",
+        "hasDoc": true,
+        "description": "Sets slide aspect ratio ('16:9', '16:10', '4:3').",
+        "line": 1755
+      },
+      {
+        "name": "getSlideDimensions",
+        "hasDoc": true,
+        "description": "Retrieves current presentation slide dimensions in EMUs.",
+        "line": 1764
+      },
+      {
+        "name": "getSlideSize",
+        "hasDoc": true,
+        "description": "Retrieves current presentation slide dimensions (alias for getSlideDimensions).",
+        "line": 1774
+      },
+      {
+        "name": "getSlideLayout",
+        "hasDoc": true,
+        "description": "Retrieves the layout target path for a slide.",
+        "line": 1784
+      },
+      {
+        "name": "addColumn",
+        "hasDoc": true,
+        "description": "ppt.addColumn('SalesTable', 1, ['Target', '1000', '10%'], { width: 120 });",
+        "line": 1988
+      },
+      {
+        "name": "deleteColumn",
+        "hasDoc": true,
+        "description": "ppt.deleteColumn('SalesTable', 2);",
+        "line": 2017
+      },
+      {
+        "name": "stripeRows",
+        "hasDoc": true,
+        "description": "ppt.stripeRows('SalesTable', { evenFill: '#F8F9FA', oddFill: '#FFFFFF' });",
+        "line": 2049
+      },
+      {
+        "name": "adjustTableRow",
+        "hasDoc": true,
+        "description": "ppt.adjustTableRow(\"Table\", { row: 2, auto: true });",
+        "line": 2403
+      },
+      {
+        "name": "adjustTableColumn",
+        "hasDoc": true,
+        "description": "ppt.adjustTableColumn(\"Table\", { column: 3, auto: true });",
+        "line": 2429
+      },
+      {
+        "name": "splitTableOnOverflow",
+        "isAsync": true,
+        "hasDoc": true,
+        "description": "Automatically splits a table across consecutive slides if its height exceeds a s",
+        "line": 2455
+      },
+      {
+        "name": "adjustTable",
+        "hasDoc": true,
+        "description": "Auto-adjusts or sets table row heights, column widths, and cell layout on target",
+        "line": 2570
+      },
+      {
+        "name": "getBounds",
+        "hasDoc": true,
+        "description": "Retrieves the bounding box, coordinates, and rotation of a shape or element on t",
+        "line": 2585
+      },
+      {
+        "name": "setBounds",
+        "hasDoc": true,
+        "description": "Sets the bounding box, coordinates, dimensions, and rotation of a shape or eleme",
+        "line": 2624
+      },
+      {
+        "name": "move",
+        "hasDoc": true,
+        "description": "Moves a shape to a new coordinate.",
+        "line": 2656
+      },
+      {
+        "name": "alignShapes",
+        "hasDoc": true,
+        "description": "Aligns multiple shapes on the active slide.",
+        "line": 2667
+      },
+      {
+        "name": "distributeShapes",
+        "hasDoc": true,
+        "description": "Distributes multiple shapes evenly along a direction.",
+        "line": 2722
+      },
+      {
+        "name": "checkCollision",
+        "hasDoc": true,
+        "description": "Checks if two elements overlap or collide on the active slide.",
+        "line": 2769
+      },
+      {
+        "name": "isContained",
+        "hasDoc": true,
+        "description": "Checks if one element is completely contained within another.",
+        "line": 2784
+      },
+      {
+        "name": "getElements",
+        "hasDoc": true,
+        "description": "Retrieves all elements on targeted slides, optionally filtered by type, name, or",
+        "line": 2798
+      },
+      {
+        "name": "findElements",
+        "hasDoc": true,
+        "description": "Finds slide elements matching a filter object or custom predicate function.",
+        "line": 2820
+      },
+      {
+        "name": "stepForward",
+        "hasDoc": true,
+        "description": "Alias for bringForward. Moves element one layer forward.",
+        "line": 2831
+      },
+      {
+        "name": "stepBackward",
+        "hasDoc": true,
+        "description": "Alias for sendBackward. Moves element one layer backward.",
+        "line": 2838
+      },
+      {
+        "name": "replaceShape",
+        "isAsync": true,
+        "hasDoc": true,
+        "description": "Replaces a placeholder shape with an image, locking its bounding box.",
+        "line": 2847
+      },
+      {
+        "name": "resize",
+        "hasDoc": true,
+        "description": "ppt.resize(\"Chart\", { scale: { width: 1.1, height: 0.9 } });",
+        "line": 2881
+      },
+      {
+        "name": "appendTextRun",
+        "hasDoc": true,
+        "description": "ppt.appendTextRun('titleShape', ' (Updated)', { style: { bold: true, color: '#FF",
+        "line": 3424
+      },
+      {
+        "name": "prependTextRun",
+        "hasDoc": true,
+        "description": "ppt.prependTextRun('titleShape', 'Draft: ', { style: { italic: true } });",
+        "line": 3444
       },
       {
         "name": "slideCount",
         "isGetter": true,
         "hasDoc": true,
         "description": "Returns the total number of slides in the loaded presentation.",
-        "line": 3164
+        "line": 4264
       },
       {
         "name": "zipManager",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3169
+        "line": 4269
       },
       {
         "name": "xmlParser",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3172
+        "line": 4272
       },
       {
         "name": "contentTypesManager",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3175
+        "line": 4275
       },
       {
         "name": "relationshipManager",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3178
+        "line": 4278
       },
       {
         "name": "slideManager",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3181
+        "line": 4281
       },
       {
         "name": "chartManager",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3184
+        "line": 4284
       },
       {
         "name": "tableManager",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3187
+        "line": 4287
       },
       {
         "name": "shapeManager",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3190
+        "line": 4290
       },
       {
         "name": "imageManager",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3193
+        "line": 4293
       },
       {
         "name": "textManager",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3196
+        "line": 4296
       },
       {
         "name": "hyperlinkManager",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3199
+        "line": 4299
       },
       {
         "name": "mediaManager",
         "isGetter": true,
         "hasDoc": false,
-        "line": 3202
+        "line": 4302
+      },
+      {
+        "name": "alignShapeToCell",
+        "hasDoc": true,
+        "description": "Aligns an existing shape to a table cell's position.",
+        "line": 4642
       }
     ],
     "Performance": [
@@ -169,25 +391,25 @@
         "name": "enablePerformanceProfile",
         "hasDoc": true,
         "description": "console.log(ppt.getPerformanceMetrics());",
-        "line": 364
+        "line": 368
       },
       {
         "name": "enableDebug",
         "hasDoc": true,
         "description": "ppt.enableDebug(); // Shows all debug output",
-        "line": 380
+        "line": 384
       },
       {
         "name": "getPerformanceMetrics",
         "hasDoc": true,
         "description": "console.log(`Total: ${metrics.totalMs}ms, Memory: ${metrics.memoryUsedMB}MB`);",
-        "line": 399
+        "line": 403
       },
       {
         "name": "enableDebugZip",
         "hasDoc": true,
         "description": "const buffer = await ppt.toBuffer(); // Logs ZIP entries to debug output",
-        "line": 3141
+        "line": 4241
       }
     ],
     "Slides": [
@@ -195,93 +417,93 @@
         "name": "useSlide",
         "hasDoc": true,
         "description": "ppt.useSlide('intro');     // Select by custom tag",
-        "line": 644
+        "line": 652
       },
       {
         "name": "useAllSlides",
         "hasDoc": true,
         "description": "Selects all slides.",
-        "line": 655
+        "line": 663
       },
       {
         "name": "addSlide",
         "hasDoc": true,
         "description": "});",
-        "line": 949
+        "line": 1073
       },
       {
         "name": "cloneSlide",
         "hasDoc": true,
         "description": "Clones an existing slide and appends it to the end (or at a position).",
-        "line": 963
+        "line": 1087
       },
       {
         "name": "removeSlide",
         "hasDoc": true,
         "description": "Removes a slide from the presentation.",
-        "line": 975
+        "line": 1105
       },
       {
         "name": "reorderSlides",
         "hasDoc": true,
         "description": "ppt.reorderSlides([3, 1, 2]); // Move slide 3 to position 1",
-        "line": 990
+        "line": 1120
       },
       {
         "name": "tagSlide",
         "hasDoc": true,
         "description": "ppt.useSlide('intro').replaceText({ '{{title}}': 'Hello' });",
-        "line": 1007
+        "line": 1137
       },
       {
         "name": "exportSlides",
         "isAsync": true,
         "hasDoc": true,
         "description": "await subset.saveToFile('./subset.pptx');",
-        "line": 1024
+        "line": 1154
       },
       {
         "name": "importSlideFrom",
         "isAsync": true,
         "hasDoc": true,
         "description": "Preserves all slide layouts, charts, relationships, and embedded media.",
-        "line": 1037
+        "line": 1167
       },
       {
         "name": "importSlides",
         "hasDoc": true,
         "description": "ppt.importSlides([1, 3, 5]);",
-        "line": 1054
+        "line": 1184
       },
       {
         "name": "duplicateSlide",
         "hasDoc": true,
         "description": "ppt.duplicateSlide(1, 2); // Copy slide 1 and insert it as slide 2",
-        "line": 1464
+        "line": 1641
       },
       {
         "name": "deleteSlide",
         "hasDoc": true,
         "description": "ppt.deleteSlide(3); // Remove slide 3",
-        "line": 1479
+        "line": 1662
       },
       {
         "name": "moveSlide",
         "hasDoc": true,
         "description": "ppt.moveSlide(5, 1); // Move slide 5 to position 1 (make it first)",
-        "line": 1495
+        "line": 1678
       },
       {
         "name": "insertSlide",
         "hasDoc": true,
         "description": "ppt.insertSlide(2, { layoutIndex: 1 }); // Insert blank slide at position 2",
-        "line": 1512
+        "line": 1695
       },
       {
         "name": "getSlides",
         "hasDoc": true,
         "description": "slides.forEach(s => console.log(`Slide ${s.index}: ${s.title}`));",
-        "line": 1532
+        "line": 1715
       }
     ],
     "Text": [
@@ -289,49 +511,49 @@
         "name": "replaceText",
         "hasDoc": true,
         "description": "});",
-        "line": 692
+        "line": 700
       },
       {
         "name": "updateText",
         "hasDoc": true,
         "description": "ppt.updateText('BulletBox', { items: ['Item A', 'Item B', 'Item C'] });",
-        "line": 2382
+        "line": 3271
       },
       {
         "name": "getList",
         "hasDoc": true,
         "description": "console.log(items); // ['Item A', ['Nested', 'Sub-item'], 'Item B']",
-        "line": 2407
+        "line": 3296
       },
       {
         "name": "validateList",
         "hasDoc": true,
         "description": "Validates a list structure and values.",
-        "line": 2420
+        "line": 3309
       },
       {
         "name": "replaceTextByTag",
         "hasDoc": true,
         "description": "ppt.replaceTextByTag('{{date}}', '2026-06-12');",
-        "line": 2439
+        "line": 3328
       },
       {
         "name": "replaceMultiple",
         "hasDoc": true,
         "description": "});",
-        "line": 2470
+        "line": 3359
       },
       {
         "name": "findText",
         "hasDoc": true,
         "description": "matches.forEach(m => console.log(`Found on slide ${m.slideIndex} in \"${m.shapeNa",
-        "line": 2495
+        "line": 3384
       },
       {
         "name": "getTextElements",
         "hasDoc": true,
         "description": "elements.forEach(el => console.log(`Slide ${el.slideIndex}: ${el.text}`))",
-        "line": 2514
+        "line": 3403
       }
     ],
     "Charts": [
@@ -339,97 +561,97 @@
         "name": "updateChart",
         "hasDoc": true,
         "description": "});",
-        "line": 741
+        "line": 749
       },
       {
         "name": "updateChartData",
         "hasDoc": true,
         "description": "});",
-        "line": 2040
+        "line": 2929
       },
       {
         "name": "replaceChartSeries",
         "hasDoc": true,
         "description": "ppt.replaceChartSeries('revenue-chart', 0, { name: 'Revenue', values: [100, 200,",
-        "line": 2055
+        "line": 2944
       },
       {
         "name": "updateChartTitle",
         "hasDoc": true,
         "description": "ppt.updateChartTitle('revenue-chart', 'Q2 2026 Revenue');",
-        "line": 2081
+        "line": 2970
       },
       {
         "name": "updateChartCategories",
         "hasDoc": true,
         "description": "ppt.updateChartCategories('revenue-chart', ['Jan', 'Feb', 'Mar', 'Apr']);",
-        "line": 2106
+        "line": 2995
       },
       {
         "name": "updateDataLabels",
         "hasDoc": true,
         "description": "});",
-        "line": 2141
+        "line": 3030
       },
       {
         "name": "getDataLabels",
         "isAsync": true,
         "hasDoc": true,
         "description": "console.log(labels.showValue, labels.position);",
-        "line": 2168
+        "line": 3057
       },
       {
         "name": "validateDataLabels",
         "isAsync": true,
         "hasDoc": true,
         "description": "if (!result.valid) console.error(result.errors);",
-        "line": 2193
+        "line": 3082
       },
       {
         "name": "validateChartLabels",
         "isAsync": true,
         "hasDoc": true,
         "description": "const result = await ppt.validateChartLabels('revenue-chart');",
-        "line": 2211
+        "line": 3100
       },
       {
         "name": "validateSeriesNameLabels",
         "isAsync": true,
         "hasDoc": true,
         "description": "const result = await ppt.validateSeriesNameLabels('bar-chart');",
-        "line": 2235
+        "line": 3124
       },
       {
         "name": "getCharts",
         "hasDoc": true,
         "description": "charts.forEach(c => console.log(c.zipPath));",
-        "line": 2258
+        "line": 3147
       },
       {
         "name": "getChartLabelPositions",
         "isAsync": true,
         "hasDoc": true,
         "description": "Calculates absolute layout limits in EMUs (English Metric Units).",
-        "line": 2277
+        "line": 3166
       },
       {
         "name": "getChartBarPositions",
         "isAsync": true,
         "hasDoc": true,
         "description": "Calculates absolute layout limits in EMUs (English Metric Units).",
-        "line": 2297
+        "line": 3186
       },
       {
         "name": "addTextAtPosition",
         "hasDoc": true,
         "description": "Supports custom font styling and alignment configuration.",
-        "line": 2323
+        "line": 3212
       },
       {
         "name": "addTextNearChartLabel",
         "hasDoc": true,
         "description": "Textboxes are positioned either on the left or right of the chart area, vertical",
-        "line": 2344
+        "line": 3233
       }
     ],
     "Tables": [
@@ -437,115 +659,115 @@
         "name": "updateTable",
         "hasDoc": true,
         "description": "]);",
-        "line": 776
+        "line": 784
       },
       {
         "name": "getTableRows",
         "hasDoc": true,
         "description": "// → { rows: [...], rowCount: 5, columnCount: 3, mergedCells: [] }",
-        "line": 1561
+        "line": 1814
       },
       {
         "name": "addTableRow",
         "hasDoc": true,
         "description": "ppt.addTableRow('SalesTable', ['Region', ['Q1', 'Q2'], '$5K'], { mergeStrategy: ",
-        "line": 1590
+        "line": 1843
       },
       {
         "name": "removeTableRow",
         "hasDoc": true,
         "description": "ppt.removeTableRow('SalesTable', 2); // Remove the third row (0-based)",
-        "line": 1609
+        "line": 1869
       },
       {
         "name": "insertTableRow",
         "hasDoc": true,
         "description": "ppt.insertTableRow('SalesTable', 1, ['East', '980', '8%']); // Insert at row 1",
-        "line": 1629
+        "line": 1895
       },
       {
         "name": "cloneTableRow",
         "hasDoc": true,
         "description": "ppt.cloneTableRow('SalesTable', 0, 3); // Clone row 0 to position 3",
-        "line": 1649
+        "line": 1922
       },
       {
         "name": "updateCell",
         "hasDoc": true,
         "description": "ppt.updateCell('SalesTable', 1, 2, '$9,800', { bold: true, color: '#10B981' });",
-        "line": 1683
+        "line": 1957
       },
       {
         "name": "mergeCells",
         "hasDoc": true,
         "description": "ppt.mergeCells({ tableId: 'SalesTable', startRow: 0, startCol: 0, endRow: 0, end",
-        "line": 1716
+        "line": 2076
       },
       {
         "name": "unmergeCells",
         "hasDoc": true,
         "description": "ppt.unmergeCells({ tableId: 'SalesTable', row: 0, col: 0 });",
-        "line": 1759
+        "line": 2128
       },
       {
         "name": "getMergedCells",
         "hasDoc": true,
         "description": "merges.forEach(m => console.log(`Merged: row ${m.startRow}-${m.endRow}, col ${m.",
-        "line": 1807
+        "line": 2192
       },
       {
         "name": "validateMergeRegion",
         "hasDoc": true,
         "description": "if (!result.valid) console.error(result.errors);",
-        "line": 1828
+        "line": 2213
       },
       {
         "name": "isMergedCell",
         "hasDoc": true,
         "description": "}",
-        "line": 1855
+        "line": 2240
       },
       {
         "name": "getMergeParent",
         "hasDoc": true,
         "description": "// → { row: 0, col: 0 } if cells (0,0)-(0,2) are merged",
-        "line": 1880
+        "line": 2265
       },
       {
         "name": "getMergeRegion",
         "hasDoc": true,
         "description": "// → { startRow: 0, startCol: 0, endRow: 0, endCol: 2 }",
-        "line": 1904
+        "line": 2289
       },
       {
         "name": "splitMergedRegion",
         "hasDoc": true,
         "description": "ppt.splitMergedRegion('SalesTable', 0, 0); // Split merge starting at row 0, col",
-        "line": 1927
+        "line": 2312
       },
       {
         "name": "cloneMergedRegion",
         "hasDoc": true,
         "description": "ppt.cloneMergedRegion('SalesTable', 0, 0, 4, 0);",
-        "line": 1953
+        "line": 2338
       },
       {
         "name": "autoFitTable",
         "hasDoc": true,
         "description": "ppt.autoFitTable('SalesTable');",
-        "line": 1977
+        "line": 2362
       },
       {
         "name": "resizeTable",
         "hasDoc": true,
         "description": "ppt.resizeTable('SalesTable', 6858000, 1371600); // 7.5\" wide × 1.5\" tall",
-        "line": 1998
+        "line": 2383
       },
       {
         "name": "getTables",
         "hasDoc": true,
         "description": "tables.forEach(t => console.log(`${t.name}: ${t.rows}×${t.cols}`));",
-        "line": 2016
+        "line": 2905
       }
     ],
     "Hyperlinks": [
@@ -553,37 +775,37 @@
         "name": "addHyperlink",
         "hasDoc": true,
         "description": "ppt.addHyperlink({ text: 'Open Website', url: 'https://example.com' });",
-        "line": 806
+        "line": 869
       },
       {
         "name": "addSlideLink",
         "hasDoc": true,
         "description": "Adds an inter-slide hyperlink to a specific text element.",
-        "line": 831
+        "line": 894
       },
       {
         "name": "addImageLink",
         "hasDoc": true,
         "description": "Adds an inter-slide hyperlink to an image.",
-        "line": 865
+        "line": 928
       },
       {
         "name": "addShapeLink",
         "hasDoc": true,
         "description": "Adds an inter-slide hyperlink to a shape.",
-        "line": 886
+        "line": 949
       },
       {
         "name": "addTextNavigationLink",
         "hasDoc": true,
         "description": "Adds a special navigation link (next, previous, first, last slide) to a text ele",
-        "line": 907
+        "line": 970
       },
       {
         "name": "addShapeNavigationLink",
         "hasDoc": true,
         "description": "Adds a special navigation link (next, previous, first, last slide) to a shape or",
-        "line": 923
+        "line": 986
       }
     ],
     "Info": [
@@ -591,7 +813,7 @@
         "name": "getInfo",
         "hasDoc": true,
         "description": "Returns presentation metadata (title, author, slide count, etc.)",
-        "line": 1090
+        "line": 1220
       }
     ],
     "Validation": [
@@ -599,67 +821,69 @@
         "name": "validate",
         "hasDoc": true,
         "description": "Reports issues with relationship IDs, missing parts, etc.",
-        "line": 1109
+        "line": 1240
       },
       {
         "name": "repair",
         "isAsync": true,
         "hasDoc": true,
         "description": "Removes orphan relationships, rebuilds slide references, and fixes missing entri",
-        "line": 1120
+        "line": 1251
       },
       {
         "name": "validateCharts",
         "isAsync": true,
         "hasDoc": true,
         "description": "Checks XML, caches, and embedded workbook references.",
-        "line": 1197
+        "line": 1328
       },
       {
         "name": "repairCharts",
         "isAsync": true,
         "hasDoc": true,
         "description": "missing embedded workbooks, or orphan nodes.",
-        "line": 1229
+        "line": 1360
       },
       {
         "name": "validatePresentation",
         "isAsync": true,
-        "hasDoc": false,
-        "line": 2998
+        "hasDoc": true,
+        "description": "}",
+        "line": 4088
       },
       {
         "name": "validatePresentationXml",
         "isAsync": true,
         "hasDoc": true,
         "description": "Performs validation specifically on PowerPoint XML folder contents/relationships",
-        "line": 3008
+        "line": 4098
       },
       {
         "name": "validateSlide",
         "isAsync": true,
         "hasDoc": true,
         "description": "if (!result.valid) console.error(result.errors);",
-        "line": 3101
+        "line": 4191
       },
       {
         "name": "validateTable",
         "isAsync": true,
         "hasDoc": true,
         "description": "if (!result.valid) console.error(result.errors);",
-        "line": 3116
+        "line": 4206
       },
       {
         "name": "validateArchive",
         "isAsync": true,
-        "hasDoc": false,
-        "line": 3125
+        "hasDoc": true,
+        "description": "await ppt.validateArchive(); // Throws PPTXError if the ZIP is corrupt",
+        "line": 4225
       },
       {
         "name": "validateRelationships",
         "hasDoc": true,
         "description": "const result = ppt.validateRelationships('ppt/slides/slide1.xml');",
-        "line": 3155
+        "line": 4255
       }
     ],
     "Debug": [
@@ -667,39 +891,39 @@
         "name": "debugRelationships",
         "hasDoc": true,
         "description": "Logs all relationships across the presentation to the console for debugging.",
-        "line": 1137
+        "line": 1268
       },
       {
         "name": "inspectSlide",
         "hasDoc": true,
         "description": "Inspects a specific slide's structure and relationships.",
-        "line": 1156
+        "line": 1287
       },
       {
         "name": "inspectXML",
         "isAsync": true,
         "hasDoc": true,
         "description": "Inspects and logs the raw XML of any file in the ZIP.",
-        "line": 1179
+        "line": 1310
       },
       {
         "name": "inspectChart",
         "hasDoc": true,
         "description": "Inspects a specific chart's metadata and structure.",
-        "line": 1271
+        "line": 1402
       },
       {
         "name": "inspectChartXML",
         "isAsync": true,
         "hasDoc": true,
         "description": "Inspects and logs the raw XML of a chart file.",
-        "line": 1303
+        "line": 1434
       },
       {
         "name": "debugChartRelationships",
         "hasDoc": true,
         "description": "Logs all chart relationships.",
-        "line": 1312
+        "line": 1443
       }
     ],
     "Output": [
@@ -708,49 +932,49 @@
         "isAsync": true,
         "hasDoc": true,
         "description": "Saves the modified PPTX to a file on disk.",
-        "line": 1335
+        "line": 1466
       },
       {
         "name": "save",
         "isAsync": true,
         "hasDoc": true,
         "description": "Saves the presentation. Equivalent to saveToFile.",
-        "line": 1363
+        "line": 1494
       },
       {
         "name": "saveXml",
         "isAsync": true,
         "hasDoc": true,
         "description": "Saves the modified presentation XML structures directly to a folder.",
-        "line": 1373
+        "line": 1515
       },
       {
         "name": "saveToFolder",
         "isAsync": true,
         "hasDoc": true,
         "description": "Saves the modified presentation XML structures directly to a folder.",
-        "line": 1386
+        "line": 1528
       },
       {
         "name": "toBuffer",
         "isAsync": true,
         "hasDoc": true,
-        "description": "Returns the PPTX content as a Node.js Buffer.",
-        "line": 1396
+        "description": "Returns the PPTX presentation as a Node.js Buffer.",
+        "line": 1573
       },
       {
         "name": "toStream",
         "isAsync": true,
         "hasDoc": true,
         "description": "Returns the PPTX content as a readable Node.js Stream.",
-        "line": 1413
+        "line": 1590
       },
       {
         "name": "saveToStream",
         "isAsync": true,
         "hasDoc": true,
         "description": "Saves the presentation to a readable stream or pipes it to a writable stream.",
-        "line": 1431
+        "line": 1608
       }
     ],
     "Shapes": [
@@ -758,70 +982,70 @@
         "name": "updateShapeText",
         "hasDoc": true,
         "description": "ppt.updateShapeText('CalloutBox', 'Important note here');",
-        "line": 2535
+        "line": 3464
       },
       {
         "name": "updateShapePosition",
         "hasDoc": true,
         "description": "Updates the position and/or dimensions of an existing shape on targeted slides.",
-        "line": 2555
+        "line": 3484
       },
       {
         "name": "updateTextBoxPosition",
         "hasDoc": true,
         "description": "Updates the position and/or dimensions of an existing textbox on targeted slides",
-        "line": 2575
+        "line": 3508
       },
       {
         "name": "cloneShape",
         "hasDoc": true,
         "description": "ppt.cloneShape('logo', 'logo-copy', { x: 2000000, y: 500000 });",
-        "line": 2597
+        "line": 3530
       },
       {
         "name": "deleteShape",
         "hasDoc": true,
         "description": "ppt.deleteShape('temp-banner');",
-        "line": 2615
+        "line": 3548
       },
       {
         "name": "getShapes",
         "hasDoc": true,
         "description": "shapes.forEach(s => console.log(`${s.name}: ${s.type} at (${s.x}, ${s.y})`));",
-        "line": 2633
+        "line": 3566
       },
       {
         "name": "validateShape",
         "hasDoc": true,
         "description": "Validates shape options configuration.",
-        "line": 2649
+        "line": 3582
       },
       {
         "name": "addShape",
         "isAsync": true,
         "hasDoc": true,
-        "description": "Adds a new shape dynamically to the targeted slide(s).",
-        "line": 2659
+        "description": "await ppt.addShape('rect', { id: 'MyShape', x: 100, y: 100, width: 200, height: ",
+        "line": 3596
       },
       {
         "name": "updateShape",
         "isAsync": true,
         "hasDoc": true,
         "description": "Updates an existing shape in-place.",
-        "line": 2675
+        "line": 3623
       },
       {
         "name": "removeShape",
         "isAsync": true,
         "hasDoc": true,
         "description": "Removes a shape from the targeted slide(s).",
-        "line": 2690
+        "line": 3642
       },
       {
         "name": "getShape",
         "hasDoc": true,
         "description": "Discovers and retrieves details of an existing shape on the targeted slides.",
-        "line": 2705
+        "line": 3657
       }
     ],
     "Cell Shapes": [
@@ -829,40 +1053,40 @@
         "name": "addCellShape",
         "isAsync": true,
         "hasDoc": true,
-        "description": "Dynamically adds a shape inside a table cell based on cell coordinates.",
-        "line": 2724
+        "description": "and adding a cell shape never modifies row heights, column widths, or table dime",
+        "line": 3678
       },
       {
         "name": "updateCellShape",
         "isAsync": true,
         "hasDoc": true,
         "description": "Updates an existing shape inside a table cell.",
-        "line": 2751
+        "line": 3719
       },
       {
         "name": "removeCellShape",
         "isAsync": true,
         "hasDoc": true,
         "description": "Removes a shape from a table cell.",
-        "line": 2778
+        "line": 3767
       },
       {
         "name": "getCellShape",
         "hasDoc": true,
         "description": "Discovers and retrieves details of an existing cell shape on the targeted slide.",
-        "line": 2804
+        "line": 3812
       },
       {
         "name": "getCellBounds",
         "hasDoc": true,
         "description": "Retrieves final rendered bounds of a table cell in pixels.",
-        "line": 2830
+        "line": 3857
       },
       {
         "name": "getCellPosition",
         "hasDoc": true,
-        "description": "Retrieves final rendered position of a table cell in pixels.",
-        "line": 2860
+        "description": "Optionally calculates centered top-left coordinates for a shape of given dimensi",
+        "line": 3900
       }
     ],
     "Images": [
@@ -871,26 +1095,26 @@
         "isAsync": true,
         "hasDoc": true,
         "description": "await ppt.replaceImage('company-logo', './new-logo.png');",
-        "line": 2893
+        "line": 3955
       },
       {
         "name": "addImage",
         "isAsync": true,
         "hasDoc": true,
         "description": "});",
-        "line": 2935
+        "line": 3997
       },
       {
         "name": "removeImage",
         "hasDoc": true,
         "description": "ppt.removeImage('old-logo');",
-        "line": 2962
+        "line": 4024
       },
       {
         "name": "getImages",
         "hasDoc": true,
-        "description": "images.forEach(img => console.log(`${img.name}: ${img.width}×${img.height} EMUs`",
-        "line": 2985
+        "description": "images.forEach(img => console.log(`${img.name}: ${img.width}×${img.height} EMUs,",
+        "line": 4048
       }
     ],
     "Z-Order": [
@@ -898,91 +1122,91 @@
         "name": "bringForward",
         "hasDoc": true,
         "description": "Moves slide element one layer forward.",
-        "line": 3211
+        "line": 4311
       },
       {
         "name": "sendBackward",
         "hasDoc": true,
         "description": "Moves slide element one layer backward.",
-        "line": 3229
+        "line": 4329
       },
       {
         "name": "bringToFront",
         "hasDoc": true,
         "description": "Moves slide element above all other objects.",
-        "line": 3247
+        "line": 4347
       },
       {
         "name": "sendToBack",
         "hasDoc": true,
         "description": "Moves slide element behind all other objects.",
-        "line": 3265
+        "line": 4365
       },
       {
         "name": "setZIndex",
         "hasDoc": true,
         "description": "Moves slide element to the specific 1-based stacking position.",
-        "line": 3283
+        "line": 4383
       },
       {
         "name": "moveObjectBefore",
         "hasDoc": true,
         "description": "Moves slide element directly before (below) a target element.",
-        "line": 3307
+        "line": 4407
       },
       {
         "name": "moveObjectAfter",
         "hasDoc": true,
         "description": "Moves slide element directly after (above) a target element.",
-        "line": 3331
+        "line": 4431
       },
       {
         "name": "reorderObjects",
         "hasDoc": true,
         "description": "Reorders slide objects exactly as specified in the array.",
-        "line": 3355
+        "line": 4455
       },
       {
         "name": "getObjectOrder",
         "hasDoc": true,
         "description": "order.forEach(o => console.log(`[${o.zIndex}] ${o.name}`));",
-        "line": 3390
+        "line": 4490
       },
       {
         "name": "applyZOrder",
         "hasDoc": true,
         "description": "Applies bulk template configurations for slide elements stacking layers.",
-        "line": 3399
+        "line": 4499
       },
       {
         "name": "getTopMostObject",
         "hasDoc": true,
         "description": "console.log('Front-most shape:', top.name);",
-        "line": 3426
+        "line": 4526
       },
       {
         "name": "getBottomMostObject",
         "hasDoc": true,
         "description": "console.log('Back-most shape:', bottom.name);",
-        "line": 3445
+        "line": 4545
       },
       {
         "name": "swapObjects",
         "hasDoc": true,
         "description": "ppt.swapObjects('logo', 'background');     // On active slide",
-        "line": 3466
+        "line": 4566
       },
       {
         "name": "sortObjects",
         "hasDoc": true,
         "description": "ppt.sortObjects((a, b) => a.name.localeCompare(b.name));",
-        "line": 3496
+        "line": 4596
       },
       {
         "name": "normalizeZOrder",
         "hasDoc": true,
         "description": "ppt.normalizeZOrder(1); // Clean up stacking order on slide 1",
-        "line": 3523
+        "line": 4623
       }
     ]
   }

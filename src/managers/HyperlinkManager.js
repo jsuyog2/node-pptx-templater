@@ -210,32 +210,202 @@ class HyperlinkManager {
   }
 
   /**
-   * Removes a hyperlink from text in a slide.
+   * Retrieves all hyperlinks present on a slide.
+   *
+   * @param {number} slideIndex - 1-based slide index.
+   * @param {SlideManager} slideManager
+   * @param {RelationshipManager} relationshipManager
+   * @returns {Array<Object>} List of hyperlinks with targets, types, and element references.
+   */
+  getHyperlinks(slideIndex, slideManager, relationshipManager) {
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    if (!slideInfo) return []
+
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const rels = relationshipManager.getRelationships(slideInfo.zipPath)
+    const relMap = new Map()
+    for (const rel of rels) {
+      relMap.set(rel.id, rel)
+    }
+
+    const allSlides = slideManager.getAllSlideInfo()
+    const resolveSlideIndex = target => {
+      if (!target) return undefined
+      const targetFilename = target.split('/').pop()
+      const match = allSlides.find(s => s.zipPath && s.zipPath.endsWith(targetFilename))
+      return match ? match.index : undefined
+    }
+
+    const results = []
+    const seenRIds = new Set()
+
+    // Match all <a:hlinkClick .../> and <a:hlinkMouseOver .../> tags
+    const hlinkRegex = /<a:hlink(?:Click|MouseOver)\b([^>]*)\/?>/g
+    let match
+
+    while ((match = hlinkRegex.exec(slideXml)) !== null) {
+      const attrsStr = match[1]
+      const matchPos = match.index
+
+      const rIdMatch = /r:id="([^"]+)"/.exec(attrsStr) || /id="([^"]+)"/.exec(attrsStr)
+      const actionMatch = /action="([^"]+)"/.exec(attrsStr)
+      const tooltipMatch = /tooltip="([^"]+)"/.exec(attrsStr)
+
+      const rId = rIdMatch ? rIdMatch[1] : null
+      const action = actionMatch ? actionMatch[1] : null
+      const tooltip = tooltipMatch ? tooltipMatch[1] : null
+
+      if (rId) seenRIds.add(rId)
+
+      let type = 'unknown'
+      let target = null
+      let url = null
+      let targetSlide = undefined
+
+      const rel = rId ? relMap.get(rId) : null
+      if (rel) {
+        if (rel.type === REL_TYPES.HYPERLINK || rel.targetMode === 'External') {
+          type = 'external'
+          url = rel.target
+          target = rel.target
+        } else if (rel.type === REL_TYPES.SLIDE || (action && action.includes('hlinksldjump'))) {
+          type = 'slide'
+          targetSlide = resolveSlideIndex(rel.target)
+          target = targetSlide !== undefined ? targetSlide : rel.target
+        } else {
+          type = 'external'
+          target = rel.target
+          url = rel.target
+        }
+      } else if (action) {
+        if (action.startsWith('ppaction://hlinkshowjump?s=')) {
+          type = 'navigation'
+          target = action.split('s=').pop()
+        } else if (action.includes('hlinksldjump')) {
+          type = 'slide'
+          target = action
+        } else {
+          type = 'action'
+          target = action
+        }
+      }
+
+      // Determine enclosing element context
+      let text = null
+      let shapeName = null
+      let elementType = 'unknown'
+
+      // Check if inside text run <a:r>
+      const beforeStr = slideXml.substring(Math.max(0, matchPos - 500), matchPos)
+      const rStart = beforeStr.lastIndexOf('<a:r>')
+      const rEndTag = beforeStr.lastIndexOf('</a:r>')
+
+      if (rStart !== -1 && rStart > rEndTag) {
+        elementType = 'text'
+        const afterStr = slideXml.substring(matchPos, Math.min(slideXml.length, matchPos + 500))
+        const rEnd = afterStr.indexOf('</a:r>')
+        if (rEnd !== -1) {
+          const runBlock = beforeStr.substring(rStart) + afterStr.substring(0, rEnd + 6)
+          const tMatch = /<a:t>([^<]*)<\/a:t>/.exec(runBlock)
+          if (tMatch) {
+            text = tMatch[1]
+          }
+        }
+      } else {
+        // Check if inside shape <p:sp> or picture <p:pic>
+        const shapeBefore = slideXml.substring(Math.max(0, matchPos - 2000), matchPos)
+        const allNameMatches = [...shapeBefore.matchAll(/<p:cNvPr[^>]*\bname="([^"]+)"/g)]
+        if (allNameMatches.length > 0) {
+          shapeName = allNameMatches[allNameMatches.length - 1][1]
+          elementType =
+            shapeBefore.includes('<p:pic') &&
+            shapeBefore.lastIndexOf('<p:pic') > shapeBefore.lastIndexOf('<p:sp')
+              ? 'image'
+              : 'shape'
+        }
+      }
+
+      results.push({
+        type,
+        target,
+        url: url || undefined,
+        targetSlide,
+        action: action || undefined,
+        tooltip: tooltip || undefined,
+        text: text || undefined,
+        shapeName: shapeName || undefined,
+        rId: rId || undefined,
+        elementType,
+      })
+    }
+
+    // Also include any standalone hyperlink relationships from .rels
+    for (const rel of rels) {
+      if (
+        (rel.type === REL_TYPES.HYPERLINK || rel.targetMode === 'External') &&
+        !seenRIds.has(rel.id)
+      ) {
+        results.push({
+          type: 'external',
+          target: rel.target,
+          url: rel.target,
+          rId: rel.id,
+          elementType: 'relationship',
+        })
+      }
+    }
+
+    return results
+  }
+
+  /**
+   * Removes a hyperlink from text or a shape in a slide.
    *
    * @param {number} slideIndex
-   * @param {string} text - Text with hyperlink to remove.
+   * @param {string|Object} textOrOptions - Text string or options with { text, shapeName }.
    * @param {SlideManager} slideManager
    * @param {RelationshipManager} relationshipManager
    */
-  removeHyperlink(slideIndex, text, slideManager, relationshipManager) {
+  removeHyperlink(slideIndex, textOrOptions, slideManager, relationshipManager) {
     const slideXml = slideManager.getSlideXml(slideIndex)
     const slideInfo = slideManager.getSlideInfo(slideIndex)
 
-    // Find the rId for this hyperlink
-    const hlinkPattern = new RegExp(
-      `<a:hlinkClick[^>]*r:id="(rId\\d+)"[^/]*/>[\\s\\S]*?<a:t>${this.#escapeRegex(text)}</a:t>`
-    )
-    const match = hlinkPattern.exec(slideXml)
+    const text = typeof textOrOptions === 'string' ? textOrOptions : textOrOptions?.text || ''
+    const shapeName = typeof textOrOptions === 'object' ? textOrOptions?.shapeName : null
 
-    if (match) {
-      const rId = match[1]
-      // Remove the hlinkClick attribute from the rPr
-      const updatedXml = slideXml.replace(
-        new RegExp(`<a:hlinkClick[^>]*r:id="${rId}"[^/]*/>`, 'g'),
-        ''
+    if (text) {
+      const hlinkPattern = new RegExp(
+        `<a:hlinkClick[^>]*r:id="(rId\\d+)"[^/]*/>[\\s\\S]*?<a:t>${this.#escapeRegex(text)}</a:t>`
       )
-      slideManager.setSlideXml(slideIndex, updatedXml)
-      relationshipManager.removeRelationship(slideInfo.zipPath, rId)
+      const match = hlinkPattern.exec(slideXml)
+
+      if (match) {
+        const rId = match[1]
+        const updatedXml = slideXml.replace(
+          new RegExp(`<a:hlinkClick[^>]*r:id="${rId}"[^/]*/>`, 'g'),
+          ''
+        )
+        slideManager.setSlideXml(slideIndex, updatedXml)
+        relationshipManager.removeRelationship(slideInfo.zipPath, rId)
+      }
+    } else if (shapeName) {
+      const namePattern = new RegExp(`name="${this.#escapeRegex(shapeName)}"`)
+      const nameMatch = namePattern.exec(slideXml)
+      if (nameMatch) {
+        const spStart = slideXml.lastIndexOf('<p:sp>', nameMatch.index)
+        const spEnd = slideXml.indexOf('</p:sp>', nameMatch.index)
+        if (spStart !== -1 && spEnd !== -1) {
+          const spXml = slideXml.substring(spStart, spEnd + '</p:sp>'.length)
+          const rIdMatch = /r:id="(rId\d+)"/.exec(spXml)
+          const updatedSpXml = spXml.replace(/<a:hlinkClick[^>]*\/>/g, '')
+          const updatedXml =
+            slideXml.substring(0, spStart) + updatedSpXml + slideXml.substring(spEnd + '</p:sp>'.length)
+          slideManager.setSlideXml(slideIndex, updatedXml)
+          if (rIdMatch) {
+            relationshipManager.removeRelationship(slideInfo.zipPath, rIdMatch[1])
+          }
+        }
+      }
     }
   }
 
@@ -252,9 +422,66 @@ class HyperlinkManager {
    */
   #injectHyperlinkOnText(slideXml, text, rId, tooltip, actionAttr = '') {
     const escapedText = this.#escapeXml(text)
-    const textPattern = new RegExp(`(<a:t>)(${this.#escapeRegex(escapedText)})(<\/a:t>)`, 'g')
+    const exactPattern = new RegExp(`(<a:t>)(${this.#escapeRegex(escapedText)})(<\/a:t>)`, 'g')
 
-    if (!textPattern.test(slideXml)) {
+    if (!exactPattern.test(slideXml)) {
+      // Check if text is a substring of an <a:t> node and split the containing run
+      const subPattern = new RegExp(
+        `(<a:t[^>]*>)([^<]*?)(${this.#escapeRegex(escapedText)})([^<]*?)(<\/a:t>)`
+      )
+      const subMatch = subPattern.exec(slideXml)
+
+      if (subMatch) {
+        const beforeText = subMatch[2]
+        const matchedText = subMatch[3]
+        const afterText = subMatch[4]
+
+        // Find enclosing <a:r>
+        const tIndex = subMatch.index
+        const rStart = slideXml.lastIndexOf('<a:r>', tIndex)
+        const rEnd = slideXml.indexOf('</a:r>', tIndex)
+
+        if (rStart !== -1 && rEnd !== -1) {
+          const runXml = slideXml.substring(rStart, rEnd + '</a:r>'.length)
+          let rPrXml = ''
+          const rPrMatch = /<a:rPr[^>]*>[\s\S]*?<\/a:rPr>|<a:rPr[^>]*\/>/.exec(runXml)
+          if (rPrMatch) {
+            rPrXml = rPrMatch[0]
+          }
+
+          const tipAttr = tooltip ? ` tooltip="${this.#escapeXml(tooltip)}"` : ''
+          const actAttr = actionAttr ? ` ${actionAttr}` : ''
+          const rIdAttr = rId ? ` r:id="${rId}"` : ''
+          const hlinkXml = `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"${rIdAttr}${tipAttr}${actAttr}/>`
+
+          let linkedRPrXml = ''
+          if (rPrXml) {
+            if (rPrXml.endsWith('/>')) {
+              linkedRPrXml = rPrXml.slice(0, -2) + `>${hlinkXml}</a:rPr>`
+            } else {
+              linkedRPrXml = rPrXml.replace('</a:rPr>', `${hlinkXml}</a:rPr>`)
+            }
+          } else {
+            linkedRPrXml = `<a:rPr lang="en-US" dirty="0">${hlinkXml}</a:rPr>`
+          }
+
+          let replacementRuns = ''
+          if (beforeText) {
+            replacementRuns += `<a:r>${rPrXml}<a:t xml:space="preserve">${beforeText}</a:t></a:r>`
+          }
+          replacementRuns += `<a:r>${linkedRPrXml}<a:t>${matchedText}</a:t></a:r>`
+          if (afterText) {
+            replacementRuns += `<a:r>${rPrXml}<a:t xml:space="preserve">${afterText}</a:t></a:r>`
+          }
+
+          return (
+            slideXml.substring(0, rStart) +
+            replacementRuns +
+            slideXml.substring(rEnd + '</a:r>'.length)
+          )
+        }
+      }
+
       logger.warn(`Text "${text}" not found in slide XML`)
       return slideXml
     }

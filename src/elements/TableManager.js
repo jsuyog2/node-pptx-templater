@@ -37,6 +37,8 @@
 
 const { createLogger } = require('../utils/logger.js')
 const { TableNotFoundError, PPTXError } = require('../utils/errors.js')
+const { toEmu } = require('../spatial/units.js')
+const { Z_ORDER_SYMBOL } = require('../parsers/XMLParser.js')
 
 const logger = createLogger('TableManager')
 
@@ -701,6 +703,68 @@ class TableManager {
       }
     }
 
+    if (
+      options.bold !== undefined ||
+      options.italic !== undefined ||
+      options.color ||
+      options.fontFamily
+    ) {
+      const txBody = cell['a:txBody']
+      if (txBody && txBody['a:p']) {
+        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+        for (const p of paras) {
+          if (p['a:r']) {
+            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+            for (const r of runs) {
+              if (!r['a:rPr']) r['a:rPr'] = {}
+              if (options.bold !== undefined) r['a:rPr']['@_b'] = options.bold ? '1' : '0'
+              if (options.italic !== undefined) r['a:rPr']['@_i'] = options.italic ? '1' : '0'
+              if (options.color) {
+                const hex = options.color.replace('#', '').toUpperCase()
+                r['a:rPr']['a:solidFill'] = { 'a:srgbClr': { '@_val': hex } }
+              }
+              if (options.fontFamily) {
+                r['a:rPr']['a:latin'] = { '@_typeface': options.fontFamily }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (options.border) {
+      if (!cell['a:tcPr']) cell['a:tcPr'] = {}
+      const applyBorderSide = (sideKey, lnTag) => {
+        const side =
+          typeof options.border === 'object' && options.border[sideKey] !== undefined
+            ? options.border[sideKey]
+            : options.border
+        if (side === false || side === null) {
+          cell['a:tcPr'][lnTag] = { 'a:noFill': {} }
+          return
+        }
+        if (!side) return
+        const bColor = (side.color || options.border.color || '000000')
+          .replace('#', '')
+          .toUpperCase()
+        const bWidth =
+          side.width !== undefined
+            ? Math.round(side.width * 12700)
+            : options.border.width !== undefined
+              ? Math.round(options.border.width * 12700)
+              : 12700
+        cell['a:tcPr'][lnTag] = {
+          '@_w': String(bWidth),
+          '@_cmpd': 'sng',
+          'a:solidFill': { 'a:srgbClr': { '@_val': bColor } },
+        }
+      }
+      applyBorderSide('left', 'a:lnL')
+      applyBorderSide('right', 'a:lnR')
+      applyBorderSide('top', 'a:lnT')
+      applyBorderSide('bottom', 'a:lnB')
+    }
+
     slideManager.markSlideObjDirty(slideIndex)
 
     this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
@@ -709,6 +773,486 @@ class TableManager {
     if (shapeManager) {
       this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
     }
+  }
+
+  /**
+   * Adds a new table to a slide.
+   *
+   * @param {number} slideIndex - 1-based slide index.
+   * @param {Object} options - Table configuration.
+   * @param {string} [options.id] - Table identifier or name.
+   * @param {string} [options.name] - Alternative table name.
+   * @param {number} [options.x=50] - Horizontal position.
+   * @param {number} [options.y=50] - Vertical position.
+   * @param {number} [options.width=500] - Total table width.
+   * @param {number} [options.height] - Total table height.
+   * @param {number} [options.rows] - Number of rows.
+   * @param {number} [options.columns] - Number of columns.
+   * @param {Array<Array<string|Object>>} [options.data] - 2D array of rows and cells.
+   * @param {number[]} [options.colWidths] - Array of column widths.
+   * @param {number[]} [options.rowHeights] - Array of row heights.
+   * @param {boolean} [options.header=true] - Whether row 0 has header formatting.
+   * @param {boolean} [options.firstRow=true] - Format first row via DrawingML table properties.
+   * @param {boolean} [options.bandRow=true] - Alternate row banding via DrawingML table properties.
+   * @param {string} [options.styleId] - DrawingML table style GUID.
+   * @param {SlideManager} slideManager - SlideManager instance.
+   * @returns {string} The ID/name of the created table.
+   */
+  addTable(slideIndex, options = {}, slideManager) {
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+
+    if (!spTree) {
+      throw new PPTXError(`Invalid slide structure for slide ${slideIndex}`)
+    }
+
+    const existingIds = this.#getAllShapeIds(spTree)
+    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 1000
+    const newId = maxId + 1
+
+    const name = options.id || options.name || `Table ${newId}`
+
+    const rawData = Array.isArray(options.data) ? options.data : null
+    let numRows = options.rows !== undefined ? parseInt(options.rows, 10) : (rawData ? rawData.length : 2)
+    if (rawData && rawData.length > numRows) numRows = rawData.length
+    if (numRows < 1) numRows = 1
+
+    let numCols = options.columns || options.cols
+    if (numCols !== undefined) {
+      numCols = parseInt(numCols, 10)
+    } else if (rawData && rawData.length > 0) {
+      numCols = Math.max(...rawData.map(r => (Array.isArray(r) ? r.length : 1)))
+    } else {
+      numCols = 2
+    }
+    if (numCols < 1) numCols = 1
+
+    const xEmu = toEmu(options.x !== undefined ? options.x : 50)
+    const yEmu = toEmu(options.y !== undefined ? options.y : 50)
+
+    let colWidthsEmu = []
+    if (Array.isArray(options.colWidths) && options.colWidths.length > 0) {
+      colWidthsEmu = options.colWidths.map(w => toEmu(w))
+      while (colWidthsEmu.length < numCols) {
+        colWidthsEmu.push(colWidthsEmu[colWidthsEmu.length - 1] || 1905000)
+      }
+    } else {
+      const totalWidthEmu = toEmu(
+        options.width !== undefined ? options.width : (options.w !== undefined ? options.w : 500)
+      )
+      const colW = Math.round(totalWidthEmu / numCols)
+      colWidthsEmu = Array(numCols).fill(colW)
+    }
+    const totalW = colWidthsEmu.reduce((sum, w) => sum + w, 0)
+
+    let rowHeightsEmu = []
+    if (Array.isArray(options.rowHeights) && options.rowHeights.length > 0) {
+      rowHeightsEmu = options.rowHeights.map(h => toEmu(h))
+      while (rowHeightsEmu.length < numRows) {
+        rowHeightsEmu.push(rowHeightsEmu[rowHeightsEmu.length - 1] || 370840)
+      }
+    } else if (options.height !== undefined || options.h !== undefined) {
+      const totalHeightEmu = toEmu(options.height !== undefined ? options.height : options.h)
+      const rowH = Math.round(totalHeightEmu / numRows)
+      rowHeightsEmu = Array(numRows).fill(rowH)
+    } else {
+      rowHeightsEmu = Array(numRows).fill(370840)
+    }
+    const totalH = rowHeightsEmu.reduce((sum, h) => sum + h, 0)
+
+    const isHeaderRow =
+      options.firstRow !== undefined ? !!options.firstRow : (options.header !== false)
+    const isBandRow = options.bandRow !== undefined ? !!options.bandRow : true
+    const styleId = options.styleId || '{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}'
+
+    // Build grid cols XML
+    const gridColsXml = colWidthsEmu.map(w => `<a:gridCol w="${w}"/>`).join('')
+
+    // Build rows and cells XML
+    let rowsXml = ''
+    for (let r = 0; r < numRows; r++) {
+      const rH = rowHeightsEmu[r] || 370840
+      const isHeader = r === 0 && isHeaderRow
+      let cellsXml = ''
+
+      for (let c = 0; c < numCols; c++) {
+        let cellVal = ''
+        if (rawData && rawData[r] && rawData[r][c] !== undefined) {
+          cellVal = rawData[r][c]
+        }
+
+        let text = ''
+        let cellFillXml = ''
+        let bordersXml = ''
+        let algnAttr = ''
+        let boldAttr = isHeader ? ' b="1"' : ''
+        let italicAttr = ''
+        let szAttr = isHeader ? ' sz="1200"' : ' sz="1100"'
+        let clrXml = ''
+        let fontXml = ''
+
+        if (cellVal && typeof cellVal === 'object') {
+          text = cellVal.value !== undefined ? String(cellVal.value) : ''
+          if (cellVal.bold !== undefined) boldAttr = cellVal.bold ? ' b="1"' : ' b="0"'
+          if (cellVal.italic !== undefined) italicAttr = cellVal.italic ? ' i="1"' : ' i="0"'
+          if (cellVal.fontSize) szAttr = ` sz="${cellVal.fontSize * 100}"`
+          if (cellVal.align) algnAttr = ` algn="${cellVal.align}"`
+          if (cellVal.fill) {
+            cellFillXml = `<a:solidFill><a:srgbClr val="${String(cellVal.fill).replace('#', '').toUpperCase()}"/></a:solidFill>`
+          }
+          if (cellVal.color) {
+            clrXml = `<a:solidFill><a:srgbClr val="${String(cellVal.color).replace('#', '').toUpperCase()}"/></a:solidFill>`
+          }
+          if (cellVal.fontFamily) {
+            fontXml = `<a:latin typeface="${escapeXml(cellVal.fontFamily)}"/>`
+          }
+          if (cellVal.border) {
+            const sides = [
+              { key: 'left', tag: 'a:lnL' },
+              { key: 'right', tag: 'a:lnR' },
+              { key: 'top', tag: 'a:lnT' },
+              { key: 'bottom', tag: 'a:lnB' },
+            ]
+            for (const { key, tag } of sides) {
+              const bSide =
+                typeof cellVal.border === 'object' && cellVal.border[key] !== undefined
+                  ? cellVal.border[key]
+                  : cellVal.border
+              if (bSide === false || bSide === null) {
+                bordersXml += `<${tag}><a:noFill/></${tag}>`
+              } else if (bSide) {
+                const bCol = (bSide.color || cellVal.border.color || '000000')
+                  .replace('#', '')
+                  .toUpperCase()
+                const bW = Math.round(
+                  (bSide.width !== undefined ? bSide.width : (cellVal.border.width || 1)) * 12700
+                )
+                bordersXml += `<${tag} w="${bW}" cmpd="sng"><a:solidFill><a:srgbClr val="${bCol}"/></a:solidFill></${tag}>`
+              }
+            }
+          }
+        } else if (cellVal !== undefined && cellVal !== null) {
+          text = String(cellVal)
+        }
+
+        const pPr = algnAttr ? `<a:pPr${algnAttr}/>` : ''
+        const rPr = `<a:rPr lang="en-US"${szAttr}${boldAttr}${italicAttr}>${clrXml}${fontXml}</a:rPr>`
+        const contentXml =
+          text !== ''
+            ? `<a:r>${rPr}<a:t>${escapeXml(text)}</a:t></a:r>`
+            : `<a:endParaRPr lang="en-US"${szAttr}${boldAttr}/>`
+
+        cellsXml += `<a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p>${pPr}${contentXml}</a:p></a:txBody><a:tcPr>${cellFillXml}${bordersXml}</a:tcPr></a:tc>`
+      }
+
+      rowsXml += `<a:tr h="${rH}">${cellsXml}</a:tr>`
+    }
+
+    const frameXml = `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${newId}" name="${escapeXml(name)}"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="${xEmu}" y="${yEmu}"/><a:ext cx="${totalW}" cy="${totalH}"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="${isHeaderRow ? '1' : '0'}" bandRow="${isBandRow ? '1' : '0'}"><a:tableStyleId>${styleId}</a:tableStyleId></a:tblPr><a:tblGrid>${gridColsXml}</a:tblGrid>${rowsXml}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`
+
+    const parsed = this.#xmlParser.parse(frameXml, 'frame.xml')['p:graphicFrame']
+    const frameObj = Array.isArray(parsed) ? parsed[0] : parsed
+
+    if (!spTree['p:graphicFrame']) {
+      spTree['p:graphicFrame'] = []
+    } else if (!Array.isArray(spTree['p:graphicFrame'])) {
+      spTree['p:graphicFrame'] = [spTree['p:graphicFrame']]
+    }
+    spTree['p:graphicFrame'].push(frameObj)
+
+    if (spTree[Z_ORDER_SYMBOL] && !spTree[Z_ORDER_SYMBOL].includes(String(newId))) {
+      spTree[Z_ORDER_SYMBOL].push(String(newId))
+    }
+
+    slideManager.markSlideObjDirty(slideIndex)
+    logger.debug(`Added table "${name}" with ID ${newId} to slide ${slideIndex}`)
+    return name
+  }
+
+  /**
+   * Adds or appends a column to a table.
+   *
+   * @param {number} slideIndex - 1-based slide index.
+   * @param {string} tableId - Table name or ID.
+   * @param {number|Array} colIndexOrData - Column index (0-based) or cell data array.
+   * @param {Array|Object} [colDataOrOptions] - Cell data array or options.
+   * @param {Object} [options={}] - Options if 3rd arg is colIndex.
+   * @param {SlideManager} slideManager
+   * @param {ShapeManager} [shapeManager=null]
+   */
+  addColumn(
+    slideIndex,
+    tableId,
+    colIndexOrData,
+    colDataOrOptions = [],
+    options = {},
+    slideManager,
+    shapeManager = null
+  ) {
+    let colIndex = -1
+    let colData = []
+    let opts = {}
+
+    if (typeof colIndexOrData === 'number') {
+      colIndex = colIndexOrData
+      colData = Array.isArray(colDataOrOptions) ? colDataOrOptions : []
+      opts = typeof options === 'object' && options !== null ? options : {}
+    } else if (Array.isArray(colIndexOrData)) {
+      colData = colIndexOrData
+      opts =
+        typeof colDataOrOptions === 'object' && colDataOrOptions !== null ? colDataOrOptions : {}
+    } else if (typeof colIndexOrData === 'object' && colIndexOrData !== null) {
+      opts = colIndexOrData
+      colData = opts.data || []
+      colIndex = opts.index !== undefined ? opts.index : -1
+    }
+
+    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
+
+    const grid = tblObj['a:tblGrid'] || {}
+    let gridCols = grid['a:gridCol'] || []
+    if (!Array.isArray(gridCols)) gridCols = [gridCols]
+
+    const numCols = gridCols.length
+    const targetIndex = colIndex < 0 || colIndex > numCols ? numCols : colIndex
+
+    // Determine new column width
+    let colWidthEmu = 0
+    if (opts.width !== undefined) {
+      colWidthEmu = toEmu(opts.width)
+    } else if (numCols > 0) {
+      const totalGridW = gridCols.reduce((sum, c) => sum + parseInt(c['@_w'] || 0, 10), 0)
+      colWidthEmu = Math.round(totalGridW / numCols)
+    } else {
+      colWidthEmu = 1905000 // 2 inches default
+    }
+
+    // Insert gridCol
+    const newGridCol = { '@_w': String(colWidthEmu) }
+    gridCols.splice(targetIndex, 0, newGridCol)
+    tblObj['a:tblGrid']['a:gridCol'] = gridCols
+
+    // Adjust frame width
+    const xfrm = frameObj?.['p:xfrm']
+    if (xfrm && xfrm['a:ext']) {
+      const currentCx = parseInt(xfrm['a:ext']['@_cx'] || 0, 10)
+      xfrm['a:ext']['@_cx'] = String(currentCx + colWidthEmu)
+    }
+
+    // Insert cells in each row
+    const trs = tblObj['a:tr'] || []
+    for (let r = 0; r < trs.length; r++) {
+      const row = trs[r]
+      let tcs = row['a:tc'] || []
+      if (!Array.isArray(tcs)) tcs = [tcs]
+
+      const templateCell = tcs[targetIndex > 0 ? targetIndex - 1 : 0]
+      const newCell = templateCell
+        ? this.#xmlParser.deepClone(templateCell)
+        : {
+            'a:txBody': {
+              'a:bodyPr': '',
+              'a:lstStyle': '',
+              'a:p': { 'a:r': { 'a:t': '' } },
+            },
+            'a:tcPr': {},
+          }
+
+      // Clear previous merges
+      if (newCell['@_hMerge']) delete newCell['@_hMerge']
+      if (newCell['@_vMerge']) delete newCell['@_vMerge']
+      if (newCell['@_gridSpan']) delete newCell['@_gridSpan']
+      if (newCell['@_rowSpan']) delete newCell['@_rowSpan']
+
+      const val = colData[r] !== undefined ? colData[r] : ''
+      let text = ''
+      let cellOpts = {}
+
+      if (val && typeof val === 'object') {
+        text = val.value !== undefined ? String(val.value) : ''
+        cellOpts = val
+      } else {
+        text = String(val)
+      }
+
+      this.#setCellTextObj(newCell, text)
+      this.#applyCellOptions(newCell, cellOpts)
+
+      tcs.splice(targetIndex, 0, newCell)
+      row['a:tc'] = tcs
+    }
+
+    // Shift cellshape anchors
+    for (const [, anchor] of this.#cellShapeAnchors.entries()) {
+      if (
+        anchor.slideIndex === slideIndex &&
+        (anchor.resolvedTableId === resolvedTableId || anchor.tableId === tableId) &&
+        anchor.colIndex >= targetIndex
+      ) {
+        anchor.colIndex += 1
+      }
+    }
+
+    slideManager.markSlideObjDirty(slideIndex)
+    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
+
+    if (shapeManager) {
+      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
+    }
+
+    logger.debug(
+      `Added column at index ${targetIndex} to table "${tableId}" in slide ${slideIndex}`
+    )
+  }
+
+  /**
+   * Deletes a column from a table by 0-based index.
+   *
+   * @param {number} slideIndex - 1-based slide index.
+   * @param {string} tableId - Table name or ID.
+   * @param {number} colIndex - 0-based column index.
+   * @param {SlideManager} slideManager
+   * @param {ShapeManager} [shapeManager=null]
+   */
+  deleteColumn(slideIndex, tableId, colIndex, slideManager, shapeManager = null) {
+    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
+
+    const grid = tblObj['a:tblGrid'] || {}
+    let gridCols = grid['a:gridCol'] || []
+    if (!Array.isArray(gridCols)) gridCols = [gridCols]
+
+    if (colIndex < 0 || colIndex >= gridCols.length) {
+      throw new PPTXError(
+        `Column index ${colIndex} out of bounds (table has ${gridCols.length} columns)`
+      )
+    }
+
+    if (gridCols.length <= 1) {
+      throw new PPTXError('Cannot delete the only column in the table')
+    }
+
+    const removedColWidth = parseInt(gridCols[colIndex]['@_w'] || 0, 10)
+    gridCols.splice(colIndex, 1)
+    tblObj['a:tblGrid']['a:gridCol'] = gridCols
+
+    // Adjust frame width
+    const xfrm = frameObj?.['p:xfrm']
+    if (xfrm && xfrm['a:ext']) {
+      const currentCx = parseInt(xfrm['a:ext']['@_cx'] || 0, 10)
+      xfrm['a:ext']['@_cx'] = String(Math.max(0, currentCx - removedColWidth))
+    }
+
+    // Remove cell from each row
+    const trs = tblObj['a:tr'] || []
+    for (let r = 0; r < trs.length; r++) {
+      const row = trs[r]
+      let tcs = row['a:tc'] || []
+      if (!Array.isArray(tcs)) tcs = [tcs]
+
+      if (colIndex < tcs.length) {
+        tcs.splice(colIndex, 1)
+      }
+      row['a:tc'] = tcs
+    }
+
+    // Shift or delete cellshape anchors
+    for (const [key, anchor] of this.#cellShapeAnchors.entries()) {
+      if (
+        anchor.slideIndex === slideIndex &&
+        (anchor.resolvedTableId === resolvedTableId || anchor.tableId === tableId)
+      ) {
+        if (anchor.colIndex === colIndex) {
+          if (shapeManager) {
+            this.removeCellShape(
+              slideIndex,
+              tableId,
+              anchor.rowIndex,
+              anchor.colIndex,
+              slideManager,
+              shapeManager
+            )
+          }
+          this.#cellShapeAnchors.delete(key)
+        } else if (anchor.colIndex > colIndex) {
+          anchor.colIndex -= 1
+        }
+      }
+    }
+
+    slideManager.markSlideObjDirty(slideIndex)
+    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
+    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
+
+    if (shapeManager) {
+      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
+    }
+
+    logger.debug(`Deleted column ${colIndex} from table "${tableId}" in slide ${slideIndex}`)
+  }
+
+  /**
+   * Applies alternating row striping to a table.
+   *
+   * @param {number} slideIndex - 1-based slide index.
+   * @param {string} tableId - Table name or ID.
+   * @param {Object} [options={}] - Striping options.
+   * @param {string} [options.evenFill='F2F2F2'] - Background color for even rows.
+   * @param {string} [options.oddFill] - Background color for odd rows.
+   * @param {string} [options.headerFill] - Background color for row 0.
+   * @param {number} [options.startRow=1] - 0-based starting row for striping.
+   * @param {boolean} [options.bandRow] - Enable DrawingML bandRow table property.
+   * @param {SlideManager} slideManager
+   */
+  stripeRows(slideIndex, tableId, options = {}, slideManager) {
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+
+    const evenFill = (options.evenFill || 'F2F2F2').replace('#', '').toUpperCase()
+    const oddFill = options.oddFill ? options.oddFill.replace('#', '').toUpperCase() : null
+    const headerFill = options.headerFill ? options.headerFill.replace('#', '').toUpperCase() : null
+    const startRow = options.startRow !== undefined ? options.startRow : 1
+
+    const trs = tblObj['a:tr'] || []
+    for (let r = 0; r < trs.length; r++) {
+      const row = trs[r]
+      const tcs = row['a:tc'] || []
+      let fill = null
+
+      if (r === 0 && headerFill) {
+        fill = headerFill
+      } else if (r >= startRow) {
+        const isEven = (r - startRow) % 2 === 0
+        fill = isEven ? evenFill : oddFill
+      }
+
+      if (fill) {
+        for (const cell of tcs) {
+          if (!cell['a:tcPr']) cell['a:tcPr'] = {}
+          cell['a:tcPr']['a:solidFill'] = {
+            'a:srgbClr': { '@_val': fill },
+          }
+        }
+      }
+    }
+
+    if (options.bandRow !== undefined) {
+      if (!tblObj['a:tblPr']) tblObj['a:tblPr'] = {}
+      tblObj['a:tblPr']['@_bandRow'] = options.bandRow ? '1' : '0'
+    }
+
+    slideManager.markSlideObjDirty(slideIndex)
+    logger.debug(`Applied row striping to table "${tableId}" in slide ${slideIndex}`)
   }
 
   /**
@@ -1798,6 +2342,42 @@ class TableManager {
     txBody['a:p'] = newParas
   }
 
+  #getAllShapeIds(container) {
+    const ids = []
+    if (!container) return ids
+
+    let shapes = container['p:sp'] || []
+    if (!Array.isArray(shapes)) shapes = [shapes]
+    for (const s of shapes) {
+      const id = parseInt(s?.['p:nvSpPr']?.['p:cNvPr']?.['@_id'], 10)
+      if (!isNaN(id)) ids.push(id)
+    }
+
+    let pics = container['p:pic'] || []
+    if (!Array.isArray(pics)) pics = [pics]
+    for (const p of pics) {
+      const id = parseInt(p?.['p:nvPicPr']?.['p:cNvPr']?.['@_id'], 10)
+      if (!isNaN(id)) ids.push(id)
+    }
+
+    let frames = container['p:graphicFrame'] || []
+    if (!Array.isArray(frames)) frames = [frames]
+    for (const f of frames) {
+      const id = parseInt(f?.['p:nvGraphicFramePr']?.['p:cNvPr']?.['@_id'], 10)
+      if (!isNaN(id)) ids.push(id)
+    }
+
+    let groups = container['p:grpSp'] || []
+    if (!Array.isArray(groups)) groups = [groups]
+    for (const g of groups) {
+      const id = parseInt(g?.['p:nvGrpSpPr']?.['p:cNvPr']?.['@_id'], 10)
+      if (!isNaN(id)) ids.push(id)
+      ids.push(...this.#getAllShapeIds(g))
+    }
+
+    return ids
+  }
+
   /**
    * Helper to find a table element inside a slide parsed object.
    */
@@ -1848,8 +2428,9 @@ class TableManager {
   #applyCellOptions(cellObj, cellOptions) {
     if (cellOptions.fill) {
       if (!cellObj['a:tcPr']) cellObj['a:tcPr'] = {}
+      const fillHex = String(cellOptions.fill).replace('#', '').toUpperCase()
       cellObj['a:tcPr']['a:solidFill'] = {
-        'a:srgbClr': { '@_val': cellOptions.fill },
+        'a:srgbClr': { '@_val': fillHex },
       }
     }
 
@@ -1879,6 +2460,68 @@ class TableManager {
           }
         }
       }
+    }
+
+    if (
+      cellOptions.bold !== undefined ||
+      cellOptions.italic !== undefined ||
+      cellOptions.color ||
+      cellOptions.fontFamily
+    ) {
+      const txBody = cellObj['a:txBody']
+      if (txBody && txBody['a:p']) {
+        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+        for (const p of paras) {
+          if (p['a:r']) {
+            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+            for (const r of runs) {
+              if (!r['a:rPr']) r['a:rPr'] = {}
+              if (cellOptions.bold !== undefined) r['a:rPr']['@_b'] = cellOptions.bold ? '1' : '0'
+              if (cellOptions.italic !== undefined) r['a:rPr']['@_i'] = cellOptions.italic ? '1' : '0'
+              if (cellOptions.color) {
+                const hex = String(cellOptions.color).replace('#', '').toUpperCase()
+                r['a:rPr']['a:solidFill'] = { 'a:srgbClr': { '@_val': hex } }
+              }
+              if (cellOptions.fontFamily) {
+                r['a:rPr']['a:latin'] = { '@_typeface': cellOptions.fontFamily }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (cellOptions.border) {
+      if (!cellObj['a:tcPr']) cellObj['a:tcPr'] = {}
+      const applyBorderSide = (sideKey, lnTag) => {
+        const side =
+          typeof cellOptions.border === 'object' && cellOptions.border[sideKey] !== undefined
+            ? cellOptions.border[sideKey]
+            : cellOptions.border
+        if (side === false || side === null) {
+          cellObj['a:tcPr'][lnTag] = { 'a:noFill': {} }
+          return
+        }
+        if (!side) return
+        const bColor = (side.color || cellOptions.border.color || '000000')
+          .replace('#', '')
+          .toUpperCase()
+        const bWidth =
+          side.width !== undefined
+            ? Math.round(side.width * 12700)
+            : cellOptions.border.width !== undefined
+              ? Math.round(cellOptions.border.width * 12700)
+              : 12700
+        cellObj['a:tcPr'][lnTag] = {
+          '@_w': String(bWidth),
+          '@_cmpd': 'sng',
+          'a:solidFill': { 'a:srgbClr': { '@_val': bColor } },
+        }
+      }
+      applyBorderSide('left', 'a:lnL')
+      applyBorderSide('right', 'a:lnR')
+      applyBorderSide('top', 'a:lnT')
+      applyBorderSide('bottom', 'a:lnB')
     }
   }
 
@@ -3387,6 +4030,15 @@ class TableManager {
   #generateRandomUint32() {
     return Math.floor(Math.random() * 4294967296)
   }
+}
+
+function escapeXml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 module.exports = { TableManager }

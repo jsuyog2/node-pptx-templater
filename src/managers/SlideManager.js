@@ -186,6 +186,9 @@ class SlideManager {
         slideRel.target
       )
 
+      const slideRelsForZip = this.#relationshipManager.getRelationships(zipPath)
+      const layoutRel = slideRelsForZip.find(r => r.type === REL_TYPES.SLIDE_LAYOUT)
+
       const slideInfo = {
         index: slideIndex,
         zipPath,
@@ -193,6 +196,7 @@ class SlideManager {
         slideId: rIdToSlideId.get(rId) || String(256 + slideIndex),
         tags: [],
         title: slideTitles[slideIndex - 1] || '',
+        layout: layoutRel ? layoutRel.target : null,
       }
 
       this.#slides.set(slideIndex, slideInfo)
@@ -231,6 +235,118 @@ class SlideManager {
       };
     }
     return { width: 9144000, height: 5143500 };
+  }
+
+  /**
+   * Sets slide dimensions and/or aspect ratio in presentation.xml.
+   *
+   * @param {Object|string|number} options - Dimensions object { width, height, aspectRatio }, ratio string ('16:9', '16:10', '4:3'), or width.
+   * @param {number|string} [height] - Height if width was passed first.
+   * @returns {{width: number, height: number}} New dimensions in EMUs.
+   */
+  setSlideSize(options, height) {
+    if (!this.#presentationObj) {
+      throw new PPTXError('Cannot set slide size: presentation XML not loaded')
+    }
+
+    const { toEmu } = require('../spatial/units.js')
+    let wEmu = 9144000
+    let hEmu = 5143500
+    let typeAttr = undefined
+
+    if (typeof options === 'string' && height === undefined) {
+      const opt = options.trim().toLowerCase()
+      if (opt === '16:9' || opt === '16x9') {
+        wEmu = 9144000
+        hEmu = 5143500
+        typeAttr = 'screen16x9'
+      } else if (opt === '16:10' || opt === '16x10') {
+        wEmu = 9144000
+        hEmu = 5715000
+        typeAttr = 'screen16x10'
+      } else if (opt === '4:3' || opt === '4x3') {
+        wEmu = 9144000
+        hEmu = 6858000
+        typeAttr = 'screen4x3'
+      } else {
+        throw new PPTXError(
+          `Unsupported aspect ratio "${options}". Supported: '16:9', '16:10', '4:3'.`
+        )
+      }
+    } else if (typeof options === 'object' && options !== null) {
+      if (options.aspectRatio) {
+        const ar = String(options.aspectRatio).trim().toLowerCase()
+        if (ar === '16:9' || ar === '16x9') {
+          wEmu = 9144000
+          hEmu = 5143500
+          typeAttr = 'screen16x9'
+        } else if (ar === '16:10' || ar === '16x10') {
+          wEmu = 9144000
+          hEmu = 5715000
+          typeAttr = 'screen16x10'
+        } else if (ar === '4:3' || ar === '4x3') {
+          wEmu = 9144000
+          hEmu = 6858000
+          typeAttr = 'screen4x3'
+        }
+      }
+      if (options.width !== undefined) wEmu = toEmu(options.width)
+      if (options.height !== undefined) hEmu = toEmu(options.height)
+      if (options.type) typeAttr = options.type
+    } else if (options !== undefined && height !== undefined) {
+      wEmu = toEmu(options)
+      hEmu = toEmu(height)
+    }
+
+    let pres = this.#presentationObj['p:presentation']
+    if (!pres) {
+      this.#presentationObj['p:presentation'] = {}
+      pres = this.#presentationObj['p:presentation']
+    }
+
+    if (!pres['p:sldSz']) {
+      pres['p:sldSz'] = {}
+    }
+
+    pres['p:sldSz']['@_cx'] = String(Math.round(wEmu))
+    pres['p:sldSz']['@_cy'] = String(Math.round(hEmu))
+    if (typeAttr) {
+      pres['p:sldSz']['@_type'] = typeAttr
+    }
+
+    this.#flushPresentation()
+    return { width: Math.round(wEmu), height: Math.round(hEmu) }
+  }
+
+  /**
+   * Retrieves the slide dimensions (alias for getSlideSize).
+   * @returns {{width: number, height: number}}
+   */
+  getSlideDimensions() {
+    return this.getSlideSize()
+  }
+
+  /**
+   * Sets slide dimensions (alias for setSlideSize).
+   * @param {Object|string|number} options
+   * @param {number|string} [height]
+   * @returns {{width: number, height: number}}
+   */
+  setSlideDimensions(options, height) {
+    return this.setSlideSize(options, height)
+  }
+
+  /**
+   * Retrieves the layout target path for a slide.
+   * @param {number} slideIndex - 1-based slide index.
+   * @returns {string|null}
+   */
+  getSlideLayout(slideIndex) {
+    this.#assertSlideExists(slideIndex)
+    const info = this.#slides.get(slideIndex)
+    const rels = this.#relationshipManager.getRelationships(info.zipPath)
+    const layoutRel = rels.find(r => r.type === REL_TYPES.SLIDE_LAYOUT)
+    return layoutRel ? layoutRel.target : null
   }
 
   get slideCount() {
@@ -445,6 +561,7 @@ class SlideManager {
       slideId: newSlideId,
       tags: [],
       title: options.title || '',
+      layout: relativeLayoutPath,
     }
 
     this.#slides.set(newIndex, slideInfo)
@@ -2391,6 +2508,113 @@ class SlideManager {
     }
 
     return null
+  }
+
+  /**
+   * Retrieves all drawable elements on a slide with metadata and bounds.
+   *
+   * @param {number} slideIndex - 1-based slide index.
+   * @param {Object} [filter] - Optional filter options: { type, name, bounds, within, intersects }.
+   * @returns {Array<{ id: string, name: string, type: string, element: Object, frame: Object|null, bounds: Object }>}
+   */
+  getSlideElements(slideIndex, filter = {}) {
+    this.getSlideObj(slideIndex)
+    const state = this.#slideStates.get(slideIndex)
+    if (!state) return []
+
+    const { getBounds, checkCollision, isContained } = require('../spatial/units.js')
+    const seen = new Set()
+    let elements = []
+
+    const addEntry = (rawElem, frameElem, type, cNvPr) => {
+      const elemToTrack = frameElem || rawElem
+      if (seen.has(elemToTrack)) return
+      seen.add(elemToTrack)
+
+      const id = cNvPr ? String(cNvPr['@_id'] || '') : ''
+      const name = cNvPr ? cNvPr['@_name'] || '' : ''
+      const bounds = getBounds(frameElem || rawElem)
+
+      let normalizedType = type
+      if (type === 'sp') {
+        const isTxBox =
+          rawElem?.['p:spPr']?.['@_txBox'] === '1' ||
+          rawElem?.['p:spPr']?.['@_txBox'] === true
+        normalizedType = isTxBox ? 'textbox' : 'shape'
+      } else if (type === 'pic') {
+        normalizedType = 'picture'
+      } else if (type === 'grpSp') {
+        normalizedType = 'group'
+      }
+
+      if (filter.type && filter.type !== '*' && filter.type !== 'all') {
+        const targetType = String(filter.type).toLowerCase()
+        if (targetType === 'image' && normalizedType === 'picture') {
+          // match image to picture
+        } else if (
+          targetType === 'shape' &&
+          (normalizedType === 'shape' || normalizedType === 'textbox')
+        ) {
+          // match shape to shape or textbox
+        } else if (normalizedType !== targetType) {
+          return
+        }
+      }
+
+      if (filter.name) {
+        if (filter.name instanceof RegExp) {
+          if (!filter.name.test(name)) return
+        } else if (typeof filter.name === 'string') {
+          if (filter.name !== name && filter.name !== id) return
+        }
+      }
+
+      elements.push({
+        id,
+        name,
+        type: normalizedType,
+        element: rawElem,
+        frame: frameElem || null,
+        bounds,
+      })
+    }
+
+    // Inspect shapes and groups
+    for (const entry of state.shapeMap.values()) {
+      const cNvPr =
+        entry.shape?.['p:nvSpPr']?.['p:cNvPr'] ||
+        entry.shape?.['p:nvGrpSpPr']?.['p:cNvPr']
+      addEntry(entry.shape, null, entry.type, cNvPr)
+    }
+
+    // Inspect pictures
+    for (const entry of state.picMap.values()) {
+      const cNvPr = entry.pic?.['p:nvPicPr']?.['p:cNvPr']
+      addEntry(entry.pic, null, entry.type, cNvPr)
+    }
+
+    // Inspect tables
+    for (const entry of state.tableMap.values()) {
+      const cNvPr = entry.frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
+      addEntry(entry.table, entry.frame, entry.type, cNvPr)
+    }
+
+    // Inspect charts
+    for (const entry of state.chartMap.values()) {
+      const cNvPr = entry.frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
+      addEntry(entry.chart, entry.frame, entry.type, cNvPr)
+    }
+
+    if (filter.bounds || filter.within) {
+      const outer = filter.bounds || filter.within
+      elements = elements.filter(el => isContained(el.bounds, outer))
+    }
+    if (filter.intersects || filter.overlaps) {
+      const box = filter.intersects || filter.overlaps
+      elements = elements.filter(el => checkCollision(el.bounds, box))
+    }
+
+    return elements
   }
 }
 

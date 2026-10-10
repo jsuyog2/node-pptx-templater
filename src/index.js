@@ -43,6 +43,8 @@ const { ZOrderManager } = require('./spatial/ZOrderManager.js')
 const { OutputWriter } = require('./core/OutputWriter.js')
 const { TemplateEngine } = require('./core/TemplateEngine.js')
 const { ValidationEngine } = require('./core/ValidationEngine.js')
+const { PackageLoader, isPkZip } = require('./core/PackageLoader.js')
+const { VirtualFileSystem } = require('./core/VirtualFileSystem.js')
 const spatialUnits = require('./spatial/units.js')
 
 // Utility exports
@@ -83,6 +85,9 @@ module.exports = {
   OutputWriter,
   TemplateEngine,
   ValidationEngine,
+  PackageLoader,
+  isPkZip,
+  VirtualFileSystem,
   ...spatialUnits,
   generateRelationshipId,
   parseRelationshipId,

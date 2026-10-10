@@ -55,7 +55,7 @@ class ImageManager {
     // Lock bounding box & aspect ratio
     const { getImageMetadata } = require('../utils/imageMetadata.js')
     const meta = await getImageMetadata(sourcePathOrBuffer)
-    
+
     if (meta && meta.width > 0 && meta.height > 0) {
       const xfrm = picRes.pic['p:spPr']?.['a:xfrm']
       if (xfrm && xfrm['a:ext'] && xfrm['a:off']) {
@@ -155,7 +155,7 @@ class ImageManager {
     const destMediaZipPath = await mediaManager.embedImage(sourcePathOrBuffer)
     const relativeTarget = `../media/${destMediaZipPath.split('/').pop()}`
     const slideInfo = slideManager.getSlideInfo(slideIndex)
-    
+
     const rId = relationshipManager.addRelationship(
       slideInfo.zipPath,
       'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
@@ -164,11 +164,12 @@ class ImageManager {
 
     const picXml = `<p:pic><p:nvPicPr><p:cNvPr id="${res.id}" name="${res.name}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${newX}" y="${newY}"/><a:ext cx="${newCx}" cy="${newCy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`
 
-    const parsedPic = this.#xmlParser.parse(picXml, 'pic.xml')['p:pic']
+    const parsedRaw = this.#xmlParser.parse(picXml, 'pic.xml')['p:pic']
+    const parsedPic = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw
 
     const slideObj = slideManager.getSlideObj(slideIndex)
     const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
-    
+
     if (spTree) {
       // Find and remove the old shape
       const shapes = Array.isArray(spTree['p:sp']) ? spTree['p:sp'] : [spTree['p:sp']]
@@ -272,7 +273,8 @@ class ImageManager {
       name,
       shapeId: newId,
     })
-    const picObj = this.#xmlParser.parse(picXml, 'pic.xml')['p:pic']
+    const parsedPicRaw = this.#xmlParser.parse(picXml, 'pic.xml')['p:pic']
+    const picObj = Array.isArray(parsedPicRaw) ? parsedPicRaw[0] : parsedPicRaw
 
     if (!spTree['p:pic']) {
       spTree['p:pic'] = []

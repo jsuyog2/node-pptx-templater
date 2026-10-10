@@ -110,7 +110,7 @@ class TemplateEngine {
     const firstRun = this.#xmlParser.deepClone(runs[0])
     firstRun['a:t'] = replacedText
     p['a:r'] = [firstRun]
-    
+
     return p
   }
 
@@ -142,12 +142,40 @@ class TemplateEngine {
     if (style.fontSize) {
       baseRPr['@_sz'] = Math.round(style.fontSize * 100)
     }
+    if (style.bold !== undefined) {
+      baseRPr['@_b'] = style.bold ? '1' : '0'
+    }
+    if (style.italic !== undefined) {
+      baseRPr['@_i'] = style.italic ? '1' : '0'
+    }
+    if (style.underline) {
+      baseRPr['@_u'] = typeof style.underline === 'string' ? style.underline : 'sng'
+    } else if (style.underline === false) {
+      delete baseRPr['@_u']
+    }
+    if (style.strike) {
+      baseRPr['@_strike'] = style.strike === 'double' ? 'dblStrike' : 'sngStrike'
+    } else if (style.strike === false) {
+      delete baseRPr['@_strike']
+    }
+    if (style.superscript) {
+      baseRPr['@_baseline'] = '30000'
+    } else if (style.subscript) {
+      baseRPr['@_baseline'] = '-25000'
+    } else if (style.baseline !== undefined) {
+      baseRPr['@_baseline'] = String(Math.round(style.baseline))
+    }
+    if (style.characterSpacing !== undefined || style.tracking !== undefined) {
+      const spc = style.characterSpacing !== undefined ? style.characterSpacing : style.tracking
+      baseRPr['@_spc'] = String(Math.round(spc * 100))
+    }
     if (style.color) {
       const cleanColor = style.color.replace('#', '')
       baseRPr['a:solidFill'] = { 'a:srgbClr': { '@_val': cleanColor } }
     }
     if (style.fontFamily) {
       baseRPr['a:latin'] = { '@_typeface': style.fontFamily }
+      baseRPr['a:ea'] = { '@_typeface': style.fontFamily }
       baseRPr['a:cs'] = { '@_typeface': style.fontFamily }
     }
 
@@ -187,7 +215,7 @@ class TemplateEngine {
         'a:pPr': pPr,
         'a:r': [run]
       }
-      
+
       newParagraphs.push(newP)
     }
 
@@ -201,9 +229,9 @@ class TemplateEngine {
     const p = pObj['a:p'] ? pObj['a:p'] : pObj;
     const runs = p['a:r'] ? (Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]) : [];
     const firstRunObj = runs.length > 0 ? runs[0] : {};
-    
+
     const newParagraphs = this.generateListParagraphsAst(p, firstRunObj, listConfig);
-    
+
     let res = '';
     for(const newP of newParagraphs) {
        res += this.#xmlParser.build({ 'a:p': newP });

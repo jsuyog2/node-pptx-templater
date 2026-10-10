@@ -41,9 +41,8 @@ function toEmu(value) {
   if (value === undefined || value === null) return 0
 
   if (typeof value === 'number') {
-    if (value < 10) return inToEmu(value)
-    if (value <= 10000) return ptToEmu(value)
-    return Math.round(value)
+    if (value > 50000) return Math.round(value)
+    return pxToEmu(value)
   }
 
   if (typeof value === 'string') {
@@ -56,9 +55,8 @@ function toEmu(value) {
     if (val.endsWith('px')) return pxToEmu(num)
     if (val.endsWith('emu')) return Math.round(num)
 
-    if (num < 10) return inToEmu(num)
-    if (num <= 10000) return ptToEmu(num)
-    return Math.round(num)
+    if (num > 50000) return Math.round(num)
+    return pxToEmu(num)
   }
 
   return 0
@@ -91,12 +89,16 @@ function getBounds(element) {
 
   const off = xfrm?.['a:off']
   const ext = xfrm?.['a:ext']
+  const rot = xfrm?.['@_rot'] ? parseInt(xfrm['@_rot'], 10) : 0
 
   return {
     x: parseInt(off?.['@_x'] || '0', 10),
     y: parseInt(off?.['@_y'] || '0', 10),
     width: parseInt(ext?.['@_cx'] || '0', 10),
     height: parseInt(ext?.['@_cy'] || '0', 10),
+    rotation: rot ? Math.round(rot / 60000) : 0,
+    flipH: xfrm?.['@_flipH'] === '1' || xfrm?.['@_flipH'] === true,
+    flipV: xfrm?.['@_flipV'] === '1' || xfrm?.['@_flipV'] === true,
   }
 }
 
@@ -116,6 +118,9 @@ function setBounds(element, bounds) {
   if (bounds.y !== undefined) xfrm['a:off']['@_y'] = String(Math.round(bounds.y))
   if (bounds.width !== undefined) xfrm['a:ext']['@_cx'] = String(Math.round(bounds.width))
   if (bounds.height !== undefined) xfrm['a:ext']['@_cy'] = String(Math.round(bounds.height))
+  if (bounds.rotation !== undefined) xfrm['@_rot'] = String(Math.round(bounds.rotation * 60000))
+  if (bounds.flipH !== undefined) xfrm['@_flipH'] = bounds.flipH ? '1' : '0'
+  if (bounds.flipV !== undefined) xfrm['@_flipV'] = bounds.flipV ? '1' : '0'
 }
 
 function move(element, dx, dy) {

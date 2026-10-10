@@ -181,14 +181,22 @@ class ZipManager {
         logger.debug(`Folder loaded successfully. Files: ${this.#folderFiles.size}`)
       } else {
         let data
-        if (typeof source === 'string') {
+        const isStream =
+          source &&
+          typeof source === 'object' &&
+          (typeof source.pipe === 'function' || typeof source.getReader === 'function')
+
+        if (isStream) {
+          const { streamToBuffer } = require('../core/PackageLoader.js')
+          data = await streamToBuffer(source)
+        } else if (typeof source === 'string') {
           logger.debug(`Reading file: ${source}`)
           data = await fsExtra.readFile(source)
         } else if (Buffer.isBuffer(source) || source instanceof Uint8Array) {
           data = source
         } else {
           throw new PPTXError(
-            `Invalid source type: ${typeof source}. Expected string path or Buffer.`
+            `Invalid source type: ${typeof source}. Expected string path, Buffer, or ReadableStream.`
           )
         }
 

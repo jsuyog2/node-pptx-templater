@@ -1,9 +1,9 @@
 # Feature Inventory — node-pptx-templater
 
-> Generated: 2026-06-12T05:42:27.622Z
+> Generated: 2026-10-10T15:24:58.472Z
 
-**Total public methods:** 150  
-**Documented:** 136  
+**Total public methods:** 186  
+**Documented:** 174  
 
 ## Core (9)
 
@@ -67,12 +67,12 @@
 
 | Method | Static | Async | Documented | Description |
 |--------|--------|-------|------------|-------------|
-| `addCellShape()` |  | ✓ | ✓ | Dynamically adds a shape inside a table cell based on cell coordinates. |
+| `addCellShape()` |  | ✓ | ✓ | and adding a cell shape never modifies row heights, column widths, or table dime |
 | `updateCellShape()` |  | ✓ | ✓ | Updates an existing shape inside a table cell. |
 | `removeCellShape()` |  | ✓ | ✓ | Removes a shape from a table cell. |
 | `getCellShape()` |  |  | ✓ | Discovers and retrieves details of an existing cell shape on the targeted slide. |
 | `getCellBounds()` |  |  | ✓ | Retrieves final rendered bounds of a table cell in pixels. |
-| `getCellPosition()` |  |  | ✓ | Retrieves final rendered position of a table cell in pixels. |
+| `getCellPosition()` |  |  | ✓ | Optionally calculates centered top-left coordinates for a shape of given dimensi |
 
 ## Charts (15)
 
@@ -101,7 +101,7 @@
 | `replaceImage()` |  | ✓ | ✓ | await ppt.replaceImage('company-logo', './new-logo.png'); |
 | `addImage()` |  | ✓ | ✓ | }); |
 | `removeImage()` |  |  | ✓ | ppt.removeImage('old-logo'); |
-| `getImages()` |  |  | ✓ | images.forEach(img => console.log(`${img.name}: ${img.width}×${img.height} EMUs` |
+| `getImages()` |  |  | ✓ | images.forEach(img => console.log(`${img.name}: ${img.width}×${img.height} EMUs, |
 
 ## Shapes (11)
 
@@ -114,7 +114,7 @@
 | `deleteShape()` |  |  | ✓ | ppt.deleteShape('temp-banner'); |
 | `getShapes()` |  |  | ✓ | shapes.forEach(s => console.log(`${s.name}: ${s.type} at (${s.x}, ${s.y})`)); |
 | `validateShape()` |  |  | ✓ | Validates shape options configuration. |
-| `addShape()` |  | ✓ | ✓ | Adds a new shape dynamically to the targeted slide(s). |
+| `addShape()` |  | ✓ | ✓ | await ppt.addShape('rect', { id: 'MyShape', x: 100, y: 100, width: 200, height:  |
 | `updateShape()` |  | ✓ | ✓ | Updates an existing shape in-place. |
 | `removeShape()` |  | ✓ | ✓ | Removes a shape from the targeted slide(s). |
 | `getShape()` |  |  | ✓ | Discovers and retrieves details of an existing shape on the targeted slides. |
@@ -171,7 +171,7 @@
 | `save()` |  | ✓ | ✓ | Saves the presentation. Equivalent to saveToFile. |
 | `saveXml()` |  | ✓ | ✓ | Saves the modified presentation XML structures directly to a folder. |
 | `saveToFolder()` |  | ✓ | ✓ | Saves the modified presentation XML structures directly to a folder. |
-| `toBuffer()` |  | ✓ | ✓ | Returns the PPTX content as a Node.js Buffer. |
+| `toBuffer()` |  | ✓ | ✓ | Returns the PPTX presentation as a Node.js Buffer. |
 | `toStream()` |  | ✓ | ✓ | Returns the PPTX content as a readable Node.js Stream. |
 | `saveToStream()` |  | ✓ | ✓ | Saves the presentation to a readable stream or pipes it to a writable stream. |
 
@@ -183,11 +183,11 @@
 | `repair()` |  | ✓ | ✓ | Removes orphan relationships, rebuilds slide references, and fixes missing entri |
 | `validateCharts()` |  | ✓ | ✓ | Checks XML, caches, and embedded workbook references. |
 | `repairCharts()` |  | ✓ | ✓ | missing embedded workbooks, or orphan nodes. |
-| `validatePresentation()` |  | ✓ | ❌ |  |
+| `validatePresentation()` |  | ✓ | ✓ | } |
 | `validatePresentationXml()` |  | ✓ | ✓ | Performs validation specifically on PowerPoint XML folder contents/relationships |
 | `validateSlide()` |  | ✓ | ✓ | if (!result.valid) console.error(result.errors); |
 | `validateTable()` |  | ✓ | ✓ | if (!result.valid) console.error(result.errors); |
-| `validateArchive()` |  | ✓ | ❌ |  |
+| `validateArchive()` |  | ✓ | ✓ | await ppt.validateArchive(); // Throws PPTXError if the ZIP is corrupt |
 | `validateRelationships()` |  |  | ✓ | const result = ppt.validateRelationships('ppt/slides/slide1.xml'); |
 
 ## Debug (6)
@@ -216,11 +216,46 @@
 |--------|--------|-------|------------|-------------|
 | `getInfo()` |  |  | ✓ | Returns presentation metadata (title, author, slide count, etc.) |
 
-## Utility (14)
+## Utility (50)
 
 | Method | Static | Async | Documented | Description |
 |--------|--------|-------|------------|-------------|
 | `setLogLevel()` | ✓ |  | ✓ | PPTXTemplater.setLogLevel('silent'); // Suppress all output |
+| `addTable()` |  |  | ✓ | }); |
+| `getHyperlinks()` |  |  | ✓ | // ] |
+| `removeHyperlink()` |  |  | ✓ | ppt.removeHyperlink({ shapeName: 'Button 1' }); |
+| `toFile()` |  | ✓ | ✓ | Saves the presentation to a file. Canonical ExportAdapter alias for saveToFile. |
+| `toArrayBuffer()` |  | ✓ | ✓ | Returns the PPTX as an ArrayBuffer. |
+| `toBase64()` |  | ✓ | ✓ | Returns the PPTX as a Base64 string. |
+| `toExpress()` |  | ✓ | ✓ | Streams the PPTX directly to an Express.js response object. |
+| `setSlideDimensions()` |  |  | ✓ | ppt.setSlideDimensions(12192000, 6858000); |
+| `setSlideSize()` |  |  | ✓ | Sets slide dimensions (alias for setSlideDimensions). |
+| `setAspectRatio()` |  |  | ✓ | Sets slide aspect ratio ('16:9', '16:10', '4:3'). |
+| `getSlideDimensions()` |  |  | ✓ | Retrieves current presentation slide dimensions in EMUs. |
+| `getSlideSize()` |  |  | ✓ | Retrieves current presentation slide dimensions (alias for getSlideDimensions). |
+| `getSlideLayout()` |  |  | ✓ | Retrieves the layout target path for a slide. |
+| `addColumn()` |  |  | ✓ | ppt.addColumn('SalesTable', 1, ['Target', '1000', '10%'], { width: 120 }); |
+| `deleteColumn()` |  |  | ✓ | ppt.deleteColumn('SalesTable', 2); |
+| `stripeRows()` |  |  | ✓ | ppt.stripeRows('SalesTable', { evenFill: '#F8F9FA', oddFill: '#FFFFFF' }); |
+| `adjustTableRow()` |  |  | ✓ | ppt.adjustTableRow("Table", { row: 2, auto: true }); |
+| `adjustTableColumn()` |  |  | ✓ | ppt.adjustTableColumn("Table", { column: 3, auto: true }); |
+| `splitTableOnOverflow()` |  | ✓ | ✓ | Automatically splits a table across consecutive slides if its height exceeds a s |
+| `adjustTable()` |  |  | ✓ | Auto-adjusts or sets table row heights, column widths, and cell layout on target |
+| `getBounds()` |  |  | ✓ | Retrieves the bounding box, coordinates, and rotation of a shape or element on t |
+| `setBounds()` |  |  | ✓ | Sets the bounding box, coordinates, dimensions, and rotation of a shape or eleme |
+| `move()` |  |  | ✓ | Moves a shape to a new coordinate. |
+| `alignShapes()` |  |  | ✓ | Aligns multiple shapes on the active slide. |
+| `distributeShapes()` |  |  | ✓ | Distributes multiple shapes evenly along a direction. |
+| `checkCollision()` |  |  | ✓ | Checks if two elements overlap or collide on the active slide. |
+| `isContained()` |  |  | ✓ | Checks if one element is completely contained within another. |
+| `getElements()` |  |  | ✓ | Retrieves all elements on targeted slides, optionally filtered by type, name, or |
+| `findElements()` |  |  | ✓ | Finds slide elements matching a filter object or custom predicate function. |
+| `stepForward()` |  |  | ✓ | Alias for bringForward. Moves element one layer forward. |
+| `stepBackward()` |  |  | ✓ | Alias for sendBackward. Moves element one layer backward. |
+| `replaceShape()` |  | ✓ | ✓ | Replaces a placeholder shape with an image, locking its bounding box. |
+| `resize()` |  |  | ✓ | ppt.resize("Chart", { scale: { width: 1.1, height: 0.9 } }); |
+| `appendTextRun()` |  |  | ✓ | ppt.appendTextRun('titleShape', ' (Updated)', { style: { bold: true, color: '#FF |
+| `prependTextRun()` |  |  | ✓ | ppt.prependTextRun('titleShape', 'Draft: ', { style: { italic: true } }); |
 | `slideCount()` |  |  | ✓ | Returns the total number of slides in the loaded presentation. |
 | `zipManager()` |  |  | ❌ |  |
 | `xmlParser()` |  |  | ❌ |  |
@@ -234,4 +269,5 @@
 | `textManager()` |  |  | ❌ |  |
 | `hyperlinkManager()` |  |  | ❌ |  |
 | `mediaManager()` |  |  | ❌ |  |
+| `alignShapeToCell()` |  |  | ✓ | Aligns an existing shape to a table cell's position. |
 

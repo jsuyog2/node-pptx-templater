@@ -185,12 +185,28 @@ class MediaManager {
       hash = this.#hashBytes(data)
       size = data.length
     } else if (typeof source === 'string') {
-      // Load from file path directly to buffer
-      data = await fsExtra.readFile(source)
-      ext = source.split('.').pop().toLowerCase()
-      mimeType = mimeType || EXT_TO_MIME[ext] || 'image/png'
-      hash = this.#hashBytes(data)
-      size = data.length
+      if (source.startsWith('data:')) {
+        const commaIdx = source.indexOf(',')
+        if (commaIdx === -1) {
+          throw new PPTXError('Invalid data URI: missing comma separator')
+        }
+        const header = source.slice(0, commaIdx)
+        const base64Data = source.slice(commaIdx + 1)
+        data = Buffer.from(base64Data, 'base64')
+        const mimeMatch = header.match(/^data:([^;,]+)/i)
+        const detectedMime = mimeMatch ? mimeMatch[1] : undefined
+        ext = this.#detectExtension(data)
+        mimeType = mimeType || detectedMime || EXT_TO_MIME[ext] || 'image/png'
+        hash = this.#hashBytes(data)
+        size = data.length
+      } else {
+        // Load from file path directly to buffer
+        data = await fsExtra.readFile(source)
+        ext = source.split('.').pop().toLowerCase()
+        mimeType = mimeType || EXT_TO_MIME[ext] || 'image/png'
+        hash = this.#hashBytes(data)
+        size = data.length
+      }
     } else if (Buffer.isBuffer(source) || source instanceof Uint8Array) {
       data = source
       ext = this.#detectExtension(data)
@@ -348,7 +364,7 @@ class MediaManager {
    * @returns {string} File extension.
    */
   #detectExtension(data) {
-    const sig = data.slice(0, 8)
+    const sig = data.slice(0, 12)
 
     // PNG: 89 50 4E 47 0D 0A 1A 0A
     if (sig[0] === 0x89 && sig[1] === 0x50) return 'png'
@@ -357,9 +373,22 @@ class MediaManager {
     // GIF: 47 49 46
     if (sig[0] === 0x47 && sig[1] === 0x49) return 'gif'
     // WEBP: 52 49 46 46 ... 57 45 42 50
-    if (sig[0] === 0x52 && sig[1] === 0x49 && sig[8] === 0x57) return 'webp'
+    if (sig[0] === 0x52 && sig[1] === 0x49 && sig[2] === 0x46 && sig[3] === 0x46 && sig[8] === 0x57) return 'webp'
+    // TIFF: II*. or MM.*
+    if (
+      (sig[0] === 0x49 && sig[1] === 0x49 && sig[2] === 0x2a) ||
+      (sig[0] === 0x4d && sig[1] === 0x4d && sig[3] === 0x2a)
+    ) {
+      return 'tiff'
+    }
     // BMP: 42 4D
     if (sig[0] === 0x42 && sig[1] === 0x4d) return 'bmp'
+
+    // SVG: text signature
+    const textStart = data.slice(0, 100).toString('utf8').trim()
+    if (textStart.startsWith('<svg') || textStart.includes('<svg') || textStart.startsWith('<?xml')) {
+      return 'svg'
+    }
 
     return 'png' // Default fallback
   }

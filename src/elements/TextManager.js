@@ -463,6 +463,158 @@ class TextManager {
 
     return null
   }
+
+  /**
+   * Appends a new formatted text run to an existing shape or textbox.
+   *
+   * @param {number} slideIndex - 1-based slide index.
+   * @param {string} shapeId - Target shape name or ID.
+   * @param {string} text - Text to append.
+   * @param {Object} [options] - Options `{ style, paragraphIndex, inheritStyle }`.
+   * @param {SlideManager} slideManager
+   * @returns {void}
+   */
+  appendTextRun(slideIndex, shapeId, text, options = {}, slideManager) {
+    this.#insertTextRun(slideIndex, shapeId, text, options, 'append', slideManager)
+  }
+
+  /**
+   * Prepends a new formatted text run to an existing shape or textbox.
+   *
+   * @param {number} slideIndex - 1-based slide index.
+   * @param {string} shapeId - Target shape name or ID.
+   * @param {string} text - Text to prepend.
+   * @param {Object} [options] - Options `{ style, paragraphIndex, inheritStyle }`.
+   * @param {SlideManager} slideManager
+   * @returns {void}
+   */
+  prependTextRun(slideIndex, shapeId, text, options = {}, slideManager) {
+    this.#insertTextRun(slideIndex, shapeId, text, options, 'prepend', slideManager)
+  }
+
+  #insertTextRun(slideIndex, shapeId, text, options, mode, slideManager) {
+    let shape = null
+    const res = slideManager.getSlideShape(slideIndex, shapeId)
+    if (res) {
+      shape = res.shape
+    } else {
+      const slideObj = slideManager.getSlideObj(slideIndex)
+      const spTree =
+        slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+        slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+        slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+      const found = this.findShapeRecursive(spTree, shapeId)
+      if (found) shape = found.shape
+    }
+
+    if (!shape) {
+      throw new Error(`Shape "${shapeId}" not found on slide ${slideIndex}`)
+    }
+
+    if (!shape['p:txBody']) {
+      shape['p:txBody'] = {
+        'a:bodyPr': { '@_wrap': 'square', '@_rtlCol': '0' },
+        'a:lstStyle': {},
+        'a:p': [],
+      }
+    }
+
+    const txBody = shape['p:txBody']
+    let paras = txBody['a:p'] || []
+    if (!Array.isArray(paras)) {
+      paras = [paras]
+      txBody['a:p'] = paras
+    }
+
+    if (paras.length === 0) {
+      const pObj = { 'a:r': [] }
+      paras.push(pObj)
+    }
+
+    const pIdx =
+      options.paragraphIndex !== undefined
+        ? options.paragraphIndex
+        : mode === 'append'
+          ? paras.length - 1
+          : 0
+    const targetPara = paras[pIdx] || paras[0]
+
+    let runs = targetPara['a:r'] || []
+    if (!Array.isArray(runs)) {
+      runs = [runs]
+      targetPara['a:r'] = runs
+    }
+
+    // Determine base rPr to inherit
+    const inherit = options.inheritStyle !== false
+    const neighborRun =
+      inherit && runs.length > 0
+        ? mode === 'append'
+          ? runs[runs.length - 1]
+          : runs[0]
+        : null
+    const baseRPr = neighborRun?.['a:rPr']
+      ? this.#xmlParser.deepClone(neighborRun['a:rPr'])
+      : { '@_lang': 'en-US' }
+
+    // Apply style overrides
+    const style = options.style || {}
+    if (style.fontSize) {
+      baseRPr['@_sz'] = String(Math.round(style.fontSize * 100))
+    }
+    if (style.bold !== undefined) {
+      baseRPr['@_b'] = style.bold ? '1' : '0'
+    }
+    if (style.italic !== undefined) {
+      baseRPr['@_i'] = style.italic ? '1' : '0'
+    }
+    if (style.underline) {
+      baseRPr['@_u'] = typeof style.underline === 'string' ? style.underline : 'sng'
+    } else if (style.underline === false) {
+      delete baseRPr['@_u']
+    }
+    if (style.strike) {
+      baseRPr['@_strike'] = style.strike === 'double' ? 'dblStrike' : 'sngStrike'
+    } else if (style.strike === false) {
+      delete baseRPr['@_strike']
+    }
+    if (style.superscript) {
+      baseRPr['@_baseline'] = '30000'
+    } else if (style.subscript) {
+      baseRPr['@_baseline'] = '-25000'
+    } else if (style.baseline !== undefined) {
+      baseRPr['@_baseline'] = String(Math.round(style.baseline))
+    }
+    if (style.characterSpacing !== undefined || style.tracking !== undefined) {
+      const spc = style.characterSpacing !== undefined ? style.characterSpacing : style.tracking
+      baseRPr['@_spc'] = String(Math.round(spc * 100))
+    }
+    if (style.color) {
+      const hex = style.color.replace('#', '').toUpperCase()
+      baseRPr['a:solidFill'] = { 'a:srgbClr': { '@_val': hex } }
+    }
+    if (style.fontFamily) {
+      baseRPr['a:latin'] = { '@_typeface': style.fontFamily }
+      baseRPr['a:ea'] = { '@_typeface': style.fontFamily }
+      baseRPr['a:cs'] = { '@_typeface': style.fontFamily }
+    }
+
+    const newRun = {
+      'a:rPr': baseRPr,
+      'a:t': text,
+    }
+
+    if (mode === 'append') {
+      runs.push(newRun)
+    } else {
+      runs.unshift(newRun)
+    }
+
+    slideManager.markSlideObjDirty(slideIndex)
+    logger.debug(
+      `${mode === 'append' ? 'Appended' : 'Prepended'} text run to shape "${shapeId}" on slide ${slideIndex}`
+    )
+  }
 }
 
 module.exports = { TextManager }

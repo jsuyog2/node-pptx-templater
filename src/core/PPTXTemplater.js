@@ -800,6 +800,61 @@ class PPTXTemplater {
   }
 
   /**
+   * Adds a new table to the active or specified slide(s).
+   *
+   * @param {string|Object} tableIdOrOptions - Table name/ID or configuration options.
+   * @param {Object} [options={}] - Table configuration options if first argument is string.
+   * @param {string} [options.id] - Table name or identifier.
+   * @param {number} [options.x=50] - Horizontal position.
+   * @param {number} [options.y=50] - Vertical position.
+   * @param {number} [options.width=500] - Total table width.
+   * @param {number} [options.height] - Total table height.
+   * @param {number} [options.rows] - Number of rows.
+   * @param {number} [options.columns] - Number of columns.
+   * @param {Array<Array<string|Object>>} [options.data] - 2D array of rows and cells.
+   * @param {number[]} [options.colWidths] - Array of column widths.
+   * @param {number[]} [options.rowHeights] - Array of row heights.
+   * @param {boolean} [options.header=true] - Whether row 0 has header formatting.
+   * @param {boolean} [options.firstRow=true] - Format first row via DrawingML table properties.
+   * @param {boolean} [options.bandRow=true] - Alternate row banding via DrawingML table properties.
+   * @param {string} [options.styleId] - DrawingML table style GUID.
+   * @returns {string} The created table name or ID.
+   *
+   * @example
+   * ppt.addTable({
+   *   id: 'summary-table',
+   *   x: 50,
+   *   y: 100,
+   *   width: 600,
+   *   data: [
+   *     ['Metric', 'Q1', 'Q2', 'Q3'],
+   *     ['Revenue', '$10M', '$12M', '$15M'],
+   *   ]
+   * });
+   */
+  addTable(tableIdOrOptions, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    if (targetIndices.length === 0) {
+      throw new PPTXError('No slide selected to add table')
+    }
+
+    let finalOptions = {}
+    if (typeof tableIdOrOptions === 'string') {
+      finalOptions = { ...options, id: tableIdOrOptions }
+    } else if (typeof tableIdOrOptions === 'object' && tableIdOrOptions !== null) {
+      finalOptions = { ...tableIdOrOptions }
+    }
+
+    let createdName = ''
+    for (const slideIndex of targetIndices) {
+      createdName = this.#tableManager.addTable(slideIndex, finalOptions, this.#slideManager)
+    }
+
+    return createdName
+  }
+
+  /**
    * Adds or replaces a hyperlink on a text run or shape.
    *
    * @param {HyperlinkOptions} options - Hyperlink configuration.
@@ -932,6 +987,67 @@ class PPTXTemplater {
     this.#assertLoaded()
     const { slide, shapeId, action } = options
     this.#hyperlinkManager.addShapeNavigationLink(slide, shapeId, action, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Retrieves all hyperlinks (external URLs, inter-slide links, navigation actions) on targeted slide.
+   *
+   * @param {number} [slideIndex] - 1-based slide index. If omitted, uses active slide.
+   * @returns {Array<Object>} Array of hyperlink descriptor objects.
+   *
+   * @example
+   * const links = ppt.getHyperlinks(1);
+   * // [
+   * //   { type: 'external', url: 'https://example.com', text: 'Visit site', rId: 'rId2' },
+   * //   { type: 'slide', targetSlide: 3, shapeName: 'NextBtn' }
+   * // ]
+   */
+  getHyperlinks(slideIndex) {
+    this.#assertLoaded()
+    const targetIdx =
+      slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
+    return this.#hyperlinkManager.getHyperlinks(
+      targetIdx,
+      this.#slideManager,
+      this.#relationshipManager
+    )
+  }
+
+  /**
+   * Removes a hyperlink from text or a shape on the targeted slide(s).
+   *
+   * @param {string|Object} textOrOptions - Text string or options object { text, shapeName, slide }.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.removeHyperlink('Click here');
+   * ppt.removeHyperlink({ text: 'Read more', slide: 2 });
+   * ppt.removeHyperlink({ shapeName: 'Button 1' });
+   */
+  removeHyperlink(textOrOptions) {
+    this.#assertLoaded()
+    let slides = []
+
+    if (
+      typeof textOrOptions === 'object' &&
+      textOrOptions !== null &&
+      textOrOptions.slide !== undefined
+    ) {
+      slides = [textOrOptions.slide]
+    } else {
+      slides = this.#getTargetSlideIndices()
+    }
+
+    for (const slideIndex of slides) {
+      this.#hyperlinkManager.removeHyperlink(
+        slideIndex,
+        textOrOptions,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+    }
+
     return this
   }
 
@@ -1105,6 +1221,7 @@ class PPTXTemplater {
     this.#assertLoaded()
     return {
       slideCount: this.#slideManager.slideCount,
+      dimensions: this.#slideManager.getSlideSize(),
       title: this.#zipManager.getCoreProperty('dc:title') || '',
       author: this.#zipManager.getCoreProperty('dc:creator') || '',
       created: this.#zipManager.getCoreProperty('dcterms:created') || '',
@@ -1447,6 +1564,12 @@ class PPTXTemplater {
     await this.#outputWriter.toExpress(this.#slideManager, this.#zipManager, res, filename, options);
   }
 
+  /**
+   * Returns the PPTX presentation as a Node.js Buffer.
+   *
+   * @param {Object} [options] - Options passed to the ZIP serializer.
+   * @returns {Promise<Buffer>} Generated presentation buffer.
+   */
   async toBuffer(options = {}) {
     this.#assertLoaded()
     await this.validateArchive()
@@ -1592,6 +1715,76 @@ class PPTXTemplater {
   getSlides() {
     this.#assertLoaded()
     return this.#slideManager.getSlides()
+  }
+
+  /**
+   * Sets slide dimensions and/or aspect ratio for the presentation.
+   *
+   * @param {Object|string|number} widthOrOptions - Dimensions object `{ width, height, aspectRatio }`, ratio string ('16:9', '16:10', '4:3'), or numeric width.
+   * @param {number|string} [height] - Height if width was passed first.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.setSlideDimensions('16:9');
+   * ppt.setSlideDimensions({ width: '10in', height: '7.5in' });
+   * ppt.setSlideDimensions(12192000, 6858000);
+   */
+  setSlideDimensions(widthOrOptions, height) {
+    this.#assertLoaded()
+    this.#slideManager.setSlideSize(widthOrOptions, height)
+    return this
+  }
+
+  /**
+   * Sets slide dimensions (alias for setSlideDimensions).
+   *
+   * @param {Object|string|number} widthOrOptions - Dimensions object, ratio string, or width.
+   * @param {number|string} [height] - Height.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  setSlideSize(widthOrOptions, height) {
+    return this.setSlideDimensions(widthOrOptions, height)
+  }
+
+  /**
+   * Sets slide aspect ratio ('16:9', '16:10', '4:3').
+   *
+   * @param {string} ratio - '16:9', '16:10', or '4:3'.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  setAspectRatio(ratio) {
+    return this.setSlideDimensions(ratio)
+  }
+
+  /**
+   * Retrieves current presentation slide dimensions in EMUs.
+   *
+   * @returns {{width: number, height: number}} Slide dimensions in EMUs.
+   */
+  getSlideDimensions() {
+    this.#assertLoaded()
+    return this.#slideManager.getSlideSize()
+  }
+
+  /**
+   * Retrieves current presentation slide dimensions (alias for getSlideDimensions).
+   *
+   * @returns {{width: number, height: number}} Slide dimensions in EMUs.
+   */
+  getSlideSize() {
+    return this.getSlideDimensions()
+  }
+
+  /**
+   * Retrieves the layout target path for a slide.
+   *
+   * @param {number} [slideIndex] - 1-based slide index. Defaults to active slide.
+   * @returns {string|null} Layout target path or null.
+   */
+  getSlideLayout(slideIndex) {
+    this.#assertLoaded()
+    const targetIndex = slideIndex !== undefined ? slideIndex : this.activeSlideIndex
+    return this.#slideManager.getSlideLayout(targetIndex)
   }
 
   // === Table Features ===
@@ -1776,6 +1969,91 @@ class PPTXTemplater {
         this.#shapeManager
       )
     }
+    return this
+  }
+
+  /**
+   * Adds or appends a column to a table.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number|Array} colIndexOrData - Column index (0-based) or cell data array.
+   * @param {Array|Object} [colDataOrOptions] - Cell data array or options.
+   * @param {Object} [options={}] - Options if 2nd arg was colIndex.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.addColumn('SalesTable', ['Q4', '1500', '20%']);
+   * ppt.addColumn('SalesTable', 1, ['Target', '1000', '10%'], { width: 120 });
+   */
+  addColumn(tableId, colIndexOrData, colDataOrOptions, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+
+    for (const slideIndex of targetIndices) {
+      this.#tableManager.addColumn(
+        slideIndex,
+        tableId,
+        colIndexOrData,
+        colDataOrOptions,
+        options,
+        this.#slideManager,
+        this.#shapeManager
+      )
+    }
+
+    return this
+  }
+
+  /**
+   * Deletes a column from a table by 0-based index.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} colIndex - 0-based column index.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.deleteColumn('SalesTable', 2);
+   */
+  deleteColumn(tableId, colIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+
+    for (const slideIndex of targetIndices) {
+      this.#tableManager.deleteColumn(
+        slideIndex,
+        tableId,
+        colIndex,
+        this.#slideManager,
+        this.#shapeManager
+      )
+    }
+
+    return this
+  }
+
+  /**
+   * Applies alternating row striping to a table.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {Object} [options={}] - Striping options.
+   * @param {string} [options.evenFill='F2F2F2'] - Background color for even rows.
+   * @param {string} [options.oddFill] - Background color for odd rows.
+   * @param {string} [options.headerFill] - Background color for row 0.
+   * @param {number} [options.startRow=1] - 0-based starting row for striping.
+   * @param {boolean} [options.bandRow] - Enable DrawingML bandRow table property.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.stripeRows('SalesTable', { evenFill: '#F8F9FA', oddFill: '#FFFFFF' });
+   */
+  stripeRows(tableId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+
+    for (const slideIndex of targetIndices) {
+      this.#tableManager.stripeRows(slideIndex, tableId, options, this.#slideManager)
+    }
+
     return this
   }
 
@@ -2164,112 +2442,131 @@ class PPTXTemplater {
   }
 
   /**
-   * Resizes the table by adjusting both row heights and column widths.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {Object} [options={}] - Table adjustment options.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.adjustTable("Table", { auto: true });
-   * ppt.adjustTable("Table", { rows: "auto", columns: "auto" });
-   * ppt.adjustTable("Table", { rows: { auto: true }, columns: { auto: true } });
-   */
-
-  /**
    * Automatically splits a table across consecutive slides if its height exceeds a specified vertical threshold.
    *
    * @param {string} tableId - Table name or shape ID.
    * @param {Object} [options={}] - Options.
    * @param {number} [options.bottomMargin] - Distance from the bottom of the slide (in inches, pts, px, or EMUs) to use as the limit. Default is 0.5 inches (457200 EMUs).
    * @param {number} [options.repeatHeaders] - Number of header rows to repeat on duplicated slides. Default is 1.
+   * @param {number} [options.summaryRows] - Number of totals/summary rows to preserve on the final generated slide.
+   * @param {boolean} [options.keepSummaryOnLastSlide] - If true, keeps 1 summary row on the last generated slide.
    * @returns {Promise<this>}
    */
   async splitTableOnOverflow(tableId, options = {}) {
-    this.#assertLoaded();
-    const targetIndices = this.#getTargetSlideIndices();
-    if (targetIndices.length === 0) return this;
-    
-    const units = require('../utils/units.js');
-    const bottomMargin = options.bottomMargin !== undefined ? units.toEmu(options.bottomMargin) : 457200;
-    const repeatHeaders = options.repeatHeaders !== undefined ? options.repeatHeaders : 1;
-    
-    const slideSize = this.#slideManager.getSlideSize();
-    const limitY = slideSize.height - bottomMargin;
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    if (targetIndices.length === 0) return this
+
+    const units = require('../utils/units.js')
+    const bottomMargin =
+      options.bottomMargin !== undefined ? units.toEmu(options.bottomMargin) : 457200
+    const repeatHeaders = options.repeatHeaders !== undefined ? options.repeatHeaders : 1
+    const summaryRows =
+      options.summaryRows !== undefined
+        ? options.summaryRows
+        : options.keepSummaryOnLastSlide
+          ? 1
+          : 0
+
+    const slideSize = this.#slideManager.getSlideSize()
+    const limitY = slideSize.height - bottomMargin
 
     // Process from last to first to avoid index shifting issues when duplicating slides
     for (let i = targetIndices.length - 1; i >= 0; i--) {
-      const slideIndex = targetIndices[i];
-      await this.#splitTableRecursive(slideIndex, tableId, limitY, repeatHeaders);
+      const slideIndex = targetIndices[i]
+      await this.#splitTableRecursive(slideIndex, tableId, limitY, repeatHeaders, summaryRows)
     }
-    
-    return this;
+
+    return this
   }
 
-  async #splitTableRecursive(slideIndex, tableId, limitY, repeatHeaders) {
-    const tableRes = this.#slideManager.getSlideTable(slideIndex, tableId);
-    if (!tableRes) return; // Table not found on this slide
-    
-    const tblObj = tableRes.table;
-    const graphicFrame = tableRes.frame;
-    const xfrm = graphicFrame?.['p:xfrm'];
-    if (!xfrm || !xfrm['a:off'] || !xfrm['a:ext']) return;
-    
-    const tableY = parseInt(xfrm['a:off']['@_y'] || 0, 10);
-    
-    // Using private calculation logic, we temporarily expose this or re-calculate
-    // But tableManager already calculates row heights on save, let's trigger it.
-    // Actually, we can get bounds from public API!
-    let totalHeight = 0;
-    const trs = tblObj['a:tr'] || [];
-    const rowHeights = [];
-    
+  async #splitTableRecursive(slideIndex, tableId, limitY, repeatHeaders, summaryRows = 0) {
+    const tableRes = this.#slideManager.getSlideTable(slideIndex, tableId)
+    if (!tableRes) return // Table not found on this slide
+
+    const tblObj = tableRes.table
+    const graphicFrame = tableRes.frame
+    const xfrm = graphicFrame?.['p:xfrm']
+    if (!xfrm || !xfrm['a:off'] || !xfrm['a:ext']) return
+
+    const tableY = parseInt(xfrm['a:off']['@_y'] || 0, 10)
+
+    const trs = tblObj['a:tr'] || []
+    const rowHeights = []
+
     for (let r = 0; r < trs.length; r++) {
-      const bounds = this.#tableManager.getCellBounds(slideIndex, tableId, r, 0, this.#slideManager);
-      const h = bounds ? Math.round(bounds.height * 9525) : parseInt(trs[r]['@_h'] || 0, 10);
-      rowHeights.push(h);
+      const bounds = this.#tableManager.getCellBounds(
+        slideIndex,
+        tableId,
+        r,
+        0,
+        this.#slideManager
+      )
+      const h = bounds ? Math.round(bounds.height * 9525) : parseInt(trs[r]['@_h'] || 0, 10)
+      rowHeights.push(h)
     }
 
-    let splitRowIndex = -1;
-    let currentY = tableY;
-    
+    let splitRowIndex = -1
+    let currentY = tableY
+
     for (let r = 0; r < rowHeights.length; r++) {
-      currentY += rowHeights[r];
+      currentY += rowHeights[r]
       if (currentY > limitY) {
         // If even the first row (or headers) exceeds the limit, we must split after it to avoid infinite loops
-        splitRowIndex = Math.max(r, repeatHeaders); 
-        break;
+        splitRowIndex = Math.max(r, repeatHeaders)
+        break
+      }
+    }
+
+    if (summaryRows > 0 && splitRowIndex !== -1) {
+      // Summary rows must only appear on the final generated slide.
+      // Ensure splitRowIndex does not cut into or include summary rows on this intermediate slide.
+      const maxAllowed = trs.length - summaryRows
+      if (splitRowIndex > maxAllowed) {
+        splitRowIndex = Math.max(maxAllowed, repeatHeaders)
       }
     }
 
     if (splitRowIndex !== -1 && splitRowIndex < trs.length) {
       // Split required
       // 1. Deep clone the slide directly after current slide
-      const newSlideIndex = slideIndex + 1;
+      const newSlideIndex = slideIndex + 1
       await this.#slideManager.duplicateSlide(
-        slideIndex, 
-        newSlideIndex, 
-        this.#relationshipManager, 
+        slideIndex,
+        newSlideIndex,
+        this.#relationshipManager,
         this.#mediaManager
-      );
-      
+      )
+
       // 2. Original slide: remove rows from splitRowIndex to end
-      const rowsToRemove = trs.length - splitRowIndex;
+      const rowsToRemove = trs.length - splitRowIndex
       for (let k = 0; k < rowsToRemove; k++) {
-        this.#tableManager.removeTableRow(slideIndex, tableId, splitRowIndex, this.#slideManager);
+        this.#tableManager.removeTableRow(slideIndex, tableId, splitRowIndex, this.#slideManager)
       }
-      
+
       // 3. New slide: remove rows between headers and splitRowIndex
-      const numToRemoveFromNew = splitRowIndex - repeatHeaders;
+      const numToRemoveFromNew = splitRowIndex - repeatHeaders
       for (let k = 0; k < numToRemoveFromNew; k++) {
-        this.#tableManager.removeTableRow(newSlideIndex, tableId, repeatHeaders, this.#slideManager);
+        this.#tableManager.removeTableRow(
+          newSlideIndex,
+          tableId,
+          repeatHeaders,
+          this.#slideManager
+        )
       }
-      
+
       // 4. Recurse on the new slide in case it still overflows
-      await this.#splitTableRecursive(newSlideIndex, tableId, limitY, repeatHeaders);
+      await this.#splitTableRecursive(newSlideIndex, tableId, limitY, repeatHeaders, summaryRows)
     }
   }
 
+  /**
+   * Auto-adjusts or sets table row heights, column widths, and cell layout on targeted slides.
+   *
+   * @param {string} tableId - Name or ID of the table to adjust.
+   * @param {Object} [options] - Adjustment options.
+   * @returns {PPTXTemplater} this (chainable)
+   */
   adjustTable(tableId, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -2280,58 +2577,63 @@ class PPTXTemplater {
   }
 
   /**
-   * Resizes any drawable object (shape, textbox, picture, chart, table, SVG, icon, placeholder, group) on active slides.
-   * Supports absolute dimensions (width/height), relative delta (increase/decrease), and percentage scaling (scale).
+   * Retrieves the bounding box, coordinates, and rotation of a shape or element on the slide.
    *
-   * @param {string} objectIdOrName - Object name or shape ID.
-   * @param {Object} options - Resize options.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.resize("Logo", { width: 4 });
-   * ppt.resize("Chart", { height: 3 });
-   * ppt.resize("Rectangle", { width: 5, height: 2 });
-   * ppt.resize("Image", { increase: { width: 1 } });
-   * ppt.resize("Chart", { decrease: { height: 0.5 } });
-   * ppt.resize("Image", { scale: 1.2 });
-   * ppt.resize("Chart", { scale: { width: 1.1, height: 0.9 } });
-   */
-
-  /**
-   * Retrieves the bounding box of a shape or element on the slide.
-   * @param {string} objectIdOrName
-   * @returns {{x: number, y: number, width: number, height: number}}
+   * @param {string} objectIdOrName - Shape or element ID/name.
+   * @returns {{x: number, y: number, width: number, height: number, rotation: number, flipH: boolean, flipV: boolean}} Bounding box details in points.
    */
   getBounds(objectIdOrName) {
-    this.#assertLoaded();
-    const slideIndex = this.#getTargetSlideIndices()[0] || 1;
-    const shape = this.#shapeManager.getShape(slideIndex, objectIdOrName, this.#slideManager);
-    if (!shape) {
-      throw new Error(`Object "${objectIdOrName}" not found on slide ${slideIndex}`);
+    this.#assertLoaded()
+    const slideIndex = this.#getTargetSlideIndices()[0] || 1
+    const shape = this.#shapeManager.getShape(slideIndex, objectIdOrName, this.#slideManager)
+    if (shape) {
+      return {
+        x: shape.x,
+        y: shape.y,
+        width: shape.width,
+        height: shape.height,
+        rotation: shape.rotation || 0,
+        flipH: shape.flipH || false,
+        flipV: shape.flipV || false,
+      }
     }
+    const obj = this.#slideManager.findDrawableObject(slideIndex, objectIdOrName)
+    if (!obj) {
+      throw new Error(`Object "${objectIdOrName}" not found on slide ${slideIndex}`)
+    }
+    const { getBounds: calcBounds, emuToPx } = require('../spatial/units.js')
+    const rawBounds = calcBounds(obj.frame || obj.element)
     return {
-      x: shape.x,
-      y: shape.y,
-      width: shape.width,
-      height: shape.height
-    };
+      x: Math.round(emuToPx(rawBounds.x)),
+      y: Math.round(emuToPx(rawBounds.y)),
+      width: Math.round(emuToPx(rawBounds.width)),
+      height: Math.round(emuToPx(rawBounds.height)),
+      rotation: rawBounds.rotation || 0,
+      flipH: rawBounds.flipH || false,
+      flipV: rawBounds.flipV || false,
+    }
   }
 
   /**
-   * Sets the bounding box of a shape or element.
-   * @param {string} objectIdOrName
-   * @param {Object} options - { x, y, width, height }
+   * Sets the bounding box, coordinates, dimensions, and rotation of a shape or element.
+   *
+   * @param {string} objectIdOrName - Shape or element ID/name.
+   * @param {Object} options - Coordinates and dimensions config `{ x, y, width, height, rotation, flipH, flipV }`.
+   * @returns {PPTXTemplater} this (chainable)
    */
   setBounds(objectIdOrName, options = {}) {
-    this.#assertLoaded();
-    const targetIndices = this.#getTargetSlideIndices();
-    const units = require('../utils/units.js');
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const units = require('../spatial/units.js')
 
-    const emuOptions = {};
-    if (options.x !== undefined) emuOptions.x = units.toEmu(options.x);
-    if (options.y !== undefined) emuOptions.y = units.toEmu(options.y);
-    if (options.width !== undefined) emuOptions.width = units.toEmu(options.width);
-    if (options.height !== undefined) emuOptions.height = units.toEmu(options.height);
+    const emuOptions = {}
+    if (options.x !== undefined) emuOptions.x = units.toEmu(options.x)
+    if (options.y !== undefined) emuOptions.y = units.toEmu(options.y)
+    if (options.width !== undefined) emuOptions.width = units.toEmu(options.width)
+    if (options.height !== undefined) emuOptions.height = units.toEmu(options.height)
+    if (options.rotation !== undefined) emuOptions.rotation = options.rotation
+    if (options.flipH !== undefined) emuOptions.flipH = options.flipH
+    if (options.flipV !== undefined) emuOptions.flipV = options.flipV
 
     for (const idx of targetIndices) {
       this.#shapeManager.updateShapePosition(
@@ -2339,18 +2641,188 @@ class PPTXTemplater {
         objectIdOrName,
         emuOptions,
         this.#slideManager
-      );
+      )
     }
-    return this;
+    return this
   }
 
   /**
    * Moves a shape to a new coordinate.
-   * @param {string} objectIdOrName
-   * @param {Object} options - { x, y }
+   *
+   * @param {string} objectIdOrName - Shape or element ID/name.
+   * @param {Object} options - Position options `{ x, y }`.
+   * @returns {PPTXTemplater} this (chainable)
    */
   move(objectIdOrName, options = {}) {
-    return this.setBounds(objectIdOrName, { x: options.x, y: options.y });
+    return this.setBounds(objectIdOrName, { x: options.x, y: options.y })
+  }
+
+  /**
+   * Aligns multiple shapes on the active slide.
+   *
+   * @param {string[]} shapeIds - Array of shape IDs or names to align.
+   * @param {'left'|'center'|'right'|'top'|'middle'|'bottom'} alignment - Target alignment edge or axis.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  alignShapes(shapeIds, alignment) {
+    this.#assertLoaded()
+    if (!Array.isArray(shapeIds) || shapeIds.length < 2) return this
+
+    const boxes = shapeIds.map(id => ({ id, bounds: this.getBounds(id) }))
+    const validBoxes = boxes.filter(b => b.bounds)
+    if (validBoxes.length < 2) return this
+
+    const align = String(alignment).toLowerCase()
+    if (align === 'left') {
+      const minX = Math.min(...validBoxes.map(b => b.bounds.x))
+      for (const b of validBoxes) {
+        this.setBounds(b.id, { x: minX })
+      }
+    } else if (align === 'right') {
+      const maxRight = Math.max(...validBoxes.map(b => b.bounds.x + b.bounds.width))
+      for (const b of validBoxes) {
+        this.setBounds(b.id, { x: maxRight - b.bounds.width })
+      }
+    } else if (align === 'center') {
+      const minX = Math.min(...validBoxes.map(b => b.bounds.x))
+      const maxRight = Math.max(...validBoxes.map(b => b.bounds.x + b.bounds.width))
+      const center = (minX + maxRight) / 2
+      for (const b of validBoxes) {
+        this.setBounds(b.id, { x: center - b.bounds.width / 2 })
+      }
+    } else if (align === 'top') {
+      const minY = Math.min(...validBoxes.map(b => b.bounds.y))
+      for (const b of validBoxes) {
+        this.setBounds(b.id, { y: minY })
+      }
+    } else if (align === 'bottom') {
+      const maxBottom = Math.max(...validBoxes.map(b => b.bounds.y + b.bounds.height))
+      for (const b of validBoxes) {
+        this.setBounds(b.id, { y: maxBottom - b.bounds.height })
+      }
+    } else if (align === 'middle') {
+      const minY = Math.min(...validBoxes.map(b => b.bounds.y))
+      const maxBottom = Math.max(...validBoxes.map(b => b.bounds.y + b.bounds.height))
+      const middle = (minY + maxBottom) / 2
+      for (const b of validBoxes) {
+        this.setBounds(b.id, { y: middle - b.bounds.height / 2 })
+      }
+    }
+
+    return this
+  }
+
+  /**
+   * Distributes multiple shapes evenly along a direction.
+   *
+   * @param {string[]} shapeIds - Array of shape IDs or names to distribute.
+   * @param {'horizontal'|'vertical'} [direction='horizontal'] - Distribution direction.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  distributeShapes(shapeIds, direction = 'horizontal') {
+    this.#assertLoaded()
+    if (!Array.isArray(shapeIds) || shapeIds.length < 3) return this
+
+    const boxes = shapeIds.map(id => ({ id, bounds: this.getBounds(id) }))
+    const validBoxes = boxes.filter(b => b.bounds)
+    if (validBoxes.length < 3) return this
+
+    const dir = String(direction).toLowerCase()
+    if (dir === 'horizontal') {
+      validBoxes.sort((a, b) => a.bounds.x - b.bounds.x)
+      const first = validBoxes[0]
+      const last = validBoxes[validBoxes.length - 1]
+      const totalWidth = validBoxes.reduce((acc, b) => acc + b.bounds.width, 0)
+      const span = (last.bounds.x + last.bounds.width) - first.bounds.x
+      const gap = (span - totalWidth) / (validBoxes.length - 1)
+
+      let currentX = first.bounds.x + first.bounds.width + gap
+      for (let i = 1; i < validBoxes.length - 1; i++) {
+        this.setBounds(validBoxes[i].id, { x: currentX })
+        currentX += validBoxes[i].bounds.width + gap
+      }
+    } else if (dir === 'vertical') {
+      validBoxes.sort((a, b) => a.bounds.y - b.bounds.y)
+      const first = validBoxes[0]
+      const last = validBoxes[validBoxes.length - 1]
+      const totalHeight = validBoxes.reduce((acc, b) => acc + b.bounds.height, 0)
+      const span = (last.bounds.y + last.bounds.height) - first.bounds.y
+      const gap = (span - totalHeight) / (validBoxes.length - 1)
+
+      let currentY = first.bounds.y + first.bounds.height + gap
+      for (let i = 1; i < validBoxes.length - 1; i++) {
+        this.setBounds(validBoxes[i].id, { y: currentY })
+        currentY += validBoxes[i].bounds.height + gap
+      }
+    }
+
+    return this
+  }
+
+  /**
+   * Checks if two elements overlap or collide on the active slide.
+   *
+   * @param {string} idA - First element ID or name.
+   * @param {string} idB - Second element ID or name.
+   * @returns {boolean} True if bounding boxes overlap.
+   */
+  checkCollision(idA, idB) {
+    this.#assertLoaded()
+    const boundsA = this.getBounds(idA)
+    const boundsB = this.getBounds(idB)
+    const { checkCollision } = require('../spatial/units.js')
+    return checkCollision(boundsA, boundsB)
+  }
+
+  /**
+   * Checks if one element is completely contained within another.
+   *
+   * @param {string} innerId - Contained element ID or name.
+   * @param {string} outerId - Container element ID or name.
+   * @returns {boolean} True if inner element is completely inside outer element.
+   */
+  isContained(innerId, outerId) {
+    this.#assertLoaded()
+    const innerBounds = this.getBounds(innerId)
+    const outerBounds = this.getBounds(outerId)
+    const { isContained } = require('../spatial/units.js')
+    return isContained(innerBounds, outerBounds)
+  }
+
+  /**
+   * Retrieves all elements on targeted slides, optionally filtered by type, name, or spatial bounds.
+   *
+   * @param {Object} [filter] - Filter options: `{ type, name, bounds, within, intersects, slideIndex }`.
+   * @returns {Array<Object>} List of element descriptors.
+   */
+  getElements(filter = {}) {
+    this.#assertLoaded()
+    const targetIndices =
+      filter.slideIndex !== undefined
+        ? [filter.slideIndex]
+        : this.#getTargetSlideIndices()
+    const all = []
+    for (const idx of targetIndices) {
+      const elems = this.#slideManager.getSlideElements(idx, filter)
+      for (const el of elems) {
+        all.push({ ...el, slideIndex: idx })
+      }
+    }
+    return all
+  }
+
+  /**
+   * Finds slide elements matching a filter object or custom predicate function.
+   *
+   * @param {Object|Function} filterOrPredicate - Filter criteria or predicate function.
+   * @returns {Array<Object>} List of matched element descriptors.
+   */
+  findElements(filterOrPredicate) {
+    if (typeof filterOrPredicate === 'function') {
+      const elements = this.getElements()
+      return elements.filter(filterOrPredicate)
+    }
+    return this.getElements(filterOrPredicate)
   }
 
   /**
@@ -2389,6 +2861,23 @@ class PPTXTemplater {
     return this;
   }
 
+  /**
+   * Resizes any drawable object (shape, textbox, picture, chart, table, SVG, icon, placeholder, group) on active slides.
+   * Supports absolute dimensions (width/height), relative delta (increase/decrease), and percentage scaling (scale).
+   *
+   * @param {string} objectIdOrName - Object name or shape ID.
+   * @param {Object} options - Resize options.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.resize("Logo", { width: 4 });
+   * ppt.resize("Chart", { height: 3 });
+   * ppt.resize("Rectangle", { width: 5, height: 2 });
+   * ppt.resize("Image", { increase: { width: 1 } });
+   * ppt.resize("Chart", { decrease: { height: 0.5 } });
+   * ppt.resize("Image", { scale: 1.2 });
+   * ppt.resize("Chart", { scale: { width: 1.1, height: 0.9 } });
+   */
   resize(objectIdOrName, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
@@ -2919,6 +3408,46 @@ class PPTXTemplater {
       elements.push(...this.#textManager.getTextElements(idx, this.#slideManager))
     }
     return elements
+  }
+
+  /**
+   * Appends a formatted text run to a shape or text box on targeted slides.
+   *
+   * @param {string} shapeId - Shape name or ID.
+   * @param {string} text - Text to append.
+   * @param {Object} [options] - Formatting options `{ style, paragraphIndex, inheritStyle }`.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.appendTextRun('titleShape', ' (Updated)', { style: { bold: true, color: '#FF0000' } });
+   */
+  appendTextRun(shapeId, text, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.appendTextRun(idx, shapeId, text, options, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Prepends a formatted text run to a shape or text box on targeted slides.
+   *
+   * @param {string} shapeId - Shape name or ID.
+   * @param {string} text - Text to prepend.
+   * @param {Object} [options] - Formatting options `{ style, paragraphIndex, inheritStyle }`.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.prependTextRun('titleShape', 'Draft: ', { style: { italic: true } });
+   */
+  prependTextRun(shapeId, text, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.prependTextRun(idx, shapeId, text, options, this.#slideManager)
+    }
+    return this
   }
 
   // === Shape Features ===
@@ -3508,21 +4037,37 @@ class PPTXTemplater {
 
   /**
    * Returns metadata for all images found on the targeted slide(s).
+   * Extracts format, MIME type, byte size, dimensions, position, and relationship info.
    *
-   * @returns {Array<{rId: string, name: string, x: number, y: number, width: number, height: number, mediaPath: string}>}
+   * @returns {Array<{rId: string, name: string, x: number, y: number, width: number, height: number, mediaPath: string, format: string, mimeType: string, size: number}>}
    *
    * @example
    * const images = ppt.getImages();
-   * images.forEach(img => console.log(`${img.name}: ${img.width}×${img.height} EMUs`));
+   * images.forEach(img => console.log(`${img.name}: ${img.width}×${img.height} EMUs, ${img.format}, ${img.size} bytes`));
    */
   getImages() {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
     const images = []
     for (const idx of targetIndices) {
-      images.push(
-        ...this.#imageManager.getImages(idx, this.#slideManager, this.#relationshipManager)
-      )
+      const rawImages = this.#imageManager.getImages(idx, this.#slideManager, this.#relationshipManager)
+      for (const img of rawImages) {
+        const mediaInfo = img.targetPath ? this.#mediaManager.getMediaInfo(img.targetPath) : null
+        const ext = img.targetPath ? img.targetPath.split('.').pop().toLowerCase() : ''
+        images.push({
+          ...img,
+          slideIndex: idx,
+          format: ext,
+          mimeType: mediaInfo?.mimeType || (ext ? `image/${ext}` : undefined),
+          size: mediaInfo?.size,
+          width: img.position ? img.position.cx : 0,
+          height: img.position ? img.position.cy : 0,
+          x: img.position ? img.position.x : 0,
+          y: img.position ? img.position.y : 0,
+          mediaPath: img.targetPath,
+          rId: img.relationshipId,
+        })
+      }
     }
     return images
   }

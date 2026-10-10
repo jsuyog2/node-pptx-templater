@@ -1,1 +1,3 @@
-module.exports = require('../elements/ChartManager.js');
+const { ChartManager } = require('../elements/ChartManager.js')
+
+module.exports = { ChartManager }
