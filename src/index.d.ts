@@ -1,5 +1,5 @@
 export class PPTXTemplater {
-  static load(source: string | Buffer, options?: any): Promise<PPTXTemplater>;
+  static load(source: string | Buffer | any, options?: any): Promise<PPTXTemplater>;
   static setLogLevel(level: string): void;
   static preload(source: string | Buffer): Promise<any>;
   static cache(source: string | Buffer): Promise<any>;
@@ -28,11 +28,16 @@ export class PPTXTemplater {
   adjustTable(tableName: string, options?: any): this;
   resize(objectIdOrName: string, options: any): this;
   mergeCells(tableName: string, startRow: number, startCol: number, endRow: number, endCol: number): this;
+  splitTableOnOverflow(tableName: string, options?: any): Promise<{ splitCount: number; slidesCreated: number }>;
   saveToFile(filePath: string, options?: any): Promise<void>;
+  toFile(filePath: string, options?: any): Promise<void>;
   save(filePath: string, options?: any): Promise<void>;
   saveXml(folderPath: string): Promise<void>;
   saveToFolder(folderPath: string): Promise<void>;
   toBuffer(options?: any): Promise<Buffer>;
+  toArrayBuffer(options?: any): Promise<ArrayBuffer>;
+  toBase64(options?: { dataUri?: boolean }): Promise<string>;
+  toExpress(res: any, filename?: string, options?: any): Promise<void>;
   toStream(options?: any): Promise<any>;
   saveToStream(writableOrOptions: any, options?: any): Promise<void>;
   exportSlides(...slideNumbers: number[]): Promise<any>;
@@ -64,6 +69,21 @@ export class PPTXTemplater {
 }
 
 export const PPTXTemplate: typeof PPTXTemplater;
+
+export class PackageLoader {
+  static load(source: any): Promise<VirtualFileSystem>;
+}
+export function isPkZip(buf: Uint8Array | Buffer): boolean;
+
+export class VirtualFileSystem {
+  entries: Map<string, Uint8Array>;
+  has(path: string): boolean;
+  get(path: string): Uint8Array | undefined;
+  set(path: string, data: Uint8Array | Buffer): void;
+  delete(path: string): boolean;
+  getText(path: string): string | undefined;
+  setText(path: string, text: string): void;
+}
 
 export class ZipManager {
   [key: string]: any;
@@ -111,6 +131,10 @@ export class RelationshipManager {
   [key: string]: any;
 }
 
+export class ZOrderManager {
+  [key: string]: any;
+}
+
 export class OutputWriter {
   [key: string]: any;
 }
@@ -122,6 +146,23 @@ export class TemplateEngine {
 export class ValidationEngine {
   [key: string]: any;
 }
+
+export const EMU_PER_PT: number;
+export const EMU_PER_IN: number;
+export const EMU_PER_PX: number;
+export function ptToEmu(pt: number): number;
+export function inToEmu(inches: number): number;
+export function pxToEmu(px: number): number;
+export function emuToPt(emu: number): number;
+export function emuToIn(emu: number): number;
+export function emuToPx(emu: number): number;
+export function toEmu(value: string | number | undefined | null): number;
+export function checkCollision(boxA: any, boxB: any): boolean;
+export function isContained(inner: any, outer: any): boolean;
+export function getBounds(element: any): { x: number; y: number; width: number; height: number };
+export function setBounds(element: any, bounds: Partial<{ x: number; y: number; width: number; height: number }>): void;
+export function move(element: any, dx: number, dy: number): void;
+export function resize(element: any, dw: number, dh: number): void;
 
 export function generateRelationshipId(slideId: any): string;
 export function parseRelationshipId(relId: string): any;

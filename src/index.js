@@ -18,6 +18,9 @@
  * │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
  * │  │TableMgr  │  │HyperlinkMgr│ │MediaMgr  │  │RelMgr    │  │
  * │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+ * │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+ * │  │ShapeMgr  │  │ImageMgr  │  │TextMgr   │  │ZOrderMgr │  │
+ * │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
  * │                   ┌──────────────┐                         │
  * │                   │OutputWriter  │                         │
  * │                   └──────────────┘                         │
@@ -28,17 +31,19 @@ const { PPTXTemplater } = require('./core/PPTXTemplater.js')
 const { ZipManager } = require('./managers/ZipManager.js')
 const { XMLParser, Z_ORDER_SYMBOL } = require('./parsers/XMLParser.js')
 const { SlideManager } = require('./managers/SlideManager.js')
-const { ChartManager } = require('./managers/ChartManager.js')
-const { TableManager } = require('./managers/TableManager.js')
-const { ShapeManager } = require('./managers/ShapeManager.js')
-const { ImageManager } = require('./managers/ImageManager.js')
-const { TextManager } = require('./managers/TextManager.js')
+const { ChartManager } = require('./elements/ChartManager.js')
+const { TableManager } = require('./elements/TableManager.js')
+const { ShapeManager } = require('./elements/ShapeManager.js')
+const { ImageManager } = require('./elements/ImageManager.js')
+const { TextManager } = require('./elements/TextManager.js')
 const { HyperlinkManager } = require('./managers/HyperlinkManager.js')
 const { MediaManager } = require('./managers/MediaManager.js')
 const { RelationshipManager } = require('./managers/RelationshipManager.js')
+const { ZOrderManager } = require('./spatial/ZOrderManager.js')
 const { OutputWriter } = require('./core/OutputWriter.js')
 const { TemplateEngine } = require('./core/TemplateEngine.js')
 const { ValidationEngine } = require('./core/ValidationEngine.js')
+const spatialUnits = require('./spatial/units.js')
 
 // Utility exports
 const { generateRelationshipId, parseRelationshipId } = require('./utils/relationshipUtils.js')
@@ -74,9 +79,11 @@ module.exports = {
   HyperlinkManager,
   MediaManager,
   RelationshipManager,
+  ZOrderManager,
   OutputWriter,
   TemplateEngine,
   ValidationEngine,
+  ...spatialUnits,
   generateRelationshipId,
   parseRelationshipId,
   validateXml,

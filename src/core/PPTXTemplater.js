@@ -28,15 +28,15 @@ const { ZipManager } = require('../managers/ZipManager.js')
 const { XMLParser } = require('../parsers/XMLParser.js')
 const { ContentTypesManager } = require('../managers/ContentTypesManager.js')
 const { SlideManager } = require('../managers/SlideManager.js')
-const { ChartManager } = require('../managers/ChartManager.js')
-const { TableManager } = require('../managers/TableManager.js')
+const { ChartManager } = require('../elements/ChartManager.js')
+const { TableManager } = require('../elements/TableManager.js')
 const { HyperlinkManager } = require('../managers/HyperlinkManager.js')
 const { MediaManager } = require('../managers/MediaManager.js')
 const { RelationshipManager } = require('../managers/RelationshipManager.js')
-const { ShapeManager } = require('../managers/ShapeManager.js')
-const { ImageManager } = require('../managers/ImageManager.js')
-const { TextManager } = require('../managers/TextManager.js')
-const { ZOrderManager } = require('../managers/ZOrderManager.js')
+const { ShapeManager } = require('../elements/ShapeManager.js')
+const { ImageManager } = require('../elements/ImageManager.js')
+const { TextManager } = require('../elements/TextManager.js')
+const { ZOrderManager } = require('../spatial/ZOrderManager.js')
 const { ValidationEngine } = require('./ValidationEngine.js')
 const { OutputWriter } = require('./OutputWriter.js')
 const { TemplateEngine } = require('./TemplateEngine.js')
@@ -1375,6 +1375,17 @@ class PPTXTemplater {
    * @returns {Promise<void>}
    */
   async save(filePath, options = {}) {
+    return this.saveToFile(filePath, options)
+  }
+
+  /**
+   * Saves the presentation to a file. Canonical ExportAdapter alias for saveToFile.
+   *
+   * @param {string} filePath - Output file path.
+   * @param {Object} [options] - Save options.
+   * @returns {Promise<void>}
+   */
+  async toFile(filePath, options = {}) {
     return this.saveToFile(filePath, options)
   }
 

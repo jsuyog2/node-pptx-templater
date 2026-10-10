@@ -1,9 +1,0 @@
-{
-  "pitfalls": [
-    "PowerPoint repair warnings triggered when mutating <c:chartSpace> without updating ppt/embeddings/Microsoft_Excel_Worksheet*.xlsx.",
-    "rId collisions on slide cloning without dedicated .rels isolation.",
-    "Table cell merging desynchronization when gridSpan/rowSpan cache isn't refreshed.",
-    "Rounding float EMUs to integers via Math.round().",
-    "AST text run fragmentation across adjacent <a:r> tags."
-  ]
-}

@@ -1,291 +1,195 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/jsuyog2/node-pptx-templater/main/assets/logo.png" alt="node-pptx-templater logo" width="160">
-</p>
+# node-pptx-templater
 
-<h1 align="center">node-pptx-templater</h1>
+[![npm version](https://img.shields.io/badge/version-3.0.0--alpha.0-blue.svg)](https://www.npmjs.com/package/node-pptx-templater)
+[![Vitest Passing](https://img.shields.io/badge/tests-255%20passing-brightgreen.svg)](https://github.com/jsuyog2/node-pptx-templater/actions)
+[![Zero Sync I/O](https://img.shields.io/badge/sync%20I%2FO-zero-success.svg)](#1-in-memory-virtual-file-system-vfs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-<p align="center">
-  <strong>High-performance OpenXML PowerPoint template engine for Node.js</strong>
-</p>
+> **Enterprise-grade, spatial-aware OpenXML PowerPoint manipulation, templating, and layout engine for Node.js.**
 
-<p align="center">
-  <a href="https://www.npmjs.com/package/node-pptx-templater"><img src="https://img.shields.io/npm/v/node-pptx-templater.svg?style=flat-square&color=6366f1" alt="npm version"></a>
-  <a href="https://github.com/jsuyog2/node-pptx-templater/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/jsuyog2/node-pptx-templater/ci.yml?branch=main&style=flat-square&color=34d399" alt="CI"></a>
-  <a href="https://www.npmjs.com/package/node-pptx-templater"><img src="https://img.shields.io/npm/dm/node-pptx-templater.svg?style=flat-square&color=a855f7" alt="Downloads"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="MIT License"></a>
-  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D20.12.0-brightgreen?style=flat-square" alt="Node.js 20.12.0+"></a>
-</p>
-
-<p align="center">
-  <a href="https://jsuyog2.github.io/node-pptx-templater/"><strong>📖 Full Documentation →</strong></a>
-</p>
+Operates with **zero external binary dependencies** (no LibreOffice, no Java, no headless browser) and executes pure non-blocking, in-memory OpenXML transformations.
 
 ---
 
-Design your presentations visually in PowerPoint. Populate them dynamically in Node.js.
+## 🏛️ Architectural Overview
 
-`node-pptx-templater` parses OpenXML directly — no native office dependencies, no Java, no Electron. Pure JavaScript that runs on AWS Lambda, Vercel Edge, and Cloudflare Workers.
+`node-pptx-templater` v3.0.0-alpha.0 is engineered from the ground up for mission-critical cloud backends, microservices, and serverless environments:
+
+### 1. In-Memory Virtual File System (VFS)
+- **Zero Synchronous / Blocking I/O:** Pure non-blocking architecture using `Uint8Array`, Node.js `stream.Readable`, and in-memory byte arrays.
+- All internal transformations run against an in-memory Virtual File System (`Map<string, Uint8Array>`), eliminating disk thrashing and race conditions under concurrent load.
+
+### 2. Strict OpenXML AST Normalizer (No Brittle Regex)
+- PowerPoint fragments placeholder tokens across distinct `<a:r>` runs and `<a:t>` text nodes during user edits (e.g., `{{` in one node, variable name in another).
+- The engine uses an AST-level run normalizer that merges adjacent text runs inside paragraph nodes (`<a:p>`) before token matching while strictly preserving formatting, fonts, colors, and OpenXML namespaces (`p:`, `a:`, `r:`, `c:`, `w:`).
+
+### 3. Precise Spatial Coordinate Engine (EMUs)
+- All coordinates and dimensions are strictly computed in OpenXML English Metric Units (EMUs):
+  - $1\text{ pt} = 12,700\text{ EMUs}$
+  - $1\text{ in} = 914,400\text{ EMUs}$
+  - $1\text{ px (96 DPI)} = 9,525\text{ EMUs}$
+- Integer arithmetic (`Math.round()`) is enforced when writing `<a:off>` and `<a:ext>` tags to prevent micro-pixel rounding artifacts.
+
+### 4. Relationship (.rels) Isolation
+- When duplicating slides, the engine generates isolated relationship files (`slideX.xml.rels`) with fresh `rId` keys to eliminate relationship collisions and PowerPoint repair warnings.
 
 ---
 
-## Installation
+## ⚡ Feature Matrix
+
+| Feature Domain | Capabilities |
+| :--- | :--- |
+| **Ingestion Pipeline** | Ingest from File Path, Buffer, `ReadableStream`, PKZip archives, or raw uncompressed XML folder trees. |
+| **Elements Manipulation** | Placeholders, text styling, shape creation/updates, image swaps with aspect-ratio locks, and Z-index layering (`bringToFront`, `sendToBack`). |
+| **Flagship Table Engine** | Table cell CRUD, `gridSpan`/`rowSpan` merging, cell formatting, nested cell shapes, and dynamic row height calculation. |
+| **Table Auto-Pagination** | Recursively splits overflowing tables across duplicated cloned slides against $Y_{\text{limit}} = \text{SlideHeight} - \text{BottomMargin}$, carrying over repeated headers. |
+| **Native Chart Updates** | Mutates `<c:chartSpace>` series/categories while automatically synchronizing the embedded Excel binary cache (`Microsoft_Excel_Worksheet*.xlsx`). |
+| **Export Adapters** | 6 non-blocking targets: `toFile`, `toStream`, `toBuffer`, `toArrayBuffer`, `toBase64`, and `toExpress`. |
+
+---
+
+## 📦 Installation
 
 ```bash
 npm install node-pptx-templater
+# or
+pnpm add node-pptx-templater
+# or
+yarn add node-pptx-templater
 ```
 
 ---
 
-## Quick Start
+## 💻 Runnable TypeScript Examples
 
-```javascript
-const { PPTXTemplater } = require('node-pptx-templater');
+### 1. Ingestion: Raw Unpacked XML Folders vs. PPTX Buffers
 
-const ppt = await PPTXTemplater.load('template.pptx');
+```typescript
+import { PPTXTemplater, PackageLoader } from 'node-pptx-templater'
+import * as fs from 'fs/promises'
 
-// Replace text placeholders
-ppt.useSlide(1)
-   .replaceMultiple({ '{{title}}': 'Q2 Report', '{{date}}': 'June 2026' });
+async function runIngestionDemo() {
+  // A. Ingest directly from an unpacked OpenXML directory tree (zero intermediate zip step)
+  const pptFromFolder = await PPTXTemplater.load('./templates/extracted-deck/')
 
-// Update chart data (syncs the embedded Excel workbook too)
-ppt.useSlide(2)
-   .updateChart('revenue-chart', {
-     categories: ['April', 'May', 'June'],
-     series: [{ name: 'Revenue', values: [125000, 162000, 195000] }]
-   });
+  // B. Ingest from an in-memory byte Buffer (e.g., loaded from database or S3)
+  const templateBuffer = await fs.readFile('./templates/corporate-deck.pptx')
+  const pptFromBuffer = await PPTXTemplater.load(templateBuffer)
 
-// Update table
-ppt.useSlide(3)
-   .updateTable('SalesTable', {
-     rows: [['North', '$1.2M', '↑15%'], ['South', '$1.8M', '↑22%']]
-   });
-
-await ppt.saveToFile('output.pptx');
+  // C. Ingest via low-level PackageLoader
+  const vfs = await PackageLoader.load(templateBuffer)
+  console.log(`VFS loaded with ${vfs.entries.size} OpenXML entries in memory.`)
+}
 ```
 
 ---
 
-## Features
+### 2. Dynamic Table Auto-Pagination with Repeated Headers
 
-| Category | Capabilities |
-|---|---|
-| **Text** | Replace placeholders, search & replace, rich text, bullet lists |
-| **Tables** | Update cells, add/insert/remove rows, merge cells, extract data as JSON |
-| **Charts** | Update data, sync Excel workbook, custom data labels, series management |
-| **Images** | Replace, add, remove images; set position, size, rotation, crop |
-| **Shapes** | Add, update, clone, remove shapes; set fill, text, position |
-| **Cell Shapes** | Add shapes inside table cells with automatic bounds calculation |
-| **Slides** | Duplicate, move, delete, import/export, clone, reorder |
-| **Layer Ordering** | Bring to front, send to back, set Z-index, swap, sort |
-| **Hyperlinks** | URL links, slide navigation, shape and image links |
-| **XML Folder** | Extract to folder, edit XML directly, rebuild to PPTX |
-| **Validation** | Structural validation, relationship checks, auto-repair |
-| **Performance** | Template caching, async streaming, profiling |
+Automatically slice and paginate tables across duplicated slides when data overflows the vertical boundary ($Y_{\text{limit}} = \text{SlideHeight} - \text{BottomMargin}$):
 
----
+```typescript
+import { PPTXTemplater } from 'node-pptx-templater'
 
-## Logging
+async function runTablePaginationDemo() {
+  const ppt = await PPTXTemplater.load('./templates/invoice-template.pptx')
+  ppt.useSlide(1)
 
-The library is **completely silent by default**. Enable logging when needed:
+  // Populate 100 dynamic rows
+  for (let i = 1; i <= 100; i++) {
+    ppt.addTableRow('LineItemsTable', [
+      `Item #${i}`,
+      `Description for product ${i}`,
+      `$${(Math.random() * 100).toFixed(2)}`,
+      'Completed'
+    ])
+  }
 
-```javascript
-// At load time
-const ppt = await PPTXTemplater.load('template.pptx', { logLevel: 'debug' });
+  // Automatically split table across cloned slides with 1-inch bottom margin
+  const result = await ppt.splitTableOnOverflow('LineItemsTable', {
+    bottomMargin: '1in',  // 914,400 EMUs
+    repeatHeaders: 1      // carry over top header row to all created slides
+  })
 
-// Globally (affects all instances)
-PPTXTemplater.setLogLevel('debug');
-
-// Instance shortcut
-ppt.enableDebug();
-
-// Suppress everything (explicit)
-PPTXTemplater.setLogLevel('silent');
-```
-
-Supported levels: `verbose` | `debug` | `info` | `warn` (default) | `error` | `silent`
-
----
-
-## Examples
-
-The [`examples/`](./examples) directory contains runnable scripts for every major feature:
-
-| Script | What it demonstrates |
-|---|---|
-| `basic-usage.js` | Text, charts, tables, links — end-to-end workflow |
-| `chart-update.js` | Multi-series chart updates with Excel sync |
-| `chart-data-labels.js` | Custom data label formatting and positioning |
-| `table-update.js` | Cell updates, row management, merging |
-| `slide-selection.js` | Slide operations — duplicate, move, delete |
-| `image-operations.js` | Add, replace, remove images |
-| `shape-operations.js` | Shape lifecycle — add, update, clone, delete |
-| `z-order.js` | Layer ordering — bring/send, swap, set Z-index |
-| `slide-import.js` | Import/export slides between presentations |
-| `text-search.js` | Find text, replace multiple, update named shapes |
-| `table-extraction.js` | Extract table data as JSON (all 3 modes) |
-| `nested-table-rows.js` | Nested rows with rowspan / auto / none strategies |
-| `xml-folder-workflow.js` | Extract → edit XML → rebuild PPTX |
-
-Run any example:
-```bash
-npm run example:basic
-npm run example:images
-npm run example:shapes
-# ... etc
+  console.log(`Pagination complete: created ${result.slidesCreated} new slides.`)
+  await ppt.toFile('./dist/invoice-paginated.pptx')
+}
 ```
 
 ---
 
-## Core Concepts
+### 3. Native Chart Updates with Automatic Excel Cache Synchronization
 
-### Template Design
-Create your template in PowerPoint. Use `{{placeholder}}` tags in text boxes, name your shapes, tables, and charts clearly — the library finds them by name.
+Update PowerPoint charts without triggering "PowerPoint found a problem with content" repair dialogs:
 
-### Slide Targeting
-```javascript
-ppt.useSlide(2)         // Target slide 2
-ppt.useAllSlides()      // Target all slides
-```
+```typescript
+import { PPTXTemplater } from 'node-pptx-templater'
 
-### Chaining
-Most methods return `this`, enabling fluent chains:
-```javascript
-ppt.useSlide(1)
-   .replaceTextByTag('{{name}}', 'Alice')
-   .updateShapePosition('logo', { x: 500000, y: 200000 })
-   .bringToFront('logo');
-```
+async function runChartUpdateDemo() {
+  const ppt = await PPTXTemplater.load('./templates/analytics-deck.pptx')
 
-### Table Data Extraction
-```javascript
-// Object array (header row = keys)
-const rows = await ppt.getTableRows('SalesTable');
-// → [{ region: 'North', sales: '1200' }, ...]
+  // Updates <c:chartSpace> AND synchronizes ppt/embeddings/Microsoft_Excel_Worksheet1.xlsx
+  await ppt.useSlide(2).updateChart('RevenueChart', {
+    categories: ['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],
+    series: [
+      { name: 'Direct Sales', values: [150000, 185000, 220000, 290000] },
+      { name: 'Channel Partners', values: [85000, 110000, 140000, 195000] }
+    ]
+  })
 
-// Raw string arrays
-const raw = await ppt.getTableRows('SalesTable', { raw: true });
-// → [['North', '1200'], ...]
-
-// With metadata
-const meta = await ppt.getTableRows('SalesTable', { includeMetadata: true });
-// → { rows: [...], rowCount: 5, columnCount: 3, mergedCells: [] }
-```
-
-### Table Cell Shapes
-Cell shapes are overlay graphics anchored within table cells. They are positioned absolutely based on cell bounds, and **never** modify row heights, column widths, cell margins, or trigger table reflow. Offsets (`x`, `y`) are relative to the cell's top-left corner. Oversized shapes are scaled down proportionally to fit inside the cell.
-
-```javascript
-// Add a simple indicator
-await ppt.addCellShape('SalesTable', 2, 1, {
-  type: 'circle',
-  width: 12,
-  height: 12,
-  fill: '#10B981' // Green status dot
-});
-
-// Add a badge with text and custom offsets
-await ppt.addCellShape('SalesTable', 1, 2, {
-  type: 'badge',
-  text: 'Active',
-  fill: '#3B82F6',
-  x: 4,
-  y: 2,
-  width: 50,
-  height: 16
-});
-```
-
-### XML Folder Workflow
-```javascript
-// Extract PPTX to a folder of XML files (version-control friendly)
-await PPTXTemplater.extractPptx('template.pptx', './pptx-xml/');
-
-// Load, modify, rebuild
-const ppt = await PPTXTemplater.load('./pptx-xml/');
-ppt.useAllSlides().replaceTextByTag('{{env}}', 'Production');
-await PPTXTemplater.buildPptx('./pptx-xml/', 'output.pptx');
+  await ppt.toFile('./dist/analytics-updated.pptx')
+}
 ```
 
 ---
 
-## API Reference
+### 4. Streaming Presentations Directly Over Express HTTP Responses
 
-Full API documentation with examples, parameter types, and advanced usage:
+Stream generated PPTX binaries directly to client browsers with proper OpenXML MIME headers:
 
-**👉 https://jsuyog2.github.io/node-pptx-templater/**
+```typescript
+import express from 'express'
+import { PPTXTemplater } from 'node-pptx-templater'
 
----
+const app = express()
 
-## Output Options
+app.get('/download-report', async (req, res) => {
+  try {
+    const ppt = await PPTXTemplater.load('./templates/monthly-report.pptx')
 
-```javascript
-await ppt.saveToFile('./output.pptx');      // File on disk
-const buffer = await ppt.toBuffer();        // Node.js Buffer (for HTTP responses)
-const stream = await ppt.toStream();        // Readable stream (for piping)
-await ppt.saveToFolder('./output-xml/');    // Raw XML folder
+    ppt.useSlide(1).replaceText({
+      '{{CLIENT_NAME}}': req.query.client as string || 'Valued Customer',
+      '{{GENERATION_DATE}}': new Date().toLocaleDateString()
+    })
+
+    // Sets Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation
+    // Sets Content-Disposition: attachment; filename="Report.pptx"
+    // Pipes the readable stream directly to res with zero intermediate disk writes
+    await ppt.toExpress(res, 'Custom_Report.pptx')
+  } catch (err) {
+    res.status(500).send('Error generating presentation')
+  }
+})
+
+app.listen(3000, () => console.log('Server running on port 3000'))
 ```
 
 ---
 
-## Caching & Performance
+## 🛠️ Verification & Test Suite
 
-```javascript
-// Preload templates for repeated generation (e.g., in a web server)
-await PPTXTemplater.preload('./template.pptx');
-
-// Load from cache — zero disk I/O on subsequent calls
-const ppt = await PPTXTemplater.fromCache('./template.pptx');
-
-// Profile performance
-ppt.enablePerformanceProfile();
-// ... do work ...
-console.log(ppt.getPerformanceMetrics());
-```
-
----
-
-## Validation & Repair
-
-```javascript
-const result = await ppt.validatePresentation();
-// → { valid: true, errors: [], warnings: [] }
-
-await ppt.repair();         // Auto-fix orphan relationships
-await ppt.repairCharts();   // Fix broken chart workbook references
-```
-
----
-
-## Migration from v1.0.x
-
-No breaking changes. All existing APIs continue to work unchanged.
-
-**New in v1.1.0:**
-- `PPTXTemplater.load(path, { logLevel })` — configure logging at load time
-- `PPTXTemplater.setLogLevel(level)` — global log level control
-- `ppt.enableDebug()` — instance debug shortcut
-- `ppt.getTableRows(tableId, options)` — table data extraction
-- `ppt.addTableRow(tableId, data, { mergeStrategy })` — nested row support
-- `setGlobalLogLevel` / `resetLogLevel` now exported from public API
-- 8 new example files
-- `npm run docs:validate` — documentation validation
-- `npm run docs:inventory` — feature inventory generation
-
----
-
-## Contributing
-
-Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) and open a pull request.
+The test suite runs with [Vitest](https://vitest.dev/) across unit and full integration suites:
 
 ```bash
-git clone https://github.com/jsuyog2/node-pptx-templater.git
-cd node-pptx-templater
-npm install
+# Run complete test suite (255 tests)
 npm test
+
+# Build dual ESM/CJS distributions via tsup
+npm run build
 ```
 
 ---
 
-## License
+## 📄 License
 
-[MIT](./LICENSE) © node-pptx-templater contributors
+MIT © [node-pptx-templater contributors](LICENSE)
