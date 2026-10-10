@@ -87,7 +87,7 @@
     </div>
     <div class="flex flex-col gap-2 mt-6 overflow-y-auto">
       <a href="#getting-started" class="nav-link">Getting Started</a>
-      <a href="#api-reference" class="nav-link">API Reference</a>
+      <a href="api-reference.html" class="nav-link text-blue-600 dark:text-blue-400 font-semibold">API Reference Manual (95 Methods) →</a>
       <a href="#showcase" class="nav-link">Showcase & Demos</a>
       <a href="#templates" class="nav-link">Templates & Data</a>
       <a href="#feature-catalog" class="nav-link">Feature Catalog</a>
@@ -118,7 +118,7 @@
       <!-- Desktop Nav Links -->
       <nav class="hidden md:flex items-center gap-1 lg:gap-2">
         <a href="#getting-started" class="nav-link text-xs lg:text-sm">Getting Started</a>
-        <a href="#api-reference" class="nav-link text-xs lg:text-sm">API</a>
+        <a href="api-reference.html" class="nav-link text-xs lg:text-sm text-blue-600 dark:text-blue-400 font-semibold">API Reference</a>
         <a href="#showcase" class="nav-link text-xs lg:text-sm">Showcase</a>
         <a href="#templates" class="nav-link text-xs lg:text-sm">Templates</a>
         <a href="#feature-catalog" class="nav-link text-xs lg:text-sm">Features</a>
@@ -354,168 +354,25 @@ console.<span class="hl-fn">log</span>(<span class="hl-string">`✓ Generated \$
         <p class="mt-2 text-slate-600 dark:text-slate-400">Complete, source-verified documentation of the <code class="font-mono text-sm text-brand-500">PPTXTemplater</code> public API.</p>
       </div>
 
-      <div class="space-y-8">
-        <!-- 1. Lifecycle & Loading -->
-        <div class="glass-panel rounded-2xl p-6 reveal-card">
-          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">1. Initialization & Export</h3>
-            <span class="badge badge-info text-xs">Core</span>
+      <!-- Dedicated API Reference Portal Banner -->
+      <div class="glass-elevated rounded-2xl p-6 sm:p-8 border-2 border-blue-500/30 shadow-xl shadow-blue-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 reveal-card">
+        <div class="max-w-2xl">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 mb-3">
+            <span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
+            <span>Dedicated Reference Portal Available</span>
           </div>
-          <div class="space-y-4 text-sm">
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">PPTXTemplater.load(pathOrBuffer, options)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Loads a PowerPoint file from disk path, Buffer, or extracted XML directory. Returns a Promise resolving to a <code class="font-mono text-xs">PPTXTemplater</code> instance.</p>
-              <div class="mt-1 text-xs text-slate-500"><strong>Options:</strong> <code class="font-mono">{ logLevel: 'warn'|'info'|'debug'|'verbose'|'silent' }</code></div>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.save(outputPath) / ppt.saveToFile(outputPath)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Serializes the presentation package to a binary <code class="font-mono text-xs">.pptx</code> file on disk.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.toBuffer()</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Generates and returns an in-memory Node.js <code class="font-mono text-xs">Buffer</code> containing the complete zipped PPTX archive. Ideal for AWS Lambda, Google Cloud Functions, or HTTP streaming.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">PPTXTemplater.extractPptx(pptxPath, destinationFolder)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Unpacks a PPTX presentation into a folder of formatted OpenXML files for inspection, version control, or batch editing.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">PPTXTemplater.buildPptx(folderPath, outputPath)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Repackages an extracted XML directory back into a standard PowerPoint presentation file.</p>
-            </div>
-          </div>
+          <h3 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Full Production API Reference Manual</h3>
+          <p class="mt-2 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Access all 95 public methods across 10 categorized modules with a sticky/collapsible sidebar, real-time client-side method search, complete parameter tables with default values, DrawingML/PresentationML OpenXML mutation specifications, and 1-click copyable code snippets.
+          </p>
         </div>
-
-        <!-- 2. Slides -->
-        <div class="glass-panel rounded-2xl p-6 reveal-card">
-          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">2. Slide Management</h3>
-            <span class="badge badge-purple text-xs">Slides</span>
-          </div>
-          <div class="space-y-4 text-sm">
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.useSlide(slideNumber) / ppt.useAllSlides()</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Selects a target slide (1-based index) or all slides for subsequent operations.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.duplicateSlide(sourceSlideIndex, [insertAfterIndex])</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Deep-clones a slide including all relationships, charts, media, and layout bindings.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.reorderSlides(permutationArray)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Reorders slides by providing an array of 1-based slide numbers (e.g. <code class="font-mono text-xs">[2, 3, 1]</code>).</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.importSlideFrom(sourcePptInstance, sourceSlideNumber)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Imports a slide across presentations with complete relationship remapping and content-type synchronization.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.setSlideSize(ratioOrWidth, [height]) / ppt.getSlideDimensions()</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Sets slide aspect ratio (<code class="font-mono text-xs">'16:9'</code>, <code class="font-mono text-xs">'4:3'</code>, or inches) and retrieves dimensions in EMUs.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 3. Text & Typography -->
-        <div class="glass-panel rounded-2xl p-6 reveal-card">
-          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">3. Text Replacement & Typography</h3>
-            <span class="badge badge-success text-xs">Text</span>
-          </div>
-          <div class="space-y-4 text-sm">
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.replaceTextByTag(tag, replacement, [options])</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Replaces a placeholder (e.g. <code class="font-mono text-xs">{{company}}</code>) even when split across fragmented XML runs.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.replaceMultiple(replacementsMap)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Replaces multiple placeholder key-value pairs in a single batch pass across targeted slides.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.findText(query)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Searches presentation slides for text occurrences, returning matches with slide numbers and shape names.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.appendTextRun(shapeId, text, options) / ppt.prependTextRun(...)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Appends or prepends styled text runs with specific fonts, colors, bold, italic, and underline styling.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 4. Tables -->
-        <div class="glass-panel rounded-2xl p-6 reveal-card">
-          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">4. Tables & Grid Manipulation</h3>
-            <span class="badge badge-info text-xs">Tables</span>
-          </div>
-          <div class="space-y-4 text-sm">
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.updateTable(tableId, dataMatrix)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Replaces table cell values with a 2D array of data while preserving cell formatting and dimensions.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.addTableRow(tableId, rowData, [options])</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Appends rows to an existing table. Supports nested arrays for vertical rowspan merges (<code class="font-mono text-xs">{ mergeStrategy: 'rowspan'|'auto' }</code>) or shape badge cells.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.stripeRows(tableId, options)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Applies alternating row background colors: <code class="font-mono text-xs">{ oddColor: 'F8FAFC', evenColor: 'EDF2F7', startRow: 1 }</code>.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.splitTableOnOverflow(tableId, options)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Splits large tables across consecutive duplicate slides when exceeding vertical limits, preserving repeated headers and pinned summary rows.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.getTableRows(tableId, [options])</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Extracts table content as structured JSON objects (headers as keys), raw string arrays, or with full cell metadata.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 5. Charts -->
-        <div class="glass-panel rounded-2xl p-6 reveal-card">
-          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">5. Charts & Internal Excel Synchronization</h3>
-            <span class="badge badge-purple text-xs">Charts</span>
-          </div>
-          <div class="space-y-4 text-sm">
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.updateChart(chartId, { categories, series })</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Updates multi-series chart values in the chart XML and automatically generates matching cached worksheets in the embedded Excel package (<code class="font-mono text-xs">.xlsx</code>), preventing PowerPoint repair prompts.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.updateDataLabels(chartId, options)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Controls chart data label display: <code class="font-mono text-xs">{ showVal: true, showCatName: false, showLegendKey: false }</code>.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 6. Shapes & Z-Order -->
-        <div class="glass-panel rounded-2xl p-6 reveal-card">
-          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">6. Shapes, Z-Order & Spatial Alignment</h3>
-            <span class="badge badge-success text-xs">Shapes</span>
-          </div>
-          <div class="space-y-4 text-sm">
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.addShape(type, options)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Creates vector shapes: rectangle, roundedRectangle, circle, ellipse, triangle, arrows, etc., with fills, borders, dimensions, and text.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.bringToFront(shapeId) / ppt.sendToBack(shapeId)</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Controls the visual stacking z-order of shapes and text elements on the slide.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.alignShapes(shapeIds, 'left'|'center'|'right'|'top'|'middle'|'bottom')</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Aligns multiple shapes along their bounding edges or centerlines.</p>
-            </div>
-            <div>
-              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.distributeShapes(shapeIds, 'horizontally'|'vertically')</code>
-              <p class="text-slate-600 dark:text-slate-300 mt-1">Distributes three or more shapes with uniform spacing between them.</p>
-            </div>
-          </div>
-        </div>
+        <a href="api-reference.html" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/25 transition-all text-sm whitespace-nowrap">
+          <span>Open API Reference</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+        </a>
       </div>
+
+
     </section>
 
     <!-- ====================================================================

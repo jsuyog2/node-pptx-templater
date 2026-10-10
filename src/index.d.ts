@@ -27,6 +27,7 @@ export class PPTXTemplater {
   appendTextRun(textOrOptions: any, runOptions?: any): this;
   prependTextRun(textOrOptions: any, runOptions?: any): this;
   replaceText(replacements: Record<string, string | number>): this;
+  extractPlaceholders(pattern?: RegExp): string[];
   updateChart(chartName: string, data: any): this;
   updateChartTitle(chartName: string, title: string): this;
   applyZOrder(slideNumber: number, zOrderConfig: any[]): this;

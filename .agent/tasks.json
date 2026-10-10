@@ -1,0 +1,66 @@
+{
+    "project": "node-pptx-templater-docs",
+    "version": "1.0.0",
+    "tasks": [
+        {
+            "id": "DOCS-001",
+            "title": "Create Standalone API Reference Page",
+            "description": "Establish a dedicated page for the API Reference (e.g., api-reference.html or docs/api/index.html) separated from the primary guide/landing overview.",
+            "status": "completed",
+            "deliverables": [
+                "docs/api-reference.html",
+                "Navigation header links updating between Main Guide and API Reference"
+            ]
+        },
+        {
+            "id": "DOCS-002",
+            "title": "Build Categorized Sidebar Navigation",
+            "description": "Create a persistent sidebar with collapsible or sticky category groupings matching the codebase API domain modules.",
+            "status": "completed",
+            "categories": [
+                "Lifecycle & I/O",
+                "Slide Management",
+                "Text & Placeholders",
+                "Tables & Cell Shapes",
+                "Charts & Data Labels",
+                "Shapes & Geometry",
+                "Images & Media",
+                "Z-Order & Layering",
+                "Hyperlinks & Navigation",
+                "Validation & Diagnostics"
+            ]
+        },
+        {
+            "id": "DOCS-003",
+            "title": "Document All Functions with Specs and Copyable Code",
+            "description": "For every public method across PPTXTemplater and core managers, generate a complete entry including signature, parameters table, return type, and copy-and-paste code examples.",
+            "status": "completed",
+            "requirements": {
+                "fields": [
+                    "functionName",
+                    "signature",
+                    "description",
+                    "parameters",
+                    "returns",
+                    "copyPasteExample"
+                ],
+                "uiElements": [
+                    "One-click copy button on code snippets",
+                    "Parameter type badges"
+                ]
+            }
+        },
+        {
+            "id": "DOCS-004",
+            "title": "Implement Fully Responsive Layout",
+            "description": "Make the API documentation responsive across mobile phones, tablets, desktop, and ultra-wide screens using adaptive CSS Grid / Flexbox.",
+            "status": "completed",
+            "breakpoints": {
+                "mobile": "< 768px (collapsible drawer sidebar / hamburger menu, full-width cards, scrollable code blocks)",
+                "tablet": "768px - 1024px (compact sidebar or toggleable off-canvas navigation)",
+                "desktop": "1024px - 1440px (fixed sticky 280px sidebar, structured main reading panel)",
+                "widescreen": "> 1440px (max-width content container or 3-column layout with right-hand page TOC)"
+            }
+        }
+    ]
+}

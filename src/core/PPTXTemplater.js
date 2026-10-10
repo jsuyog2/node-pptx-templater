@@ -3373,6 +3373,30 @@ class PPTXTemplater {
   }
 
   /**
+   * Extracts all unique placeholders (e.g., {{placeholder}}) across targeted slides.
+   *
+   * @param {RegExp} [pattern] - Optional custom RegExp pattern. Defaults to `/\{\{([^{}]+)\}\}/g`.
+   * @returns {string[]} Array of unique placeholder token strings.
+   *
+   * @example
+   * const placeholders = ppt.extractPlaceholders();
+   * console.log('Placeholders found:', placeholders); // ['{{title}}', '{{company}}']
+   */
+  extractPlaceholders(pattern) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const placeholders = new Set()
+    for (const idx of targetIndices) {
+      const slideXml = this.#slideManager.getSlideXml(idx)
+      const matches = this.#templateEngine.extractPlaceholders(slideXml, pattern)
+      for (const m of matches) {
+        placeholders.add(m)
+      }
+    }
+    return Array.from(placeholders)
+  }
+
+  /**
    * Returns all text elements (paragraphs) across the targeted slides.
    *
    * @returns {Array<{slideIndex: number, shapeName: string, text: string}>}

@@ -26,7 +26,7 @@
     "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\" \"showcase/**/*.js\"",
     "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\"",
     "benchmark": "node benchmarks/run.js",
-    "docs:build": "node -e \"const fs = require('fs'); if (!fs.existsSync('docs/index.html')) throw new Error('docs/index.html missing'); console.log('✓ Documentation site ready in docs/');\"",
+    "docs:build": "node scripts/build-docs.js && node -e \"const fs = require('fs'); if (!fs.existsSync('docs/api-reference.html') || !fs.existsSync('docs/index.html')) throw new Error('docs missing'); console.log('✓ Documentation site ready in docs/');\"",
     "docs:validate": "vitest run tests/unit/DocCoverage.test.js",
     "validate": "vitest run tests/unit/PackageSetup.test.js && node showcase/examples.js",
     "examples": "node showcase/examples.js",
