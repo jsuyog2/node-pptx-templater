@@ -1,1 +1,1 @@
-module.exports = require('../../elements/charts/ChartCacheGenerator.js');
+module.exports = require('../../elements/charts/ChartCacheGenerator.js')

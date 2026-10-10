@@ -22,10 +22,10 @@ module.exports = defineConfig({
       'tests/snapshot/**/*.test.js',
     ],
 
-    // Exclude benchmarks and examples
+    // Exclude benchmarks and showcase
     exclude: [
       'benchmarks/**',
-      'examples/**',
+      'showcase/**',
       'node_modules/**',
     ],
 

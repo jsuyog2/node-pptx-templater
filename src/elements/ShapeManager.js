@@ -1465,8 +1465,10 @@ function buildTextBodyXml(text, textStyle = {}, options = {}) {
   // BodyPr properties (vertical alignment, padding, wrap)
   const anchorMap = { top: 't', middle: 'ctr', center: 'ctr', bottom: 'b', just: 'just' }
   const vAlign = textStyle.verticalAlign || options.verticalAlign
-  const anchorAttr = vAlign && anchorMap[vAlign.toLowerCase()] ? ` anchor="${anchorMap[vAlign.toLowerCase()]}"` : ''
-  const wrapAttr = options.wrap === false || options.wordWrap === false ? ' wrap="none"' : ' wrap="square"'
+  const anchorAttr =
+    vAlign && anchorMap[vAlign.toLowerCase()] ? ` anchor="${anchorMap[vAlign.toLowerCase()]}"` : ''
+  const wrapAttr =
+    options.wrap === false || options.wordWrap === false ? ' wrap="none"' : ' wrap="square"'
 
   let padAttrs = ''
   const pad = options.padding || textStyle.padding

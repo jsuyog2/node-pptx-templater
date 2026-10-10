@@ -816,7 +816,8 @@ class TableManager {
     const name = options.id || options.name || `Table ${newId}`
 
     const rawData = Array.isArray(options.data) ? options.data : null
-    let numRows = options.rows !== undefined ? parseInt(options.rows, 10) : (rawData ? rawData.length : 2)
+    let numRows =
+      options.rows !== undefined ? parseInt(options.rows, 10) : rawData ? rawData.length : 2
     if (rawData && rawData.length > numRows) numRows = rawData.length
     if (numRows < 1) numRows = 1
 
@@ -841,7 +842,7 @@ class TableManager {
       }
     } else {
       const totalWidthEmu = toEmu(
-        options.width !== undefined ? options.width : (options.w !== undefined ? options.w : 500)
+        options.width !== undefined ? options.width : options.w !== undefined ? options.w : 500
       )
       const colW = Math.round(totalWidthEmu / numCols)
       colWidthsEmu = Array(numCols).fill(colW)
@@ -864,7 +865,7 @@ class TableManager {
     const totalH = rowHeightsEmu.reduce((sum, h) => sum + h, 0)
 
     const isHeaderRow =
-      options.firstRow !== undefined ? !!options.firstRow : (options.header !== false)
+      options.firstRow !== undefined ? !!options.firstRow : options.header !== false
     const isBandRow = options.bandRow !== undefined ? !!options.bandRow : true
     const styleId = options.styleId || '{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}'
 
@@ -928,7 +929,7 @@ class TableManager {
                   .replace('#', '')
                   .toUpperCase()
                 const bW = Math.round(
-                  (bSide.width !== undefined ? bSide.width : (cellVal.border.width || 1)) * 12700
+                  (bSide.width !== undefined ? bSide.width : cellVal.border.width || 1) * 12700
                 )
                 bordersXml += `<${tag} w="${bW}" cmpd="sng"><a:solidFill><a:srgbClr val="${bCol}"/></a:solidFill></${tag}>`
               }
@@ -2477,7 +2478,8 @@ class TableManager {
             for (const r of runs) {
               if (!r['a:rPr']) r['a:rPr'] = {}
               if (cellOptions.bold !== undefined) r['a:rPr']['@_b'] = cellOptions.bold ? '1' : '0'
-              if (cellOptions.italic !== undefined) r['a:rPr']['@_i'] = cellOptions.italic ? '1' : '0'
+              if (cellOptions.italic !== undefined)
+                r['a:rPr']['@_i'] = cellOptions.italic ? '1' : '0'
               if (cellOptions.color) {
                 const hex = String(cellOptions.color).replace('#', '').toUpperCase()
                 r['a:rPr']['a:solidFill'] = { 'a:srgbClr': { '@_val': hex } }

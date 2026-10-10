@@ -1,1 +1,1 @@
-module.exports = require('../elements/ShapeManager.js');
+module.exports = require('../elements/ShapeManager.js')

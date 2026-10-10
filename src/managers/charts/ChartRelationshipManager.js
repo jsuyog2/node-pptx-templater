@@ -1,1 +1,1 @@
-module.exports = require('../../elements/charts/ChartRelationshipManager.js');
+module.exports = require('../../elements/charts/ChartRelationshipManager.js')

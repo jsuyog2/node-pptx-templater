@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 examples/output/
+showcase/output/
 !tests/fixtures/*.pptx
 tests/output/
 benchmarks/results/

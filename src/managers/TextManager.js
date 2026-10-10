@@ -1,1 +1,1 @@
-module.exports = require('../elements/TextManager.js');
+module.exports = require('../elements/TextManager.js')

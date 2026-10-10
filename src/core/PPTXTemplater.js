@@ -1005,8 +1005,7 @@ class PPTXTemplater {
    */
   getHyperlinks(slideIndex) {
     this.#assertLoaded()
-    const targetIdx =
-      slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
+    const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
     return this.#hyperlinkManager.getHyperlinks(
       targetIdx,
       this.#slideManager,
@@ -1542,7 +1541,7 @@ class PPTXTemplater {
    * @returns {Promise<ArrayBuffer>}
    */
   async toArrayBuffer(options = {}) {
-    return this.#outputWriter.toArrayBuffer(this.#slideManager, this.#zipManager, options);
+    return this.#outputWriter.toArrayBuffer(this.#slideManager, this.#zipManager, options)
   }
 
   /**
@@ -1551,7 +1550,7 @@ class PPTXTemplater {
    * @returns {Promise<string>}
    */
   async toBase64(options = {}) {
-    return this.#outputWriter.toBase64(this.#slideManager, this.#zipManager, options);
+    return this.#outputWriter.toBase64(this.#slideManager, this.#zipManager, options)
   }
 
   /**
@@ -1561,7 +1560,7 @@ class PPTXTemplater {
    * @param {Object} [options]
    */
   async toExpress(res, filename = 'presentation.pptx', options = {}) {
-    await this.#outputWriter.toExpress(this.#slideManager, this.#zipManager, res, filename, options);
+    await this.#outputWriter.toExpress(this.#slideManager, this.#zipManager, res, filename, options)
   }
 
   /**
@@ -2495,13 +2494,7 @@ class PPTXTemplater {
     const rowHeights = []
 
     for (let r = 0; r < trs.length; r++) {
-      const bounds = this.#tableManager.getCellBounds(
-        slideIndex,
-        tableId,
-        r,
-        0,
-        this.#slideManager
-      )
+      const bounds = this.#tableManager.getCellBounds(slideIndex, tableId, r, 0, this.#slideManager)
       const h = bounds ? Math.round(bounds.height * 9525) : parseInt(trs[r]['@_h'] || 0, 10)
       rowHeights.push(h)
     }
@@ -2547,12 +2540,7 @@ class PPTXTemplater {
       // 3. New slide: remove rows between headers and splitRowIndex
       const numToRemoveFromNew = splitRowIndex - repeatHeaders
       for (let k = 0; k < numToRemoveFromNew; k++) {
-        this.#tableManager.removeTableRow(
-          newSlideIndex,
-          tableId,
-          repeatHeaders,
-          this.#slideManager
-        )
+        this.#tableManager.removeTableRow(newSlideIndex, tableId, repeatHeaders, this.#slideManager)
       }
 
       // 4. Recurse on the new slide in case it still overflows
@@ -2636,12 +2624,7 @@ class PPTXTemplater {
     if (options.flipV !== undefined) emuOptions.flipV = options.flipV
 
     for (const idx of targetIndices) {
-      this.#shapeManager.updateShapePosition(
-        idx,
-        objectIdOrName,
-        emuOptions,
-        this.#slideManager
-      )
+      this.#shapeManager.updateShapePosition(idx, objectIdOrName, emuOptions, this.#slideManager)
     }
     return this
   }
@@ -2733,7 +2716,7 @@ class PPTXTemplater {
       const first = validBoxes[0]
       const last = validBoxes[validBoxes.length - 1]
       const totalWidth = validBoxes.reduce((acc, b) => acc + b.bounds.width, 0)
-      const span = (last.bounds.x + last.bounds.width) - first.bounds.x
+      const span = last.bounds.x + last.bounds.width - first.bounds.x
       const gap = (span - totalWidth) / (validBoxes.length - 1)
 
       let currentX = first.bounds.x + first.bounds.width + gap
@@ -2746,7 +2729,7 @@ class PPTXTemplater {
       const first = validBoxes[0]
       const last = validBoxes[validBoxes.length - 1]
       const totalHeight = validBoxes.reduce((acc, b) => acc + b.bounds.height, 0)
-      const span = (last.bounds.y + last.bounds.height) - first.bounds.y
+      const span = last.bounds.y + last.bounds.height - first.bounds.y
       const gap = (span - totalHeight) / (validBoxes.length - 1)
 
       let currentY = first.bounds.y + first.bounds.height + gap
@@ -2798,9 +2781,7 @@ class PPTXTemplater {
   getElements(filter = {}) {
     this.#assertLoaded()
     const targetIndices =
-      filter.slideIndex !== undefined
-        ? [filter.slideIndex]
-        : this.#getTargetSlideIndices()
+      filter.slideIndex !== undefined ? [filter.slideIndex] : this.#getTargetSlideIndices()
     const all = []
     for (const idx of targetIndices) {
       const elems = this.#slideManager.getSlideElements(idx, filter)
@@ -2829,14 +2810,14 @@ class PPTXTemplater {
    * Alias for bringForward. Moves element one layer forward.
    */
   stepForward(optionsOrId) {
-    return this.bringForward(optionsOrId);
+    return this.bringForward(optionsOrId)
   }
 
   /**
    * Alias for sendBackward. Moves element one layer backward.
    */
   stepBackward(optionsOrId) {
-    return this.sendBackward(optionsOrId);
+    return this.sendBackward(optionsOrId)
   }
 
   /**
@@ -2845,8 +2826,8 @@ class PPTXTemplater {
    * @param {string|Buffer} sourcePathOrBuffer
    */
   async replaceShape(shapeIdOrName, sourcePathOrBuffer) {
-    this.#assertLoaded();
-    const targetIndices = this.#getTargetSlideIndices();
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
 
     for (const idx of targetIndices) {
       await this.#imageManager.replaceShapeWithImage(
@@ -2856,9 +2837,9 @@ class PPTXTemplater {
         this.#slideManager,
         this.#mediaManager,
         this.#relationshipManager
-      );
+      )
     }
-    return this;
+    return this
   }
 
   /**
@@ -4050,7 +4031,11 @@ class PPTXTemplater {
     const targetIndices = this.#getTargetSlideIndices()
     const images = []
     for (const idx of targetIndices) {
-      const rawImages = this.#imageManager.getImages(idx, this.#slideManager, this.#relationshipManager)
+      const rawImages = this.#imageManager.getImages(
+        idx,
+        this.#slideManager,
+        this.#relationshipManager
+      )
       for (const img of rawImages) {
         const mediaInfo = img.targetPath ? this.#mediaManager.getMediaInfo(img.targetPath) : null
         const ext = img.targetPath ? img.targetPath.split('.').pop().toLowerCase() : ''

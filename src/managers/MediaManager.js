@@ -373,7 +373,8 @@ class MediaManager {
     // GIF: 47 49 46
     if (sig[0] === 0x47 && sig[1] === 0x49) return 'gif'
     // WEBP: 52 49 46 46 ... 57 45 42 50
-    if (sig[0] === 0x52 && sig[1] === 0x49 && sig[2] === 0x46 && sig[3] === 0x46 && sig[8] === 0x57) return 'webp'
+    if (sig[0] === 0x52 && sig[1] === 0x49 && sig[2] === 0x46 && sig[3] === 0x46 && sig[8] === 0x57)
+      return 'webp'
     // TIFF: II*. or MM.*
     if (
       (sig[0] === 0x49 && sig[1] === 0x49 && sig[2] === 0x2a) ||
@@ -386,7 +387,11 @@ class MediaManager {
 
     // SVG: text signature
     const textStart = data.slice(0, 100).toString('utf8').trim()
-    if (textStart.startsWith('<svg') || textStart.includes('<svg') || textStart.startsWith('<?xml')) {
+    if (
+      textStart.startsWith('<svg') ||
+      textStart.includes('<svg') ||
+      textStart.startsWith('<?xml')
+    ) {
       return 'svg'
     }
 

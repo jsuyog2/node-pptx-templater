@@ -1,443 +1,1129 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>node-pptx-templater v3.0.0-alpha.0 | Enterprise OpenXML Engine</title>
-  <link rel="stylesheet" href="style.css">
+  <title>node-pptx-templater — High-Performance PowerPoint OpenXML Engine for Node.js</title>
+  <meta name="description" content="Production-ready, pure JavaScript PowerPoint (PPTX) template engine for Node.js. Dynamically replace text, update charts with Excel caching, format tables, and merge slides without corruption.">
+  
+  <!-- Favicon / Meta -->
+  <link rel="icon" type="image/png" href="./assets/logo.png">
+  <meta property="og:title" content="node-pptx-templater — PowerPoint Template Engine for Node.js">
+  <meta property="og:description" content="Zero-native-dependency PowerPoint OpenXML template engine for Node.js. Pure JS, dual ESM/CJS, non-corrupting.">
+  <meta property="og:type" content="website">
+
+  <!-- Inter & JetBrains Mono Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- GSAP Animation Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <!-- Custom Glassmorphic Stylesheet -->
+  <link rel="stylesheet" href="./css/style.css">
+
+  <!-- Anti-FOUC Theme Initializer -->
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    })();
+  </script>
 </head>
-<body>
-  <div class="app-container">
-    <!-- Header -->
-    <header class="top-nav">
-      <div class="logo-group">
-        <span class="logo-icon">📊</span>
-        <span class="logo-text">node-pptx-templater</span>
-        <span class="version-badge">v3.0.0-alpha.0</span>
+<body class="bg-slate-50 text-slate-900 dark:bg-[#0b0f19] dark:text-slate-100 transition-colors duration-200 antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- Ambient Glow Backgrounds -->
+  <div class="hero-glow-1"></div>
+  <div class="hero-glow-2"></div>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Mobile Backdrop -->
+  <div id="mobile-backdrop" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-40 hidden md:hidden"></div>
+
+  <!-- Mobile Navigation Drawer -->
+  <div id="mobile-drawer" class="fixed top-0 bottom-0 left-0 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out md:hidden flex flex-col p-6 shadow-2xl">
+    <div class="flex items-center justify-between pb-6 border-b border-slate-200 dark:border-slate-800">
+      <div class="flex items-center gap-2">
+        <img src="./assets/logo.png" alt="Logo" class="w-7 h-7 object-contain">
+        <span class="font-bold text-sm tracking-tight">node-pptx-templater</span>
       </div>
-      <div class="nav-links">
-        <a href="#quickstart" class="nav-item">Quickstart</a>
-        <a href="#architecture" class="nav-item">Architecture</a>
-        <a href="#guides" class="nav-item">Guides</a>
-        <a href="#api" class="nav-item">API Reference</a>
-        <a href="https://github.com/jsuyog2/node-pptx-templater" target="_blank" rel="noreferrer" class="github-btn">GitHub</a>
-      </div>
-    </header>
-
-    <div class="main-layout">
-      <!-- Sidebar Navigation -->
-      <aside class="sidebar">
-        <div class="search-box">
-          <input type="text" id="api-search" placeholder="Search API & Guides (e.g. splitTable, EMU)..." autocomplete="off">
-          <span class="search-icon">🔍</span>
-        </div>
-        
-        <nav class="sidebar-nav" id="sidebar-nav">
-          <div class="nav-section">
-            <div class="section-title">Getting Started</div>
-            <ul>
-              <li><a href="#quickstart" class="active">Overview & Installation</a></li>
-              <li><a href="#ingestion">Multi-Format Ingestion</a></li>
-            </ul>
-          </div>
-
-          <div class="nav-section">
-            <div class="section-title">Core Architecture</div>
-            <ul>
-              <li><a href="#architecture">In-Memory VFS (Zero Sync I/O)</a></li>
-              <li><a href="#ast-normalizer">AST Run Normalization</a></li>
-              <li><a href="#rel-isolation">Relationship (.rels) Isolation</a></li>
-            </ul>
-          </div>
-
-          <div class="nav-section">
-            <div class="section-title">Deep Dive Guides</div>
-            <ul>
-              <li><a href="#guide-emus">Spatial Units (EMUs)</a></li>
-              <li><a href="#guide-pagination">Table Auto-Pagination</a></li>
-              <li><a href="#guide-charts">Chart & Excel Workbook Sync</a></li>
-              <li><a href="#guide-exports">Multi-Target Export Adapters</a></li>
-            </ul>
-          </div>
-
-          <div class="nav-section">
-            <div class="section-title">API Reference</div>
-            <ul>
-              <li><a href="#api-pptxtemplater">PPTXTemplater</a></li>
-              <li><a href="#api-packageloader">PackageLoader</a></li>
-              <li><a href="#api-vfs">VirtualFileSystem</a></li>
-              <li><a href="#api-tablemanager">TableManager</a></li>
-              <li><a href="#api-chartmanager">ChartManager</a></li>
-              <li><a href="#api-shapemanager">ShapeManager</a></li>
-              <li><a href="#api-imagemanager">ImageManager</a></li>
-              <li><a href="#api-slidemanager">SlideManager</a></li>
-              <li><a href="#api-zordermanager">ZOrderManager</a></li>
-              <li><a href="#api-spatialunits">Spatial Units & Bounds</a></li>
-              <li><a href="#api-errors">Error Types</a></li>
-            </ul>
-          </div>
-        </nav>
-      </aside>
-
-      <!-- Main Content Area -->
-      <main class="content-body" id="content-body">
-        
-        <!-- Quickstart -->
-        <section id="quickstart" class="doc-section">
-          <div class="badge-row">
-            <span class="badge badge-success">✓ 255 Vitest Tests Passing</span>
-            <span class="badge badge-blue">Zero Sync I/O</span>
-            <span class="badge badge-purple">OpenXML DrawingML Standard</span>
-          </div>
-          <h1>Overview & Quickstart</h1>
-          <p class="lead-text">
-            <code>node-pptx-templater</code> is an enterprise-grade, spatial-aware OpenXML PowerPoint templating, manipulation, and layout engine for Node.js. It operates with <strong>zero external binary dependencies</strong> and performs pure non-blocking in-memory transformations.
-          </p>
-
-          <div class="install-card">
-            <div class="install-tabs">
-              <button class="install-tab active" onclick="switchInstall('npm')">npm</button>
-              <button class="install-tab" onclick="switchInstall('pnpm')">pnpm</button>
-              <button class="install-tab" onclick="switchInstall('yarn')">yarn</button>
-            </div>
-            <pre class="code-block"><code id="install-cmd">npm install node-pptx-templater</code></pre>
-          </div>
-
-          <h2>Quick Start Example</h2>
-          <div class="code-tabs-wrapper">
-            <div class="code-tab-header">
-              <button class="code-tab-btn active" onclick="switchSnippet('qs', 'ts')">TypeScript</button>
-              <button class="code-tab-btn" onclick="switchSnippet('qs', 'js')">JavaScript (ESM / CJS)</button>
-            </div>
-            <div id="qs-ts" class="snippet-pane active">
-              <pre class="code-block"><code><span class="keyword">import</span> { <span class="type">PPTXTemplater</span> } <span class="keyword">from</span> <span class="string">'node-pptx-templater'</span>
-
-<span class="keyword">async function</span> <span class="function">generatePresentation</span>() {
-  <span class="comment">// 1. Ingest template asynchronously into in-memory Virtual File System</span>
-  <span class="keyword">const</span> ppt = <span class="keyword">await</span> <span class="type">PPTXTemplater</span>.<span class="function">load</span>(<span class="string">'./templates/quarterly-report.pptx'</span>)
-
-  <span class="comment">// 2. Select slide and replace placeholders across fragmented text runs</span>
-  ppt.<span class="function">useSlide</span>(<span class="number">1</span>)
-     .<span class="function">replaceText</span>({
-       <span class="string">'{{QUARTER}}'</span>: <span class="string">'Q3 2026'</span>,
-       <span class="string">'{{COMPANY}}'</span>: <span class="string">'Acme Global Enterprise'</span>,
-       <span class="string">'{{AUTHOR}}'</span>: <span class="string">'Executive Office'</span>
-     })
-
-  <span class="comment">// 3. Save to output using canonical Export Adapter</span>
-  <span class="keyword">await</span> ppt.<span class="function">toFile</span>(<span class="string">'./dist/report-Q3.pptx'</span>)
-  console.<span class="function">log</span>(<span class="string">'✓ Report generated cleanly!'</span>)
-}
-
-<span class="function">generatePresentation</span>()</code></pre>
-            </div>
-            <div id="qs-js" class="snippet-pane">
-              <pre class="code-block"><code><span class="keyword">const</span> { <span class="type">PPTXTemplater</span> } = <span class="function">require</span>(<span class="string">'node-pptx-templater'</span>);
-
-<span class="keyword">async function</span> <span class="function">generatePresentation</span>() {
-  <span class="keyword">const</span> ppt = <span class="keyword">await</span> <span class="type">PPTXTemplater</span>.<span class="function">load</span>(<span class="string">'./templates/quarterly-report.pptx'</span>);
-  ppt.<span class="function">useSlide</span>(<span class="number">1</span>).<span class="function">replaceText</span>({ <span class="string">'{{QUARTER}}'</span>: <span class="string">'Q3 2026'</span> });
-  <span class="keyword">await</span> ppt.<span class="function">toFile</span>(<span class="string">'./dist/report-Q3.pptx'</span>);
-}</code></pre>
-            </div>
-          </div>
-        </section>
-
-        <!-- Ingestion -->
-        <section id="ingestion" class="doc-section">
-          <h2>Multi-Format Ingestion Engine</h2>
-          <p>The <code>PackageLoader</code> engine supports 3 distinct input formats seamlessly without requiring pre-conversion:</p>
-          <div class="feature-grid">
-            <div class="card">
-              <h3>1. Direct PPTX</h3>
-              <p>Supports direct file paths, Node.js <code>Buffer</code>, and <code>stream.Readable</code> streams (e.g. S3 downloads, HTTP uploads).</p>
-            </div>
-            <div class="card">
-              <h3>2. ZIP Archives</h3>
-              <p>Validates PKZip signatures (<code>0x50 0x4B 0x03 0x04</code>) regardless of file extensions (<code>.zip</code>, <code>.pptx</code>, <code>.tmp</code>).</p>
-            </div>
-            <div class="card">
-              <h3>3. Unpacked XML Folders</h3>
-              <p>Loads extracted OpenXML folder trees directly into the Virtual File System without intermediate compression overhead.</p>
-            </div>
-          </div>
-
-          <pre class="code-block"><code><span class="comment">// Load directly from an uncompressed folder tree:</span>
-<span class="keyword">const</span> pptFromFolder = <span class="keyword">await</span> <span class="type">PPTXTemplater</span>.<span class="function">load</span>(<span class="string">'./unpacked-template-folder/'</span>)
-
-<span class="comment">// Load from streaming byte source:</span>
-<span class="keyword">const</span> pptFromStream = <span class="keyword">await</span> <span class="type">PackageLoader</span>.<span class="function">load</span>(s3ReadStream)</code></pre>
-        </section>
-
-        <!-- Core Architecture -->
-        <section id="architecture" class="doc-section">
-          <h2>Core Architecture</h2>
-          <div class="alert-box alert-info">
-            <strong>Mandate: Zero Synchronous / Blocking I/O</strong>
-            <p>Every transformation operates against an in-memory <code>VirtualFileSystem</code> (<code>Map&lt;string, Uint8Array&gt;</code>). File operations never block the Node.js event loop.</p>
-          </div>
-
-          <h3 id="ast-normalizer">Strict OpenXML AST Normalizer</h3>
-          <p>
-            PowerPoint fragments placeholder tokens across distinct <code>&lt;a:r&gt;</code> runs and <code>&lt;a:t&gt;</code> text nodes during editing (e.g., <code>&lt;a:t&gt;{{&lt;/a:t&gt;&lt;a:t&gt;user&lt;/a:t&gt;&lt;a:t&gt;}}&lt;/a:t&gt;</code>). Naive regex replacements corrupt XML or miss tokens.
-          </p>
-          <p>
-            <code>node-pptx-templater</code> employs an AST run normalizer that merges adjacent text runs inside paragraph nodes (<code>&lt;a:p&gt;</code>) before token matching while strictly preserving formatting, fonts, colors, and OpenXML namespaces (<code>p:</code>, <code>a:</code>, <code>r:</code>, <code>c:</code>, <code>w:</code>).
-          </p>
-
-          <h3 id="rel-isolation">Relationship (.rels) Isolation</h3>
-          <p>
-            When duplicating slides, naive engines reuse existing <code>rId</code> relationship keys, leading to slide corruption or PowerPoint repair alerts. <code>SlideManager.duplicateSlide()</code> generates isolated relationship files (<code>slideX.xml.rels</code>) and fresh unique <code>rId</code> keys for every duplicated element.
-          </p>
-        </section>
-
-        <!-- Guides -->
-        <section id="guides" class="doc-section">
-          <h2>Deep Dive Guides</h2>
-
-          <article id="guide-emus" class="guide-item">
-            <h3>1. Precise Spatial Units (English Metric Units - EMUs)</h3>
-            <p>
-              OpenXML DrawingML uses integer English Metric Units (EMUs) for all spatial coordinates and dimensions. Float coordinates lead to rendering anomalies.
-            </p>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Unit</th>
-                    <th>EMU Equivalent</th>
-                    <th>Helper Function</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>1 point (pt)</strong></td>
-                    <td><code>12,700 EMUs</code></td>
-                    <td><code>ptToEmu(12) // 152,400</code></td>
-                  </tr>
-                  <tr>
-                    <td><strong>1 inch (in)</strong></td>
-                    <td><code>914,400 EMUs</code></td>
-                    <td><code>inToEmu(1.5) // 1,371,600</code></td>
-                  </tr>
-                  <tr>
-                    <td><strong>1 pixel (px @ 96 DPI)</strong></td>
-                    <td><code>9,525 EMUs</code></td>
-                    <td><code>pxToEmu(100) // 952,500</code></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <pre class="code-block"><code><span class="keyword">import</span> { <span class="function">toEmu</span>, <span class="function">getBounds</span>, <span class="function">setBounds</span> } <span class="keyword">from</span> <span class="string">'node-pptx-templater'</span>
-
-<span class="comment">// toEmu accepts string formats or numbers automatically:</span>
-<span class="keyword">const</span> x = <span class="function">toEmu</span>(<span class="string">'1.5in'</span>)  <span class="comment">// 1,371,600 EMUs</span>
-<span class="keyword">const</span> y = <span class="function">toEmu</span>(<span class="string">'24pt'</span>)   <span class="comment">// 304,800 EMUs</span>
-<span class="keyword">const</span> w = <span class="function">toEmu</span>(<span class="string">'300px'</span>)  <span class="comment">// 2,857,500 EMUs</span></code></pre>
-          </article>
-
-          <article id="guide-pagination" class="guide-item">
-            <h3>2. Flagship Table Auto-Pagination Engine</h3>
-            <p>
-              When dynamic database rows are added to a table, the rows can exceed the slide's physical canvas. <code>splitTableOnOverflow</code> dynamically estimates row heights and splits content across cloned slides.
-            </p>
-            <div class="formula-box">
-              <strong>Slide Vertical Threshold:</strong><br>
-              <code>Y_limit = SlideHeight - BottomMargin</code>
-            </div>
-            <p>When table height exceeds <code>Y_limit</code>:</p>
-            <ol class="step-list">
-              <li>Calculates row heights dynamically using font size, line count, cell padding, and column width.</li>
-              <li>Slices rows at the last fitting position on the host slide.</li>
-              <li>Deep-clones the host slide (preserving layout, master background, and persistent shapes).</li>
-              <li>Generates isolated relationship files (<code>slideX.xml.rels</code>) and fresh <code>rId</code> keys.</li>
-              <li>Repeats table headers on the cloned slide and populates remaining rows recursively.</li>
-            </ol>
-            <pre class="code-block"><code><span class="keyword">const</span> ppt = <span class="keyword">await</span> <span class="type">PPTXTemplater</span>.<span class="function">load</span>(<span class="string">'template.pptx'</span>)
-ppt.<span class="function">useSlide</span>(<span class="number">1</span>)
-
-<span class="comment">// Populate dynamic table data:</span>
-<span class="keyword">for</span> (<span class="keyword">const</span> item <span class="keyword">of</span> auditRecords) {
-  ppt.<span class="function">addTableRow</span>(<span class="string">'AuditGrid'</span>, [item.id, item.name, item.status, item.timestamp])
-}
-
-<span class="comment">// Automatically paginate if rows breach bottom margin:</span>
-<span class="keyword">const</span> { splitCount, slidesCreated } = <span class="keyword">await</span> ppt.<span class="function">splitTableOnOverflow</span>(<span class="string">'AuditGrid'</span>, {
-  bottomMargin: <span class="string">'1in'</span>,    <span class="comment">// or 914400 EMUs</span>
-  repeatHeaders: <span class="number">1</span>         <span class="comment">// duplicate table header row on cloned slides</span>
-})
-
-console.<span class="function">log</span>(<span class="string">`Created ${slidesCreated} additional slides to fit content.`</span>)</code></pre>
-          </article>
-
-          <article id="guide-charts" class="guide-item">
-            <h3>3. Chart Workbook Cache Synchronization</h3>
-            <p>
-              When modifying categories, series, or values in <code>&lt;c:chartSpace&gt;</code>, PowerPoint will display a repair warning unless the embedded Excel binary cache inside <code>ppt/embeddings/Microsoft_Excel_Worksheet*.xlsx</code> is synchronized.
-            </p>
-            <p>
-              <code>ChartManager</code> and <code>ChartWorkbookUpdater</code> automatically update the chart XML formulas, series cache, AND the embedded Excel worksheet binary simultaneously.
-            </p>
-            <pre class="code-block"><code><span class="keyword">await</span> ppt.<span class="function">useSlide</span>(<span class="number">2</span>).<span class="function">updateChart</span>(<span class="string">'RevenueChart'</span>, {
-  categories: [<span class="string">'Q1'</span>, <span class="string">'Q2'</span>, <span class="string">'Q3'</span>, <span class="string">'Q4'</span>],
-  series: [
-    { name: <span class="string">'North America'</span>, values: [<span class="number">120</span>, <span class="number">145</span>, <span class="number">180</span>, <span class="number">210</span>] },
-    { name: <span class="string">'EMEA'</span>, values: [<span class="number">95</span>, <span class="number">110</span>, <span class="number">135</span>, <span class="number">160</span>] }
-  ]
-})</code></pre>
-          </article>
-
-          <article id="guide-exports" class="guide-item">
-            <h3>4. Multi-Target Export Adapters</h3>
-            <p>Export presentations to 6 standard targets without third-party converters:</p>
-            <pre class="code-block"><code><span class="comment">// 1. File output</span>
-<span class="keyword">await</span> ppt.<span class="function">toFile</span>(<span class="string">'./output.pptx'</span>)
-
-<span class="comment">// 2. Node.js Readable Stream</span>
-<span class="keyword">const</span> stream = <span class="keyword">await</span> ppt.<span class="function">toStream</span>()
-
-<span class="comment">// 3. Node.js Buffer</span>
-<span class="keyword">const</span> buffer = <span class="keyword">await</span> ppt.<span class="function">toBuffer</span>()
-
-<span class="comment">// 4. Standard ArrayBuffer (Edge / Web Worker compatible)</span>
-<span class="keyword">const</span> arrayBuffer = <span class="keyword">await</span> ppt.<span class="function">toArrayBuffer</span>()
-
-<span class="comment">// 5. Base64 string with optional Data URI prefix</span>
-<span class="keyword">const</span> dataUri = <span class="keyword">await</span> ppt.<span class="function">toBase64</span>({ dataUri: <span class="keyword">true</span> })
-
-<span class="comment">// 6. Express HTTP Response (attaches headers and streams presentation)</span>
-<span class="keyword">await</span> ppt.<span class="function">toExpress</span>(res, <span class="string">'Generated_Deck.pptx'</span>)</code></pre>
-          </article>
-        </section>
-
-        <!-- API Reference -->
-        <section id="api" class="doc-section">
-          <h2>API Reference</h2>
-
-          <div id="api-pptxtemplater" class="api-card">
-            <div class="api-header">
-              <span class="api-type">Class</span>
-              <h3>PPTXTemplater</h3>
-            </div>
-            <p>Main fluent orchestrator facade for presentation loading, slide selection, elements mutation, and serialization.</p>
-            
-            <div class="method-item">
-              <h4><code>static load(source, options?): Promise&lt;PPTXTemplater&gt;</code></h4>
-              <p>Loads a presentation from file path, Buffer, Readable stream, or raw uncompressed folder.</p>
-            </div>
-            <div class="method-item">
-              <h4><code>useSlide(slideNumber: number): this</code></h4>
-              <p>Sets active slide context (1-indexed) for subsequent operations.</p>
-            </div>
-            <div class="method-item">
-              <h4><code>replaceText(replacements: Record&lt;string, string | number&gt;): this</code></h4>
-              <p>Replaces placeholder tokens across all text runs with XML entity escaping.</p>
-            </div>
-            <div class="method-item">
-              <h4><code>splitTableOnOverflow(tableName: string, options?: SplitOptions): Promise&lt;{ splitCount, slidesCreated }&gt;</code></h4>
-              <p>Recursively calculates row overflow against slide height limit and paginates table across cloned slides.</p>
-            </div>
-            <div class="method-item">
-              <h4><code>toFile(outputPath: string, options?): Promise&lt;void&gt;</code></h4>
-              <p>Saves the presentation directly to a file asynchronously.</p>
-            </div>
-          </div>
-
-          <div id="api-packageloader" class="api-card">
-            <div class="api-header">
-              <span class="api-type">Class</span>
-              <h3>PackageLoader</h3>
-            </div>
-            <p>Ingests OpenXML packages across Buffers, streams, ZIP archives, and raw XML directory trees into an in-memory <code>VirtualFileSystem</code>.</p>
-            <div class="method-item">
-              <h4><code>static load(source: PackageSource): Promise&lt;VirtualFileSystem&gt;</code></h4>
-            </div>
-            <div class="method-item">
-              <h4><code>isPkZip(buf: Uint8Array | Buffer): boolean</code></h4>
-            </div>
-          </div>
-
-          <div id="api-vfs" class="api-card">
-            <div class="api-header">
-              <span class="api-type">Class</span>
-              <h3>VirtualFileSystem</h3>
-            </div>
-            <p>In-memory file store managing all OpenXML parts as <code>Map&lt;string, Uint8Array&gt;</code> entries with zero synchronous disk I/O.</p>
-            <div class="method-item">
-              <h4><code>get(path: string): Uint8Array | undefined</code></h4>
-            </div>
-            <div class="method-item">
-              <h4><code>set(path: string, data: Uint8Array | Buffer): void</code></h4>
-            </div>
-            <div class="method-item">
-              <h4><code>getText(path: string): string | undefined</code></h4>
-            </div>
-            <div class="method-item">
-              <h4><code>setText(path: string, text: string): void</code></h4>
-            </div>
-          </div>
-
-          <div id="api-tablemanager" class="api-card">
-            <div class="api-header">
-              <span class="api-type">Class</span>
-              <h3>TableManager</h3>
-            </div>
-            <p>Manages <code>&lt;a:tbl&gt;</code> DrawingML tables: cell CRUD, styling, nested cell shapes, and row height estimation.</p>
-          </div>
-
-          <div id="api-chartmanager" class="api-card">
-            <div class="api-header">
-              <span class="api-type">Class</span>
-              <h3>ChartManager</h3>
-            </div>
-            <p>Handles <code>&lt;c:chartSpace&gt;</code> charts and embedded Excel cache synchronization.</p>
-          </div>
-
-          <div id="api-spatialunits" class="api-card">
-            <div class="api-header">
-              <span class="api-type">Module</span>
-              <h3>Spatial Units & Bounding Box (src/spatial/units)</h3>
-            </div>
-            <p>Utilities for integer EMU math and element bounding box geometry.</p>
-            <div class="method-item">
-              <h4><code>toEmu(value: string | number): number</code></h4>
-              <p>Converts pt, in, px, emu to integer EMUs.</p>
-            </div>
-            <div class="method-item">
-              <h4><code>getBounds(element: any): BoundingBox</code></h4>
-              <p>Extracts <code>{ x, y, width, height }</code> in EMUs from shape transform nodes.</p>
-            </div>
-            <div class="method-item">
-              <h4><code>setBounds(element: any, bounds: Partial&lt;BoundingBox&gt;): void</code></h4>
-              <p>Writes updated integer EMU offsets and extents to XML transform nodes.</p>
-            </div>
-            <div class="method-item">
-              <h4><code>checkCollision(boxA: BoundingBox, boxB: BoundingBox): boolean</code></h4>
-              <p>AABB intersection test between two elements.</p>
-            </div>
-          </div>
-
-          <div id="api-errors" class="api-card">
-            <div class="api-header">
-              <span class="api-type">Module</span>
-              <h3>Error Classes</h3>
-            </div>
-            <ul class="error-list">
-              <li><code>PPTXError</code> — Base class for all engine errors.</li>
-              <li><code>SlideNotFoundError</code> — Thrown when referencing an invalid slide index.</li>
-              <li><code>ChartNotFoundError</code> — Thrown when chart name or relationship ID is missing.</li>
-              <li><code>TableNotFoundError</code> — Thrown when target table frame cannot be located.</li>
-            </ul>
-          </div>
-
-        </section>
-      </main>
+      <button id="mobile-menu-close" class="p-1 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-slate-200" aria-label="Close menu">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+    <div class="flex flex-col gap-2 mt-6 overflow-y-auto">
+      <a href="#getting-started" class="nav-link">Getting Started</a>
+      <a href="#api-reference" class="nav-link">API Reference</a>
+      <a href="#showcase" class="nav-link">Showcase & Demos</a>
+      <a href="#templates" class="nav-link">Templates & Data</a>
+      <a href="#feature-catalog" class="nav-link">Feature Catalog</a>
+      <a href="#troubleshooting" class="nav-link">Troubleshooting</a>
+      <a href="#contributing" class="nav-link">Contributing</a>
+    </div>
+    <div class="mt-auto pt-6 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+      <a href="https://github.com/jsuyog2/node-pptx-templater" target="_blank" rel="noopener" class="text-xs text-slate-500 hover:text-brand-500">GitHub</a>
+      <a href="https://www.npmjs.com/package/node-pptx-templater" target="_blank" rel="noopener" class="text-xs text-slate-500 hover:text-brand-500">npm</a>
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- Top Sticky Glass Navigation Bar -->
+  <header class="sticky top-0 z-30 glass-nav">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <!-- Brand & Version -->
+      <div class="flex items-center gap-3">
+        <button id="mobile-menu-toggle" class="md:hidden p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800" aria-label="Open Navigation">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
+        <a href="#" class="flex items-center gap-2.5 group">
+          <img src="./assets/logo.png" alt="node-pptx-templater logo" class="w-8 h-8 rounded-lg shadow-sm group-hover:scale-105 transition-transform">
+          <span class="font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-300 bg-clip-text text-transparent">node-pptx-templater</span>
+        </a>
+        <span class="hidden sm:inline-flex badge badge-info text-xs">v3.0.0-alpha.0</span>
+      </div>
+
+      <!-- Desktop Nav Links -->
+      <nav class="hidden md:flex items-center gap-1 lg:gap-2">
+        <a href="#getting-started" class="nav-link text-xs lg:text-sm">Getting Started</a>
+        <a href="#api-reference" class="nav-link text-xs lg:text-sm">API</a>
+        <a href="#showcase" class="nav-link text-xs lg:text-sm">Showcase</a>
+        <a href="#templates" class="nav-link text-xs lg:text-sm">Templates</a>
+        <a href="#feature-catalog" class="nav-link text-xs lg:text-sm">Features</a>
+        <a href="#troubleshooting" class="nav-link text-xs lg:text-sm">FAQ</a>
+      </nav>
+
+      <!-- Right Actions: Theme Toggle & Social Links -->
+      <div class="flex items-center gap-2">
+        <button id="theme-toggle-btn" class="p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60 transition-colors" aria-label="Toggle Light/Dark Theme">
+          <svg id="theme-icon-light" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+          </svg>
+          <svg id="theme-icon-dark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+          </svg>
+        </button>
+
+        <a href="https://github.com/jsuyog2/node-pptx-templater" target="_blank" rel="noopener" class="p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60 transition-colors" title="GitHub Repository">
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
+          </svg>
+        </a>
+
+        <a href="https://www.npmjs.com/package/node-pptx-templater" target="_blank" rel="noopener" class="p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60 transition-colors" title="npm Package">
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+            <path d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.13h13.74v13.74h-3.435V8.565h-3.435v10.305H5.13z"></path>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+    <!-- ====================================================================
+         HERO SECTION
+         ==================================================================== -->
+    <section class="relative pt-6 pb-20 lg:pt-12 lg:pb-28">
+      <div class="text-center max-w-4xl mx-auto">
+        <div class="hero-badge inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 mb-6">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Zero Native Dependencies • Dual ESM/CJS • Non-Corrupting Engine</span>
+        </div>
+
+        <h1 class="hero-title text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.15]">
+          High-Performance OpenXML <br class="hidden sm:inline">
+          <span class="text-gradient">PowerPoint Template Engine</span>
+        </h1>
+
+        <p class="hero-desc mt-6 text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto font-normal leading-relaxed">
+          The low-level PPTX manipulation library for Node.js. Dynamically replace text, update charts with synchronized Excel workbook caches, format tables, reorder layers, and manipulate slides without PowerPoint repair warnings or heavy Office dependencies.
+        </p>
+
+        <!-- Install & Action Buttons -->
+        <div class="hero-cta mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <!-- Install Command Box -->
+          <div class="flex items-center gap-2 bg-slate-900 dark:bg-slate-950 text-slate-100 px-4 py-2.5 rounded-xl border border-slate-700/80 shadow-lg font-mono text-sm">
+            <span class="text-brand-500">$</span>
+            <span id="hero-install-cmd">npm install node-pptx-templater</span>
+            <button class="copy-btn ml-2" data-copy-target="hero-install-cmd" aria-label="Copy install command">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+
+          <a href="#getting-started" class="inline-flex items-center justify-center px-6 py-2.5 rounded-xl font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/25 transition-all text-sm">
+            Quick Start Guide →
+          </a>
+
+          <a href="#showcase" class="inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 glass-panel hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all text-sm">
+            Explore Showcase
+          </a>
+        </div>
+      </div>
+
+      <!-- Hero Code Preview Container -->
+      <div class="hero-code mt-12 max-w-4xl mx-auto reveal-card" data-tabs-group>
+        <div class="code-block" data-tabs>
+          <div class="code-header">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+              <span class="text-xs text-slate-400 font-mono ml-2">Quick Start Example</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="tab-btn active text-xs" data-tab-target="code-hero-cjs">CommonJS</button>
+              <button class="tab-btn text-xs" data-tab-target="code-hero-esm">ESM (import)</button>
+              <button class="copy-btn" data-copy-target="code-hero-content">Copy</button>
+            </div>
+          </div>
+          <div id="code-hero-content">
+            <div id="code-hero-cjs" class="code-content" data-tab-panel>
+<pre><code><span class="hl-keyword">const</span> { PPTXTemplater } = <span class="hl-fn">require</span>(<span class="hl-string">'node-pptx-templater'</span>);
+
+<span class="hl-keyword">async function</span> <span class="hl-fn">generateDeck</span>() {
+  <span class="hl-comment">// 1. Load an existing template presentation</span>
+  <span class="hl-keyword">const</span> ppt = <span class="hl-keyword">await</span> PPTXTemplater.<span class="hl-fn">load</span>(<span class="hl-string">'./templates/report.pptx'</span>);
+  ppt.<span class="hl-fn">useAllSlides</span>();
+
+  <span class="hl-comment">// 2. Dynamic text replacement across runs</span>
+  ppt.<span class="hl-fn">replaceMultiple</span>({
+    <span class="hl-string">'{{title}}'</span>: <span class="hl-string">'Q3 Performance Review'</span>,
+    <span class="hl-string">'{{author}}'</span>: <span class="hl-string">'Engineering Operations'</span>,
+    <span class="hl-string">'{{arr_growth}}'</span>: <span class="hl-string">'+38.2%'</span>
+  });
+
+  <span class="hl-comment">// 3. Update charts with automatic internal Excel cache sync</span>
+  ppt.<span class="hl-fn">useSlide</span>(<span class="hl-number">1</span>);
+  ppt.<span class="hl-fn">updateChart</span>(<span class="hl-string">'RevenueChart'</span>, {
+    categories: [<span class="hl-string">'Q1'</span>, <span class="hl-string">'Q2'</span>, <span class="hl-string">'Q3'</span>, <span class="hl-string">'Q4'</span>],
+    series: [{ name: <span class="hl-string">'Cloud ARR'</span>, values: [<span class="hl-number">18.4</span>, <span class="hl-number">22.1</span>, <span class="hl-number">26.8</span>, <span class="hl-number">31.5</span>] }]
+  });
+
+  <span class="hl-comment">// 4. Append table rows with alternating striping</span>
+  ppt.<span class="hl-fn">useSlide</span>(<span class="hl-number">2</span>);
+  ppt.<span class="hl-fn">addTableRow</span>(<span class="hl-string">'InitiativesTable'</span>, [<span class="hl-string">'Platform Migration'</span>, <span class="hl-string">'Sarah Jenkins'</span>, <span class="hl-string">'Completed'</span>]);
+  ppt.<span class="hl-fn">stripeRows</span>(<span class="hl-string">'InitiativesTable'</span>, { oddColor: <span class="hl-string">'F8FAFC'</span>, evenColor: <span class="hl-string">'EDF2F7'</span> });
+
+  <span class="hl-comment">// 5. Save generated PPTX or export as Buffer for Lambda/Cloud</span>
+  <span class="hl-keyword">await</span> ppt.<span class="hl-fn">save</span>(<span class="hl-string">'./output/executive-report.pptx'</span>);
+  console.<span class="hl-fn">log</span>(<span class="hl-string">'✓ Report created successfully!'</span>);
+}
+
+<span class="hl-fn">generateDeck</span>();</code></pre>
+            </div>
+            <div id="code-hero-esm" class="code-content hidden" data-tab-panel>
+<pre><code><span class="hl-keyword">import</span> { PPTXTemplater } <span class="hl-keyword">from</span> <span class="hl-string">'node-pptx-templater'</span>;
+
+<span class="hl-comment">// Load and manipulate slides via ESM imports</span>
+<span class="hl-keyword">const</span> ppt = <span class="hl-keyword">await</span> PPTXTemplater.<span class="hl-fn">load</span>(<span class="hl-string">'./templates/report.pptx'</span>);
+ppt.<span class="hl-fn">useAllSlides</span>();
+ppt.<span class="hl-fn">replaceTextByTag</span>(<span class="hl-string">'{{title}}'</span>, <span class="hl-string">'Enterprise AI Platform'</span>);
+
+<span class="hl-comment">// Export directly to in-memory Buffer (perfect for AWS Lambda & Vercel Edge)</span>
+<span class="hl-keyword">const</span> buffer = <span class="hl-keyword">await</span> ppt.<span class="hl-fn">toBuffer</span>();
+console.<span class="hl-fn">log</span>(<span class="hl-string">`✓ Generated \${buffer.length} bytes in memory`</span>);</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         SECTION: GETTING STARTED
+         ==================================================================== -->
+    <section id="getting-started" class="py-16 border-t border-slate-200 dark:border-slate-800">
+      <div class="max-w-3xl mb-8">
+        <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Getting Started</h2>
+        <p class="mt-2 text-slate-600 dark:text-slate-400">Everything you need to integrate <code class="font-mono text-sm text-brand-500">node-pptx-templater</code> into your Node.js backend, microservice, or serverless functions.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Compatibility Card -->
+        <div class="glass-panel rounded-2xl p-6 reveal-card">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+            </div>
+            <div>
+              <h3 class="font-semibold text-base text-slate-900 dark:text-white">Requirements & Runtimes</h3>
+              <p class="text-xs text-slate-500">Verified against Node 20, 22, and 24</p>
+            </div>
+          </div>
+          <ul class="space-y-2.5 text-sm text-slate-600 dark:text-slate-300">
+            <li class="flex items-center gap-2">
+              <span class="text-emerald-500">✓</span> <strong>Node.js:</strong> >= 20.12.0
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="text-emerald-500">✓</span> <strong>Dual Modules:</strong> CommonJS (<code class="font-mono text-xs">require</code>) and ESM (<code class="font-mono text-xs">import</code>)
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="text-emerald-500">✓</span> <strong>Zero Native Binaries:</strong> No Python, LibreOffice, or Java installation required
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="text-emerald-500">✓</span> <strong>Serverless-Ready:</strong> Works natively in AWS Lambda, Google Cloud Functions, and Docker
+            </li>
+          </ul>
+        </div>
+
+        <!-- Installation Card -->
+        <div class="glass-panel rounded-2xl p-6 reveal-card">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            </div>
+            <div>
+              <h3 class="font-semibold text-base text-slate-900 dark:text-white">Installation</h3>
+              <p class="text-xs text-slate-500">Add to your project via your package manager</p>
+            </div>
+          </div>
+
+          <div class="space-y-3 font-mono text-xs">
+            <div class="bg-slate-900 text-slate-200 p-2.5 rounded-lg flex items-center justify-between">
+              <span>npm install node-pptx-templater</span>
+              <button class="copy-btn text-xs py-1 px-2" data-copy-text="npm install node-pptx-templater">Copy</button>
+            </div>
+            <div class="bg-slate-900 text-slate-200 p-2.5 rounded-lg flex items-center justify-between">
+              <span>pnpm add node-pptx-templater</span>
+              <button class="copy-btn text-xs py-1 px-2" data-copy-text="pnpm add node-pptx-templater">Copy</button>
+            </div>
+            <div class="bg-slate-900 text-slate-200 p-2.5 rounded-lg flex items-center justify-between">
+              <span>yarn add node-pptx-templater</span>
+              <button class="copy-btn text-xs py-1 px-2" data-copy-text="yarn add node-pptx-templater">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Running Showcase Instructions -->
+      <div class="mt-8 glass-panel rounded-2xl p-6 reveal-card">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Running the Consolidated Showcase Suite</h3>
+        <p class="text-sm text-slate-600 dark:text-slate-300 mb-4">
+          All 12 production scenarios are demonstrated in a single self-contained file <code class="font-mono text-xs bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded">showcase/examples.js</code> with all JSON data embedded. You can run all demonstrations with one command:
+        </p>
+        <div class="bg-slate-900 text-slate-200 p-3 rounded-xl font-mono text-sm flex items-center justify-between">
+          <span>npm run examples</span>
+          <button class="copy-btn" data-copy-text="npm run examples">Copy</button>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">
+          Outputs are automatically written to <code class="font-mono text-xs">showcase/output/</code> without overwriting template fixtures.
+        </p>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         SECTION: API REFERENCE
+         ==================================================================== -->
+    <section id="api-reference" class="py-16 border-t border-slate-200 dark:border-slate-800">
+      <div class="max-w-3xl mb-10">
+        <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">API Reference</h2>
+        <p class="mt-2 text-slate-600 dark:text-slate-400">Complete, source-verified documentation of the <code class="font-mono text-sm text-brand-500">PPTXTemplater</code> public API.</p>
+      </div>
+
+      <div class="space-y-8">
+        <!-- 1. Lifecycle & Loading -->
+        <div class="glass-panel rounded-2xl p-6 reveal-card">
+          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">1. Initialization & Export</h3>
+            <span class="badge badge-info text-xs">Core</span>
+          </div>
+          <div class="space-y-4 text-sm">
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">PPTXTemplater.load(pathOrBuffer, options)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Loads a PowerPoint file from disk path, Buffer, or extracted XML directory. Returns a Promise resolving to a <code class="font-mono text-xs">PPTXTemplater</code> instance.</p>
+              <div class="mt-1 text-xs text-slate-500"><strong>Options:</strong> <code class="font-mono">{ logLevel: 'warn'|'info'|'debug'|'verbose'|'silent' }</code></div>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.save(outputPath) / ppt.saveToFile(outputPath)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Serializes the presentation package to a binary <code class="font-mono text-xs">.pptx</code> file on disk.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.toBuffer()</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Generates and returns an in-memory Node.js <code class="font-mono text-xs">Buffer</code> containing the complete zipped PPTX archive. Ideal for AWS Lambda, Google Cloud Functions, or HTTP streaming.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">PPTXTemplater.extractPptx(pptxPath, destinationFolder)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Unpacks a PPTX presentation into a folder of formatted OpenXML files for inspection, version control, or batch editing.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">PPTXTemplater.buildPptx(folderPath, outputPath)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Repackages an extracted XML directory back into a standard PowerPoint presentation file.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Slides -->
+        <div class="glass-panel rounded-2xl p-6 reveal-card">
+          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">2. Slide Management</h3>
+            <span class="badge badge-purple text-xs">Slides</span>
+          </div>
+          <div class="space-y-4 text-sm">
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.useSlide(slideNumber) / ppt.useAllSlides()</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Selects a target slide (1-based index) or all slides for subsequent operations.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.duplicateSlide(sourceSlideIndex, [insertAfterIndex])</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Deep-clones a slide including all relationships, charts, media, and layout bindings.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.reorderSlides(permutationArray)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Reorders slides by providing an array of 1-based slide numbers (e.g. <code class="font-mono text-xs">[2, 3, 1]</code>).</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.importSlideFrom(sourcePptInstance, sourceSlideNumber)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Imports a slide across presentations with complete relationship remapping and content-type synchronization.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.setSlideSize(ratioOrWidth, [height]) / ppt.getSlideDimensions()</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Sets slide aspect ratio (<code class="font-mono text-xs">'16:9'</code>, <code class="font-mono text-xs">'4:3'</code>, or inches) and retrieves dimensions in EMUs.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Text & Typography -->
+        <div class="glass-panel rounded-2xl p-6 reveal-card">
+          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">3. Text Replacement & Typography</h3>
+            <span class="badge badge-success text-xs">Text</span>
+          </div>
+          <div class="space-y-4 text-sm">
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.replaceTextByTag(tag, replacement, [options])</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Replaces a placeholder (e.g. <code class="font-mono text-xs">{{company}}</code>) even when split across fragmented XML runs.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.replaceMultiple(replacementsMap)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Replaces multiple placeholder key-value pairs in a single batch pass across targeted slides.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.findText(query)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Searches presentation slides for text occurrences, returning matches with slide numbers and shape names.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.appendTextRun(shapeId, text, options) / ppt.prependTextRun(...)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Appends or prepends styled text runs with specific fonts, colors, bold, italic, and underline styling.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Tables -->
+        <div class="glass-panel rounded-2xl p-6 reveal-card">
+          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">4. Tables & Grid Manipulation</h3>
+            <span class="badge badge-info text-xs">Tables</span>
+          </div>
+          <div class="space-y-4 text-sm">
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.updateTable(tableId, dataMatrix)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Replaces table cell values with a 2D array of data while preserving cell formatting and dimensions.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.addTableRow(tableId, rowData, [options])</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Appends rows to an existing table. Supports nested arrays for vertical rowspan merges (<code class="font-mono text-xs">{ mergeStrategy: 'rowspan'|'auto' }</code>) or shape badge cells.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.stripeRows(tableId, options)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Applies alternating row background colors: <code class="font-mono text-xs">{ oddColor: 'F8FAFC', evenColor: 'EDF2F7', startRow: 1 }</code>.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.splitTableOnOverflow(tableId, options)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Splits large tables across consecutive duplicate slides when exceeding vertical limits, preserving repeated headers and pinned summary rows.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.getTableRows(tableId, [options])</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Extracts table content as structured JSON objects (headers as keys), raw string arrays, or with full cell metadata.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Charts -->
+        <div class="glass-panel rounded-2xl p-6 reveal-card">
+          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">5. Charts & Internal Excel Synchronization</h3>
+            <span class="badge badge-purple text-xs">Charts</span>
+          </div>
+          <div class="space-y-4 text-sm">
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.updateChart(chartId, { categories, series })</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Updates multi-series chart values in the chart XML and automatically generates matching cached worksheets in the embedded Excel package (<code class="font-mono text-xs">.xlsx</code>), preventing PowerPoint repair prompts.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.updateDataLabels(chartId, options)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Controls chart data label display: <code class="font-mono text-xs">{ showVal: true, showCatName: false, showLegendKey: false }</code>.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. Shapes & Z-Order -->
+        <div class="glass-panel rounded-2xl p-6 reveal-card">
+          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">6. Shapes, Z-Order & Spatial Alignment</h3>
+            <span class="badge badge-success text-xs">Shapes</span>
+          </div>
+          <div class="space-y-4 text-sm">
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.addShape(type, options)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Creates vector shapes: rectangle, roundedRectangle, circle, ellipse, triangle, arrows, etc., with fills, borders, dimensions, and text.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.bringToFront(shapeId) / ppt.sendToBack(shapeId)</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Controls the visual stacking z-order of shapes and text elements on the slide.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.alignShapes(shapeIds, 'left'|'center'|'right'|'top'|'middle'|'bottom')</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Aligns multiple shapes along their bounding edges or centerlines.</p>
+            </div>
+            <div>
+              <code class="font-mono text-blue-600 dark:text-blue-400 font-semibold">ppt.distributeShapes(shapeIds, 'horizontally'|'vertically')</code>
+              <p class="text-slate-600 dark:text-slate-300 mt-1">Distributes three or more shapes with uniform spacing between them.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         SECTION: SHOWCASE & DEMONSTRATIONS
+         ==================================================================== -->
+    <section id="showcase" class="py-16 border-t border-slate-200 dark:border-slate-800">
+      <div class="max-w-3xl mb-8">
+        <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Interactive Showcase</h2>
+        <p class="mt-2 text-slate-600 dark:text-slate-400">All 12 supported demonstrations from <code class="font-mono text-sm text-brand-500">showcase/examples.js</code>. Run <code class="font-mono text-xs">npm run examples</code> to execute every demo deterministically.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Demo Card 1 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 01</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">Text Replacement & 16:9</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Configures slide dimensions to widescreen 16:9 and replaces placeholders across fragmented XML text runs.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>ppt.setSlideSize('16:9');<br>ppt.replaceMultiple(data);</code>
+          </div>
+        </div>
+
+        <!-- Demo Card 2 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 02</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">Chart Updates & Excel Sync</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Updates multi-series chart data and syncs internal Excel cache worksheets to avoid repair dialogs.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>ppt.updateChart('chart1', series);<br>ppt.updateDataLabels('chart1', {showVal:true});</code>
+          </div>
+        </div>
+
+        <!-- Demo Card 3 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 03</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">Tables, Striping & Pagination</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Populates table rows, applies alternating row striping, custom borders, and pins summary rows during split.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>ppt.stripeRows(tbl, {oddColor:'F8FAFC'});<br>ppt.splitTableOnOverflow(tbl, {summaryRows:1});</code>
+          </div>
+        </div>
+
+        <!-- Demo Card 4 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 04</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">Nested Tables & Cell Merging</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Appends rows with nested rowspan arrays, automatic adjacent merging, and extracts structured JSON.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>ppt.addTableRow(t, row, {mergeStrategy:'rowspan'});<br>const data = await ppt.getTableRows(t);</code>
+          </div>
+        </div>
+
+        <!-- Demo Card 5 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 05</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">Shapes, Alignment & Z-Order</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Adds vector shapes, reorders stacking layers with bringToFront/sendToBack, and aligns shapes.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>ppt.alignShapes(['A','B'], 'middle');<br>ppt.bringToFront('A');</code>
+          </div>
+        </div>
+
+        <!-- Demo Card 6 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 06</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">Dynamic Cell Shapes</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Anchors status indicators, badges, and progress markers directly inside table cells.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>ppt.addTableRow(tbl, [{type:'circle', fill:'#10B981'}, 'Complete']);</code>
+          </div>
+        </div>
+
+        <!-- Demo Card 7 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 07</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">Images: PNG, WebP & Base64</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Inserts and replaces images with absolute dimensions, supporting WebP and Base64 data URIs.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>ppt.addImage(base64Uri, {x, y, width, height});<br>ppt.replaceImage('logo', newPath);</code>
+          </div>
+        </div>
+
+        <!-- Demo Card 8 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 08</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">Slide Duplication & Import</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Deep-clones slides, reorders presentation sequences, and imports slides across decks.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>ppt.duplicateSlide(1);<br>await ppt.importSlideFrom(sourceDeck, 1);</code>
+          </div>
+        </div>
+
+        <!-- Demo Card 9 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 09</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">Hyperlinks & Navigation</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Adds external web URLs and internal inter-slide navigation jumps, and inspects links.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>ppt.addHyperlink({text:'Site', url:'...'});<br>ppt.addSlideLink({sourceSlide:1, targetSlide:3});</code>
+          </div>
+        </div>
+
+        <!-- Demo Card 10 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 10</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">Rich Typography & Runs</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Injects styled text runs with custom weights, fonts, colors, and line spacing.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>ppt.appendTextRun('Box', ' [Alert]', {style: {bold:true, color:'#DC2626'}});</code>
+          </div>
+        </div>
+
+        <!-- Demo Card 11 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 11</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">OpenXML Folder Workflow</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Extracts PPTX to folder of XML files, edits in-place, and rebuilds back into binary presentation.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>await PPTXTemplater.extractPptx(file, dir);<br>await PPTXTemplater.buildPptx(dir, out);</code>
+          </div>
+        </div>
+
+        <!-- Demo Card 12 -->
+        <div class="glass-panel rounded-2xl p-5 reveal-card flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-blue-500">DEMO 12</span>
+              <span class="badge badge-success text-[10px]">Verified</span>
+            </div>
+            <h3 class="font-bold text-base text-slate-900 dark:text-white mb-1">Serverless Buffer Export</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+              Generates presentations directly in-memory as a Buffer without touching disk I/O.
+            </p>
+          </div>
+          <div class="bg-slate-900 text-slate-300 p-2.5 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <code>const buffer = await ppt.toBuffer();<br>// return { statusCode: 200, body: buffer }</code>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         SECTION: TEMPLATES & DATA ARCHITECTURE
+         ==================================================================== -->
+    <section id="templates" class="py-16 border-t border-slate-200 dark:border-slate-800">
+      <div class="max-w-3xl mb-8">
+        <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Templates & Data Architecture</h2>
+        <p class="mt-2 text-slate-600 dark:text-slate-400">Design beautiful slides in PowerPoint, LibreOffice, or Google Slides — inject dynamic data in Node.js.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="glass-panel rounded-2xl p-6 reveal-card">
+          <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center mb-4">
+            <span class="font-mono font-bold text-sm">{{ }}</span>
+          </div>
+          <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Text Placeholders</h3>
+          <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            Use standard curly brackets like <code class="font-mono text-xs bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded">{{company}}</code> anywhere in text shapes. The engine merges fragmented XML runs automatically.
+          </p>
+        </div>
+
+        <div class="glass-panel rounded-2xl p-6 reveal-card">
+          <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+          </div>
+          <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Excel Cache Sync</h3>
+          <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            When you update a chart, <code class="font-mono text-xs">node-pptx-templater</code> updates both the Chart XML and the embedded <code class="font-mono text-xs">.xlsx</code> workbook, ensuring zero corruption or repair prompts.
+          </p>
+        </div>
+
+        <div class="glass-panel rounded-2xl p-6 reveal-card">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+          </div>
+          <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Selection Pane Naming</h3>
+          <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            Name tables and shapes in PowerPoint via <em>Home → Select → Selection Pane</em> (e.g. "RevenueChart", "SummaryTable") to target them cleanly in your code.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         SECTION: FEATURE CATALOG (EVIDENCE-BASED)
+         ==================================================================== -->
+    <section id="feature-catalog" class="py-16 border-t border-slate-200 dark:border-slate-800">
+      <div class="max-w-3xl mb-8">
+        <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Feature Status & Catalog</h2>
+        <p class="mt-2 text-slate-600 dark:text-slate-400">
+          Evidence-based implementation status across the 86-feature catalog. <strong>76 of 86 features (88.4%)</strong> are verified with 278 passing tests across 42 test suites.
+        </p>
+      </div>
+
+      <!-- Search & Category Filters -->
+      <div class="glass-panel rounded-2xl p-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 reveal-card">
+        <div class="relative w-full sm:w-72">
+          <input type="text" id="feature-search-input" placeholder="Search features (e.g. chart, table, merge)..." class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+        </div>
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          <select id="feature-category-filter" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="all">All Subsystems</option>
+            <option value="core">Core Engine</option>
+            <option value="slides">Slides</option>
+            <option value="text">Text & Typography</option>
+            <option value="tables">Tables</option>
+            <option value="charts">Charts</option>
+            <option value="shapes">Shapes & Z-Order</option>
+            <option value="media">Images & Media</option>
+            <option value="hyperlinks">Hyperlinks</option>
+            <option value="security">Security & XML</option>
+          </select>
+          <span id="features-count-display" class="text-xs text-slate-500 font-mono">Showing 76 verified features</span>
+        </div>
+      </div>
+
+      <!-- Features Table -->
+      <div class="glass-panel rounded-2xl overflow-hidden reveal-card shadow-lg">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm border-collapse">
+            <thead>
+              <tr class="bg-slate-100/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold">
+                <th class="p-3.5">Feature</th>
+                <th class="p-3.5">Subsystem</th>
+                <th class="p-3.5">API Method</th>
+                <th class="p-3.5">Status</th>
+                <th class="p-3.5">Verified Test</th>
+              </tr>
+            </thead>
+            <tbody id="features-table-body" class="divide-y divide-slate-200 dark:divide-slate-800 font-normal">
+              <tr data-feature="load presentation" data-category="core" data-desc="loads presentation from file buffer folder">
+                <td class="p-3.5 font-medium">Load Presentation (Path / Buffer / Folder)</td>
+                <td class="p-3.5"><span class="badge badge-info text-xs">Core</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">PPTXTemplater.load()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">PPTXTemplater.test.js</td>
+              </tr>
+              <tr data-feature="save presentation" data-category="core" data-desc="saves presentation to file">
+                <td class="p-3.5 font-medium">Save to File / Disk Serialization</td>
+                <td class="p-3.5"><span class="badge badge-info text-xs">Core</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">ppt.save() / saveToFile()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">PPTXTemplater.test.js</td>
+              </tr>
+              <tr data-feature="serverless buffer export" data-category="core" data-desc="exports to in-memory buffer">
+                <td class="p-3.5 font-medium">In-Memory Buffer Export</td>
+                <td class="p-3.5"><span class="badge badge-info text-xs">Core</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">ppt.toBuffer()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">PPTXTemplater.test.js</td>
+              </tr>
+              <tr data-feature="openxml folder unpack and rebuild" data-category="core" data-desc="extracts and rebuilds pptx xml">
+                <td class="p-3.5 font-medium">OpenXML Folder Unpack & Rebuild</td>
+                <td class="p-3.5"><span class="badge badge-info text-xs">Core</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">extractPptx() / buildPptx()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">XmlFolderSupport.test.js</td>
+              </tr>
+              <tr data-feature="slide size and dimensions" data-category="slides" data-desc="sets 16:9 widescreen or custom dimensions">
+                <td class="p-3.5 font-medium">Slide Dimensions & Aspect Ratio (16:9 / 4:3)</td>
+                <td class="p-3.5"><span class="badge badge-purple text-xs">Slides</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">setSlideSize() / getSlideDimensions()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">SlideDimensions.test.js</td>
+              </tr>
+              <tr data-feature="duplicate slide" data-category="slides" data-desc="deep clones slide with relationships">
+                <td class="p-3.5 font-medium">Slide Deep Duplication & Cloning</td>
+                <td class="p-3.5"><span class="badge badge-purple text-xs">Slides</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">duplicateSlide() / cloneSlide()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">SlideDuplicationIndependence.test.js</td>
+              </tr>
+              <tr data-feature="reorder slides" data-category="slides" data-desc="reorders slides sequence">
+                <td class="p-3.5 font-medium">Slide Reordering Permutation</td>
+                <td class="p-3.5"><span class="badge badge-purple text-xs">Slides</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">reorderSlides()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">SlideOperationsCompatibility.test.js</td>
+              </tr>
+              <tr data-feature="cross deck slide import" data-category="slides" data-desc="imports slide across presentations">
+                <td class="p-3.5 font-medium">Cross-Deck Slide Import with Rel Mapping</td>
+                <td class="p-3.5"><span class="badge badge-purple text-xs">Slides</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">importSlideFrom()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">SlideImportAndHyperlink.test.js</td>
+              </tr>
+              <tr data-feature="fragmented text run placeholder replacement" data-category="text" data-desc="replaces placeholders across split runs">
+                <td class="p-3.5 font-medium">Fragmented Text Run Replacement</td>
+                <td class="p-3.5"><span class="badge badge-success text-xs">Text</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">replaceTextByTag() / replaceMultiple()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">TemplateEngine.test.js</td>
+              </tr>
+              <tr data-feature="text search" data-category="text" data-desc="finds text occurrences on slides">
+                <td class="p-3.5 font-medium">Text Search & Shape Inspection</td>
+                <td class="p-3.5"><span class="badge badge-success text-xs">Text</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">findText() / getTextElements()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">PPTXTemplater.test.js</td>
+              </tr>
+              <tr data-feature="typography and text runs" data-category="text" data-desc="advanced font styling weights colors">
+                <td class="p-3.5 font-medium">Typography & Text Runs (Weights, Colors, Fonts)</td>
+                <td class="p-3.5"><span class="badge badge-success text-xs">Text</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">appendTextRun() / prependTextRun()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">TypographyAndTextRuns.test.js</td>
+              </tr>
+              <tr data-feature="table dynamic updates and row addition" data-category="tables" data-desc="updates table and adds rows">
+                <td class="p-3.5 font-medium">Table Updates & Dynamic Row Injection</td>
+                <td class="p-3.5"><span class="badge badge-info text-xs">Tables</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">updateTable() / addTableRow()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">TableAddAndColumns.test.js</td>
+              </tr>
+              <tr data-feature="table cell merging and rowspan" data-category="tables" data-desc="merges table cells vertically and horizontally">
+                <td class="p-3.5 font-medium">Cell Merging & Vertical Rowspan Strategy</td>
+                <td class="p-3.5"><span class="badge badge-info text-xs">Tables</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">mergeCells() / addTableRow(rowspan)</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">TableExtractionAndNesting.test.js</td>
+              </tr>
+              <tr data-feature="table row striping and borders" data-category="tables" data-desc="alternating row colors and borders">
+                <td class="p-3.5 font-medium">Row Striping & Custom Cell Borders</td>
+                <td class="p-3.5"><span class="badge badge-info text-xs">Tables</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">stripeRows() / updateCell(border)</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">TableAddAndColumns.test.js</td>
+              </tr>
+              <tr data-feature="table auto pagination and summary rows" data-category="tables" data-desc="splits table across slides preserving summary">
+                <td class="p-3.5 font-medium">Table Auto-Pagination & Summary Row Pinning</td>
+                <td class="p-3.5"><span class="badge badge-info text-xs">Tables</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">splitTableOnOverflow(summaryRows)</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">TableAutoPagination.test.js</td>
+              </tr>
+              <tr data-feature="table json data extraction" data-category="tables" data-desc="extracts structured table json">
+                <td class="p-3.5 font-medium">Table Structured JSON Extraction</td>
+                <td class="p-3.5"><span class="badge badge-info text-xs">Tables</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">getTableRows({includeMetadata:true})</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">TableExtractionAndNesting.test.js</td>
+              </tr>
+              <tr data-feature="chart update and excel workbook cache sync" data-category="charts" data-desc="updates chart and excel xlsx cache">
+                <td class="p-3.5 font-medium">Chart Updates with Automatic Excel Cache Sync</td>
+                <td class="p-3.5"><span class="badge badge-purple text-xs">Charts</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">updateChart() / updateChartData()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">ChartUpdate.test.js</td>
+              </tr>
+              <tr data-feature="chart data labels" data-category="charts" data-desc="controls chart label visibility">
+                <td class="p-3.5 font-medium">Chart Data Labels Visibility & Options</td>
+                <td class="p-3.5"><span class="badge badge-purple text-xs">Charts</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">updateDataLabels()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">ChartDataLabels.test.js</td>
+              </tr>
+              <tr data-feature="vector shapes creation" data-category="shapes" data-desc="creates rectangles circles arrows">
+                <td class="p-3.5 font-medium">Vector Shapes Creation & Styling</td>
+                <td class="p-3.5"><span class="badge badge-success text-xs">Shapes</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">addShape() / updateShape()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">ShapeManagement.test.js</td>
+              </tr>
+              <tr data-feature="layer stacking z-order" data-category="shapes" data-desc="bringToFront and sendToBack">
+                <td class="p-3.5 font-medium">Z-Order Stacking (Bring to Front / Send to Back)</td>
+                <td class="p-3.5"><span class="badge badge-success text-xs">Shapes</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">bringToFront() / sendToBack()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">ZOrder.test.js</td>
+              </tr>
+              <tr data-feature="spatial alignment and distribution" data-category="shapes" data-desc="aligns and distributes shapes">
+                <td class="p-3.5 font-medium">Spatial Alignment & Distribution</td>
+                <td class="p-3.5"><span class="badge badge-success text-xs">Shapes</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">alignShapes() / distributeShapes()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">SpatialAndDiscovery.test.js</td>
+              </tr>
+              <tr data-feature="cell shapes badging" data-category="shapes" data-desc="adds shapes inside table cells">
+                <td class="p-3.5 font-medium">Table Cell Shapes & Status Badges</td>
+                <td class="p-3.5"><span class="badge badge-success text-xs">Shapes</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">addTableRow([{type:'circle',...}])</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">CellShapes.test.js</td>
+              </tr>
+              <tr data-feature="images and media multi-format" data-category="media" data-desc="png jpeg webp base64 tiff">
+                <td class="p-3.5 font-medium">Multi-Format Media (PNG, JPEG, WebP, Base64, TIFF)</td>
+                <td class="p-3.5"><span class="badge badge-info text-xs">Media</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">addImage() / replaceImage()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">ImagesAndMedia.test.js</td>
+              </tr>
+              <tr data-feature="hyperlinks and navigation" data-category="hyperlinks" data-desc="external and slide links">
+                <td class="p-3.5 font-medium">External & Inter-Slide Hyperlinks</td>
+                <td class="p-3.5"><span class="badge badge-purple text-xs">Hyperlinks</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">addHyperlink() / addSlideLink()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">HyperlinkInspection.test.js</td>
+              </tr>
+              <tr data-feature="xml bomb and entity expansion protection" data-category="security" data-desc="protects against xxe and billion laughs">
+                <td class="p-3.5 font-medium">XXE & Billion Laughs XML Bomb Protection</td>
+                <td class="p-3.5"><span class="badge badge-success text-xs">Security</span></td>
+                <td class="p-3.5 font-mono text-xs text-blue-600 dark:text-blue-400">safeParseXml() / validateXml()</td>
+                <td class="p-3.5"><span class="status-pill status-supported">Supported</span></td>
+                <td class="p-3.5 text-xs text-slate-500">XMLSecurity.test.js</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         SECTION: TROUBLESHOOTING & FAQ
+         ==================================================================== -->
+    <section id="troubleshooting" class="py-16 border-t border-slate-200 dark:border-slate-800">
+      <div class="max-w-3xl mb-8">
+        <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Troubleshooting & FAQ</h2>
+        <p class="mt-2 text-slate-600 dark:text-slate-400">Answers to frequent questions and common issues when generating PowerPoint decks.</p>
+      </div>
+
+      <div class="space-y-4">
+        <!-- FAQ 1 -->
+        <details class="glass-panel rounded-2xl p-5 reveal-card cursor-pointer group">
+          <summary class="font-semibold text-slate-900 dark:text-white flex items-center justify-between">
+            <span>Why did PowerPoint show "PowerPoint found a problem with content" in other libraries?</span>
+            <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            PowerPoint caches chart data in two places: the Chart XML part and an embedded Excel workbook (<code class="font-mono text-xs">ppt/embeddings/Microsoft_Excel_Worksheet.xlsx</code>). If a template engine modifies the Chart XML without updating the embedded Excel part, PowerPoint flags the discrepancy and prompts the user to "Repair" the file. <code class="font-mono text-xs">node-pptx-templater</code> synchronizes both layers atomically, guaranteeing zero repair warnings.
+          </p>
+        </details>
+
+        <!-- FAQ 2 -->
+        <details class="glass-panel rounded-2xl p-5 reveal-card cursor-pointer group">
+          <summary class="font-semibold text-slate-900 dark:text-white flex items-center justify-between">
+            <span>How do I discover shape and table names in my presentation?</span>
+            <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            In PowerPoint, open the Selection Pane (<em>Home → Select → Selection Pane</em>) to see and rename any shape, table, or chart. Programmatically, you can also inspect all elements using <code class="font-mono text-xs">ppt.getTables()</code>, <code class="font-mono text-xs">ppt.getShapes()</code>, and <code class="font-mono text-xs">ppt.getImages()</code>.
+          </p>
+        </details>
+
+        <!-- FAQ 3 -->
+        <details class="glass-panel rounded-2xl p-5 reveal-card cursor-pointer group">
+          <summary class="font-semibold text-slate-900 dark:text-white flex items-center justify-between">
+            <span>Can I generate presentations in AWS Lambda or cloud functions?</span>
+            <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Yes! Because <code class="font-mono text-xs">node-pptx-templater</code> has zero native binaries or external C++ dependencies, it runs out of the box in serverless environments. Call <code class="font-mono text-xs">const buffer = await ppt.toBuffer()</code> to export directly to memory and return the buffer in your Lambda response or upload directly to S3.
+          </p>
+        </details>
+
+        <!-- FAQ 4 -->
+        <details class="glass-panel rounded-2xl p-5 reveal-card cursor-pointer group">
+          <summary class="font-semibold text-slate-900 dark:text-white flex items-center justify-between">
+            <span>Are slide numbers 1-based or 0-based?</span>
+            <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Slide numbers are <strong>1-based</strong> to match the human-readable numbers shown in PowerPoint slide thumbnails (<code class="font-mono text-xs">ppt.useSlide(1)</code> targets the first slide).
+          </p>
+        </details>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         SECTION: CONTRIBUTING
+         ==================================================================== -->
+    <section id="contributing" class="py-16 border-t border-slate-200 dark:border-slate-800">
+      <div class="max-w-3xl mb-8">
+        <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Contributing & Local Development</h2>
+        <p class="mt-2 text-slate-600 dark:text-slate-400">Contributions are warmly welcome. Follow these steps to set up your local environment.</p>
+      </div>
+
+      <div class="glass-panel rounded-2xl p-6 reveal-card">
+        <ol class="space-y-4 text-sm text-slate-700 dark:text-slate-300">
+          <li>
+            <strong>1. Clone the repository:</strong>
+            <div class="mt-1 bg-slate-900 text-slate-200 p-2.5 rounded-lg font-mono text-xs flex items-center justify-between">
+              <span>git clone https://github.com/jsuyog2/node-pptx-templater.git</span>
+              <button class="copy-btn text-xs py-1 px-2" data-copy-text="git clone https://github.com/jsuyog2/node-pptx-templater.git">Copy</button>
+            </div>
+          </li>
+          <li>
+            <strong>2. Install dependencies:</strong>
+            <div class="mt-1 bg-slate-900 text-slate-200 p-2.5 rounded-lg font-mono text-xs flex items-center justify-between">
+              <span>npm install</span>
+              <button class="copy-btn text-xs py-1 px-2" data-copy-text="npm install">Copy</button>
+            </div>
+          </li>
+          <li>
+            <strong>3. Run the complete test suite:</strong>
+            <div class="mt-1 bg-slate-900 text-slate-200 p-2.5 rounded-lg font-mono text-xs flex items-center justify-between">
+              <span>npm test</span>
+              <button class="copy-btn text-xs py-1 px-2" data-copy-text="npm test">Copy</button>
+            </div>
+          </li>
+          <li>
+            <strong>4. Run the showcase demonstrations:</strong>
+            <div class="mt-1 bg-slate-900 text-slate-200 p-2.5 rounded-lg font-mono text-xs flex items-center justify-between">
+              <span>npm run examples</span>
+              <button class="copy-btn text-xs py-1 px-2" data-copy-text="npm run examples">Copy</button>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/50 backdrop-blur-md py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-3">
+        <img src="./assets/logo.png" alt="Logo" class="w-7 h-7 rounded object-contain">
+        <span class="font-bold text-sm tracking-tight text-slate-900 dark:text-white">node-pptx-templater</span>
+        <span class="text-xs text-slate-500">• Released under MIT License</span>
+      </div>
+
+      <div class="flex items-center gap-6 text-xs text-slate-600 dark:text-slate-400">
+        <a href="https://github.com/jsuyog2/node-pptx-templater" target="_blank" rel="noopener" class="hover:text-brand-500 transition-colors">GitHub Repository</a>
+        <a href="https://www.npmjs.com/package/node-pptx-templater" target="_blank" rel="noopener" class="hover:text-brand-500 transition-colors">npm Package</a>
+        <a href="https://github.com/jsuyog2/node-pptx-templater/issues" target="_blank" rel="noopener" class="hover:text-brand-500 transition-colors">Report Issue</a>
+        <a href="https://github.com/sponsors/jsuyog2" target="_blank" rel="noopener" class="hover:text-brand-500 transition-colors">Sponsor</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- App Script -->
+  <script src="./js/app.js"></script>
 </body>
 </html>

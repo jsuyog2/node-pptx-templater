@@ -1,1 +1,1 @@
-module.exports = require('../elements/TableManager.js');
+module.exports = require('../elements/TableManager.js')

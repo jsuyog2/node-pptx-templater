@@ -9,7 +9,7 @@ import { validatePackageIntegrity } from '../helpers/packageIntegrity.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const FIXTURES_DIR = resolve(__dirname, '../fixtures')
-const TEMPLATE = resolve(__dirname, '../../templates/sample.pptx')
+const TEMPLATE = resolve(__dirname, '../../showcase/templates/sample.pptx')
 
 let PPTXTemplater
 

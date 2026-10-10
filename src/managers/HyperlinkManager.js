@@ -399,7 +399,9 @@ class HyperlinkManager {
           const rIdMatch = /r:id="(rId\d+)"/.exec(spXml)
           const updatedSpXml = spXml.replace(/<a:hlinkClick[^>]*\/>/g, '')
           const updatedXml =
-            slideXml.substring(0, spStart) + updatedSpXml + slideXml.substring(spEnd + '</p:sp>'.length)
+            slideXml.substring(0, spStart) +
+            updatedSpXml +
+            slideXml.substring(spEnd + '</p:sp>'.length)
           slideManager.setSlideXml(slideIndex, updatedXml)
           if (rIdMatch) {
             relationshipManager.removeRelationship(slideInfo.zipPath, rIdMatch[1])

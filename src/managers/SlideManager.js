@@ -226,15 +226,15 @@ class SlideManager {
    * @returns {{width: number, height: number}}
    */
   getSlideSize() {
-    if (!this.#presentationObj) return { width: 9144000, height: 5143500 };
-    const sldSz = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldSz');
+    if (!this.#presentationObj) return { width: 9144000, height: 5143500 }
+    const sldSz = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldSz')
     if (sldSz) {
       return {
         width: parseInt(sldSz['@_cx'] || '9144000', 10),
-        height: parseInt(sldSz['@_cy'] || '5143500', 10)
-      };
+        height: parseInt(sldSz['@_cy'] || '5143500', 10),
+      }
     }
-    return { width: 9144000, height: 5143500 };
+    return { width: 9144000, height: 5143500 }
   }
 
   /**
@@ -2538,8 +2538,7 @@ class SlideManager {
       let normalizedType = type
       if (type === 'sp') {
         const isTxBox =
-          rawElem?.['p:spPr']?.['@_txBox'] === '1' ||
-          rawElem?.['p:spPr']?.['@_txBox'] === true
+          rawElem?.['p:spPr']?.['@_txBox'] === '1' || rawElem?.['p:spPr']?.['@_txBox'] === true
         normalizedType = isTxBox ? 'textbox' : 'shape'
       } else if (type === 'pic') {
         normalizedType = 'picture'
@@ -2582,8 +2581,7 @@ class SlideManager {
     // Inspect shapes and groups
     for (const entry of state.shapeMap.values()) {
       const cNvPr =
-        entry.shape?.['p:nvSpPr']?.['p:cNvPr'] ||
-        entry.shape?.['p:nvGrpSpPr']?.['p:cNvPr']
+        entry.shape?.['p:nvSpPr']?.['p:cNvPr'] || entry.shape?.['p:nvGrpSpPr']?.['p:cNvPr']
       addEntry(entry.shape, null, entry.type, cNvPr)
     }
 

@@ -1,1 +1,1 @@
-module.exports = require('../../elements/charts/ChartWorkbookUpdater.js');
+module.exports = require('../../elements/charts/ChartWorkbookUpdater.js')

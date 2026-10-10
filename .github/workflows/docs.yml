@@ -28,7 +28,7 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - name: Build documentation site
-        run: node scripts/generate-docs.js
+        run: npm run docs:build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs

@@ -70,7 +70,7 @@ class TemplateEngine {
     const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
     if (runs.length === 0) return p
 
-    const combinedText = runs.map(r => r['a:t'] !== undefined ? String(r['a:t']) : '').join('')
+    const combinedText = runs.map(r => (r['a:t'] !== undefined ? String(r['a:t']) : '')).join('')
 
     let hasPlaceholder = false
     let matchedPlaceholder = null
@@ -189,7 +189,7 @@ class TemplateEngine {
       const pPr = {
         '@_lvl': lvl,
         '@_marL': marL,
-        '@_indent': indent
+        '@_indent': indent,
       }
 
       if (ordered) {
@@ -207,13 +207,13 @@ class TemplateEngine {
 
       const run = {
         'a:rPr': this.#xmlParser.deepClone(baseRPr),
-        'a:t': item.text
+        'a:t': item.text,
       }
 
       // Preserve properties from original paragraph if necessary
       const newP = {
         'a:pPr': pPr,
-        'a:r': [run]
+        'a:r': [run],
       }
 
       newParagraphs.push(newP)
@@ -224,19 +224,19 @@ class TemplateEngine {
 
   // To preserve backwards compatibility for tests calling generateListParagraphs with XML strings
   generateListParagraphs(paragraphXml, firstRun, listConfig) {
-    const pObj = this.#xmlParser.parse(paragraphXml);
+    const pObj = this.#xmlParser.parse(paragraphXml)
     // extract firstRunObj
-    const p = pObj['a:p'] ? pObj['a:p'] : pObj;
-    const runs = p['a:r'] ? (Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]) : [];
-    const firstRunObj = runs.length > 0 ? runs[0] : {};
+    const p = pObj['a:p'] ? pObj['a:p'] : pObj
+    const runs = p['a:r'] ? (Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]) : []
+    const firstRunObj = runs.length > 0 ? runs[0] : {}
 
-    const newParagraphs = this.generateListParagraphsAst(p, firstRunObj, listConfig);
+    const newParagraphs = this.generateListParagraphsAst(p, firstRunObj, listConfig)
 
-    let res = '';
-    for(const newP of newParagraphs) {
-       res += this.#xmlParser.build({ 'a:p': newP });
+    let res = ''
+    for (const newP of newParagraphs) {
+      res += this.#xmlParser.build({ 'a:p': newP })
     }
-    return res;
+    return res
   }
 
   containsPlaceholders(text, replacements) {

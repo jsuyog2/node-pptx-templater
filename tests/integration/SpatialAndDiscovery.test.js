@@ -12,13 +12,17 @@ describe('Spatial Layout & Element Discovery', () => {
 
   beforeEach(() => {
     if (existsSync(outputPath)) {
-      try { unlinkSync(outputPath) } catch (_) {}
+      try {
+        unlinkSync(outputPath)
+      } catch (_) {}
     }
   })
 
   afterEach(() => {
     if (existsSync(outputPath)) {
-      try { unlinkSync(outputPath) } catch (_) {}
+      try {
+        unlinkSync(outputPath)
+      } catch (_) {}
     }
   })
 

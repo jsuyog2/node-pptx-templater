@@ -1,1 +1,1 @@
-module.exports = require('../elements/ImageManager.js');
+module.exports = require('../elements/ImageManager.js')

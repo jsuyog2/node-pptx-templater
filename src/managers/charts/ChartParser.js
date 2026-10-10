@@ -1,1 +1,1 @@
-module.exports = require('../../elements/charts/ChartParser.js');
+module.exports = require('../../elements/charts/ChartParser.js')

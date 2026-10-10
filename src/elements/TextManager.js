@@ -548,11 +548,7 @@ class TextManager {
     // Determine base rPr to inherit
     const inherit = options.inheritStyle !== false
     const neighborRun =
-      inherit && runs.length > 0
-        ? mode === 'append'
-          ? runs[runs.length - 1]
-          : runs[0]
-        : null
+      inherit && runs.length > 0 ? (mode === 'append' ? runs[runs.length - 1] : runs[0]) : null
     const baseRPr = neighborRun?.['a:rPr']
       ? this.#xmlParser.deepClone(neighborRun['a:rPr'])
       : { '@_lang': 'en-US' }

@@ -149,7 +149,7 @@ describe('PPTXTemplater - Table Cell Merging & Unmerging', () => {
   })
 
   it('should correctly order a:r and a:endParaRPr when split cells inherit from a merged template cell, and support cell formatting', async () => {
-    const templatePath = resolve(__dirname, '../../templates/sample.pptx')
+    const templatePath = resolve(__dirname, '../../showcase/templates/sample.pptx')
     const ppt = await PPTXTemplater.load(templatePath)
     ppt.useSlide(3)
 

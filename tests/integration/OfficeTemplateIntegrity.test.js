@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 import { validatePackageIntegrity } from '../helpers/packageIntegrity.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const TEMPLATE = resolve(__dirname, '../../templates/officePPT.pptx')
+const TEMPLATE = resolve(__dirname, '../../showcase/templates/officePPT.pptx')
 
 let PPTXTemplater
 
