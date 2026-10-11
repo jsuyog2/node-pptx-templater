@@ -19,8 +19,8 @@ export default function Sidebar({
     const term = searchTerm.toLowerCase();
     return methods.filter(
       m => m.name.toLowerCase().includes(term) ||
-           (m.description && m.description.toLowerCase().includes(term)) ||
-           m.category.toLowerCase().includes(term)
+        (m.description && m.description.toLowerCase().includes(term)) ||
+        m.category.toLowerCase().includes(term)
     ).slice(0, 15);
   }, [methods, searchTerm]);
 
@@ -37,9 +37,8 @@ export default function Sidebar({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed md:sticky top-0 md:top-16 left-0 h-full md:h-[calc(100vh-4rem)] w-72 sm:w-80 bg-white/95 dark:bg-[#0b0f19]/95 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none border-r border-slate-200/80 dark:border-slate-800/80 z-50 md:z-10 p-4 sm:p-5 flex flex-col transform transition-transform duration-300 ease-in-out overflow-y-auto ${
-          isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'
-        }`}
+        className={`fixed md:sticky top-0 md:top-16 left-0 h-full md:h-[calc(100vh-4rem)] w-72 sm:w-80 bg-white/95 dark:bg-[#0b0f19]/95 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none border-r border-slate-200/80 dark:border-slate-800/80 z-50 md:z-10 p-4 sm:p-5 flex flex-col transform transition-transform duration-300 ease-in-out overflow-y-auto ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'
+          }`}
       >
         {/* Mobile Header / Close Button */}
         <div className="flex items-center justify-between pb-3 mb-2 md:hidden border-b border-slate-200 dark:border-slate-800">
@@ -95,7 +94,7 @@ export default function Sidebar({
                     onClick={() => {
                       onNavigate('/api-reference');
                       onSelectCategory(m.category);
-                      window.location.hash = `api-${m.name}`;
+                      window.location.pathname = `api-${m.name}`;
                       setSearchTerm('');
                       if (onClose) onClose();
                     }}
@@ -118,52 +117,46 @@ export default function Sidebar({
           <nav className="space-y-0.5">
             <button
               onClick={() => { onNavigate('/'); if (onClose) onClose(); }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
-                activeRoute === '/'
-                  ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors ${activeRoute === '/'
+                ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                }`}
             >
               <span>Overview & Quick Start</span>
             </button>
             <button
               onClick={() => { onNavigate('/guides'); if (onClose) onClose(); }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
-                activeRoute === '/guides'
-                  ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors ${activeRoute === '/guides'
+                ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                }`}
             >
               <span>Guides & Deep Dives</span>
             </button>
             <button
               onClick={() => { onNavigate('/api-reference'); if (onClose) onClose(); }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
-                activeRoute === '/api-reference'
-                  ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors ${activeRoute === '/api-reference'
+                ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                }`}
             >
-              <span>API Reference (102 Methods)</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300">New</span>
+              <span>API Reference</span>
             </button>
             <button
               onClick={() => { onNavigate('/showcase'); if (onClose) onClose(); }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
-                activeRoute === '/showcase'
-                  ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors ${activeRoute === '/showcase'
+                ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                }`}
             >
-              <span>Showcase (12 Demos)</span>
+              <span>Showcase</span>
             </button>
             <button
               onClick={() => { onNavigate('/features'); if (onClose) onClose(); }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
-                activeRoute === '/features'
-                  ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors ${activeRoute === '/features'
+                ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                }`}
             >
               <span>Feature Catalog</span>
             </button>
@@ -176,7 +169,6 @@ export default function Sidebar({
             <span className="flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5" /> API Categories
             </span>
-            <span className="text-[10px] lowercase text-slate-400">11 groups</span>
           </div>
 
           <div className="space-y-1">
@@ -186,11 +178,10 @@ export default function Sidebar({
                 onSelectCategory('All');
                 if (onClose) onClose();
               }}
-              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                selectedCategory === 'All' && activeRoute === '/api-reference'
-                  ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
+              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${selectedCategory === 'All' && activeRoute === '/api-reference'
+                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
             >
               <span>All Categories</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
@@ -205,15 +196,14 @@ export default function Sidebar({
                 <button
                   key={cat}
                   onClick={() => {
-                    onNavigate('/api-reference');
+                    onNavigate(`/api-reference?category=${cat}`);
                     onSelectCategory(cat);
                     if (onClose) onClose();
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    isSelected
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isSelected
+                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
                 >
                   <span className="truncate">{cat}</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">

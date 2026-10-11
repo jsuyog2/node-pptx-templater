@@ -4,29 +4,9 @@ import ApiCard from '../components/ApiCard';
 import SEOHead from '../components/SEOHead';
 import apiData from '../data/apiReference.json';
 
-export default function ApiReferencePage({ initialCategory = 'All' }) {
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+export default function ApiReferencePage({ selectedCategory = 'All', setSelectedCategory = () => { } }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all'); // 'all', 'static', 'async'
-
-  useEffect(() => {
-    if (initialCategory) {
-      setSelectedCategory(initialCategory);
-    }
-  }, [initialCategory]);
-
-  // Deep linking: scroll to hash on load or hash change
-  useEffect(() => {
-    if (window.location.hash) {
-      const id = window.location.hash.substring(1);
-      setTimeout(() => {
-        const el = document.getElementById(id);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 100);
-    }
-  }, []);
 
   const categories = apiData.categories;
 
@@ -105,31 +85,28 @@ export default function ApiReferencePage({ initialCategory = 'All' }) {
             </span>
             <button
               onClick={() => setFilterType('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                filterType === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filterType === 'all'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setFilterType('static')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                filterType === 'static'
-                  ? 'bg-amber-600 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filterType === 'static'
+                ? 'bg-amber-600 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
             >
               Static
             </button>
             <button
               onClick={() => setFilterType('async')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                filterType === 'async'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filterType === 'async'
+                ? 'bg-purple-600 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
             >
               Async
             </button>
@@ -140,11 +117,10 @@ export default function ApiReferencePage({ initialCategory = 'All' }) {
         <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-slate-200/80 dark:border-slate-800/80">
           <button
             onClick={() => setSelectedCategory('All')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-              selectedCategory === 'All'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-            }`}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${selectedCategory === 'All'
+              ? 'bg-blue-600 text-white'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+              }`}
           >
             All Categories ({apiData.methods.length})
           </button>
@@ -154,11 +130,10 @@ export default function ApiReferencePage({ initialCategory = 'All' }) {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  selectedCategory === cat
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${selectedCategory === cat
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
               >
                 {cat} ({count})
               </button>

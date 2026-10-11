@@ -10,7 +10,7 @@ import FeaturesPage from './pages/FeaturesPage';
 import apiData from './data/apiReference.json';
 
 export default function App() {
-  const [route, setRoute] = useState(window.location.hash.replace('#', '') || '/');
+  const [route, setRoute] = useState(window.location.pathname.replace('#', '') || '/');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [guideSlug, setGuideSlug] = useState('getting-started');
@@ -35,14 +35,13 @@ export default function App() {
   // Handle hash changes for client routing
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '') || '/';
+      const hash = window.location.pathname.replace('#', '') || '/';
       if (hash.startsWith('/guides/')) {
         const slug = hash.replace('/guides/', '');
         setRoute('/guides');
         setGuideSlug(slug);
       } else if (hash.startsWith('/api-reference')) {
-        setRoute('/api-reference');
-        const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+        const urlParams = new URLSearchParams(window.location.search);
         const cat = urlParams.get('category');
         if (cat) setSelectedCategory(cat);
       } else if (hash.startsWith('/showcase')) {
@@ -63,14 +62,21 @@ export default function App() {
   }, []);
 
   const navigate = (path) => {
-    window.location.hash = path;
+    const naviagePath = path.split('?')[0] || '';
+    if (window.location.pathname == naviagePath) {
+      window.history.pushState({ path: path }, '', path);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    window.location.href = path;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const renderCurrentPage = () => {
     switch (route) {
       case '/api-reference':
-        return <ApiReferencePage initialCategory={selectedCategory} />;
+        return <ApiReferencePage selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} />;
       case '/guides':
         return <GuidesPage initialGuideSlug={guideSlug} />;
       case '/showcase':
@@ -107,7 +113,7 @@ export default function App() {
           selectedCategory={selectedCategory}
           onSelectCategory={(cat) => {
             setSelectedCategory(cat);
-            navigate('/api-reference');
+            // navigate('/api-reference');
           }}
           activeRoute={route}
           onNavigate={navigate}
