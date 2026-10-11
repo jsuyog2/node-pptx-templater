@@ -9,6 +9,8 @@ const path = require('path');
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PPTX_SOURCE_PATH = path.join(ROOT_DIR, 'src', 'core', 'PPTXTemplater.js');
 const OUTPUT_HTML_PATH = path.join(ROOT_DIR, 'docs', 'api-reference.html');
+const SITEMAP_PATH = path.join(ROOT_DIR, 'docs', 'sitemap.xml');
+const ROBOTS_PATH = path.join(ROOT_DIR, 'docs', 'robots.txt');
 
 // Read source code to extract JSDoc comments and signatures
 const pptxSource = fs.readFileSync(PPTX_SOURCE_PATH, 'utf8');
@@ -1836,9 +1838,11 @@ function generateHtml() {
 
   <!-- Favicon / Meta -->
   <link rel="icon" type="image/png" href="./assets/logo.png">
+  <link rel="canonical" href="https://node-pptx-templater.pages.dev/api-reference.html">
   <meta property="og:title" content="API Reference — node-pptx-templater">
   <meta property="og:description" content="Production-ready API Reference for node-pptx-templater with categorized navigation and 1-click copyable snippets.">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://node-pptx-templater.pages.dev/api-reference.html">
 
   <!-- Inter & JetBrains Mono Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2042,16 +2046,16 @@ function generateHtml() {
           <img src="./assets/logo.png" alt="Logo" class="w-8 h-8 rounded-lg shadow-sm group-hover:scale-105 transition-transform">
           <span class="font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-300 bg-clip-text text-transparent">node-pptx-templater</span>
         </a>
-        <span class="hidden sm:inline-flex badge badge-info text-xs">API Reference</span>
         <span class="hidden md:inline-flex text-xs text-slate-500 font-mono">v3.0.0</span>
       </div>
 
       <!-- Center / Desktop Navigation Links (Bi-directional routing) -->
       <nav class="hidden md:flex items-center gap-1 lg:gap-2">
-        <a href="index.html" class="nav-link text-xs lg:text-sm text-blue-600 dark:text-blue-400 font-medium">
+        <!-- <a href="index.html" class="nav-link text-xs lg:text-sm text-blue-600 dark:text-blue-400 font-medium">
           ← Main Guide
-        </a>
+        </a> -->
         <a href="index.html#getting-started" class="nav-link text-xs lg:text-sm">Getting Started</a>
+        <a href="api-reference.html" class="nav-link text-xs lg:text-sm text-blue-600 dark:text-blue-400 font-semibold">API Reference</a>
         <a href="index.html#showcase" class="nav-link text-xs lg:text-sm">Showcase</a>
         <a href="index.html#templates" class="nav-link text-xs lg:text-sm">Templates</a>
         <a href="index.html#feature-catalog" class="nav-link text-xs lg:text-sm">Feature Catalog</a>
@@ -2475,8 +2479,8 @@ function renderFunctionCard(m, mod) {
                   <td class="py-2 px-3 font-mono text-purple-600 dark:text-purple-400 text-[11px]">${escapeHtml(p.type)}</td>
                   <td class="py-2 px-3">
                     ${p.required
-                      ? '<span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">Required</span>'
-                      : '<span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-500/10 text-slate-500 dark:text-slate-400">Optional</span>'}
+        ? '<span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">Required</span>'
+        : '<span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-500/10 text-slate-500 dark:text-slate-400">Optional</span>'}
                   </td>
                   <td class="py-2 px-3 font-mono text-slate-500 text-[11px]">${escapeHtml(p.defaultVal)}</td>
                   <td class="py-2 px-3 text-slate-600 dark:text-slate-300 leading-relaxed">${escapeHtml(p.description)}</td>
@@ -2562,12 +2566,50 @@ function renderFunctionCard(m, mod) {
   `;
 }
 
+// Sitemap and robots.txt generators
+function generateSitemap() {
+  const domain = 'https://node-pptx-templater.pages.dev';
+  const today = new Date().toISOString().split('T')[0];
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${domain}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${domain}/api-reference.html</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+</urlset>
+`;
+}
+
+function generateRobotsTxt() {
+  return `User-agent: *
+Allow: /
+
+Sitemap: https://node-pptx-templater.pages.dev/sitemap.xml
+`;
+}
+
 // Build and write out file
 function build() {
   console.log('Generating production API reference for node-pptx-templater...');
   const html = generateHtml();
   fs.writeFileSync(OUTPUT_HTML_PATH, html, 'utf8');
   console.log(`✓ Successfully generated docs/api-reference.html (${(html.length / 1024).toFixed(1)} KB)`);
+
+  const sitemapXml = generateSitemap();
+  fs.writeFileSync(SITEMAP_PATH, sitemapXml, 'utf8');
+  console.log(`✓ Successfully generated docs/sitemap.xml`);
+
+  const robotsTxt = generateRobotsTxt();
+  fs.writeFileSync(ROBOTS_PATH, robotsTxt, 'utf8');
+  console.log(`✓ Successfully generated docs/robots.txt`);
 }
 
 if (require.main === module) {

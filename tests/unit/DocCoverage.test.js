@@ -79,4 +79,24 @@ describe('Documentation Coverage for PPTXTemplater', () => {
 
     expect(methods.length).toBeGreaterThan(50)
   })
+
+  it('should have a valid sitemap.xml in docs directory with pages.dev domain', () => {
+    const sitemapPath = path.resolve(__dirname, '../../docs/sitemap.xml')
+    expect(fs.existsSync(sitemapPath)).toBe(true)
+
+    const sitemapContent = fs.readFileSync(sitemapPath, 'utf8')
+    expect(sitemapContent).toContain('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"')
+    expect(sitemapContent).toContain('<loc>https://node-pptx-templater.pages.dev/</loc>')
+    expect(sitemapContent).toContain(
+      '<loc>https://node-pptx-templater.pages.dev/api-reference.html</loc>'
+    )
+  })
+
+  it('should have a valid robots.txt in docs directory referencing sitemap.xml', () => {
+    const robotsPath = path.resolve(__dirname, '../../docs/robots.txt')
+    expect(fs.existsSync(robotsPath)).toBe(true)
+
+    const robotsContent = fs.readFileSync(robotsPath, 'utf8')
+    expect(robotsContent).toContain('Sitemap: https://node-pptx-templater.pages.dev/sitemap.xml')
+  })
 })

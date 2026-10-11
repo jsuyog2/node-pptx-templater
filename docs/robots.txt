@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://node-pptx-templater.pages.dev/sitemap.xml
