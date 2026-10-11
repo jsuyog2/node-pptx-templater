@@ -1,66 +1,71 @@
 {
-    "project": "node-pptx-templater-docs",
-    "version": "1.0.0",
+    "project": "node-pptx-templater-docs-modernization",
+    "version": "2.0.0",
+    "targetDeployment": "Cloudflare Pages",
     "tasks": [
         {
-            "id": "DOCS-001",
-            "title": "Create Standalone API Reference Page",
-            "description": "Establish a dedicated page for the API Reference (e.g., api-reference.html or docs/api/index.html) separated from the primary guide/landing overview.",
+            "id": "TASK-001",
+            "title": "Decouple Documentation Data into Structured JSON Files",
+            "description": "Extract all documentation content, API functions, parameter tables, guides, examples, and showcase items from hardcoded HTML/JS into clean, modular, maintainable JSON schemas.",
             "status": "completed",
             "deliverables": [
-                "docs/api-reference.html",
-                "Navigation header links updating between Main Guide and API Reference"
+                "docs-app/src/data/apiReference.json",
+                "docs-app/src/data/guides.json",
+                "docs-app/src/data/navigation.json",
+                "docs-app/src/data/showcase.json",
+                "docs-app/src/data/siteMeta.json"
             ]
         },
         {
-            "id": "DOCS-002",
-            "title": "Build Categorized Sidebar Navigation",
-            "description": "Create a persistent sidebar with collapsible or sticky category groupings matching the codebase API domain modules.",
+            "id": "TASK-002",
+            "title": "Build Modern React Documentation Web App",
+            "description": "Migrate the static documentation into a fast, responsive Single Page / Static Application using React (Vite / React Router) tailored for zero-config Cloudflare Pages deployment.",
             "status": "completed",
-            "categories": [
-                "Lifecycle & I/O",
-                "Slide Management",
-                "Text & Placeholders",
-                "Tables & Cell Shapes",
-                "Charts & Data Labels",
-                "Shapes & Geometry",
-                "Images & Media",
-                "Z-Order & Layering",
-                "Hyperlinks & Navigation",
-                "Validation & Diagnostics"
+            "deliverables": [
+                "docs-app/package.json",
+                "docs-app/vite.config.js",
+                "docs-app/wrangler.toml",
+                "docs-app/src/App.jsx",
+                "docs-app/src/components/Sidebar.jsx",
+                "docs-app/src/components/ApiCard.jsx",
+                "docs-app/src/components/CodeBlock.jsx",
+                "docs-app/src/pages/Home.jsx",
+                "docs-app/src/pages/ApiReferencePage.jsx"
             ]
         },
         {
-            "id": "DOCS-003",
-            "title": "Document All Functions with Specs and Copyable Code",
-            "description": "For every public method across PPTXTemplater and core managers, generate a complete entry including signature, parameters table, return type, and copy-and-paste code examples.",
+            "id": "TASK-003",
+            "title": "Comprehensive SEO Engine & Crawler Optimization",
+            "description": "Ensure the site ranks #1 on Google, Bing, and DuckDuckGo by providing semantic HTML5 tags, canonical URLs, pre-rendered routes/SSR/SSG or static HTML shells, structured breadcrumbs, dynamic sitemap.xml, and robots.txt.",
             "status": "completed",
-            "requirements": {
-                "fields": [
-                    "functionName",
-                    "signature",
-                    "description",
-                    "parameters",
-                    "returns",
-                    "copyPasteExample"
-                ],
-                "uiElements": [
-                    "One-click copy button on code snippets",
-                    "Parameter type badges"
-                ]
-            }
+            "deliverables": [
+                "docs-app/public/sitemap.xml",
+                "docs-app/public/robots.txt",
+                "JSON-LD Schema (SoftwareApplication, TechArticle, Organization)"
+            ]
         },
         {
-            "id": "DOCS-004",
-            "title": "Implement Fully Responsive Layout",
-            "description": "Make the API documentation responsive across mobile phones, tablets, desktop, and ultra-wide screens using adaptive CSS Grid / Flexbox.",
+            "id": "TASK-004",
+            "title": "Social Sharing Previews & OpenGraph / Twitter Cards",
+            "description": "Implement complete OpenGraph and Twitter card metadata for dynamic link previews across WhatsApp, Twitter/X, LinkedIn, Discord, and Telegram with dedicated preview images and page-specific tags.",
             "status": "completed",
-            "breakpoints": {
-                "mobile": "< 768px (collapsible drawer sidebar / hamburger menu, full-width cards, scrollable code blocks)",
-                "tablet": "768px - 1024px (compact sidebar or toggleable off-canvas navigation)",
-                "desktop": "1024px - 1440px (fixed sticky 280px sidebar, structured main reading panel)",
-                "widescreen": "> 1440px (max-width content container or 3-column layout with right-hand page TOC)"
-            }
+            "deliverables": [
+                "docs-app/public/og-banner.png",
+                "docs-app/public/twitter-card.png",
+                "docs-app/index.html (Global meta tags)",
+                "docs-app/src/components/SEOHead.jsx"
+            ]
+        },
+        {
+            "id": "TASK-005",
+            "title": "SEO-Optimize GitHub Repository, README, and NPM Assets",
+            "description": "Overhaul root README.md, package.json keywords, CONTRIBUTING.md, and docs to target high-intent search terms (Node.js PPTX templater, OpenXML PowerPoint generator, serverless slide automation) so the repository and NPM package achieve top ranking.",
+            "status": "completed",
+            "deliverables": [
+                "README.md",
+                "package.json (optimized keywords, description, homepage, repository tags)",
+                "docs/feature-inventory.md"
+            ]
         }
     ]
 }

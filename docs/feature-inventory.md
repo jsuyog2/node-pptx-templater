@@ -1,6 +1,7 @@
 # Feature Inventory — node-pptx-templater
 
-> Generated: 2026-10-10T15:24:58.472Z
+> Generated: 2026-10-10T15:24:58.472Z  
+> **Interactive Documentation:** [https://node-pptx-templater.pages.dev/](https://node-pptx-templater.pages.dev/)
 
 **Total public methods:** 186  
 **Documented:** 174  
