@@ -10,3 +10,6 @@ benchmarks/results/
 .DS_Store
 Thumbs.db
 *.log
+.next/
+docs-site/out/
+docs-site/.next/

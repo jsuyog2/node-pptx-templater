@@ -1,0 +1,21 @@
+{
+  "title": "node-pptx-templater — High-Performance OpenXML PowerPoint Template Engine",
+  "tagline": "Populate PowerPoint templates dynamically in Node.js and serverless runtimes without Microsoft Office dependencies.",
+  "description": "Production-ready, pure JavaScript PowerPoint (PPTX) OpenXML template engine for Node.js and serverless runtimes. Dynamically replace text, update charts with Excel caching, format tables, and merge slides without PowerPoint corruption.",
+  "domainUrl": "https://node-pptx-templater.pages.dev",
+  "version": "3.0.0-alpha.0",
+  "author": "node-pptx-templater contributors",
+  "license": "MIT",
+  "keywords": [
+    "node-pptx-templater",
+    "pptx templater",
+    "openxml powerpoint generator",
+    "serverless pptx",
+    "aws lambda pptx",
+    "chart excel sync",
+    "pure js pptx",
+    "powerpoint template engine nodejs",
+    "cloudflare workers pptx",
+    "vercel edge powerpoint"
+  ]
+}

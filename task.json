@@ -1,70 +1,76 @@
 {
     "project": "node-pptx-templater-docs-modernization",
-    "version": "2.0.0",
+    "version": "3.0.0",
+    "framework": "Next.js (Static HTML Export)",
     "targetDeployment": "Cloudflare Pages",
     "tasks": [
         {
             "id": "TASK-001",
-            "title": "Decouple Documentation Data into Structured JSON Files",
-            "description": "Extract all documentation content, API functions, parameter tables, guides, examples, and showcase items from hardcoded HTML/JS into clean, modular, maintainable JSON schemas.",
+            "title": "Purge Legacy docs/ Folder & Clean Repository Workspace",
+            "description": "Completely remove the legacy static HTML/JS/CSS documentation in /docs and clean up references across scripts, package.json, and CI workflows.",
             "status": "completed",
             "deliverables": [
-                "docs-app/src/data/apiReference.json",
-                "docs-app/src/data/guides.json",
-                "docs-app/src/data/navigation.json",
-                "docs-app/src/data/showcase.json",
-                "docs-app/src/data/siteMeta.json"
+                "Delete docs/ directory",
+                "Update root package.json documentation scripts",
+                "Update .github/workflows if pointing to docs/"
             ]
         },
         {
             "id": "TASK-002",
-            "title": "Build Modern React Documentation Web App",
-            "description": "Migrate the static documentation into a fast, responsive Single Page / Static Application using React (Vite / React Router) tailored for zero-config Cloudflare Pages deployment.",
+            "title": "Decouple Documentation Content into Structured JSON Data",
+            "description": "Create modular JSON schemas for public APIs across all 10 engine domains (Lifecycle, Slides, Text, Tables, Charts, Shapes, Cell Shapes, Images, Z-Order, Validation), guides, and site navigation.",
             "status": "completed",
             "deliverables": [
-                "docs-app/package.json",
-                "docs-app/vite.config.js",
-                "docs-app/wrangler.toml",
-                "docs-app/src/App.jsx",
-                "docs-app/src/components/Sidebar.jsx",
-                "docs-app/src/components/ApiCard.jsx",
-                "docs-app/src/components/CodeBlock.jsx",
-                "docs-app/src/pages/Home.jsx",
-                "docs-app/src/pages/ApiReferencePage.jsx"
+                "docs-site/src/data/apiReference.json",
+                "docs-site/src/data/guides.json",
+                "docs-site/src/data/navigation.json",
+                "docs-site/src/data/siteMeta.json"
             ]
         },
         {
             "id": "TASK-003",
-            "title": "Comprehensive SEO Engine & Crawler Optimization",
-            "description": "Ensure the site ranks #1 on Google, Bing, and DuckDuckGo by providing semantic HTML5 tags, canonical URLs, pre-rendered routes/SSR/SSG or static HTML shells, structured breadcrumbs, dynamic sitemap.xml, and robots.txt.",
+            "title": "Scaffold Next.js Static HTML Export Application",
+            "description": "Initialize a Next.js (App Router) project inside docs-site/ configured with `output: 'export'`, Tailwind CSS, and zero Node runtime server dependencies for native Cloudflare Pages static hosting.",
             "status": "completed",
             "deliverables": [
-                "docs-app/public/sitemap.xml",
-                "docs-app/public/robots.txt",
-                "JSON-LD Schema (SoftwareApplication, TechArticle, Organization)"
+                "docs-site/next.config.mjs (output: 'export', basePath/assetPrefix if needed)",
+                "docs-site/package.json",
+                "docs-site/src/app/layout.jsx",
+                "docs-site/src/app/page.jsx (Overview & Quickstart)",
+                "docs-site/src/app/api-reference/page.jsx (Interactive API catalog with search & filter)",
+                "docs-site/src/app/guides/[slug]/page.jsx (generateStaticParams dynamic guide routes)",
+                "docs-site/src/app/not-found.jsx"
             ]
         },
         {
             "id": "TASK-004",
-            "title": "Social Sharing Previews & OpenGraph / Twitter Cards",
-            "description": "Implement complete OpenGraph and Twitter card metadata for dynamic link previews across WhatsApp, Twitter/X, LinkedIn, Discord, and Telegram with dedicated preview images and page-specific tags.",
+            "title": "Automate Standard Sitemap & Robots via Next.js Metadata Route Handlers",
+            "description": "Implement static sitemap.js and robots.js inside docs-site/src/app/ to automatically emit standard sitemap.xml and robots.txt during `next build`.",
             "status": "completed",
             "deliverables": [
-                "docs-app/public/og-banner.png",
-                "docs-app/public/twitter-card.png",
-                "docs-app/index.html (Global meta tags)",
-                "docs-app/src/components/SEOHead.jsx"
+                "docs-site/src/app/sitemap.js",
+                "docs-site/src/app/robots.js"
             ]
         },
         {
             "id": "TASK-005",
-            "title": "SEO-Optimize GitHub Repository, README, and NPM Assets",
-            "description": "Overhaul root README.md, package.json keywords, CONTRIBUTING.md, and docs to target high-intent search terms (Node.js PPTX templater, OpenXML PowerPoint generator, serverless slide automation) so the repository and NPM package achieve top ranking.",
+            "title": "Full OpenGraph, Social Sharing Previews & JSON-LD SEO Engine",
+            "description": "Configure Next.js generateMetadata and metadata objects with high-priority search keywords, OpenGraph 1200x630 cards (WhatsApp/Twitter/LinkedIn previews), and JSON-LD SoftwareApplication schema markup.",
+            "status": "completed",
+            "deliverables": [
+                "docs-site/src/app/layout.jsx (Global metadata & JSON-LD)",
+                "docs-site/public/og-banner.png",
+                "docs-site/public/twitter-card.png"
+            ]
+        },
+        {
+            "id": "TASK-006",
+            "title": "Optimize Root README.md & NPM package.json for Top Search Ranking",
+            "description": "Align GitHub README and package.json keywords with the new documentation URL, highlighting pure JS, serverless execution, and zero-office dependencies.",
             "status": "completed",
             "deliverables": [
                 "README.md",
-                "package.json (optimized keywords, description, homepage, repository tags)",
-                "docs/feature-inventory.md"
+                "package.json (keywords, homepage, and docs:build script)"
             ]
         }
     ]

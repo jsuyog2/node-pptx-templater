@@ -1,0 +1,128 @@
+{
+  "header": [
+    {
+      "title": "Home",
+      "href": "/"
+    },
+    {
+      "title": "API Reference",
+      "href": "/api-reference/"
+    },
+    {
+      "title": "Quick Start",
+      "href": "/guides/quick-start/"
+    },
+    {
+      "title": "Serverless",
+      "href": "/guides/serverless-deployment/"
+    },
+    {
+      "title": "Excel Sync",
+      "href": "/guides/chart-dual-sync/"
+    }
+  ],
+  "sidebar": [
+    {
+      "group": "Getting Started",
+      "items": [
+        {
+          "title": "5-Minute Quick Start",
+          "href": "/guides/quick-start/"
+        },
+        {
+          "title": "Serverless Deployment",
+          "href": "/guides/serverless-deployment/"
+        }
+      ]
+    },
+    {
+      "group": "Core Architecture",
+      "items": [
+        {
+          "title": "Run Fragment Healing",
+          "href": "/guides/run-fragment-healing/"
+        },
+        {
+          "title": "Chart Dual-Sync (Excel)",
+          "href": "/guides/chart-dual-sync/"
+        },
+        {
+          "title": "Rectangular Table Spans",
+          "href": "/guides/rectangular-table-spans/"
+        }
+      ]
+    },
+    {
+      "group": "API Reference Domains",
+      "items": [
+        {
+          "title": "Lifecycle & I/O",
+          "href": "/api-reference/?category=Lifecycle%20%26%20I%2FO",
+          "category": "Lifecycle & I/O",
+          "count": 16
+        },
+        {
+          "title": "Slides",
+          "href": "/api-reference/?category=Slides",
+          "category": "Slides",
+          "count": 12
+        },
+        {
+          "title": "Text & Placeholders",
+          "href": "/api-reference/?category=Text%20%26%20Placeholders",
+          "category": "Text & Placeholders",
+          "count": 10
+        },
+        {
+          "title": "Tables & Cell Shapes",
+          "href": "/api-reference/?category=Tables%20%26%20Cell%20Shapes",
+          "category": "Tables & Cell Shapes",
+          "count": 11
+        },
+        {
+          "title": "Charts & Series Sync",
+          "href": "/api-reference/?category=Charts%20%26%20Series%20Sync",
+          "category": "Charts & Series Sync",
+          "count": 8
+        },
+        {
+          "title": "Shapes & Geometry",
+          "href": "/api-reference/?category=Shapes%20%26%20Geometry",
+          "category": "Shapes & Geometry",
+          "count": 11
+        },
+        {
+          "title": "Images & Media",
+          "href": "/api-reference/?category=Images%20%26%20Media",
+          "category": "Images & Media",
+          "count": 3
+        },
+        {
+          "title": "Z-Order & Layering",
+          "href": "/api-reference/?category=Z-Order%20%26%20Layering",
+          "category": "Z-Order & Layering",
+          "count": 11
+        },
+        {
+          "title": "Hyperlinks",
+          "href": "/api-reference/?category=Hyperlinks",
+          "category": "Hyperlinks",
+          "count": 7
+        },
+        {
+          "title": "Diagnostics & Validation",
+          "href": "/api-reference/?category=Diagnostics%20%26%20Validation",
+          "category": "Diagnostics & Validation",
+          "count": 12
+        }
+      ]
+    }
+  ],
+  "external": {
+    "github": "https://github.com/jsuyog2/node-pptx-templater",
+    "npm": "https://www.npmjs.com/package/node-pptx-templater",
+    "releases": "https://github.com/jsuyog2/node-pptx-templater/releases",
+    "license": "https://opensource.org/licenses/MIT",
+    "issues": "https://github.com/jsuyog2/node-pptx-templater/issues"
+  }
+}

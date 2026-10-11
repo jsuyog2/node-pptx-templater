@@ -6,14 +6,14 @@
 [![npm downloads](https://img.shields.io/npm/dm/node-pptx-templater.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/node-pptx-templater)
 [![Vitest Tests](https://img.shields.io/badge/tests-285%20passing-brightgreen.svg?style=flat-square)](https://github.com/jsuyog2/node-pptx-templater/actions)
 [![Bundle Size](https://img.shields.io/badge/bundle%20size-pure%20JS%20%3C2MB-success.svg?style=flat-square)](https://www.npmjs.com/package/node-pptx-templater)
-[![Serverless](https://img.shields.io/badge/serverless-AWS%20Lambda%20%7C%20Cloudflare%20Workers-purple.svg?style=flat-square)](https://node-pptx-templater.pages.dev/guides/serverless)
+[![Serverless](https://img.shields.io/badge/serverless-AWS%20Lambda%20%7C%20Cloudflare%20Workers-purple.svg?style=flat-square)](https://node-pptx-templater.pages.dev/guides/serverless-deployment/)
 [![Node.js Support](https://img.shields.io/badge/node-%3E%3D20.12.0-blue.svg?style=flat-square)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
 **Pure JavaScript OpenXML template engine for Node.js.**  
 **Serverless PPTX automation for AWS Lambda & Cloudflare Workers.**
 
-[📖 Documentation Portal](https://node-pptx-templater.pages.dev/) &nbsp;•&nbsp; [⚡ 5-Minute Quick Start](https://node-pptx-templater.pages.dev/#/guides/quick-start) &nbsp;•&nbsp; [📚 API Reference (102 Methods)](https://node-pptx-templater.pages.dev/#/api-reference) &nbsp;•&nbsp; [🎪 Showcase Demos](https://node-pptx-templater.pages.dev/#/showcase)
+[📖 Documentation Portal](https://node-pptx-templater.pages.dev/) &nbsp;•&nbsp; [⚡ 5-Minute Quick Start](https://node-pptx-templater.pages.dev/guides/quick-start/) &nbsp;•&nbsp; [📚 API Reference (101 Methods)](https://node-pptx-templater.pages.dev/api-reference/) &nbsp;•&nbsp; [⚡ Serverless Deployment](https://node-pptx-templater.pages.dev/guides/serverless-deployment/)
 
 </div>
 
