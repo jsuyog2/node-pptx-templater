@@ -1,5 +1,6 @@
 # Dependencies & Package Managers
 node_modules/
+docs-site/node_modules/
 .pnpm-store/
 package-lock.json
 pnpm-lock.yaml
@@ -8,9 +9,12 @@ yarn.lock
 # Build Outputs & Bundles
 dist/
 build/
+.next/
+docs-site/.next/
+docs-site/out/
 *.tsbuildinfo
 
-# Binary Presentations & Media Fixtures
+# Binary Presentations, Workbooks & Media Fixtures
 *.pptx
 *.ppt
 *.xlsx
@@ -26,7 +30,7 @@ build/
 *.bmp
 *.tiff
 
-# Output & Temporary Directories
+# Output & Temporary Test Fixtures
 showcase/output/
 tests/output/
 tests/temp*/
@@ -35,7 +39,6 @@ coverage/
 scratch/
 tmp/
 temp/
-project/
 
 # Version Control & IDE
 .git/

@@ -1,4 +1,6 @@
-import React from 'react';
+'use client';
+
+import React, { useRef, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -15,10 +17,12 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   XCircle,
-  Sparkles
+  Sparkles,
+  BookOpen
 } from 'lucide-react';
 import CodeBlock from '../components/CodeBlock';
 import siteMeta from '../data/siteMeta.json';
+import { animateHero } from '../animations/gsapTransitions';
 
 const QUICKSTART_CODE = `import { PPTXTemplater } from 'node-pptx-templater';
 
@@ -149,57 +153,69 @@ const DOMAINS = [
 ];
 
 export default function HomePage() {
+  const heroRef = useRef(null);
+
+  useEffect(() => {
+    if (heroRef.current) {
+      return animateHero(heroRef.current);
+    }
+  }, []);
+
   return (
     <div className="space-y-24 pb-16">
       {/* Hero Section */}
-      <section className="relative pt-12 md:pt-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/25 text-brand-300 text-xs font-semibold mb-6">
-          <Zap className="w-3.5 h-3.5 text-brand-400" />
+      <section
+        ref={heroRef}
+        className="relative pt-12 md:pt-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center"
+      >
+        <div className="hero-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-pill text-xs font-semibold mb-6">
+          <Zap className="w-3.5 h-3.5 text-brand-500" />
           <span>Next-Gen Pure JavaScript PowerPoint Engine</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-brand-400"></span>
+          <span className="w-1.5 h-1.5 rounded-full bg-brand-500"></span>
           <span className="font-mono">{siteMeta.version}</span>
         </div>
 
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.1] max-w-5xl mx-auto">
+        <h1 className="hero-title text-4xl sm:text-6xl lg:text-7xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.1] max-w-5xl mx-auto">
           High-Performance{' '}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 via-sky-300 to-indigo-400">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-sky-500 to-indigo-600 dark:from-brand-400 dark:via-sky-300 dark:to-indigo-400">
             OpenXML PowerPoint
           </span>{' '}
           Template Engine
         </h1>
 
-        <p className="mt-6 text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
+        <p className="hero-description mt-6 text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed">
           {siteMeta.description}
         </p>
 
         {/* CTA Buttons */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
           <Link
-            href="/guides/quick-start/"
-            className="px-6 py-3 rounded-xl font-semibold text-sm bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-400 hover:to-indigo-500 text-white shadow-lg shadow-brand-500/25 flex items-center gap-2 transition-all"
+            href="/docs"
+            className="hero-cta px-6 py-3.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white shadow-lg shadow-brand-500/25 flex items-center gap-2 transition-all hover:scale-[1.02]"
           >
-            <span>Get Started in 5 Minutes</span>
+            <BookOpen className="w-4 h-4" />
+            <span>Read the Docs</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
-            href="/api-reference/"
-            className="px-6 py-3 rounded-xl font-semibold text-sm bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 transition-all flex items-center gap-2"
+            href="/features"
+            className="hero-cta px-6 py-3.5 rounded-xl font-semibold text-sm glass-card hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex items-center gap-2 hover:scale-[1.02]"
           >
-            <Code2 className="w-4 h-4 text-brand-400" />
-            <span>Browse 101 APIs</span>
+            <Sparkles className="w-4 h-4 text-brand-500" />
+            <span>All Features</span>
           </Link>
           <Link
-            href="/guides/serverless-deployment/"
-            className="px-6 py-3 rounded-xl font-semibold text-sm bg-slate-900/60 hover:bg-slate-800/80 text-slate-300 border border-slate-800 transition-all flex items-center gap-2"
+            href="/docs/api"
+            className="hero-cta px-6 py-3.5 rounded-xl font-semibold text-sm glass-card hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex items-center gap-2 hover:scale-[1.02]"
           >
-            <Server className="w-4 h-4 text-emerald-400" />
-            <span>Serverless Guide</span>
+            <Code2 className="w-4 h-4 text-brand-500" />
+            <span>Browse APIs</span>
           </Link>
         </div>
 
         {/* Quick Install Bar */}
-        <div className="mt-8 inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-950/90 border border-slate-800 text-xs font-mono text-slate-300 shadow-inner">
-          <span className="text-slate-500">$</span>
+        <div className="hero-install mt-8 inline-flex items-center gap-3 px-4 py-2 rounded-xl glass-card text-xs font-mono text-slate-700 dark:text-slate-300 shadow-inner">
+          <span className="text-slate-400 dark:text-slate-500">$</span>
           <span>npm install node-pptx-templater</span>
         </div>
       </section>
@@ -207,10 +223,10 @@ export default function HomePage() {
       {/* Interactive Quickstart Section */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
             Generate Presentations in Under 15 Lines of Code
           </h2>
-          <p className="text-sm text-slate-400 mt-2">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
             No Microsoft Office, no Java runtime, and zero external binary dependencies.
           </p>
         </div>
@@ -220,41 +236,41 @@ export default function HomePage() {
       {/* Feature Highlights Grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-white tracking-tight">
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
             Engineered for Production Reliability
           </h2>
-          <p className="text-sm text-slate-400 mt-2">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
             Eliminates the common failure modes of legacy template engines.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+          <div className="glass-card p-6 rounded-2xl">
             <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/30 flex items-center justify-center mb-4">
-              <Sparkles className="w-5 h-5 text-brand-400" />
+              <Sparkles className="w-5 h-5 text-brand-500" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Run Fragment Healing</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              When humans edit PowerPoint templates, tags like <code className="text-brand-300">{'{{NAME}}'}</code> are fractured across disjoint <code className="text-brand-300">&lt;a:r&gt;</code> run nodes. Our AST scanner coalesces text runs transparently without breaking formatting.
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Run Fragment Healing</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              When humans edit PowerPoint templates, tags like <code className="text-brand-600 dark:text-brand-300">{'{{NAME}}'}</code> are fractured across disjoint <code className="text-brand-600 dark:text-brand-300">&lt;a:r&gt;</code> run nodes. Our AST scanner coalesces text runs transparently without breaking formatting.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+          <div className="glass-card p-6 rounded-2xl">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-4">
-              <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
+              <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Chart Excel Dual-Sync</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Chart Excel Dual-Sync</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               Modern PowerPoint charts store series data in two places: DrawingML chart definitions and embedded Excel workbooks. Updating both simultaneously prevents Microsoft PowerPoint &quot;Repair Presentation&quot; warnings.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+          <div className="glass-card p-6 rounded-2xl">
             <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center mb-4">
-              <Server className="w-5 h-5 text-purple-400" />
+              <Server className="w-5 h-5 text-purple-500" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Pure V8 Isolates</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Pure V8 Isolates</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               Runs in 100% memory without temporary files. Native compatibility with Cloudflare Workers, AWS Lambda (sub-15ms cold start), Vercel Edge, Bun, and Node.js.
             </p>
           </div>
@@ -264,47 +280,47 @@ export default function HomePage() {
       {/* Architectural Comparison Matrix */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold text-white tracking-tight">
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
             How It Compares to Legacy Solutions
           </h2>
-          <p className="text-sm text-slate-400 mt-2">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
             Why modern engineering teams choose node-pptx-templater for mission-critical reporting.
           </p>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/70 shadow-2xl">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-900 text-slate-400 uppercase font-mono text-[11px] border-b border-slate-800">
+        <div className="overflow-x-auto rounded-2xl glass-card">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-100/90 dark:bg-slate-950/80 uppercase font-mono text-[11px] text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="px-5 py-3.5">Capability</th>
-                <th className="px-5 py-3.5 text-brand-400 font-bold bg-brand-950/30">node-pptx-templater</th>
+                <th className="px-5 py-3.5 text-brand-600 dark:text-brand-400 font-bold bg-brand-500/10">node-pptx-templater</th>
                 <th className="px-5 py-3.5">LibreOffice CLI</th>
                 <th className="px-5 py-3.5">Apache POI</th>
                 <th className="px-5 py-3.5">python-pptx</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-sans">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 font-sans">
               {COMPARISON_DATA.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-900/40">
-                  <td className="px-5 py-3.5 font-semibold text-white whitespace-nowrap">
+                <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
+                  <td className="px-5 py-3.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                     {row.feature}
                   </td>
-                  <td className="px-5 py-3.5 font-semibold text-brand-300 bg-brand-950/20">
+                  <td className="px-5 py-3.5 font-semibold text-brand-700 dark:text-brand-300 bg-brand-500/5">
                     <span className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-brand-400 shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-brand-500 shrink-0" />
                       {row.pptxTemplater}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-slate-400">
+                  <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">
                     <span className="flex items-center gap-1.5">
-                      <XCircle className="w-4 h-4 text-rose-500/80 shrink-0" />
+                      <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
                       {row.libreOffice}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-slate-400">
+                  <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">
                     {row.poi}
                   </td>
-                  <td className="px-5 py-3.5 text-slate-400">
+                  <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">
                     {row.pythonPptx}
                   </td>
                 </tr>
@@ -318,18 +334,18 @@ export default function HomePage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
               10 Specialized Domain APIs
             </h2>
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
               Comprehensive control over the complete OpenXML PresentationML schema.
             </p>
           </div>
           <Link
-            href="/api-reference/"
-            className="text-xs font-semibold text-brand-400 hover:text-brand-300 flex items-center gap-1.5"
+            href="/docs/api"
+            className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-500 flex items-center gap-1.5"
           >
-            <span>View all 101 methods</span>
+            <span>View all methods</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -340,21 +356,21 @@ export default function HomePage() {
             return (
               <Link
                 key={domain.title}
-                href={`/api-reference/?category=${encodeURIComponent(domain.title)}`}
-                className="group p-5 rounded-2xl border border-slate-800/80 bg-slate-900/40 hover:bg-slate-900/80 hover:border-brand-500/40 transition-all duration-200"
+                href={`/docs/api?category=${encodeURIComponent(domain.title)}`}
+                className="group glass-card p-5 rounded-2xl hover:border-brand-500/40 hover:-translate-y-1 transition-all duration-200"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <div className="w-9 h-9 rounded-xl bg-slate-800 group-hover:bg-brand-500/20 flex items-center justify-center transition-colors">
-                    <Icon className="w-4 h-4 text-brand-400" />
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 group-hover:bg-brand-500/20 flex items-center justify-center transition-colors">
+                    <Icon className="w-4 h-4 text-brand-600 dark:text-brand-400" />
                   </div>
-                  <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-800/90 text-slate-300 group-hover:text-brand-300">
+                  <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 group-hover:text-brand-600 dark:group-hover:text-brand-300">
                     {domain.count} APIs
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-white group-hover:text-brand-300 transition-colors">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-300 transition-colors">
                   {domain.title}
                 </h3>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
                   {domain.desc}
                 </p>
               </Link>

@@ -1,0 +1,72 @@
+{
+  "title": "Runtime Compatibility & Serverless Guarantees",
+  "philosophy": "Pure JavaScript OpenXML parsing with zero native binary dependencies (no Microsoft Office, no LibreOffice, no Java VM, no Electron, no node-gyp).",
+  "runtimes": [
+    {
+      "name": "Node.js (>= 18, 20.x, 22.x, 24.x)",
+      "tier": "Tier 1 - Primary Support",
+      "status": "Fully Supported",
+      "notes": "Full support for CJS (require) and ESM (import) with native TypeScript definitions (.d.ts). High-performance in-memory Virtual File System.",
+      "bootTime": "< 15ms",
+      "bundleSize": "< 2MB"
+    },
+    {
+      "name": "AWS Lambda (Node.js 18 / 20 / 22)",
+      "tier": "Tier 1 - Serverless",
+      "status": "Fully Supported",
+      "notes": "Instant cold-start execution without disk writes. Export directly via ppt.toBuffer() or stream to S3 buckets.",
+      "bootTime": "< 25ms",
+      "bundleSize": "< 2MB"
+    },
+    {
+      "name": "Cloudflare Workers (V8 Isolates)",
+      "tier": "Tier 1 - Edge Computing",
+      "status": "Fully Supported",
+      "notes": "Zero Node.js fs dependencies. Ingest from web streams or ArrayBuffer, export via ppt.toArrayBuffer() directly to HTTP responses.",
+      "bootTime": "< 5ms",
+      "bundleSize": "< 2MB"
+    },
+    {
+      "name": "Vercel Edge & Serverless Functions",
+      "tier": "Tier 1 - Edge / Serverless",
+      "status": "Fully Supported",
+      "notes": "Compatible with Next.js App Router route handlers (app/api/generate/route.js). Zero temporary file disk pollution.",
+      "bootTime": "< 20ms",
+      "bundleSize": "< 2MB"
+    },
+    {
+      "name": "Bun (>= 1.0)",
+      "tier": "Tier 1 - Alternate Runtime",
+      "status": "Fully Supported",
+      "notes": "High-throughput execution leveraging Bun fast ZIP and Buffer APIs.",
+      "bootTime": "< 10ms",
+      "bundleSize": "< 2MB"
+    },
+    {
+      "name": "Deno (>= 1.38)",
+      "tier": "Tier 2 - Compatible",
+      "status": "Supported via npm: specifier",
+      "notes": "Usable via import { PPTXTemplater } from 'npm:node-pptx-templater'.",
+      "bootTime": "< 25ms",
+      "bundleSize": "< 2MB"
+    }
+  ],
+  "guarantees": [
+    {
+      "title": "Zero Office / Electron Daemon",
+      "description": "Unlike unoconv, LibreOffice, or Puppeteer, node-pptx-templater does not launch background daemons or require 500MB+ Docker containers."
+    },
+    {
+      "title": "In-Memory Virtual File System",
+      "description": "Operates 100% in RAM via Map<string, Uint8Array>. Eliminates /tmp write contention, disk IOPS costs, and concurrency race conditions."
+    },
+    {
+      "title": "XXE & Security Guardrails",
+      "description": "Built-in protection against XML External Entity (XXE) and Billion Laughs exponential entity expansion attacks via strict parser configuration."
+    },
+    {
+      "title": "Office Repair Warning Prevention",
+      "description": "Synchronous DrawingML and embedded Excel workbook cache updating guarantees slides open cleanly without Microsoft PowerPoint repair prompts."
+    }
+  ]
+}

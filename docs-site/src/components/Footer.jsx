@@ -7,8 +7,8 @@ import siteMeta from '../data/siteMeta.json';
 export default function Footer() {
   return (
     <footer className="border-t border-slate-800/80 bg-slate-950 text-slate-400 text-sm mt-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:pl-72 lg:px-8 py-12">
+        <div className="flex gap-8 justify-between">
           <div className="md:col-span-1 space-y-3">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-brand-500/20 border border-brand-500/40 flex items-center justify-center">
@@ -24,7 +24,7 @@ export default function Footer() {
             </div>
           </div>
 
-          <div>
+          {/* <div>
             <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wider mb-3">Documentation</h4>
             <ul className="space-y-2 text-xs">
               <li>
@@ -55,7 +55,7 @@ export default function Footer() {
                 <Link href="/guides/rectangular-table-spans/" className="hover:text-white transition-colors">Rectangular Table Spans</Link>
               </li>
             </ul>
-          </div>
+          </div> */}
 
           <div>
             <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wider mb-3">Community & Ecosystem</h4>

@@ -1,6 +1,7 @@
 import './globals.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { ThemeProvider } from '../context/ThemeContext';
 import siteMeta from '../data/siteMeta.json';
 
 export const metadata = {
@@ -88,9 +89,11 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body className="flex flex-col min-h-screen antialiased selection:bg-brand-500/30 selection:text-brand-200">
-        <Header />
-        <main className="flex-grow">{children}</main>
-        <Footer />
+        <ThemeProvider>
+          <Header />
+          <main className="flex-grow pt-16">{children}</main>
+          <Footer />
+        </ThemeProvider>
       </body>
     </html>
   );

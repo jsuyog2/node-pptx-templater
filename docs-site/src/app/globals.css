@@ -2,36 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 248, 250, 252;
-  --background-start-rgb: 15, 23, 42;
-  --background-end-rgb: 2, 6, 23;
+@layer base {
+  :root {
+    --bg-mesh: radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
+               radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+               radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
+  }
+
+  body {
+    min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    background-color: #f8fafc;
+    color: #0f172a;
+    background-image: var(--bg-mesh);
+    background-attachment: fixed;
+  }
+
+  html.dark body {
+    background-color: #030712;
+    color: #f8fafc;
+    background-image: radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+                      radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+                      radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.05) 0px, transparent 50%),
+                      radial-gradient(circle at top center, #111827 0%, #030712 100%);
+    background-attachment: fixed;
+  }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: radial-gradient(circle at top center, #1e293b 0%, #0f172a 50%, #020617 100%);
-  min-height: 100vh;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+@layer components {
+  /* Glassmorphism System */
+  .glass-card {
+    @apply backdrop-blur-xl bg-white/70 border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.06)] text-slate-800
+           dark:bg-slate-900/70 dark:border-white/10 dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] dark:text-slate-100;
+  }
+
+  .glass-header {
+    @apply backdrop-blur-xl bg-white/75 border-b border-slate-200/80 shadow-sm
+           dark:bg-slate-950/75 dark:border-slate-800/80 dark:shadow-none;
+  }
+
+  .glass-sidebar {
+    @apply backdrop-blur-xl bg-white/80 border-r border-slate-200/80 shadow-sm
+           dark:bg-slate-950/80 dark:border-slate-800/80 dark:shadow-none;
+  }
+
+  .glass-pill {
+    @apply backdrop-blur-md bg-brand-500/10 border border-brand-500/20 text-brand-600 dark:text-brand-300;
+  }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: rgba(100, 116, 139, 0.6);
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.5);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
 }
 
 code, pre {

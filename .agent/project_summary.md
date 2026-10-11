@@ -153,3 +153,14 @@ const buffer = await ppt.toBuffer();      // In-memory Buffer for Lambda/Cloud
 - **Concurrent Safety:** Supports 50+ concurrent slide generation instances from the same cached template without cross-talk.
 - **Benchmarking Suite:** Run benchmarks via `npm run benchmark` (`node benchmarks/run.js`).
 - **Comprehensive Showcase:** Run all 12 feature scenarios with `npm run examples` (`node showcase/examples.js`).
+
+---
+
+## 6. Next.js Documentation Portal (`docs-site`)
+
+- **Architecture:** Next.js (App Router) configured for pure static HTML export (`output: 'export'`) hosted on Cloudflare Pages.
+- **Design System:** Glassmorphism UI with Tailwind CSS supporting persistent Light and Dark themes via `ThemeContext` and `ThemeToggle`.
+- **Motion & Interactions:** GSAP animation engine (`gsapTransitions.js`) powering staggered card entries, hero typography reveals, and smooth interactive card hover effects.
+- **Fixed Always-on-Top Sidebar:** Dedicated `DocsSidebar` with permanent fixed positioning (`h-[calc(100vh-4rem)]`), non-scrolling viewport locking, active route tracking, and category navigation.
+- **Content Decoupling:** Fully decoupled JSON schemas under `docs-site/src/data/` (`features.json`, `apiReference.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`).
+

@@ -72,6 +72,78 @@
                 "README.md",
                 "package.json (keywords, homepage, and docs:build script)"
             ]
+        },
+        {
+            "id": "TASK-007",
+            "title": "Scaffold .agent Persistence Subsystem & Engineering Rules",
+            "description": "Create .agent/ subsystem containing .agentignore, mcp_config.json, project_summary.md, rules/ (features.md, general.md), skills, and workflows/build-docs.md.",
+            "status": "completed",
+            "deliverables": [
+                ".agent/.agentignore",
+                ".agent/mcp_config.json",
+                ".agent/project_summary.md",
+                ".agent/rules/features.md",
+                ".agent/rules/general.md",
+                ".agent/workflows/build-docs.md"
+            ]
+        },
+        {
+            "id": "TASK-008",
+            "title": "Ingest & Parse project/Features.md into Decoupled JSON Schemas",
+            "description": "Parse project/Features.md into docs-site/src/data/features.json (86 features across 12 categories) and structure docsNavigation.json and compatibility.json.",
+            "status": "completed",
+            "deliverables": [
+                "docs-site/src/data/features.json",
+                "docs-site/src/data/docsNavigation.json",
+                "docs-site/src/data/compatibility.json"
+            ]
+        },
+        {
+            "id": "TASK-009",
+            "title": "Implement Glassmorphism Design System & Light/Dark Theme Engine",
+            "description": "Configure Tailwind glassmorphism styles, ThemeContext, ThemeToggle, and persist light/dark modes across sessions.",
+            "status": "completed",
+            "deliverables": [
+                "docs-site/tailwind.config.js (darkMode: 'class')",
+                "docs-site/src/app/globals.css (.glass-card, .glass-header, .glass-sidebar)",
+                "docs-site/src/context/ThemeContext.jsx",
+                "docs-site/src/components/ThemeToggle.jsx"
+            ]
+        },
+        {
+            "id": "TASK-010",
+            "title": "Build Global Header & Fixed Always-on-Top DocsSidebar",
+            "description": "Create fixed top glass Header with Home/Docs/Features/API tabs and fixed non-scrolling DocsSidebar locked at left viewport with active route tracking.",
+            "status": "completed",
+            "deliverables": [
+                "docs-site/src/components/Header.jsx",
+                "docs-site/src/components/DocsSidebar.jsx",
+                "docs-site/src/app/docs/layout.jsx"
+            ]
+        },
+        {
+            "id": "TASK-011",
+            "title": "Implement GSAP Motion & Interaction Engine",
+            "description": "Integrate GSAP animation utilities for staggered hero typography entrance, features grid reveal, and smooth API card transitions.",
+            "status": "completed",
+            "deliverables": [
+                "docs-site/package.json (gsap dependency)",
+                "docs-site/src/animations/gsapTransitions.js"
+            ]
+        },
+        {
+            "id": "TASK-012",
+            "title": "Assemble Dedicated Pages & Verify Clean Static HTML Export",
+            "description": "Implement /features, /docs, /docs/installation, /docs/compatibility, and /docs/api with full static HTML export validation.",
+            "status": "completed",
+            "deliverables": [
+                "docs-site/src/app/features/page.jsx",
+                "docs-site/src/app/docs/page.jsx",
+                "docs-site/src/app/docs/installation/page.jsx",
+                "docs-site/src/app/docs/compatibility/page.jsx",
+                "docs-site/src/app/docs/api/page.jsx",
+                "docs-site/out/ static export directory"
+            ]
         }
     ]
 }
