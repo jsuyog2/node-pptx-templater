@@ -74,7 +74,7 @@ function ApiContent() {
               API Reference
             </h1>
             <p className="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-300">
-              Complete catalog of 101 public methods across all 10 OpenXML engine domains.
+              Complete catalog of methods across all OpenXML engine domains.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -111,11 +111,10 @@ function ApiContent() {
         <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
           <button
             onClick={() => setSelectedCategory('All')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-              selectedCategory === 'All'
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${selectedCategory === 'All'
                 ? 'bg-brand-600 text-white font-semibold shadow-sm'
                 : 'glass-card hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
+              }`}
           >
             All Categories ({allMethods.length})
           </button>
@@ -127,11 +126,10 @@ function ApiContent() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all ${
-                  isSelected
+                className={`px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all ${isSelected
                     ? 'bg-brand-600 text-white font-semibold shadow-sm'
                     : 'glass-card hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
+                  }`}
               >
                 <span>{cat}</span>
                 <span className="ml-1.5 opacity-70 font-mono text-[10px]">({count})</span>

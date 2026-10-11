@@ -75,17 +75,5 @@ export default function sitemap() {
     })),
   ];
 
-  // Dynamic Guide Routes (if present in guidesData)
-  if (Array.isArray(guidesData)) {
-    guidesData.forEach((guide) => {
-      routes.push({
-        url: `${baseUrl}/guides/${guide.slug}/`,
-        lastModified: now,
-        changeFrequency: 'weekly',
-        priority: 0.8,
-      });
-    });
-  }
-
   return routes;
 }

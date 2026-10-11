@@ -335,7 +335,7 @@ export default function HomePage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 gap-4">
           <div>
             <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-              10 Specialized Domain APIs
+              Specialized Domain APIs
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
               Comprehensive control over the complete OpenXML PresentationML schema.

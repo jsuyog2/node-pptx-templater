@@ -118,3 +118,26 @@ This document specifies mandatory rules and invariants for every feature domain 
 ### 6.2 Relationship Integrity
 - Every media asset (`ppt/media/*`), chart (`ppt/charts/*`), or layout link referenced in a slide must have a corresponding `<Relationship>` entry in `ppt/slides/_rels/slideX.xml.rels`.
 - Unused or orphaned relationship IDs must be purged to avoid OpenXML validation errors.
+
+---
+
+## 7. Documentation Portal & Next.js Static Export Rules
+
+### 7.1 Pure Static HTML Export (`output: 'export'`)
+- All documentation code residing in `docs-site/` must compile to static HTML for native zero-node hosting on Cloudflare Pages.
+- `next.config.mjs` must strictly preserve:
+  - `output: 'export'`
+  - `images: { unoptimized: true }` (Required because static export does not include a Node image optimization server)
+  - `trailingSlash: true` (Guarantees directory-style index.html generation for static web servers)
+- Dynamic route segments (such as `/guides/[slug]`) must implement `generateStaticParams()` to pre-render every guide page statically at build time.
+
+### 7.2 Strict Content Decoupling into JSON Data Schemas
+- Never hardcode API method signatures, parameter tables, feature descriptions, or navigation links directly into React JSX components.
+- All content must be managed in type-safe, decoupled JSON files in `docs-site/src/data/`:
+  - `features.json`: Single source of truth for the 86 capabilities, parsed from `project/Features.md` via `scripts/parse-features.js`.
+  - `apiReference.json`: Complete 101 public methods across all 10 engine domains.
+  - `docsNavigation.json`: Navigation items, categories, and sidebar hierarchy.
+  - `compatibility.json`: Runtimes matrix and serverless execution guarantees.
+  - `siteMeta.json`: Global title, author, canonical domain, keywords, and OpenGraph metadata.
+- Automated route handlers (`sitemap.js`, `robots.js`) must generate `sitemap.xml` and `robots.txt` automatically during `next build`.
+

@@ -13,7 +13,7 @@
 **Pure JavaScript OpenXML template engine for Node.js.**  
 **Serverless PPTX automation for AWS Lambda & Cloudflare Workers.**
 
-[📖 Documentation Portal](https://node-pptx-templater.pages.dev/) &nbsp;•&nbsp; [⚡ 5-Minute Quick Start](https://node-pptx-templater.pages.dev/guides/quick-start/) &nbsp;•&nbsp; [📚 API Reference (101 Methods)](https://node-pptx-templater.pages.dev/api-reference/) &nbsp;•&nbsp; [⚡ Serverless Deployment](https://node-pptx-templater.pages.dev/guides/serverless-deployment/)
+[📖 Documentation Portal](https://node-pptx-templater.pages.dev/) &nbsp;•&nbsp; [⚡ 5-Minute Quick Start](https://node-pptx-templater.pages.dev/docs/installation/) &nbsp;•&nbsp; [📚 API Reference](https://node-pptx-templater.pages.dev/docs/api/)
 
 </div>
 

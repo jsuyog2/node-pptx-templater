@@ -37,7 +37,12 @@ describe('PowerPoint XML Folder Support Integration Tests', () => {
   })
 
   afterAll(async () => {
-    await fs.remove(TEMP_DIR)
+    try {
+      await fs.remove(TEMP_DIR)
+    } catch {
+      await new Promise(resolve => setTimeout(resolve, 200))
+      await fs.remove(TEMP_DIR).catch(() => {})
+    }
   })
 
   it('should successfully load a presentation from a flat folder path', async () => {

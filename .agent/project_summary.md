@@ -158,9 +158,21 @@ const buffer = await ppt.toBuffer();      // In-memory Buffer for Lambda/Cloud
 
 ## 6. Next.js Documentation Portal (`docs-site`)
 
-- **Architecture:** Next.js (App Router) configured for pure static HTML export (`output: 'export'`) hosted on Cloudflare Pages.
-- **Design System:** Glassmorphism UI with Tailwind CSS supporting persistent Light and Dark themes via `ThemeContext` and `ThemeToggle`.
-- **Motion & Interactions:** GSAP animation engine (`gsapTransitions.js`) powering staggered card entries, hero typography reveals, and smooth interactive card hover effects.
-- **Fixed Always-on-Top Sidebar:** Dedicated `DocsSidebar` with permanent fixed positioning (`h-[calc(100vh-4rem)]`), non-scrolling viewport locking, active route tracking, and category navigation.
-- **Content Decoupling:** Fully decoupled JSON schemas under `docs-site/src/data/` (`features.json`, `apiReference.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`).
+- **Architecture & Deployment:** Transitioned from legacy static HTML to Next.js (App Router) configured for pure Static HTML Export (`docs-site/`, `next.config.mjs` with `output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`). Deployed natively to Cloudflare Pages (`wrangler.toml` pointing to `pages_build_output_dir = "out"`).
+- **Design System & UI Stack:** Modern Tailwind CSS Glassmorphism theme (`glass-card`, `glass-header`, `glass-sidebar`, ambient mesh gradients). Native Light and Dark modes with smooth transitions, system preference detection, and `localStorage` persistence via `ThemeContext` and `ThemeToggle`.
+- **Motion & Interaction Engine:** GSAP animation engine (`src/animations/gsapTransitions.js`) powering staggered hero typography reveals (`animateHero`), feature grid reveals (`animateFeaturesGrid`), and smooth API card category transitions (`animateApiCards`).
+- **Fixed Always-on-Top Sidebar:** Dedicated `DocsSidebar` with fixed viewport positioning (`top-16 left-0 h-[calc(100vh-4rem)] w-72 z-40 overflow-y-auto`), non-scrolling layout locking, and active route tracking via `usePathname`.
+- **Site Route Structure:**
+  - **Header Navigation:** Home (`/`), Docs (`/docs`), Features (`/features`), and API Reference (`/docs/api`), with Theme Toggle and GitHub star link.
+  - **Docs Section (`/docs/*` with `DocsLayout` & `DocsSidebar`):**
+    - 📌 **Overview** (`/docs`): Library philosophy, visual PowerPoint template mutation vs legacy code canvas assembly.
+    - 🚀 **Installation Guides** (`/docs/installation`): Package managers (npm, pnpm, yarn, bun), Node.js >= 18 requirements, ESM/CJS, and native TypeScript types.
+    - ⚡ **Compatibility Matrix** (`/docs/compatibility`): Zero Office/Electron runtime guarantees, cold boot benchmarks (<15ms, <2MB), AWS Lambda and Cloudflare Workers streaming recipes.
+    - 📚 **API Reference** (`/docs/api`): 101 public methods across all 10 domain categories with live search, category filters, parameter tables, and copyable snippets.
+  - **Features Catalog (`/features`):** Full 86 itemized capabilities across 12 domain categories with interactive search, category filters, and flagship indicators.
+- **Content Decoupling & Ingestion:**
+  - Content source: `project/Features.md` parsed dynamically into `docs-site/src/data/features.json` via `scripts/parse-features.js`.
+  - Type-safe, modular JSON schemas in `docs-site/src/data/`: `features.json`, `apiReference.json`, `docsNavigation.json`, `compatibility.json`, `guides.json`, and `siteMeta.json`.
+  - Sitemaps & Robots automated via Next.js metadata handlers (`sitemap.js` and `robots.js`).
+
 
