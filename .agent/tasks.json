@@ -1,148 +1,52 @@
 {
-    "project": "node-pptx-templater-docs-modernization",
-    "version": "3.0.0",
-    "framework": "Next.js (Static HTML Export)",
-    "targetDeployment": "Cloudflare Pages",
+    "project": "node-pptx-templater",
+    "version": "3.1.0",
     "tasks": [
         {
             "id": "TASK-001",
-            "title": "Purge Legacy docs/ Folder & Clean Repository Workspace",
-            "description": "Completely remove the legacy static HTML/JS/CSS documentation in /docs and clean up references across scripts, package.json, and CI workflows.",
+            "title": "Flat OPC XML Package Ingestion Support (Fix sample.xml)",
             "status": "completed",
+            "description": "Add native support in PackageLoader to parse single-file Microsoft Office XML packages (<pkg:package> / Flat OPC). Extract XML parts from <pkg:xmlData> and binary parts (embedded images/workbooks) from <pkg:binaryData> directly into the Virtual File System (VFS).",
             "deliverables": [
-                "Delete docs/ directory",
-                "Update root package.json documentation scripts",
-                "Update .github/workflows if pointing to docs/"
+                "src/core/PackageLoader.js (Flat OPC detection & part parser)",
+                "src/core/PPTXTemplater.js (support .xml file path / string / Buffer input)",
+                "tests/fixtures/sample.xml (add integration test)"
             ]
         },
         {
             "id": "TASK-002",
-            "title": "Decouple Documentation Content into Structured JSON Data",
-            "description": "Create modular JSON schemas for public APIs across all 10 engine domains (Lifecycle, Slides, Text, Tables, Charts, Shapes, Cell Shapes, Images, Z-Order, Validation), guides, and site navigation.",
+            "title": "Documentation Cleanup & Complete Function Audit",
             "status": "completed",
+            "description": "Audit all exported functions and remove references to obsolete or removed routines across README.md, docs-site/ data files, and JSDoc. Document all updated import/export, flat XML, and table/chart APIs with clean copy-paste snippets.",
             "deliverables": [
+                "README.md (remove deprecated methods, document flat XML & updated APIs)",
                 "docs-site/src/data/apiReference.json",
-                "docs-site/src/data/guides.json",
-                "docs-site/src/data/navigation.json",
-                "docs-site/src/data/siteMeta.json"
+                "docs-site/src/data/features.json"
             ]
         },
         {
             "id": "TASK-003",
-            "title": "Scaffold Next.js Static HTML Export Application",
-            "description": "Initialize a Next.js (App Router) project inside docs-site/ configured with `output: 'export'`, Tailwind CSS, and zero Node runtime server dependencies for native Cloudflare Pages static hosting.",
+            "title": "Search Engine Optimization (SEO) Overhaul",
             "status": "completed",
+            "description": "Optimize repository discoverability across GitHub, NPM, Google, and Bing for terms such as 'PowerPoint Flat OPC XML Node.js', 'Pure JS PPTX template engine', and 'Serverless PowerPoint generation'.",
             "deliverables": [
-                "docs-site/next.config.mjs (output: 'export', basePath/assetPrefix if needed)",
-                "docs-site/package.json",
-                "docs-site/src/app/layout.jsx",
-                "docs-site/src/app/page.jsx (Overview & Quickstart)",
-                "docs-site/src/app/api-reference/page.jsx (Interactive API catalog with search & filter)",
-                "docs-site/src/app/guides/[slug]/page.jsx (generateStaticParams dynamic guide routes)",
-                "docs-site/src/app/not-found.jsx"
+                "package.json (keywords, description, repository tags)",
+                "README.md (SEO-optimized headings, badges, comparison matrix)",
+                "docs-site/src/app/sitemap.js & robots.js"
             ]
         },
         {
             "id": "TASK-004",
-            "title": "Automate Standard Sitemap & Robots via Next.js Metadata Route Handlers",
-            "description": "Implement static sitemap.js and robots.js inside docs-site/src/app/ to automatically emit standard sitemap.xml and robots.txt during `next build`.",
+            "title": "Update '.agent' Folder File Paths for Current Architecture",
             "status": "completed",
+            "description": "Synchronize all path references, active directory structures, and architectural rules in the '.agent/' workspace to reflect the latest state (Next.js docs-site, Flat OPC parser, updated VFS paths).",
             "deliverables": [
-                "docs-site/src/app/sitemap.js",
-                "docs-site/src/app/robots.js"
-            ]
-        },
-        {
-            "id": "TASK-005",
-            "title": "Full OpenGraph, Social Sharing Previews & JSON-LD SEO Engine",
-            "description": "Configure Next.js generateMetadata and metadata objects with high-priority search keywords, OpenGraph 1200x630 cards (WhatsApp/Twitter/LinkedIn previews), and JSON-LD SoftwareApplication schema markup.",
-            "status": "completed",
-            "deliverables": [
-                "docs-site/src/app/layout.jsx (Global metadata & JSON-LD)",
-                "docs-site/public/og-banner.png",
-                "docs-site/public/twitter-card.png"
-            ]
-        },
-        {
-            "id": "TASK-006",
-            "title": "Optimize Root README.md & NPM package.json for Top Search Ranking",
-            "description": "Align GitHub README and package.json keywords with the new documentation URL, highlighting pure JS, serverless execution, and zero-office dependencies.",
-            "status": "completed",
-            "deliverables": [
-                "README.md",
-                "package.json (keywords, homepage, and docs:build script)"
-            ]
-        },
-        {
-            "id": "TASK-007",
-            "title": "Scaffold .agent Persistence Subsystem & Engineering Rules",
-            "description": "Create .agent/ subsystem containing .agentignore, mcp_config.json, project_summary.md, rules/ (features.md, general.md), skills, and workflows/build-docs.md.",
-            "status": "completed",
-            "deliverables": [
-                ".agent/.agentignore",
-                ".agent/mcp_config.json",
                 ".agent/project_summary.md",
                 ".agent/rules/features.md",
                 ".agent/rules/general.md",
+                ".agent/memory/architectural-decisions.md",
+                ".agent/context/domain-dictionary.md",
                 ".agent/workflows/build-docs.md"
-            ]
-        },
-        {
-            "id": "TASK-008",
-            "title": "Ingest & Parse project/Features.md into Decoupled JSON Schemas",
-            "description": "Parse project/Features.md into docs-site/src/data/features.json (86 features across 12 categories) and structure docsNavigation.json and compatibility.json.",
-            "status": "completed",
-            "deliverables": [
-                "docs-site/src/data/features.json",
-                "docs-site/src/data/docsNavigation.json",
-                "docs-site/src/data/compatibility.json"
-            ]
-        },
-        {
-            "id": "TASK-009",
-            "title": "Implement Glassmorphism Design System & Light/Dark Theme Engine",
-            "description": "Configure Tailwind glassmorphism styles, ThemeContext, ThemeToggle, and persist light/dark modes across sessions.",
-            "status": "completed",
-            "deliverables": [
-                "docs-site/tailwind.config.js (darkMode: 'class')",
-                "docs-site/src/app/globals.css (.glass-card, .glass-header, .glass-sidebar)",
-                "docs-site/src/context/ThemeContext.jsx",
-                "docs-site/src/components/ThemeToggle.jsx"
-            ]
-        },
-        {
-            "id": "TASK-010",
-            "title": "Build Global Header & Fixed Always-on-Top DocsSidebar",
-            "description": "Create fixed top glass Header with Home/Docs/Features/API tabs and fixed non-scrolling DocsSidebar locked at left viewport with active route tracking.",
-            "status": "completed",
-            "deliverables": [
-                "docs-site/src/components/Header.jsx",
-                "docs-site/src/components/DocsSidebar.jsx",
-                "docs-site/src/app/docs/layout.jsx"
-            ]
-        },
-        {
-            "id": "TASK-011",
-            "title": "Implement GSAP Motion & Interaction Engine",
-            "description": "Integrate GSAP animation utilities for staggered hero typography entrance, features grid reveal, and smooth API card transitions.",
-            "status": "completed",
-            "deliverables": [
-                "docs-site/package.json (gsap dependency)",
-                "docs-site/src/animations/gsapTransitions.js"
-            ]
-        },
-        {
-            "id": "TASK-012",
-            "title": "Assemble Dedicated Pages & Verify Clean Static HTML Export",
-            "description": "Implement /features, /docs, /docs/installation, /docs/compatibility, and /docs/api with full static HTML export validation.",
-            "status": "completed",
-            "deliverables": [
-                "docs-site/src/app/features/page.jsx",
-                "docs-site/src/app/docs/page.jsx",
-                "docs-site/src/app/docs/installation/page.jsx",
-                "docs-site/src/app/docs/compatibility/page.jsx",
-                "docs-site/src/app/docs/api/page.jsx",
-                "docs-site/out/ static export directory"
             ]
         }
     ]

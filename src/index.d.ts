@@ -1,5 +1,10 @@
 export class PPTXTemplater {
   static load(source: string | Buffer | any, options?: any): Promise<PPTXTemplater>;
+  static fromUrl(url: string, options?: any): Promise<PPTXTemplater>;
+  static fromCloud(cloudConfig: any, options?: any): Promise<PPTXTemplater>;
+  static fromFlatOpc(source: string | Buffer | any, options?: any): Promise<PPTXTemplater>;
+  static importPresentation(source: any, options?: any): Promise<PPTXTemplater>;
+  static createBlank(options?: any): Promise<PPTXTemplater>;
   static setLogLevel(level: string): void;
   static preload(source: string | Buffer): Promise<any>;
   static cache(source: string | Buffer): Promise<any>;
@@ -53,12 +58,19 @@ export class PPTXTemplater {
   saveToFile(filePath: string, options?: any): Promise<void>;
   toFile(filePath: string, options?: any): Promise<void>;
   save(filePath: string, options?: any): Promise<void>;
-  saveXml(folderPath: string): Promise<void>;
-  saveToFolder(folderPath: string): Promise<void>;
+  saveXml(folderPath: string, options?: any): Promise<void>;
+  saveToFolder(folderPath: string, options?: any): Promise<void>;
+  extractToXml(destinationDir: string, options?: any): Promise<void>;
+  extractToZip(destinationPath: string, options?: any): Promise<void>;
+  toZipBuffer(options?: any): Promise<Buffer>;
   toBuffer(options?: any): Promise<Buffer>;
   toArrayBuffer(options?: any): Promise<ArrayBuffer>;
   toBase64(options?: { dataUri?: boolean }): Promise<string>;
   toExpress(res: any, filename?: string, options?: any): Promise<void>;
+  toFastify(reply: any, filename?: string, options?: any): Promise<void>;
+  toResponse(options?: any): Promise<Response>;
+  toFlatXml(options?: any): Promise<string>;
+  toFlatOpc(options?: any): Promise<string>;
   toStream(options?: any): Promise<any>;
   saveToStream(writableOrOptions: any, options?: any): Promise<void>;
   exportSlides(...slideNumbers: number[]): Promise<any>;
@@ -92,9 +104,33 @@ export class PPTXTemplater {
 export const PPTXTemplate: typeof PPTXTemplater;
 
 export class PackageLoader {
-  static load(source: any): Promise<VirtualFileSystem>;
+  static load(source: any, options?: any): Promise<VirtualFileSystem>;
+  static fromUrl(url: string, options?: any): Promise<VirtualFileSystem>;
+  static fromCloud(cloudConfig: any, options?: any): Promise<VirtualFileSystem>;
+  static fromFlatOpc(source: any, options?: any): Promise<VirtualFileSystem>;
 }
 export function isPkZip(buf: Uint8Array | Buffer): boolean;
+export function isLegacyPpt(buf: Uint8Array | Buffer): boolean;
+export function isOdp(buf: Uint8Array | Buffer): Promise<boolean>;
+export function isFlatOpc(source: any): boolean;
+export class FlatOpcConverter {
+  static convert(source: string | Buffer | Uint8Array, options?: any): VirtualFileSystem;
+  static serialize(vfs: VirtualFileSystem, options?: any): string;
+  static inferContentType(vfsPath: string, vfs?: VirtualFileSystem): string;
+}
+export class LegacyFormatConverter {
+  static isLegacyPpt(buf: Uint8Array | Buffer): boolean;
+  static isOdp(buf: Uint8Array | Buffer): Promise<boolean>;
+  static supports(buf: Uint8Array | Buffer): Promise<boolean>;
+  static detectFormat(buf: Uint8Array | Buffer): Promise<'ppt' | 'odp' | 'openxml' | 'unknown'>;
+  static convert(buf: Uint8Array | Buffer, options?: any): Promise<VirtualFileSystem>;
+}
+export function formatXml(xml: string): string;
+export function createBlankPresentationVfs(options?: any): VirtualFileSystem;
+export function sendExpress(res: any, streamOrBuffer: any, filename?: string, options?: any): void;
+export function sendFastify(reply: any, streamOrBuffer: any, filename?: string, options?: any): Promise<any>;
+export function sendKoa(ctx: any, streamOrBuffer: any, filename?: string, options?: any): void;
+export function createWebResponse(bufferOrArrayBuffer: any, filename?: string, options?: any): Response;
 
 export class VirtualFileSystem {
   entries: Map<string, Uint8Array>;

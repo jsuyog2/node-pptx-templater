@@ -1,6 +1,6 @@
 {
   "version": "2.0 / 3.0",
-  "totalFeatures": 86,
+  "totalFeatures": 96,
   "totalCategories": 12,
   "categories": [
     {
@@ -10,42 +10,67 @@
       "isFlagship": false,
       "items": [
         {
-          "id": 1,
           "title": "Direct PPTX File Ingestion",
-          "description": "Load standard `.pptx` documents directly from local filesystem paths."
+          "description": "Load standard `.pptx` documents directly from local filesystem paths.",
+          "id": 1
         },
         {
-          "id": 2,
-          "title": "Binary Buffer Loading",
-          "description": "Ingest PPTX files from in-memory Node.js `Buffer` or `Uint8Array` instances."
+          "title": "Macro-Enabled & Template Formats (.pptm, .potx, .potm, .ppsx, .ppsm, .ppam)",
+          "description": "Ingest macro-enabled presentations, templates, slide shows, and add-ins directly into the VFS.",
+          "id": 2
         },
         {
-          "id": 3,
+          "title": "Legacy PPT & OpenDocument ODP Ingestion",
+          "description": "Detect legacy binary PowerPoint (.ppt) and OpenDocument (.odp) files via signatures, normalizing slides and text into standard OpenXML.",
+          "id": 3
+        },
+        {
+          "title": "Binary Buffer & Uint8Array Loading",
+          "description": "Ingest presentations from in-memory Node.js `Buffer` or `Uint8Array` instances.",
+          "id": 4
+        },
+        {
           "title": "Stream-Based Ingestion",
-          "description": "Pipe incoming `.pptx` files using Node.js `ReadableStream` or web streams."
+          "description": "Pipe incoming presentations using Node.js `Readable` streams or web streams.",
+          "id": 5
         },
         {
-          "id": 4,
+          "title": "Remote Web URL Ingestion (`fromUrl`)",
+          "description": "Stream remote presentations over HTTP/HTTPS using standard fetch directly into in-memory VFS.",
+          "id": 6
+        },
+        {
+          "title": "Cloud Object Store Ingestion (`fromCloud`)",
+          "description": "Directly ingest presentation streams or buffers from AWS S3, Google Cloud Storage, or Azure Blob Storage.",
+          "id": 7
+        },
+        {
           "title": "ZIP Archive Ingestion",
-          "description": "Load archives with `.zip` or custom extensions by inspecting the PKZip container signature (`0x50 0x4B 0x03 0x04`)."
+          "description": "Load archives with `.zip` or custom extensions by inspecting PKZip container magic bytes (`0x50 0x4B 0x03 0x04`).",
+          "id": 8
         },
         {
-          "id": 5,
           "title": "Unpacked OpenXML Directory Ingestion",
-          "description": "Ingest raw, uncompressed folder trees (containing `[Content_Types].xml`, `_rels/`, and `ppt/`) directly into memory without requiring an intermediate zip step."
+          "description": "Ingest raw, uncompressed folder trees (containing `[Content_Types].xml`, `_rels/`, and `ppt/`) directly into memory without intermediate zip steps.",
+          "id": 9
         },
         {
-          "id": 6,
-          "title": "Scratch Deck Generation",
-          "description": "Initialize new, blank presentations from code without any input template."
+          "title": "Template-Free Blank Deck Generation (`createBlank`)",
+          "description": "Synthesize minimal valid OpenXML packages from scratch with customizable aspect ratios (16:9, 4:3, 16:10) or custom EMU/pixel dimensions.",
+          "id": 10
         },
         {
-          "id": 7,
-          "title": "Custom Presentation Sizing",
-          "description": "Set custom presentation dimensions and standard aspect ratios (16:9 widescreen, 16:10, 4:3 standard) on initialization."
+          "title": "Polymorphic Import Entrypoint (`importPresentation`)",
+          "description": "Single unified method accepting any supported source (path, buffer, stream, URL, cloud config, or folder) with automatic format routing.",
+          "id": 11
+        },
+        {
+          "title": "Microsoft Flat OPC XML Ingestion (`fromFlatOpc` / `.xml`)",
+          "description": "Ingest single-file XML packages (<pkg:package>) directly into memory, extracting XML parts from <pkg:xmlData> and decoding Base64 binary assets from <pkg:binaryData> without ZIP decompression overhead.",
+          "id": 12
         }
       ],
-      "count": 7
+      "count": 12
     },
     {
       "id": "presentation-slide-lifecycle-management",
@@ -54,37 +79,37 @@
       "isFlagship": false,
       "items": [
         {
-          "id": 8,
+          "id": 13,
           "title": "Presentation Metadata Query",
           "description": "Read deck-level metadata (total slide count, slide dimensions in EMUs/pixels/points, layout schemes)."
         },
         {
-          "id": 9,
+          "id": 14,
           "title": "Add Blank Slide",
           "description": "Append or insert empty slides associated with specific master layouts."
         },
         {
-          "id": 10,
+          "id": 15,
           "title": "Slide Deletion",
           "description": "Remove slides by zero-based index or internal slide identifier without corrupting presentation manifests."
         },
         {
-          "id": 11,
+          "id": 16,
           "title": "Slide Reordering",
           "description": "Change the display sequence of slides dynamically."
         },
         {
-          "id": 12,
+          "id": 17,
           "title": "Deep Slide Duplication",
           "description": "Clone existing slides with complete element trees, shapes, and layouts preserved."
         },
         {
-          "id": 13,
+          "id": 18,
           "title": "Isolated Slide Relationship Cloning",
           "description": "Generate dedicated relationship mappings (`slideX.xml.rels`) during duplication to eliminate relationship ID (`rId`) collisions."
         },
         {
-          "id": 14,
+          "id": 19,
           "title": "Manifest Synchronization",
           "description": "Automatically synchronize slide additions, duplicates, and deletions across `[Content_Types].xml` and `ppt/presentation.xml`."
         }
@@ -98,27 +123,27 @@
       "isFlagship": false,
       "items": [
         {
-          "id": 15,
+          "id": 20,
           "title": "OpenXML EMU Normalization",
           "description": "Standardize internal dimensions and positions in English Metric Units (1 pt = 12,700 EMUs; 1 in = 914,400 EMUs; 1 px = 9,525 EMUs)."
         },
         {
-          "id": 16,
+          "id": 21,
           "title": "Coordinate & Dimension Extraction",
           "description": "Retrieve computed bounding boxes (`x`, `y`, `width`, `height`, `rotation`) for any slide element."
         },
         {
-          "id": 17,
+          "id": 22,
           "title": "Programmatic Spatial Transformation",
           "description": "Reposition and resize any element using points, pixels, inches, or EMUs."
         },
         {
-          "id": 18,
+          "id": 23,
           "title": "Z-Index Layer Management",
           "description": "Reorder element rendering hierarchy (bring to front, send to back, step forward, step backward)."
         },
         {
-          "id": 19,
+          "id": 24,
           "title": "Boundary & Collision Detection",
           "description": "Calculate element bounding intersections and detect slide edge overflows."
         }
@@ -132,22 +157,22 @@
       "isFlagship": false,
       "items": [
         {
-          "id": 20,
+          "id": 25,
           "title": "Slide Element Enumeration",
           "description": "Extract all visual elements residing on a specific slide."
         },
         {
-          "id": 21,
+          "id": 26,
           "title": "Type-Based Element Filtering",
           "description": "Query elements filtered by type (`text`, `shape`, `image`, `table`, `chart`, `group`)."
         },
         {
-          "id": 22,
+          "id": 27,
           "title": "Name & ID Selectors",
           "description": "Query elements by their PowerPoint shape name (e.g., `Title 1`, `Picture 3`) or unique non-visual shape ID."
         },
         {
-          "id": 23,
+          "id": 28,
           "title": "Template Token Selectors",
           "description": "Target and match text boxes, shapes, or tables bound to placeholder identifiers (e.g., `{{variable_name}}`)."
         }
@@ -161,57 +186,57 @@
       "isFlagship": false,
       "items": [
         {
-          "id": 24,
+          "id": 29,
           "title": "AST-Level Run Normalization",
           "description": "Tokenize and assemble fragmented `<a:r>` and `<a:t>` nodes to eliminate broken regex replacements across XML boundaries."
         },
         {
-          "id": 25,
+          "id": 30,
           "title": "In-Place Text Replacement",
           "description": "Replace single or multiple text values without losing surrounding paragraph formatting."
         },
         {
-          "id": 26,
+          "id": 31,
           "title": "Text Run Appending & Prepending",
           "description": "Insert new text spans before or after existing content within any text box."
         },
         {
-          "id": 27,
+          "id": 32,
           "title": "Font Family Modification",
           "description": "Update font family declarations across entire text frames or specific runs."
         },
         {
-          "id": 28,
+          "id": 33,
           "title": "Font Size Adjustment",
           "description": "Modify text size in points or EMUs."
         },
         {
-          "id": 29,
+          "id": 34,
           "title": "Color & Fill Modification",
           "description": "Apply hex colors, RGB values, or theme colors to text runs."
         },
         {
-          "id": 30,
+          "id": 35,
           "title": "Typography Styling",
           "description": "Toggle bold, italic, underline, strikethrough, subscript, and superscript."
         },
         {
-          "id": 31,
+          "id": 36,
           "title": "Paragraph Alignment",
           "description": "Set horizontal alignment (left, center, right, justify)."
         },
         {
-          "id": 32,
+          "id": 37,
           "title": "Vertical Alignment",
           "description": "Control text frame vertical centering, top alignment, or bottom alignment."
         },
         {
-          "id": 33,
+          "id": 38,
           "title": "Line & Paragraph Spacing",
           "description": "Adjust line spacing, space before, and space after paragraphs."
         },
         {
-          "id": 34,
+          "id": 39,
           "title": "Word Wrap Control",
           "description": "Enable or disable text wrapping within shape and text box boundaries."
         }
@@ -225,37 +250,37 @@
       "isFlagship": false,
       "items": [
         {
-          "id": 35,
+          "id": 40,
           "title": "Add Vector Shapes",
           "description": "Insert basic shapes (rectangles, rounded rectangles, ellipses, triangles, arrows, callouts, lines)."
         },
         {
-          "id": 36,
+          "id": 41,
           "title": "Solid Shape Fills",
           "description": "Apply solid hex/RGB color fills to any shape."
         },
         {
-          "id": 37,
+          "id": 42,
           "title": "Gradient & Pattern Fills",
           "description": "Apply linear/radial gradients or pattern fills to shapes."
         },
         {
-          "id": 38,
+          "id": 43,
           "title": "Fill Transparency & Opacity",
           "description": "Adjust transparency percentages on shape fills."
         },
         {
-          "id": 39,
+          "id": 44,
           "title": "Shape Border & Outline Styling",
           "description": "Customize outline color, stroke weight, and stroke pattern (solid, dashed, dotted)."
         },
         {
-          "id": 40,
+          "id": 45,
           "title": "Text Inside Shapes",
           "description": "Insert, style, and vertically align text inside any vector shape with custom internal padding."
         },
         {
-          "id": 41,
+          "id": 46,
           "title": "Remove Shape",
           "description": "Delete individual shapes from slides cleanly."
         }
@@ -269,32 +294,32 @@
       "isFlagship": false,
       "items": [
         {
-          "id": 42,
+          "id": 47,
           "title": "Insert Images",
           "description": "Add images from local file paths, binary Buffers, or Base64 data URIs."
         },
         {
-          "id": 43,
+          "id": 48,
           "title": "Multi-Format Media Support",
           "description": "Support PNG, JPEG, SVG, GIF, and WebP media types."
         },
         {
-          "id": 44,
+          "id": 49,
           "title": "In-Place Image Swapping",
           "description": "Replace template image placeholders while preserving original bounding boxes and coordinates."
         },
         {
-          "id": 45,
+          "id": 50,
           "title": "Aspect Ratio Preservation",
           "description": "Automatically calculate and lock aspect ratios when inserting or updating images."
         },
         {
-          "id": 46,
+          "id": 51,
           "title": "Image Metadata Extraction",
           "description": "Query image dimensions, format types, file sizes, and internal relationship references."
         },
         {
-          "id": 47,
+          "id": 52,
           "title": "Remove Image",
           "description": "Remove media elements and clean up associated relationship pointers."
         }
@@ -308,77 +333,77 @@
       "isFlagship": false,
       "items": [
         {
-          "id": 48,
+          "id": 53,
           "title": "Insert Table",
           "description": "Add tables specifying row counts, column counts, coordinates, and default dimensions."
         },
         {
-          "id": 49,
+          "id": 54,
           "title": "Table Data Hydration",
           "description": "Populate entire tables directly from 2D arrays or structured JSON payloads."
         },
         {
-          "id": 50,
+          "id": 55,
           "title": "Row CRUD",
           "description": "Add, append, delete, or duplicate table rows dynamically."
         },
         {
-          "id": 51,
+          "id": 56,
           "title": "Column CRUD",
           "description": "Add, append, or delete table columns dynamically."
         },
         {
-          "id": 52,
+          "id": 57,
           "title": "Cell Target Query",
           "description": "Retrieve individual cells via zero-based indices (`table.getCell(rowIndex, colIndex)`)."
         },
         {
-          "id": 53,
+          "id": 58,
           "title": "Cell Data Modification",
           "description": "Update text, font, alignment, and formatting inside individual cells."
         },
         {
-          "id": 54,
+          "id": 59,
           "title": "Cell Background Fills",
           "description": "Set solid background colors and opacity per cell or row."
         },
         {
-          "id": 55,
+          "id": 60,
           "title": "Custom Cell Borders",
           "description": "Set individual edge borders (top, bottom, left, right) with custom thickness and color."
         },
         {
-          "id": 56,
+          "id": 61,
           "title": "Horizontal Cell Merging",
           "description": "Merge adjacent cells across columns using `gridSpan`."
         },
         {
-          "id": 57,
+          "id": 62,
           "title": "Vertical Cell Merging",
           "description": "Merge adjacent cells down rows using `rowSpan`."
         },
         {
-          "id": 58,
+          "id": 63,
           "title": "Cell Unmerging",
           "description": "Split previously merged cells back into individual grid cells."
         },
         {
-          "id": 59,
+          "id": 64,
           "title": "Nested Elements Inside Cells",
           "description": "Embed shapes, icons, badges, and small indicators directly inside table cells."
         },
         {
-          "id": 60,
+          "id": 65,
           "title": "Header Row Styling",
           "description": "Independently target and style table header rows."
         },
         {
-          "id": 61,
+          "id": 66,
           "title": "Zebra Striping",
           "description": "Apply automated alternating row background colors."
         },
         {
-          "id": 62,
+          "id": 67,
           "title": "Table Dimensional Metadata",
           "description": "Extract computed table width, cumulative height, individual column widths, and row heights."
         }
@@ -392,37 +417,37 @@
       "isFlagship": true,
       "items": [
         {
-          "id": 63,
+          "id": 68,
           "title": "Dynamic Row Height Calculation",
           "description": "Compute expected row height based on cell padding, font size, line count, and column width."
         },
         {
-          "id": 64,
+          "id": 69,
           "title": "Slide Overflow Detection",
           "description": "Compare cumulative table height against available slide height ($Y_{\\text{limit}} = \\text{SlideHeight} - \\text{BottomMargin}$)."
         },
         {
-          "id": 65,
+          "id": 70,
           "title": "Automated Slide Cloning on Overflow",
           "description": "Clone the host template slide (including headers, footers, and background styling) when rows exceed $Y_{\\text{limit}}$."
         },
         {
-          "id": 66,
+          "id": 71,
           "title": "Table Row Slicing",
           "description": "Truncate overflowing rows on the parent slide at the last fitting index."
         },
         {
-          "id": 67,
+          "id": 72,
           "title": "Header Repetition",
           "description": "Re-render table header rows automatically on every newly generated overflow slide."
         },
         {
-          "id": 68,
+          "id": 73,
           "title": "Multi-Slide Pagination",
           "description": "Recursively distribute remaining table rows across subsequent slides until all records are displayed."
         },
         {
-          "id": 69,
+          "id": 74,
           "title": "Summary / Footer Row Preservation",
           "description": "Ensure designated summary/total rows remain anchored to the final generated slide."
         }
@@ -436,32 +461,32 @@
       "isFlagship": false,
       "items": [
         {
-          "id": 70,
+          "id": 75,
           "title": "Target Native Charts",
           "description": "Select embedded PowerPoint charts by name, ID, or slide index."
         },
         {
-          "id": 71,
+          "id": 76,
           "title": "Supported Chart Types",
           "description": "Support Bar, Column, Line, Pie, Doughnut, Area, and Scatter charts."
         },
         {
-          "id": 72,
+          "id": 77,
           "title": "Chart Series Data Updates",
           "description": "Modify existing series data values, categories, and series labels dynamically."
         },
         {
-          "id": 73,
+          "id": 78,
           "title": "Synchronous Excel Cache Updating",
           "description": "Update embedded `.xlsx` workbooks (`ppt/embeddings/`) alongside `<c:chartSpace>` to eliminate Microsoft PowerPoint repair prompts."
         },
         {
-          "id": 74,
+          "id": 79,
           "title": "Chart Spatial Adjustment",
           "description": "Resize and reposition chart elements on the slide canvas."
         },
         {
-          "id": 75,
+          "id": 80,
           "title": "Chart Element Toggles",
           "description": "Show or hide legends, data labels, category axes, and gridlines."
         }
@@ -475,22 +500,22 @@
       "isFlagship": false,
       "items": [
         {
-          "id": 76,
+          "id": 81,
           "title": "External Web Hyperlinks",
           "description": "Attach external URLs to specific text runs, entire text frames, shapes, or images."
         },
         {
-          "id": 77,
+          "id": 82,
           "title": "Internal Slide Jump Links",
           "description": "Attach slide-to-slide navigation links (e.g., jump to a specific slide, first slide, last slide)."
         },
         {
-          "id": 78,
+          "id": 83,
           "title": "Hyperlink Inspection",
           "description": "Read existing destination URLs and internal slide targets."
         },
         {
-          "id": 79,
+          "id": 84,
           "title": "Hyperlink Removal",
           "description": "Strip hyperlinks from elements while retaining the underlying text or shape styling."
         }
@@ -504,42 +529,67 @@
       "isFlagship": false,
       "items": [
         {
-          "id": 80,
-          "title": "Local File System Export (`toFile`)",
-          "description": "Asynchronously save generated presentations directly to disk."
+          "title": "Local File System Export (`saveToFile`)",
+          "description": "Asynchronously serialize and write generated presentations directly to disk, creating missing parent folders automatically.",
+          "id": 85
         },
         {
-          "id": 81,
           "title": "Node.js ReadableStream Export (`toStream`)",
-          "description": "Stream presentation bytes for memory-efficient piping to AWS S3, Google Cloud Storage, or Azure Blob."
+          "description": "Stream presentation bytes for memory-efficient piping to AWS S3, Google Cloud Storage, or Azure Blob.",
+          "id": 86
         },
         {
-          "id": 82,
           "title": "Memory Buffer Export (`toBuffer`)",
-          "description": "Export as a native Node.js `Buffer` for in-memory processing."
+          "description": "Export as a native Node.js `Buffer` for in-memory processing in serverless functions.",
+          "id": 87
         },
         {
-          "id": 83,
           "title": "ArrayBuffer Export (`toArrayBuffer`)",
-          "description": "Export as a standard `ArrayBuffer` for isomorphic Node.js and modern runtime compatibility."
+          "description": "Export as a standard `ArrayBuffer` for isomorphic Node.js and modern Edge runtime compatibility.",
+          "id": 88
         },
         {
-          "id": 84,
           "title": "Base64 String Export (`toBase64`)",
-          "description": "Export as a Base64 string for JSON transfer, serverless lambdas, or webhooks."
+          "description": "Export as a Base64 string for JSON transfer, serverless lambdas, or webhooks.",
+          "id": 89
         },
         {
-          "id": 85,
           "title": "Data URI Base64 Export",
-          "description": "Export formatted with the presentation MIME type data URI prefix (`data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,...`)."
+          "description": "Export formatted with the presentation MIME type data URI prefix (`data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,...`).",
+          "id": 90
         },
         {
-          "id": 86,
           "title": "Express.js HTTP Pipe (`toExpress`)",
-          "description": "Dispatch presentations directly through Express `res` objects with automatic `Content-Type` and `Content-Disposition: attachment; filename=\"...\"` headers."
+          "description": "Dispatch presentations directly through Express `res` objects with automatic `Content-Type` and `Content-Disposition: attachment; filename=\"...\"` headers.",
+          "id": 91
+        },
+        {
+          "title": "Web API Response Export (`toResponse`)",
+          "description": "Return standard Web API `Response` objects with binary body and OpenXML headers for Next.js Route Handlers, Remix, SvelteKit, and Cloudflare Workers.",
+          "id": 92
+        },
+        {
+          "title": "Fastify HTTP Reply (`toFastify`)",
+          "description": "Deliver presentation buffers directly through Fastify `reply` objects with proper MIME type and Content-Disposition headers.",
+          "id": 93
+        },
+        {
+          "title": "Direct ZIP Archive Extraction (`extractToZip` & `toZipBuffer`)",
+          "description": "Package and export raw compressed ZIP archives to disk or binary buffer.",
+          "id": 94
+        },
+        {
+          "title": "Unpacked OpenXML Folder Extraction (`extractToXml` & `saveToFolder`)",
+          "description": "Unpack all presentation parts into uncompressed folders with optional XML formatting (`formatXml: true`) for version control inspection.",
+          "id": 95
+        },
+        {
+          "title": "Microsoft Flat OPC XML Export (`toFlatXml` / `toFlatOpc`)",
+          "description": "Serialize in-memory presentations into standardized Microsoft Flat OPC single-file XML packages (<pkg:package>), encoding media assets and worksheets into Base64 <pkg:binaryData> blocks.",
+          "id": 96
         }
       ],
-      "count": 7
+      "count": 12
     }
   ]
 }

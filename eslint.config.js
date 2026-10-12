@@ -30,6 +30,9 @@ module.exports = [
         exports: 'readonly',
         setInterval: 'readonly',
         clearInterval: 'readonly',
+        Response: 'readonly',
+        Headers: 'readonly',
+        Request: 'readonly',
       },
     },
     rules: {

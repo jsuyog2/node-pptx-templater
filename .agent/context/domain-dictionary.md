@@ -95,3 +95,43 @@ This glossary defines standard Open Packaging Conventions (OPC) and OpenXML conc
   - `<c:pt @_idx="i">`: Data point element at 0-based index `i`.
 - **Embedded Workbook**:
   `ppt/embeddings/Microsoft_Excel_Worksheet*.xlsx` storing the backing table queried by PowerPoint's "Edit Data in Excel" tool.
+
+---
+
+## 7. File Formats & MIME Types
+
+- **`.pptx`**:
+  `application/vnd.openxmlformats-officedocument.presentationml.presentation` — Standard OpenXML presentation archive.
+- **`.pptm`**:
+  `application/vnd.ms-powerpoint.presentation.macroEnabled.12` — Macro-enabled presentation archive.
+- **`.potx`**:
+  `application/vnd.openxmlformats-officedocument.presentationml.template` — OpenXML presentation template.
+- **`.potm`**:
+  `application/vnd.ms-powerpoint.template.macroEnabled.12` — Macro-enabled presentation template.
+- **`.ppsx`**:
+  `application/vnd.openxmlformats-officedocument.presentationml.slideshow` — Auto-playing slide show presentation.
+- **`.ppsm`**:
+  `application/vnd.ms-powerpoint.slideshow.macroEnabled.12` — Macro-enabled auto-playing slide show.
+- **`.ppam`**:
+  `application/vnd.ms-powerpoint.addin.macroEnabled.12` — PowerPoint Add-in package.
+- **`.ppt`**:
+  `application/vnd.ms-powerpoint` — Legacy Microsoft PowerPoint binary format (OLE Compound File, signature `0xD0 0xCF 0x11 0xE0 0xA1 0xB1 0x1A 0xE1`).
+- **`.odp`**:
+  `application/vnd.oasis.opendocument.presentation` — OpenDocument Presentation XML package.
+- **`.zip`**:
+  `application/zip` — PKZip container format (magic number `0x50 0x4B 0x03 0x04`).
+
+---
+
+## 8. Flat OPC XML Concepts & Tags
+
+- **Flat OPC (Microsoft Flat Open Packaging Conventions)**:
+  Single uncompressed XML representation of an OpenXML package, containing a `<pkg:package>` root node enclosing individual `<pkg:part>` entries.
+- **`<pkg:package>`**:
+  The root container element of a Flat OPC XML document (`xmlns:pkg="http://schemas.microsoft.com/office/2006/xmlPackage"`).
+- **`<pkg:part>`**:
+  An element representing an OPC part within a Flat OPC document, defining attributes `pkg:name` (e.g. `"/ppt/presentation.xml"`) and `pkg:contentType` (e.g. `"application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"`).
+- **`<pkg:xmlData>`**:
+  Child container within a `<pkg:part>` holding raw, unescaped OpenXML markup for XML parts (slides, charts, relationships).
+- **`<pkg:binaryData>`**:
+  Child container within a `<pkg:part>` holding base64-encoded binary content for binary assets such as images (`ppt/media/`) or embedded Excel workbooks (`ppt/embeddings/`).

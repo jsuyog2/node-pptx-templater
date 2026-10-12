@@ -40,10 +40,23 @@ const { HyperlinkManager } = require('./managers/HyperlinkManager.js')
 const { MediaManager } = require('./managers/MediaManager.js')
 const { RelationshipManager } = require('./managers/RelationshipManager.js')
 const { ZOrderManager } = require('./spatial/ZOrderManager.js')
-const { OutputWriter } = require('./core/OutputWriter.js')
+const { OutputWriter, formatXml } = require('./writer/OutputWriter.js')
+const {
+  sendExpress,
+  sendFastify,
+  sendKoa,
+  createWebResponse,
+} = require('./writer/FrameworkAdapters.js')
+const {
+  LegacyFormatConverter,
+  isLegacyPpt,
+  isOdp,
+} = require('./converters/LegacyFormatConverter.js')
+const { FlatOpcConverter, isFlatOpc } = require('./converters/FlatOpcConverter.js')
+const { createBlankPresentationVfs } = require('./templates/blankPresentation.js')
 const { TemplateEngine } = require('./core/TemplateEngine.js')
 const { ValidationEngine } = require('./core/ValidationEngine.js')
-const { PackageLoader, isPkZip } = require('./core/PackageLoader.js')
+const { PackageLoader, isPkZip, streamToBuffer } = require('./core/PackageLoader.js')
 const { VirtualFileSystem } = require('./core/VirtualFileSystem.js')
 const spatialUnits = require('./spatial/units.js')
 
@@ -83,10 +96,22 @@ module.exports = {
   RelationshipManager,
   ZOrderManager,
   OutputWriter,
+  formatXml,
+  sendExpress,
+  sendFastify,
+  sendKoa,
+  createWebResponse,
+  LegacyFormatConverter,
+  isLegacyPpt,
+  isOdp,
+  FlatOpcConverter,
+  isFlatOpc,
+  createBlankPresentationVfs,
   TemplateEngine,
   ValidationEngine,
   PackageLoader,
   isPkZip,
+  streamToBuffer,
   VirtualFileSystem,
   ...spatialUnits,
   generateRelationshipId,

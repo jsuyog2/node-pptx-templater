@@ -156,7 +156,7 @@ async function demo01_BasicTextReplacement() {
   console.log(`✓ Replaced multiple placeholder tags across all slides.`)
 
   const outPath = path.join(OUTPUT_DIR, '01-basic-report.pptx')
-  await ppt.save(outPath)
+  await ppt.saveToFile(outPath)
   console.log(`✓ Saved: ${outPath}`)
   return outPath
 }
@@ -192,7 +192,7 @@ async function demo02_ChartUpdate() {
   }
 
   const outPath = path.join(OUTPUT_DIR, '02-chart-update.pptx')
-  await ppt.save(outPath)
+  await ppt.saveToFile(outPath)
   console.log(`✓ Saved: ${outPath}`)
   return outPath
 }
@@ -242,7 +242,7 @@ async function demo03_TableOperations() {
   console.log('✓ Configured table overflow splitting with summary row pinning.')
 
   const outPath = path.join(OUTPUT_DIR, '03-table-operations.pptx')
-  await ppt.save(outPath)
+  await ppt.saveToFile(outPath)
   console.log(`✓ Saved: ${outPath}`)
   return outPath
 }
@@ -280,7 +280,7 @@ async function demo04_NestedTablesAndExtraction() {
   )
 
   const outPath = path.join(OUTPUT_DIR, '04-nested-table-merges.pptx')
-  await ppt.save(outPath)
+  await ppt.saveToFile(outPath)
   console.log(`✓ Saved: ${outPath}`)
   return outPath
 }
@@ -344,7 +344,7 @@ async function demo05_ShapesAndZOrder() {
   )
 
   const outPath = path.join(OUTPUT_DIR, '05-shape-operations-and-zorder.pptx')
-  await ppt.save(outPath)
+  await ppt.saveToFile(outPath)
   console.log(`✓ Saved: ${outPath}`)
   return outPath
 }
@@ -377,7 +377,7 @@ async function demo06_CellShapes() {
   console.log('✓ Added table row with embedded status indicator shape cell.')
 
   const outPath = path.join(OUTPUT_DIR, '06-cell-shapes.pptx')
-  await ppt.save(outPath)
+  await ppt.saveToFile(outPath)
   console.log(`✓ Saved: ${outPath}`)
   return outPath
 }
@@ -424,7 +424,7 @@ async function demo07_ImageOperations() {
   }
 
   const outPath = path.join(OUTPUT_DIR, '07-images-and-media.pptx')
-  await ppt.save(outPath)
+  await ppt.saveToFile(outPath)
   console.log(`✓ Saved: ${outPath}`)
   return outPath
 }
@@ -462,7 +462,7 @@ async function demo08_SlideOperations() {
   }
 
   const outPath = path.join(OUTPUT_DIR, '08-slide-operations.pptx')
-  await ppt.save(outPath)
+  await ppt.saveToFile(outPath)
   console.log(`✓ Saved: ${outPath}`)
   return outPath
 }
@@ -503,7 +503,7 @@ async function demo09_HyperlinksAndNavigation() {
   console.log(`✓ Discovered ${links.length} hyperlink relationship(s) on Slide 1.`)
 
   const outPath = path.join(OUTPUT_DIR, '09-hyperlinks-and-navigation.pptx')
-  await ppt.save(outPath)
+  await ppt.saveToFile(outPath)
   console.log(`✓ Saved: ${outPath}`)
   return outPath
 }
@@ -547,7 +547,7 @@ async function demo10_TypographyAndTextRuns() {
   console.log('✓ Appended distinct text run to shape.')
 
   const outPath = path.join(OUTPUT_DIR, '10-typography-text-runs.pptx')
-  await ppt.save(outPath)
+  await ppt.saveToFile(outPath)
   console.log(`✓ Saved: ${outPath}`)
   return outPath
 }

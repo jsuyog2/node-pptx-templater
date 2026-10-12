@@ -13,7 +13,7 @@ These rules govern the architecture, design principles, runtime constraints, and
 
 ### 1.2 In-Memory Virtual File System (VFS)
 - Presentations must be ingested into and manipulated within an in-memory Virtual File System (`Map<string, string | Uint8Array>`).
-- Disk I/O must only be performed when explicitly requested by file-path APIs (`toFile()`, `fromFile()`).
+- Disk I/O must only be performed when explicitly requested by file-path APIs (`saveToFile()`, `PPTXTemplater.load()`, `saveToFolder()`).
 - File paths within the package must use forward slashes (`/`), be normalized (no leading `./`), and match OPC conventions (`ppt/slides/slide1.xml`, `ppt/_rels/presentation.xml.rels`, `[Content_Types].xml`).
 
 ### 1.3 Dual CJS and ESM Compatibility

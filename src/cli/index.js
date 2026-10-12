@@ -95,11 +95,16 @@ program
 // ─── extract command ────────────────────────────────────────────────────────
 program
   .command('extract <file>')
-  .description('Extract specific parts from a PPTX file')
+  .description('Extract specific parts or entire directory trees from a PPTX file')
   .option('-s, --slide <number>', 'Slide number to extract XML from')
-  .option('-o, --out <path>', 'Output file path (default: stdout)')
+  .option('-o, --out <path>', 'Output file or directory path (default: stdout)')
+  .option('--all', 'Extract all OpenXML parts into an uncompressed folder')
+  .option('--folder <path>', 'Destination folder for unpacked OpenXML parts')
+  .option('--zip <path>', 'Extract/re-export as a clean compressed ZIP package')
   .option('--chart <name>', 'Extract chart XML by name')
   .option('--rels', 'Extract relationship files')
+  .option('--format', 'Format XML output with 2-space indentation for git inspection')
+  .option('--format-xml', 'Alias for --format')
   .action(async (file, opts) => {
     await extractCommand(file, opts)
   })

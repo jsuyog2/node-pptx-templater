@@ -180,6 +180,14 @@ class VirtualFileSystem {
   }
 
   /**
+   * Enables for (const [path, bytes] of vfs) iteration.
+   * @returns {IterableIterator<[string, Uint8Array]>}
+   */
+  [Symbol.iterator]() {
+    return this.#store.entries()
+  }
+
+  /**
    * Imports all entries from a Map.
    *
    * @param {Map<string, any>} map - Source map to import from.

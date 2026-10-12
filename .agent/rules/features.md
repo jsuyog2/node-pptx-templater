@@ -134,10 +134,58 @@ This document specifies mandatory rules and invariants for every feature domain 
 ### 7.2 Strict Content Decoupling into JSON Data Schemas
 - Never hardcode API method signatures, parameter tables, feature descriptions, or navigation links directly into React JSX components.
 - All content must be managed in type-safe, decoupled JSON files in `docs-site/src/data/`:
-  - `features.json`: Single source of truth for the 86 capabilities, parsed from `project/Features.md` via `scripts/parse-features.js`.
-  - `apiReference.json`: Complete 101 public methods across all 10 engine domains.
+  - `features.json`: Single source of truth for the 96 capabilities across 12 domain categories.
+  - `apiReference.json`: Complete 111 public methods across all 10 engine domains.
   - `docsNavigation.json`: Navigation items, categories, and sidebar hierarchy.
   - `compatibility.json`: Runtimes matrix and serverless execution guarantees.
   - `siteMeta.json`: Global title, author, canonical domain, keywords, and OpenGraph metadata.
 - Automated route handlers (`sitemap.js`, `robots.js`) must generate `sitemap.xml` and `robots.txt` automatically during `next build`.
+
+---
+
+## 8. Ingestion, Multi-Target Export & Extraction Rules
+
+### 8.1 Unified Ingestion Pipeline & Signature Detection
+- `PackageLoader` must detect container signatures prior to parsing:
+  - PKZip standard magic bytes (`0x50 0x4B 0x03 0x04`) for `.pptx`, `.pptm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.ppam`, `.zip`.
+  - Microsoft Flat OPC single-file XML packages (`<?xml` and `<pkg:package`).
+  - OLE Compound File signature (`0xD0 0xCF 0x11 0xE0 0xA1 0xB1 0x1A 0xE1`) for legacy `.ppt` files.
+  - OpenDocument signatures for `.odp` files (or PKZip containing `mimetype` with `application/vnd.oasis.opendocument.presentation`).
+- Legacy binary PPT and ODP formats must be routed through `LegacyFormatConverter` to normalize extracted text atoms and slides into an OpenXML `VirtualFileSystem`.
+- Remote web URLs (`PPTXTemplater.fromUrl`) must use fetch/streaming with custom headers and error handling for non-2xx responses.
+- Cloud object storage configurations (`PPTXTemplater.fromCloud`) must accept stream or buffer payloads from S3, GCS, or Azure Blob without intermediate disk writes.
+
+### 8.2 Blank Presentation Generation Invariants
+- `PPTXTemplater.createBlank(options)` must generate minimal valid OpenXML schemas purely in memory without relying on external file fixtures.
+- Synthesized AST must include valid:
+  - `[Content_Types].xml` with presentation, slide, slideMaster, slideLayout, theme, and relationship overrides.
+  - `_rels/.rels` pointing to `ppt/presentation.xml`.
+  - `ppt/presentation.xml` with `<p:sldSz>` (16:9, 4:3, 16:10, or custom EMU/pixel dimensions) and `<p:sldIdLst>`.
+  - `ppt/slideMasters/slideMaster1.xml` and `ppt/slideLayouts/slideLayout1.xml` with layout relationships.
+  - `ppt/theme/theme1.xml` with default font schemes and color palettes.
+  - `ppt/slides/slide1.xml` containing a minimal valid `<p:sld>` ready for element additions.
+
+### 8.3 Multi-Target Export & Framework Responses
+- All serialization pipelines must route through `OutputWriter` and `FrameworkAdapters`.
+- Deprecated legacy I/O aliases (`save`, `toFile`, `saveXml`, `fromPresentationXml`) must log deprecation warnings (only when `logLevel` permits) and forward to modernized methods.
+- Web framework adapters (`toExpress`, `toFastify`, `toResponse`) must automatically inject:
+  - `Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation`
+  - `Content-Disposition: attachment; filename="<filename>"` with RFC-5987 Unicode encoding
+  - `Content-Length` where applicable.
+
+### 8.4 XML & ZIP Extraction Invariants
+- `extractToZip(destinationPath)` / `toZipBuffer()`: Packages and dumps raw compressed ZIP archives.
+- `extractToXml(destinationDir, options)` / `saveToFolder(destinationDir)`: Unpacks all presentation parts into uncompressed folders. When `{ formatXml: true }` is enabled, all XML files must be formatted with 2-space indentation while preserving binary media files intact.
+
+### 8.5 Flat OPC Single-File XML Ingestion & Export Rules
+- Single-file XML packages starting with `<pkg:package>` must be parsed directly without ZIP overhead via `FlatOpcConverter`.
+- Ingestion rules:
+  - Strip leading slashes from `pkg:name` attributes (e.g., `/ppt/presentation.xml` -> `ppt/presentation.xml`) to mount into standard VFS paths.
+  - Extract `<pkg:xmlData>` child nodes and serialize them as clean XML strings into the in-memory `VirtualFileSystem`.
+  - Decode base64 strings from `<pkg:binaryData>` into binary `Uint8Array` / `Buffer` for embedded Excel workbooks (`ppt/embeddings/`) and images (`ppt/media/`).
+  - Synthesize `[Content_Types].xml` with default extension mappings and part overrides so standard OpenXML managers operate transparently.
+- Export rules:
+  - `toFlatXml()` and `toFlatOpc()` serialize all VFS entries back into standard `<pkg:package>` XML with `<pkg:part pkg:name="..." pkg:contentType="...">` tags.
+  - XML parts emit `<pkg:xmlData>` with raw XML DOM/AST content; binary parts emit `<pkg:binaryData>` containing base64 strings.
+- Standard operations (`useSlide`, `replaceText`, `updateChart`, `updateTable`, `saveToFile`, `toBuffer`) must execute seamlessly on decks loaded from Flat OPC XML.
 

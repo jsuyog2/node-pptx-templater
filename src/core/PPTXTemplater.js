@@ -226,7 +226,36 @@ class PPTXTemplater {
       setGlobalLogLevel(options.logLevel)
     }
     const engine = new PPTXTemplater()
-    await engine.#initialize(source)
+    try {
+      const { PackageLoader } = require('./PackageLoader.js')
+      const vfs = await PackageLoader.load(source, options)
+      await engine.#initialize(vfs)
+      return engine
+    } catch (err) {
+      if (err instanceof PPTXError) throw err
+      throw new PPTXError(err.message, err)
+    }
+  }
+
+  /**
+   * Creates a minimal valid OpenXML blank presentation deck without template files.
+   * Supports custom aspect ratios ('16:9', '4:3', '16:10') and custom pixel/EMU dimensions.
+   *
+   * @static
+   * @param {Object} [options={}] - Creation options (aspectRatio, width, height, unit).
+   * @returns {Promise<PPTXTemplater>} Initialized engine instance with blank deck.
+   *
+   * @example
+   * const ppt = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });
+   */
+  static async createBlank(options = {}) {
+    if (options.logLevel) {
+      setGlobalLogLevel(options.logLevel)
+    }
+    const engine = new PPTXTemplater()
+    const { createBlankPresentationVfs } = require('../templates/blankPresentation.js')
+    const vfs = createBlankPresentationVfs(options)
+    await engine.#initialize(vfs)
     return engine
   }
 
@@ -421,34 +450,6 @@ class PPTXTemplater {
       totalMs: Math.round(this.#profiler.totalMs * 100) / 100,
       memoryUsedMB: this.#profiler.memoryUsedMB,
     }
-  }
-
-  /**
-   * Loads a template from a PowerPoint XML Presentation format.
-   *
-   * @static
-   * @param {string|Object} options - Path to presentation.xml, folder root, or configuration object.
-   * @returns {Promise<PPTXTemplater>} Initialized engine instance.
-   */
-  static async fromPresentationXml(options) {
-    return PPTXTemplater.load(options)
-  }
-
-  /**
-   * Creates a new blank PPTX from scratch.
-   *
-   * @static
-   * @returns {Promise<PPTXTemplater>} Engine instance with a blank PPTX.
-   *
-   * @example
-   * const ppt = await PPTXTemplater.create();
-   * ppt.addSlide({ title: 'First Slide' });
-   * await ppt.saveToFile('./new.pptx');
-   */
-  static async create() {
-    const engine = new PPTXTemplater()
-    await engine.#initializeBlank()
-    return engine
   }
 
   /**
@@ -1419,7 +1420,7 @@ class PPTXTemplater {
           found = true
           break
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     if (!found) logger.info('Chart not found.')
     return this
@@ -1484,56 +1485,53 @@ class PPTXTemplater {
   }
 
   /**
-   * Saves the presentation. Equivalent to saveToFile.
+   * Unpacks all presentation parts into an uncompressed directory tree.
    *
-   * @param {string} filePath - Output file path.
-   * @param {Object} [options] - Save options.
+   * @param {string} destinationDir - Directory path to write extracted files into.
+   * @param {Object} [options={}] - Options (e.g. { formatXml: true } for version control formatting).
    * @returns {Promise<void>}
    */
-  async save(filePath, options = {}) {
-    return this.saveToFile(filePath, options)
-  }
-
-  /**
-   * Saves the presentation to a file. Canonical ExportAdapter alias for saveToFile.
-   *
-   * @param {string} filePath - Output file path.
-   * @param {Object} [options] - Save options.
-   * @returns {Promise<void>}
-   */
-  async toFile(filePath, options = {}) {
-    return this.saveToFile(filePath, options)
-  }
-
-  /**
-   * Saves the modified presentation XML structures directly to a folder.
-   *
-   * @param {string} folderPath - Target directory path.
-   * @returns {Promise<void>}
-   */
-  async saveXml(folderPath) {
+  async extractToXml(destinationDir, options = {}) {
     this.#assertLoaded()
-    await this.#outputWriter.flush(this.#slideManager, this.#zipManager)
-    await this.#zipManager.toFolder(folderPath)
-    logger.info(`Saved XML presentation to folder ${folderPath}`)
+    await this.#outputWriter.extractToXml(this.#slideManager, this.#zipManager, destinationDir, options)
   }
 
   /**
-   * Saves the modified presentation XML structures directly to a folder.
+   * Packages and dumps the presentation into a compressed ZIP file on disk.
    *
-   * @param {string} folderPath - Target directory path.
+   * @param {string} destinationPath - Path to target ZIP file.
+   * @param {Object} [options={}] - Save/compression options.
    * @returns {Promise<void>}
    */
-  async saveToFolder(folderPath) {
-    return this.saveXml(folderPath)
+  async extractToZip(destinationPath, options = {}) {
+    return this.saveToFile(destinationPath, options)
   }
 
   /**
-   * Returns the PPTX content as a Node.js Buffer.
+   * Emits a standard Web API Response object for Next.js Route Handlers, Remix, SvelteKit, and Edge workers.
    *
-   * @param {Object} [options] - Save options.
-   * @returns {Promise<Buffer>}
+   * @param {Object} [options={}] - Response options (status, headers, filename).
+   * @returns {Promise<Response>} Web API Response instance.
    */
+  async toResponse(options = {}) {
+    this.#assertLoaded()
+    await this.validateArchive()
+    return this.#outputWriter.toResponse(this.#slideManager, this.#zipManager, options)
+  }
+
+  /**
+   * Sends the presentation directly through a Fastify reply object.
+   *
+   * @param {Object} reply - Fastify reply object.
+   * @param {string} [filename='presentation.pptx'] - Attachment filename.
+   * @param {Object} [options={}] - Header/response options.
+   * @returns {Promise<void>}
+   */
+  async toFastify(reply, filename = 'presentation.pptx', options = {}) {
+    this.#assertLoaded()
+    await this.validateArchive()
+    await this.#outputWriter.toFastify(this.#slideManager, this.#zipManager, reply, filename, options)
+  }
 
   /**
    * Returns the PPTX as an ArrayBuffer.
@@ -1561,6 +1559,20 @@ class PPTXTemplater {
    */
   async toExpress(res, filename = 'presentation.pptx', options = {}) {
     await this.#outputWriter.toExpress(this.#slideManager, this.#zipManager, res, filename, options)
+  }
+
+  /**
+   * Serializes the presentation into a Microsoft Flat OPC XML string (<pkg:package>).
+   *
+   * @param {Object} [options={}] - Serialization options.
+   * @returns {Promise<string>} Complete Flat OPC XML string.
+   *
+   * @example
+   * const flatXml = await ppt.toFlatXml();
+   */
+  async toFlatXml(options = {}) {
+    this.#assertLoaded()
+    return this.#outputWriter.toFlatXml(this.#slideManager, this.#zipManager, options)
   }
 
   /**
@@ -1594,35 +1606,6 @@ class PPTXTemplater {
     const stream = await this.#outputWriter.toStream(this.#slideManager, this.#zipManager, options)
     this.#profiler.zipGenerationMs += performance.now() - t0
 
-    return stream
-  }
-
-  /**
-   * Saves the presentation to a readable stream or pipes it to a writable stream.
-   *
-   * @param {NodeJS.WritableStream|Object} [writableOrOptions] - Writable stream to pipe to, or options object.
-   * @param {Object} [options] - Save options if writable stream was passed first.
-   * @returns {Promise<NodeJS.ReadableStream|void>}
-   */
-  async saveToStream(writableOrOptions, options = {}) {
-    this.#assertLoaded()
-    let writable = null
-    let opts = options
-    if (writableOrOptions && typeof writableOrOptions.write === 'function') {
-      writable = writableOrOptions
-    } else if (writableOrOptions) {
-      opts = writableOrOptions
-    }
-
-    const stream = await this.toStream(opts)
-    if (writable) {
-      return new Promise((resolve, reject) => {
-        stream.pipe(writable)
-        writable.on('finish', resolve)
-        writable.on('error', reject)
-        stream.on('error', reject)
-      })
-    }
     return stream
   }
 

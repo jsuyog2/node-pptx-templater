@@ -1,6 +1,6 @@
 {
   "version": "3.0.0-alpha.0",
-  "totalMethods": 101,
+  "totalMethods": 111,
   "categories": [
     "Lifecycle & I/O",
     "Slides",
@@ -69,39 +69,7 @@
           "type": "Promise<PPTXTemplater>",
           "description": "Resolves to a new PPTXTemplater instance initialized with a blank presentation deck."
         },
-        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Create brand-new presentation from scratch\nconst ppt = await PPTXTemplater.create();\nawait ppt.addSlide();\nppt.useSlide(1);\nawait ppt.addShape('roundRect', {\n  x: '10%', y: '10%', width: '80%', height: '20%',\n  fill: '2563EB', text: 'Generated with node-pptx-templater'\n});\nawait ppt.save('./output/new-deck.pptx');"
-      },
-      {
-        "id": "frompresentationxml",
-        "name": "fromPresentationXml",
-        "signature": "PPTXTemplater.fromPresentationXml(options)",
-        "category": "Lifecycle & I/O",
-        "description": "Instantiates a template engine instance from pre-extracted or virtual XML parts. Useful for microservice pipelines that store and mutate unpacked OpenXML files in distributed key-value caches or object storage.",
-        "openXmlImpact": "Bypasses zip extraction; mounts raw PresentationML strings into in-memory VirtualFileSystem.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": true,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "options",
-            "type": "Object",
-            "required": true,
-            "default": "—",
-            "description": "Virtual file system map or configuration containing raw OpenXML parts."
-          },
-          {
-            "name": "options.files",
-            "type": "Map<string, string | Buffer>",
-            "required": true,
-            "default": "—",
-            "description": "Key-value map of OpenXML part paths to file contents."
-          }
-        ],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "Resolves to an operational PPTXTemplater instance backed by the supplied virtual XML parts."
-        },
-        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\nconst ppt = await PPTXTemplater.fromPresentationXml({\n  files: virtualXmlMap\n});\nppt.useSlide(1).replaceText({ '{{status}}': 'Operational' });\nconst buffer = await ppt.toBuffer();"
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Create brand-new presentation from scratch\nconst ppt = await PPTXTemplater.create();\nawait ppt.addSlide();\nppt.useSlide(1);\nawait ppt.addShape('roundRect', {\n  x: '10%', y: '10%', width: '80%', height: '20%',\n  fill: '2563EB', text: 'Generated with node-pptx-templater'\n});\nawait ppt.saveToFile('./output/new-deck.pptx');"
       },
       {
         "id": "preload",
@@ -208,38 +176,6 @@
           "description": "Resolves once the file stream has completely flushed and closed on disk."
         },
         "exampleCode": "const ppt = await PPTXTemplater.load('./template.pptx');\nppt.useSlide(1).replaceText({ '{{title}}': 'Q3 Results' });\n\nawait ppt.saveToFile('./output/q3-results.pptx');\nconsole.log('Saved presentation successfully.');"
-      },
-      {
-        "id": "save",
-        "name": "save",
-        "signature": "ppt.save(outputPath, options = {})",
-        "category": "Lifecycle & I/O",
-        "description": "Convenience alias for saveToFile(outputPath, options). Writes the serialized presentation package to disk.",
-        "openXmlImpact": "Delegates to saveToFile; re-packages all DrawingML and PresentationML parts into a binary archive.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "outputPath",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Destination file path on disk."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Zip compression and writing options."
-          }
-        ],
-        "returns": {
-          "type": "Promise<void>",
-          "description": "Resolves once writing completes."
-        },
-        "exampleCode": "const ppt = await PPTXTemplater.load('./template.pptx');\nppt.useSlide(1).replaceText({ '{{author}}': 'Jane Doe' });\nawait ppt.save('./output/final.pptx');"
       },
       {
         "id": "tobuffer",
@@ -481,6 +417,446 @@
           "description": "Resolves to binary ArrayBuffer representing the PPTX archive."
         },
         "exampleCode": "const arrayBuffer = await ppt.toArrayBuffer();\nreturn new Response(arrayBuffer, { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation' } });"
+      },
+      {
+        "id": "fromurl",
+        "name": "fromUrl",
+        "signature": "PPTXTemplater.fromUrl(url, options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Fetches a remote presentation file or template over HTTP/HTTPS using standard fetch or streaming, detects file signature, and mounts the package into the in-memory VirtualFileSystem without saving to disk.",
+        "openXmlImpact": "Downloads raw OpenXML or convertible binary payload into buffer; parses package relationships and [Content_Types].xml in-memory.",
+        "edgeCases": "Throws PPTXError if HTTP status is non-2xx, response payload is empty, or remote server fails to respond. Inspects ZIP magic bytes or handles legacy format conversion.",
+        "isStatic": true,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "url",
+            "type": "string | URL",
+            "required": true,
+            "default": "—",
+            "description": "Remote HTTP/HTTPS URL pointing to a PowerPoint (.pptx, .pptm, .potx), legacy (.ppt, .odp), or zipped OpenXML deck."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Optional fetch configuration options including headers, timeout, or logLevel."
+          },
+          {
+            "name": "options.headers",
+            "type": "Record<string, string>",
+            "required": false,
+            "default": "{}",
+            "description": "Custom HTTP request headers (e.g., Authorization bearer tokens)."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to an initialized, chainable PPTXTemplater instance loaded with the remote presentation."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Load directly from remote URL or CDN\nconst ppt = await PPTXTemplater.fromUrl('https://example.com/templates/corporate-deck.pptx', {\n  headers: { Authorization: 'Bearer token123' }\n});\nppt.useSlide(1).replaceText({ '{{title}}': 'Fetched from Web' });\nawait ppt.saveToFile('./output/web-deck.pptx');"
+      },
+      {
+        "id": "fromcloud",
+        "name": "fromCloud",
+        "signature": "PPTXTemplater.fromCloud(cloudConfig, options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Ingests presentation assets directly from cloud object storage providers (AWS S3, Google Cloud Storage, Azure Blob Storage) via provided stream, buffer, or direct credentials without intermediate disk staging.",
+        "openXmlImpact": "Streams cloud payload into memory buffer; inflates package relationships and PresentationML parts directly into the VFS.",
+        "edgeCases": "Rejects unsupported cloud providers or missing payload streams/buffers with descriptive PPTXError.",
+        "isStatic": true,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "cloudConfig",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Cloud ingestion options containing provider ('s3' | 'gcs' | 'azure') and stream, buffer, or client response."
+          },
+          {
+            "name": "cloudConfig.provider",
+            "type": "'s3' | 'gcs' | 'azure'",
+            "required": true,
+            "default": "—",
+            "description": "Target cloud object store provider identifier."
+          },
+          {
+            "name": "cloudConfig.stream",
+            "type": "Readable",
+            "required": false,
+            "default": "undefined",
+            "description": "Node.js Readable stream of object bytes (e.g. S3 Body stream)."
+          },
+          {
+            "name": "cloudConfig.buffer",
+            "type": "Buffer | Uint8Array",
+            "required": false,
+            "default": "undefined",
+            "description": "In-memory object data buffer."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Additional parser configuration and logger options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to an initialized PPTXTemplater instance ready for mutations."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Load from S3 SDK response\nconst s3Object = await s3Client.send(new GetObjectCommand({ Bucket: 'decks', Key: 'template.pptx' }));\nconst ppt = await PPTXTemplater.fromCloud({\n  provider: 's3',\n  stream: s3Object.Body\n});"
+      },
+      {
+        "id": "importpresentation",
+        "name": "importPresentation",
+        "signature": "PPTXTemplater.importPresentation(source, options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Unified polymorphic ingestion entrypoint. Loads presentations from file paths (.pptx, .pptm, .potx, .potm, .ppsx, .ppsm, .ppam, .ppt, .odp), raw buffers/Uint8Array, readable streams, uncompressed directory trees, URLs, or cloud configs.",
+        "openXmlImpact": "Detects format and container structure via magic numbers (PKZip, OLE Compound File), normalizes non-OpenXML parts or mounts directly into VFS.",
+        "edgeCases": "Transparently converts legacy binary PPT text streams and OpenDocument ODP pages into valid OpenXML slide representations.",
+        "isStatic": true,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "source",
+            "type": "string | Buffer | Uint8Array | Readable | Object",
+            "required": true,
+            "default": "—",
+            "description": "Polymorphic input source: disk path, binary buffer, stream, folder path, URL string, or cloud configuration object."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Loader and parser configuration options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to an operational PPTXTemplater instance."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Ingest legacy binary PPT\nconst ppt = await PPTXTemplater.importPresentation('./legacy-archive.ppt');\n\n// Or ingest an unpacked OpenXML folder\nconst uncompressedDeck = await PPTXTemplater.importPresentation('./unpacked-deck-dir');"
+      },
+      {
+        "id": "createblank",
+        "name": "createBlank",
+        "signature": "PPTXTemplater.createBlank(options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Creates a minimal, template-free blank PowerPoint presentation in memory from clean, valid OpenXML schemas with custom aspect ratio (16:9, 4:3, 16:10) or custom EMU/pixel dimensions. Contains 1 initial blank slide.",
+        "openXmlImpact": "Synthesizes minimal [Content_Types].xml, _rels/.rels, presentation.xml with specified dimensions, slideMaster1.xml, slideLayout1.xml, theme1.xml, and slide1.xml.",
+        "edgeCases": "Accepts '16:9', '4:3', '16:10' string aliases or explicit { width, height } in EMUs or pixels. Rejects invalid dimension inputs with PPTXError.",
+        "isStatic": true,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Creation options including aspect ratio, dimensions, and theme settings."
+          },
+          {
+            "name": "options.aspectRatio",
+            "type": "'16:9' | '4:3' | '16:10'",
+            "required": false,
+            "default": "'16:9'",
+            "description": "Aspect ratio preset for slide canvas dimensions."
+          },
+          {
+            "name": "options.width",
+            "type": "number",
+            "required": false,
+            "default": "12192000",
+            "description": "Custom slide width in EMUs (or pixels if options.unit is 'px')."
+          },
+          {
+            "name": "options.height",
+            "type": "number",
+            "required": false,
+            "default": "6858000",
+            "description": "Custom slide height in EMUs (or pixels if options.unit is 'px')."
+          },
+          {
+            "name": "options.unit",
+            "type": "'emu' | 'px'",
+            "required": false,
+            "default": "'emu'",
+            "description": "Unit of measurement for custom dimensions."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to an initialized PPTXTemplater instance with a single blank slide ready for adding content."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Create 16:9 widescreen presentation\nconst ppt = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });\nppt.useSlide(1);\nawait ppt.addShape('rect', { x: '10%', y: '10%', width: '80%', height: '30%', text: 'Created from scratch!' });\nawait ppt.saveToFile('./output/brand-new.pptx');"
+      },
+      {
+        "id": "toresponse",
+        "name": "toResponse",
+        "signature": "ppt.toResponse(options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Compiles the presentation and returns a web-standard Web API Response object with binary ArrayBuffer body, correct OpenXML Content-Type headers, and optional Content-Disposition attachment header. Ideal for Next.js Route Handlers, Remix, SvelteKit, and Edge workers.",
+        "openXmlImpact": "Serializes VirtualFileSystem into PKZip binary buffer wrapped in standard Response.",
+        "edgeCases": "Encodes Unicode filenames safely into RFC-5987 Content-Disposition header.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Response configuration options."
+          },
+          {
+            "name": "options.filename",
+            "type": "string",
+            "required": false,
+            "default": "'presentation.pptx'",
+            "description": "Suggested download filename."
+          },
+          {
+            "name": "options.status",
+            "type": "number",
+            "required": false,
+            "default": "200",
+            "description": "HTTP response status code."
+          },
+          {
+            "name": "options.headers",
+            "type": "Record<string, string>",
+            "required": false,
+            "default": "{}",
+            "description": "Additional HTTP response headers."
+          }
+        ],
+        "returns": {
+          "type": "Promise<Response>",
+          "description": "Resolves to a standard Web API Response object."
+        },
+        "exampleCode": "// Next.js App Router (app/api/export/route.js)\nimport { PPTXTemplater } from 'node-pptx-templater';\n\nexport async function GET() {\n  const ppt = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });\n  ppt.useSlide(1);\n  await ppt.addShape('textBox', { text: 'Next.js Edge PPTX' });\n  return await ppt.toResponse({ filename: 'nextjs-deck.pptx' });\n}"
+      },
+      {
+        "id": "tofastify",
+        "name": "toFastify",
+        "signature": "ppt.toFastify(reply, filename = 'presentation.pptx', options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Pipes the presentation binary Buffer directly to a Fastify reply instance with correct OpenXML MIME type, Content-Length, and Content-Disposition download headers.",
+        "openXmlImpact": "Serializes in-memory presentation into binary buffer dispatched through Fastify reply pipeline.",
+        "edgeCases": "Handles Fastify header chaining (.type, .header, .send).",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "reply",
+            "type": "FastifyReply",
+            "required": true,
+            "default": "—",
+            "description": "Active Fastify reply object."
+          },
+          {
+            "name": "filename",
+            "type": "string",
+            "required": false,
+            "default": "'presentation.pptx'",
+            "description": "Download filename for client browser."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Additional export and header options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<FastifyReply>",
+          "description": "Resolves to the Fastify reply once transmitted."
+        },
+        "exampleCode": "fastify.get('/download', async (request, reply) => {\n  const ppt = await PPTXTemplater.load('./templates/report.pptx');\n  return await ppt.toFastify(reply, 'quarterly-report.pptx');\n});"
+      },
+      {
+        "id": "extracttozip",
+        "name": "extractToZip",
+        "signature": "ppt.extractToZip(destinationPath, options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Packages the in-memory presentation and writes a raw compressed PKZip archive file to disk. Ensures all directories exist before writing.",
+        "openXmlImpact": "Serializes entire VirtualFileSystem into compressed ZIP container written to destinationPath.",
+        "edgeCases": "Creates nested parent directories recursively.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "destinationPath",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target file path for the output ZIP archive."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "ZIP compression options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<void>",
+          "description": "Resolves once archive file is written to disk."
+        },
+        "exampleCode": "const ppt = await PPTXTemplater.load('./presentation.pptx');\nawait ppt.extractToZip('./backups/presentation-raw.zip');"
+      },
+      {
+        "id": "tozipbuffer",
+        "name": "toZipBuffer",
+        "signature": "ppt.toZipBuffer(options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Compiles the current presentation into a compressed raw ZIP binary Buffer. Equivalent to toBuffer(), providing clear naming for archive extraction workflows.",
+        "openXmlImpact": "Generates standard DEFLATE-compressed PKZip binary Buffer from internal VFS parts.",
+        "edgeCases": "Maintains relationship and media binary fidelity.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Compression configuration options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<Buffer>",
+          "description": "Resolves to binary Buffer containing the zipped presentation archive."
+        },
+        "exampleCode": "const ppt = await PPTXTemplater.load('./presentation.pptx');\nconst zipBuffer = await ppt.toZipBuffer();\nconsole.log('Zip buffer size:', zipBuffer.length);"
+      },
+      {
+        "id": "extracttoxml",
+        "name": "extractToXml",
+        "signature": "ppt.extractToXml(destinationDir, options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Unpacks all OpenXML presentation parts (slides, charts, relationships, content types, themes) into an uncompressed folder on disk. Supports formatting and pretty-printing XML files for version control inspection.",
+        "openXmlImpact": "Writes individual files into directory structure mirroring the OpenXML package ([Content_Types].xml, _rels/, ppt/slides/, etc.).",
+        "edgeCases": "Preserves binary media files as raw buffers while optionally formatting XML documents with indentation.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "destinationDir",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target folder path on disk where parts will be unpacked."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Extraction options."
+          },
+          {
+            "name": "options.formatXml",
+            "type": "boolean",
+            "required": false,
+            "default": "false",
+            "description": "When true, pretty-prints XML files with 2-space indentation for readable diffs and code review."
+          }
+        ],
+        "returns": {
+          "type": "Promise<void>",
+          "description": "Resolves once all presentation files have been written to the destination directory."
+        },
+        "exampleCode": "const ppt = await PPTXTemplater.load('./template.pptx');\n// Unpack with pretty-printed XML for Git commit\nawait ppt.extractToXml('./unpacked-deck', { formatXml: true });"
+      },
+      {
+        "id": "fromflatopc",
+        "name": "fromFlatOpc",
+        "signature": "PPTXTemplater.fromFlatOpc(source, options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Loads a presentation directly from a Microsoft Flat OPC single-file XML package (<pkg:package>). Decodes base64-encoded binary assets (<pkg:binaryData>) for images and workbooks, mounts XML parts (<pkg:xmlData>) into the in-memory VFS, and synthesizes [Content_Types].xml automatically.",
+        "openXmlImpact": "Bypasses ZIP decompression; parses Flat OPC XML parts directly into the VirtualFileSystem and synthesizes Content Types manifest.",
+        "edgeCases": "Accepts file path strings (.xml), in-memory Buffer/Uint8Array, or raw XML markup strings. Strips leading slashes from part names and validates ppt/presentation.xml.",
+        "isStatic": true,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "source",
+            "type": "string | Buffer | Uint8Array",
+            "required": true,
+            "default": "—",
+            "description": "File path to a Flat OPC XML file, raw XML string containing <pkg:package>, or binary Buffer."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Configuration options for parser and logger."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to an initialized, chainable PPTXTemplater instance ready for mutations."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Load Flat OPC XML directly from disk\nconst ppt = await PPTXTemplater.fromFlatOpc('./templates/sample.xml');\nppt.useSlide(1).replaceText({ '{{title}}': 'Flat OPC Deck' });\nawait ppt.saveToFile('./output/generated.pptx');"
+      },
+      {
+        "id": "toflatxml",
+        "name": "toFlatXml",
+        "signature": "ppt.toFlatXml(options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Serializes the entire in-memory presentation into a Microsoft Flat OPC XML string (<pkg:package>). Encodes binary media assets and embedded workbooks into base64 <pkg:binaryData> and wraps OpenXML documents in <pkg:xmlData>.",
+        "openXmlImpact": "Constructs a valid ISO/IEC 29500-2 Flat OPC XML document from the current VirtualFileSystem state without disk or ZIP overhead.",
+        "edgeCases": "Infers OpenXML MIME types for all parts and strips root [Content_Types].xml which is not part of Flat OPC schema.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Export formatting options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<string>",
+          "description": "Resolves to a complete Flat OPC XML string."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\nconst ppt = await PPTXTemplater.load('./template.pptx');\nppt.useSlide(1).replaceText({ '{{title}}': 'Converted Deck' });\n\n// Export as Flat OPC XML string\nconst flatXml = await ppt.toFlatXml();\nfs.writeFileSync('./output/deck.xml', flatXml);"
+      },
+      {
+        "id": "toflatopc",
+        "name": "toFlatOpc",
+        "signature": "ppt.toFlatOpc(options = {})",
+        "category": "Lifecycle & I/O",
+        "description": "Alias for toFlatXml(). Serializes presentation as a Microsoft Flat OPC XML package string.",
+        "openXmlImpact": "Delegates to toFlatXml(); returns single-file XML package.",
+        "edgeCases": "Preserves all media bytes and DrawingML formatting.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Export formatting options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<string>",
+          "description": "Resolves to a complete Flat OPC XML string."
+        },
+        "exampleCode": "// Export directly to Flat OPC XML string\nconst flatXml = await ppt.toFlatOpc();"
       }
     ],
     "Slides": [
@@ -736,7 +1112,7 @@
           "type": "Promise<Object>",
           "description": "Imported slide descriptor with new slideIndex and rId."
         },
-        "exampleCode": "const sourceDeck = await PPTXTemplater.load('./library/appendix.pptx');\nconst mainDeck = await PPTXTemplater.load('./deck.pptx');\n\n// Import appendix slide 3 into main deck\nawait mainDeck.importSlideFrom(sourceDeck, 3);\nawait mainDeck.save('./deck-with-appendix.pptx');"
+        "exampleCode": "const sourceDeck = await PPTXTemplater.load('./library/appendix.pptx');\nconst mainDeck = await PPTXTemplater.load('./deck.pptx');\n\n// Import appendix slide 3 into main deck\nawait mainDeck.importSlideFrom(sourceDeck, 3);\nawait mainDeck.saveToFile('./deck-with-appendix.pptx');"
       },
       {
         "id": "exportslides",
@@ -761,7 +1137,7 @@
           "type": "Promise<PPTXTemplater>",
           "description": "New independent PPTXTemplater instance containing extracted slides."
         },
-        "exampleCode": "// Create mini deck with slides 1, 4, and 7\nconst miniDeck = await ppt.exportSlides(1, 4, 7);\nawait miniDeck.save('./output/mini-deck.pptx');"
+        "exampleCode": "// Create mini deck with slides 1, 4, and 7\nconst miniDeck = await ppt.exportSlides(1, 4, 7);\nawait miniDeck.saveToFile('./output/mini-deck.pptx');"
       },
       {
         "id": "deleteslide",
@@ -2841,7 +3217,7 @@
           "type": "Promise<PPTXTemplater>",
           "description": "this (chainable)."
         },
-        "exampleCode": "// Automatically fix an externally modified or corrupted deck\nawait ppt.repair();\nawait ppt.save('./repaired-deck.pptx');"
+        "exampleCode": "// Automatically fix an externally modified or corrupted deck\nawait ppt.repair();\nawait ppt.saveToFile('./repaired-deck.pptx');"
       },
       {
         "id": "inspectxml",
@@ -3051,39 +3427,7 @@
         "type": "Promise<PPTXTemplater>",
         "description": "Resolves to a new PPTXTemplater instance initialized with a blank presentation deck."
       },
-      "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Create brand-new presentation from scratch\nconst ppt = await PPTXTemplater.create();\nawait ppt.addSlide();\nppt.useSlide(1);\nawait ppt.addShape('roundRect', {\n  x: '10%', y: '10%', width: '80%', height: '20%',\n  fill: '2563EB', text: 'Generated with node-pptx-templater'\n});\nawait ppt.save('./output/new-deck.pptx');"
-    },
-    {
-      "id": "frompresentationxml",
-      "name": "fromPresentationXml",
-      "signature": "PPTXTemplater.fromPresentationXml(options)",
-      "category": "Lifecycle & I/O",
-      "description": "Instantiates a template engine instance from pre-extracted or virtual XML parts. Useful for microservice pipelines that store and mutate unpacked OpenXML files in distributed key-value caches or object storage.",
-      "openXmlImpact": "Bypasses zip extraction; mounts raw PresentationML strings into in-memory VirtualFileSystem.",
-      "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-      "isStatic": true,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "options",
-          "type": "Object",
-          "required": true,
-          "default": "—",
-          "description": "Virtual file system map or configuration containing raw OpenXML parts."
-        },
-        {
-          "name": "options.files",
-          "type": "Map<string, string | Buffer>",
-          "required": true,
-          "default": "—",
-          "description": "Key-value map of OpenXML part paths to file contents."
-        }
-      ],
-      "returns": {
-        "type": "Promise<PPTXTemplater>",
-        "description": "Resolves to an operational PPTXTemplater instance backed by the supplied virtual XML parts."
-      },
-      "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\nconst ppt = await PPTXTemplater.fromPresentationXml({\n  files: virtualXmlMap\n});\nppt.useSlide(1).replaceText({ '{{status}}': 'Operational' });\nconst buffer = await ppt.toBuffer();"
+      "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Create brand-new presentation from scratch\nconst ppt = await PPTXTemplater.create();\nawait ppt.addSlide();\nppt.useSlide(1);\nawait ppt.addShape('roundRect', {\n  x: '10%', y: '10%', width: '80%', height: '20%',\n  fill: '2563EB', text: 'Generated with node-pptx-templater'\n});\nawait ppt.saveToFile('./output/new-deck.pptx');"
     },
     {
       "id": "preload",
@@ -3190,38 +3534,6 @@
         "description": "Resolves once the file stream has completely flushed and closed on disk."
       },
       "exampleCode": "const ppt = await PPTXTemplater.load('./template.pptx');\nppt.useSlide(1).replaceText({ '{{title}}': 'Q3 Results' });\n\nawait ppt.saveToFile('./output/q3-results.pptx');\nconsole.log('Saved presentation successfully.');"
-    },
-    {
-      "id": "save",
-      "name": "save",
-      "signature": "ppt.save(outputPath, options = {})",
-      "category": "Lifecycle & I/O",
-      "description": "Convenience alias for saveToFile(outputPath, options). Writes the serialized presentation package to disk.",
-      "openXmlImpact": "Delegates to saveToFile; re-packages all DrawingML and PresentationML parts into a binary archive.",
-      "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "outputPath",
-          "type": "string",
-          "required": true,
-          "default": "—",
-          "description": "Destination file path on disk."
-        },
-        {
-          "name": "options",
-          "type": "Object",
-          "required": false,
-          "default": "{}",
-          "description": "Zip compression and writing options."
-        }
-      ],
-      "returns": {
-        "type": "Promise<void>",
-        "description": "Resolves once writing completes."
-      },
-      "exampleCode": "const ppt = await PPTXTemplater.load('./template.pptx');\nppt.useSlide(1).replaceText({ '{{author}}': 'Jane Doe' });\nawait ppt.save('./output/final.pptx');"
     },
     {
       "id": "tobuffer",
@@ -3699,7 +4011,7 @@
         "type": "Promise<Object>",
         "description": "Imported slide descriptor with new slideIndex and rId."
       },
-      "exampleCode": "const sourceDeck = await PPTXTemplater.load('./library/appendix.pptx');\nconst mainDeck = await PPTXTemplater.load('./deck.pptx');\n\n// Import appendix slide 3 into main deck\nawait mainDeck.importSlideFrom(sourceDeck, 3);\nawait mainDeck.save('./deck-with-appendix.pptx');"
+      "exampleCode": "const sourceDeck = await PPTXTemplater.load('./library/appendix.pptx');\nconst mainDeck = await PPTXTemplater.load('./deck.pptx');\n\n// Import appendix slide 3 into main deck\nawait mainDeck.importSlideFrom(sourceDeck, 3);\nawait mainDeck.saveToFile('./deck-with-appendix.pptx');"
     },
     {
       "id": "exportslides",
@@ -3724,7 +4036,7 @@
         "type": "Promise<PPTXTemplater>",
         "description": "New independent PPTXTemplater instance containing extracted slides."
       },
-      "exampleCode": "// Create mini deck with slides 1, 4, and 7\nconst miniDeck = await ppt.exportSlides(1, 4, 7);\nawait miniDeck.save('./output/mini-deck.pptx');"
+      "exampleCode": "// Create mini deck with slides 1, 4, and 7\nconst miniDeck = await ppt.exportSlides(1, 4, 7);\nawait miniDeck.saveToFile('./output/mini-deck.pptx');"
     },
     {
       "id": "replacetext",
@@ -5656,7 +5968,7 @@
         "type": "Promise<PPTXTemplater>",
         "description": "this (chainable)."
       },
-      "exampleCode": "// Automatically fix an externally modified or corrupted deck\nawait ppt.repair();\nawait ppt.save('./repaired-deck.pptx');"
+      "exampleCode": "// Automatically fix an externally modified or corrupted deck\nawait ppt.repair();\nawait ppt.saveToFile('./repaired-deck.pptx');"
     },
     {
       "id": "inspectxml",
@@ -5957,6 +6269,446 @@
         "description": "Chainable instance."
       },
       "exampleCode": "ppt.useSlide(1).stepBackward('OverlayBox');"
+    },
+    {
+      "id": "fromurl",
+      "name": "fromUrl",
+      "signature": "PPTXTemplater.fromUrl(url, options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Fetches a remote presentation file or template over HTTP/HTTPS using standard fetch or streaming, detects file signature, and mounts the package into the in-memory VirtualFileSystem without saving to disk.",
+      "openXmlImpact": "Downloads raw OpenXML or convertible binary payload into buffer; parses package relationships and [Content_Types].xml in-memory.",
+      "edgeCases": "Throws PPTXError if HTTP status is non-2xx, response payload is empty, or remote server fails to respond. Inspects ZIP magic bytes or handles legacy format conversion.",
+      "isStatic": true,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "url",
+          "type": "string | URL",
+          "required": true,
+          "default": "—",
+          "description": "Remote HTTP/HTTPS URL pointing to a PowerPoint (.pptx, .pptm, .potx), legacy (.ppt, .odp), or zipped OpenXML deck."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Optional fetch configuration options including headers, timeout, or logLevel."
+        },
+        {
+          "name": "options.headers",
+          "type": "Record<string, string>",
+          "required": false,
+          "default": "{}",
+          "description": "Custom HTTP request headers (e.g., Authorization bearer tokens)."
+        }
+      ],
+      "returns": {
+        "type": "Promise<PPTXTemplater>",
+        "description": "Resolves to an initialized, chainable PPTXTemplater instance loaded with the remote presentation."
+      },
+      "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Load directly from remote URL or CDN\nconst ppt = await PPTXTemplater.fromUrl('https://example.com/templates/corporate-deck.pptx', {\n  headers: { Authorization: 'Bearer token123' }\n});\nppt.useSlide(1).replaceText({ '{{title}}': 'Fetched from Web' });\nawait ppt.saveToFile('./output/web-deck.pptx');"
+    },
+    {
+      "id": "fromcloud",
+      "name": "fromCloud",
+      "signature": "PPTXTemplater.fromCloud(cloudConfig, options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Ingests presentation assets directly from cloud object storage providers (AWS S3, Google Cloud Storage, Azure Blob Storage) via provided stream, buffer, or direct credentials without intermediate disk staging.",
+      "openXmlImpact": "Streams cloud payload into memory buffer; inflates package relationships and PresentationML parts directly into the VFS.",
+      "edgeCases": "Rejects unsupported cloud providers or missing payload streams/buffers with descriptive PPTXError.",
+      "isStatic": true,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "cloudConfig",
+          "type": "Object",
+          "required": true,
+          "default": "—",
+          "description": "Cloud ingestion options containing provider ('s3' | 'gcs' | 'azure') and stream, buffer, or client response."
+        },
+        {
+          "name": "cloudConfig.provider",
+          "type": "'s3' | 'gcs' | 'azure'",
+          "required": true,
+          "default": "—",
+          "description": "Target cloud object store provider identifier."
+        },
+        {
+          "name": "cloudConfig.stream",
+          "type": "Readable",
+          "required": false,
+          "default": "undefined",
+          "description": "Node.js Readable stream of object bytes (e.g. S3 Body stream)."
+        },
+        {
+          "name": "cloudConfig.buffer",
+          "type": "Buffer | Uint8Array",
+          "required": false,
+          "default": "undefined",
+          "description": "In-memory object data buffer."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Additional parser configuration and logger options."
+        }
+      ],
+      "returns": {
+        "type": "Promise<PPTXTemplater>",
+        "description": "Resolves to an initialized PPTXTemplater instance ready for mutations."
+      },
+      "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Load from S3 SDK response\nconst s3Object = await s3Client.send(new GetObjectCommand({ Bucket: 'decks', Key: 'template.pptx' }));\nconst ppt = await PPTXTemplater.fromCloud({\n  provider: 's3',\n  stream: s3Object.Body\n});"
+    },
+    {
+      "id": "importpresentation",
+      "name": "importPresentation",
+      "signature": "PPTXTemplater.importPresentation(source, options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Unified polymorphic ingestion entrypoint. Loads presentations from file paths (.pptx, .pptm, .potx, .potm, .ppsx, .ppsm, .ppam, .ppt, .odp), raw buffers/Uint8Array, readable streams, uncompressed directory trees, URLs, or cloud configs.",
+      "openXmlImpact": "Detects format and container structure via magic numbers (PKZip, OLE Compound File), normalizes non-OpenXML parts or mounts directly into VFS.",
+      "edgeCases": "Transparently converts legacy binary PPT text streams and OpenDocument ODP pages into valid OpenXML slide representations.",
+      "isStatic": true,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "source",
+          "type": "string | Buffer | Uint8Array | Readable | Object",
+          "required": true,
+          "default": "—",
+          "description": "Polymorphic input source: disk path, binary buffer, stream, folder path, URL string, or cloud configuration object."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Loader and parser configuration options."
+        }
+      ],
+      "returns": {
+        "type": "Promise<PPTXTemplater>",
+        "description": "Resolves to an operational PPTXTemplater instance."
+      },
+      "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Ingest legacy binary PPT\nconst ppt = await PPTXTemplater.importPresentation('./legacy-archive.ppt');\n\n// Or ingest an unpacked OpenXML folder\nconst uncompressedDeck = await PPTXTemplater.importPresentation('./unpacked-deck-dir');"
+    },
+    {
+      "id": "createblank",
+      "name": "createBlank",
+      "signature": "PPTXTemplater.createBlank(options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Creates a minimal, template-free blank PowerPoint presentation in memory from clean, valid OpenXML schemas with custom aspect ratio (16:9, 4:3, 16:10) or custom EMU/pixel dimensions. Contains 1 initial blank slide.",
+      "openXmlImpact": "Synthesizes minimal [Content_Types].xml, _rels/.rels, presentation.xml with specified dimensions, slideMaster1.xml, slideLayout1.xml, theme1.xml, and slide1.xml.",
+      "edgeCases": "Accepts '16:9', '4:3', '16:10' string aliases or explicit { width, height } in EMUs or pixels. Rejects invalid dimension inputs with PPTXError.",
+      "isStatic": true,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Creation options including aspect ratio, dimensions, and theme settings."
+        },
+        {
+          "name": "options.aspectRatio",
+          "type": "'16:9' | '4:3' | '16:10'",
+          "required": false,
+          "default": "'16:9'",
+          "description": "Aspect ratio preset for slide canvas dimensions."
+        },
+        {
+          "name": "options.width",
+          "type": "number",
+          "required": false,
+          "default": "12192000",
+          "description": "Custom slide width in EMUs (or pixels if options.unit is 'px')."
+        },
+        {
+          "name": "options.height",
+          "type": "number",
+          "required": false,
+          "default": "6858000",
+          "description": "Custom slide height in EMUs (or pixels if options.unit is 'px')."
+        },
+        {
+          "name": "options.unit",
+          "type": "'emu' | 'px'",
+          "required": false,
+          "default": "'emu'",
+          "description": "Unit of measurement for custom dimensions."
+        }
+      ],
+      "returns": {
+        "type": "Promise<PPTXTemplater>",
+        "description": "Resolves to an initialized PPTXTemplater instance with a single blank slide ready for adding content."
+      },
+      "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Create 16:9 widescreen presentation\nconst ppt = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });\nppt.useSlide(1);\nawait ppt.addShape('rect', { x: '10%', y: '10%', width: '80%', height: '30%', text: 'Created from scratch!' });\nawait ppt.saveToFile('./output/brand-new.pptx');"
+    },
+    {
+      "id": "toresponse",
+      "name": "toResponse",
+      "signature": "ppt.toResponse(options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Compiles the presentation and returns a web-standard Web API Response object with binary ArrayBuffer body, correct OpenXML Content-Type headers, and optional Content-Disposition attachment header. Ideal for Next.js Route Handlers, Remix, SvelteKit, and Edge workers.",
+      "openXmlImpact": "Serializes VirtualFileSystem into PKZip binary buffer wrapped in standard Response.",
+      "edgeCases": "Encodes Unicode filenames safely into RFC-5987 Content-Disposition header.",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Response configuration options."
+        },
+        {
+          "name": "options.filename",
+          "type": "string",
+          "required": false,
+          "default": "'presentation.pptx'",
+          "description": "Suggested download filename."
+        },
+        {
+          "name": "options.status",
+          "type": "number",
+          "required": false,
+          "default": "200",
+          "description": "HTTP response status code."
+        },
+        {
+          "name": "options.headers",
+          "type": "Record<string, string>",
+          "required": false,
+          "default": "{}",
+          "description": "Additional HTTP response headers."
+        }
+      ],
+      "returns": {
+        "type": "Promise<Response>",
+        "description": "Resolves to a standard Web API Response object."
+      },
+      "exampleCode": "// Next.js App Router (app/api/export/route.js)\nimport { PPTXTemplater } from 'node-pptx-templater';\n\nexport async function GET() {\n  const ppt = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });\n  ppt.useSlide(1);\n  await ppt.addShape('textBox', { text: 'Next.js Edge PPTX' });\n  return await ppt.toResponse({ filename: 'nextjs-deck.pptx' });\n}"
+    },
+    {
+      "id": "tofastify",
+      "name": "toFastify",
+      "signature": "ppt.toFastify(reply, filename = 'presentation.pptx', options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Pipes the presentation binary Buffer directly to a Fastify reply instance with correct OpenXML MIME type, Content-Length, and Content-Disposition download headers.",
+      "openXmlImpact": "Serializes in-memory presentation into binary buffer dispatched through Fastify reply pipeline.",
+      "edgeCases": "Handles Fastify header chaining (.type, .header, .send).",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "reply",
+          "type": "FastifyReply",
+          "required": true,
+          "default": "—",
+          "description": "Active Fastify reply object."
+        },
+        {
+          "name": "filename",
+          "type": "string",
+          "required": false,
+          "default": "'presentation.pptx'",
+          "description": "Download filename for client browser."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Additional export and header options."
+        }
+      ],
+      "returns": {
+        "type": "Promise<FastifyReply>",
+        "description": "Resolves to the Fastify reply once transmitted."
+      },
+      "exampleCode": "fastify.get('/download', async (request, reply) => {\n  const ppt = await PPTXTemplater.load('./templates/report.pptx');\n  return await ppt.toFastify(reply, 'quarterly-report.pptx');\n});"
+    },
+    {
+      "id": "extracttozip",
+      "name": "extractToZip",
+      "signature": "ppt.extractToZip(destinationPath, options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Packages the in-memory presentation and writes a raw compressed PKZip archive file to disk. Ensures all directories exist before writing.",
+      "openXmlImpact": "Serializes entire VirtualFileSystem into compressed ZIP container written to destinationPath.",
+      "edgeCases": "Creates nested parent directories recursively.",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "destinationPath",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Target file path for the output ZIP archive."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "ZIP compression options."
+        }
+      ],
+      "returns": {
+        "type": "Promise<void>",
+        "description": "Resolves once archive file is written to disk."
+      },
+      "exampleCode": "const ppt = await PPTXTemplater.load('./presentation.pptx');\nawait ppt.extractToZip('./backups/presentation-raw.zip');"
+    },
+    {
+      "id": "tozipbuffer",
+      "name": "toZipBuffer",
+      "signature": "ppt.toZipBuffer(options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Compiles the current presentation into a compressed raw ZIP binary Buffer. Equivalent to toBuffer(), providing clear naming for archive extraction workflows.",
+      "openXmlImpact": "Generates standard DEFLATE-compressed PKZip binary Buffer from internal VFS parts.",
+      "edgeCases": "Maintains relationship and media binary fidelity.",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Compression configuration options."
+        }
+      ],
+      "returns": {
+        "type": "Promise<Buffer>",
+        "description": "Resolves to binary Buffer containing the zipped presentation archive."
+      },
+      "exampleCode": "const ppt = await PPTXTemplater.load('./presentation.pptx');\nconst zipBuffer = await ppt.toZipBuffer();\nconsole.log('Zip buffer size:', zipBuffer.length);"
+    },
+    {
+      "id": "extracttoxml",
+      "name": "extractToXml",
+      "signature": "ppt.extractToXml(destinationDir, options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Unpacks all OpenXML presentation parts (slides, charts, relationships, content types, themes) into an uncompressed folder on disk. Supports formatting and pretty-printing XML files for version control inspection.",
+      "openXmlImpact": "Writes individual files into directory structure mirroring the OpenXML package ([Content_Types].xml, _rels/, ppt/slides/, etc.).",
+      "edgeCases": "Preserves binary media files as raw buffers while optionally formatting XML documents with indentation.",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "destinationDir",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Target folder path on disk where parts will be unpacked."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Extraction options."
+        },
+        {
+          "name": "options.formatXml",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "When true, pretty-prints XML files with 2-space indentation for readable diffs and code review."
+        }
+      ],
+      "returns": {
+        "type": "Promise<void>",
+        "description": "Resolves once all presentation files have been written to the destination directory."
+      },
+      "exampleCode": "const ppt = await PPTXTemplater.load('./template.pptx');\n// Unpack with pretty-printed XML for Git commit\nawait ppt.extractToXml('./unpacked-deck', { formatXml: true });"
+    },
+    {
+      "id": "fromflatopc",
+      "name": "fromFlatOpc",
+      "signature": "PPTXTemplater.fromFlatOpc(source, options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Loads a presentation directly from a Microsoft Flat OPC single-file XML package (<pkg:package>). Decodes base64-encoded binary assets (<pkg:binaryData>) for images and workbooks, mounts XML parts (<pkg:xmlData>) into the in-memory VFS, and synthesizes [Content_Types].xml automatically.",
+      "openXmlImpact": "Bypasses ZIP decompression; parses Flat OPC XML parts directly into the VirtualFileSystem and synthesizes Content Types manifest.",
+      "edgeCases": "Accepts file path strings (.xml), in-memory Buffer/Uint8Array, or raw XML markup strings. Strips leading slashes from part names and validates ppt/presentation.xml.",
+      "isStatic": true,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "source",
+          "type": "string | Buffer | Uint8Array",
+          "required": true,
+          "default": "—",
+          "description": "File path to a Flat OPC XML file, raw XML string containing <pkg:package>, or binary Buffer."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Configuration options for parser and logger."
+        }
+      ],
+      "returns": {
+        "type": "Promise<PPTXTemplater>",
+        "description": "Resolves to an initialized, chainable PPTXTemplater instance ready for mutations."
+      },
+      "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Load Flat OPC XML directly from disk\nconst ppt = await PPTXTemplater.fromFlatOpc('./templates/sample.xml');\nppt.useSlide(1).replaceText({ '{{title}}': 'Flat OPC Deck' });\nawait ppt.saveToFile('./output/generated.pptx');"
+    },
+    {
+      "id": "toflatxml",
+      "name": "toFlatXml",
+      "signature": "ppt.toFlatXml(options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Serializes the entire in-memory presentation into a Microsoft Flat OPC XML string (<pkg:package>). Encodes binary media assets and embedded workbooks into base64 <pkg:binaryData> and wraps OpenXML documents in <pkg:xmlData>.",
+      "openXmlImpact": "Constructs a valid ISO/IEC 29500-2 Flat OPC XML document from the current VirtualFileSystem state without disk or ZIP overhead.",
+      "edgeCases": "Infers OpenXML MIME types for all parts and strips root [Content_Types].xml which is not part of Flat OPC schema.",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Export formatting options."
+        }
+      ],
+      "returns": {
+        "type": "Promise<string>",
+        "description": "Resolves to a complete Flat OPC XML string."
+      },
+      "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\nconst ppt = await PPTXTemplater.load('./template.pptx');\nppt.useSlide(1).replaceText({ '{{title}}': 'Converted Deck' });\n\n// Export as Flat OPC XML string\nconst flatXml = await ppt.toFlatXml();\nfs.writeFileSync('./output/deck.xml', flatXml);"
+    },
+    {
+      "id": "toflatopc",
+      "name": "toFlatOpc",
+      "signature": "ppt.toFlatOpc(options = {})",
+      "category": "Lifecycle & I/O",
+      "description": "Alias for toFlatXml(). Serializes presentation as a Microsoft Flat OPC XML package string.",
+      "openXmlImpact": "Delegates to toFlatXml(); returns single-file XML package.",
+      "edgeCases": "Preserves all media bytes and DrawingML formatting.",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Export formatting options."
+        }
+      ],
+      "returns": {
+        "type": "Promise<string>",
+        "description": "Resolves to a complete Flat OPC XML string."
+      },
+      "exampleCode": "// Export directly to Flat OPC XML string\nconst flatXml = await ppt.toFlatOpc();"
     }
   ]
 }

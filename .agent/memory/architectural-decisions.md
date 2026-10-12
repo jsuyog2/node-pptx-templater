@@ -106,3 +106,32 @@ This file documents core architectural decisions, their historical context, alte
   - `siteMeta.json`: Global SEO metadata, keywords, and OpenGraph configs.
 - **Consequences**: Content maintainers update text and data files without touching UI code, automated scripts guarantee schema integrity, and unit tests verify 100% documentation coverage.
 
+---
+
+## ADR-012: Retirement of Legacy I/O Methods & Adoption of Unified PackageLoader / OutputWriter Pipelines
+
+- **Status**: Accepted
+- **Context**: Older iterations contained fragmented I/O helpers (`save`, `toFile`, `saveXml`, `fromPresentationXml`) with inconsistent option handling, ad-hoc stream logic, and limited format/runtime support. Serverless and Edge runtimes demand unified polymorphic ingestion and web-standard responses.
+- **Decision**:
+  - Retired legacy I/O methods (`save`, `toFile`, `saveXml`, `fromPresentationXml`), adding deprecation warnings that forward to the modern pipeline.
+  - Adopted unified `PackageLoader` with polymorphic ingestion: file paths, Buffers, Uint8Array, streams, unpacked directories, Web URLs (`PPTXTemplater.fromUrl`), cloud object stores (`PPTXTemplater.fromCloud`), and legacy formats (`.ppt`, `.odp`) via `LegacyFormatConverter`.
+  - Implemented multi-target serialization in `OutputWriter` and `FrameworkAdapters`: `saveToFile`, `toBuffer`, `toStream`, `toArrayBuffer`, `toBase64`, `toExpress`, `toFastify`, and standard Web API `toResponse`.
+  - Added template-free blank deck generation (`PPTXTemplater.createBlank(options)` in `src/templates/blankPresentation.js`) and direct XML/ZIP extraction (`extractToZip`, `extractToXml`).
+- **Consequences**: Clean separation of concerns, zero legacy I/O fragmentation, full Edge/Next.js/Remix compatibility, and seamless backwards compatibility with clear deprecation guidance.
+
+---
+
+## ADR-013: Native Microsoft Flat OPC XML (`<pkg:package>`) Package Ingestion & Serialization
+
+- **Status**: Accepted
+- **Context**: Microsoft PowerPoint supports Flat OPC XML format (single uncompressed XML documents containing `<pkg:package>` and `<pkg:part>` elements, often saved as `.xml` or `sample.xml`). Users and automated workflows require processing these presentations directly without compressing them into ZIP archives, avoiding ZIP overhead and enabling pure XML-based processing.
+- **Decision**:
+  - Implemented `FlatOpcConverter` (`src/converters/FlatOpcConverter.js`) with signature detection (`isFlatOpc()`).
+  - Integrated into `PackageLoader.load()` and added static `PPTXTemplater.fromFlatOpc(source, options)`:
+    - Strips leading slashes on `pkg:name` attributes to map to standard OpenXML VFS paths.
+    - Serializes child nodes of `<pkg:xmlData>` to clean XML strings directly into the in-memory VFS.
+    - Decodes base64 strings from `<pkg:binaryData>` into binary `Uint8Array` / `Buffer` for embedded `.xlsx` workbooks (`ppt/embeddings/`) and image assets (`ppt/media/`).
+    - Synthesizes `[Content_Types].xml` with defaults and part overrides so standard OpenXML managers operate transparently.
+  - Added multi-target serialization in `OutputWriter` and `PPTXTemplater`: `toFlatXml(options)` and `toFlatOpc(options)` to compile VFS back into valid `<pkg:package>` documents.
+- **Consequences**: Presentations can be loaded from and exported to Flat OPC XML without ZIP compression/decompression overhead, while supporting all fluent mutation methods (`useSlide`, `replaceText`, `updateChart`, `updateTable`, `saveToFile`).
+

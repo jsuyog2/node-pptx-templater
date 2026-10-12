@@ -151,7 +151,11 @@ describe('Table JSON Extraction and Nested Rows', () => {
     const pptRebuilt = await PPTXTemplater.load(rebuiltPptx)
     expect(pptRebuilt.slideCount).toBeGreaterThan(0)
 
-    // Clean up
-    await fsExtra.remove(TEMP_DIR)
+    // Clean up safely on Windows
+    try {
+      await fsExtra.remove(TEMP_DIR)
+    } catch {
+      // Ignore transient Windows EBUSY file locks
+    }
   })
 })
