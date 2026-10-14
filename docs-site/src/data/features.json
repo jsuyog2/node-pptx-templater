@@ -35,12 +35,12 @@
           "id": 5
         },
         {
-          "title": "Remote Web URL Ingestion (`fromUrl`)",
+          "title": "Remote Web URL Ingestion (`PPTXTemplater.load`)",
           "description": "Stream remote presentations over HTTP/HTTPS using standard fetch directly into in-memory VFS.",
           "id": 6
         },
         {
-          "title": "Cloud Object Store Ingestion (`fromCloud`)",
+          "title": "Cloud Object Store Ingestion (`PPTXTemplater.load`)",
           "description": "Directly ingest presentation streams or buffers from AWS S3, Google Cloud Storage, or Azure Blob Storage.",
           "id": 7
         },
@@ -60,12 +60,12 @@
           "id": 10
         },
         {
-          "title": "Polymorphic Import Entrypoint (`importPresentation`)",
+          "title": "Polymorphic Import Entrypoint (`PPTXTemplater.load`)",
           "description": "Single unified method accepting any supported source (path, buffer, stream, URL, cloud config, or folder) with automatic format routing.",
           "id": 11
         },
         {
-          "title": "Microsoft Flat OPC XML Ingestion (`fromFlatOpc` / `.xml`)",
+          "title": "Microsoft Flat OPC XML Ingestion (`PPTXTemplater.load`)",
           "description": "Ingest single-file XML packages (<pkg:package>) directly into memory, extracting XML parts from <pkg:xmlData> and decoding Base64 binary assets from <pkg:binaryData> without ZIP decompression overhead.",
           "id": 12
         }
@@ -574,17 +574,17 @@
           "id": 93
         },
         {
-          "title": "Direct ZIP Archive Extraction (`extractToZip` & `toZipBuffer`)",
+          "title": "Direct ZIP Archive Extraction (`extractToZip`)",
           "description": "Package and export raw compressed ZIP archives to disk or binary buffer.",
           "id": 94
         },
         {
-          "title": "Unpacked OpenXML Folder Extraction (`extractToXml` & `saveToFolder`)",
+          "title": "Unpacked OpenXML Folder Extraction (`extractToXml`)",
           "description": "Unpack all presentation parts into uncompressed folders with optional XML formatting (`formatXml: true`) for version control inspection.",
           "id": 95
         },
         {
-          "title": "Microsoft Flat OPC XML Export (`toFlatXml` / `toFlatOpc`)",
+          "title": "Microsoft Flat OPC XML Export (`toFlatXml`)",
           "description": "Serialize in-memory presentations into standardized Microsoft Flat OPC single-file XML packages (<pkg:package>), encoding media assets and worksheets into Base64 <pkg:binaryData> blocks.",
           "id": 96
         }

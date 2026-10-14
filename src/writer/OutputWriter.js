@@ -249,17 +249,6 @@ class OutputWriter {
     return buffer
   }
 
-  /**
-   * Alias for toBuffer to dump raw compressed ZIP content.
-   *
-   * @param {SlideManager} slideManager
-   * @param {ZipManager} zipManager
-   * @param {Object} [options={}]
-   * @returns {Promise<Buffer>}
-   */
-  async toZipBuffer(slideManager, zipManager, options = {}) {
-    return this.toBuffer(slideManager, zipManager, options)
-  }
 
   /**
    * Extracts and packages the presentation into a compressed ZIP file at destinationPath.
@@ -337,28 +326,14 @@ class OutputWriter {
   }
 
   /**
-   * Saves the presentation directly to a folder structure on disk.
-   * Alias for extractToXml.
+   * Serializes the presentation into a Microsoft Flat OPC XML string or file (<pkg:package>).
    *
    * @param {SlideManager} slideManager
    * @param {ZipManager} zipManager
-   * @param {string} destinationDir
-   * @param {Object} [options={}]
-   * @returns {Promise<void>}
-   */
-  async saveToFolder(slideManager, zipManager, destinationDir, options = {}) {
-    return this.extractToXml(slideManager, zipManager, destinationDir, options)
-  }
-
-  /**
-   * Serializes the presentation into a Microsoft Flat OPC XML string (<pkg:package>).
-   *
-   * @param {SlideManager} slideManager
-   * @param {ZipManager} zipManager
-   * @param {Object} [options={}]
+   * @param {string|Object} [destinationPathOrOptions={}] - File path or serialization options.
    * @returns {Promise<string>}
    */
-  async toFlatXml(slideManager, zipManager, options = {}) {
+  async toFlatXml(slideManager, zipManager, destinationPathOrOptions = {}, options = {}) {
     await this.flush(slideManager, zipManager)
     const { FlatOpcConverter } = require('../converters/FlatOpcConverter.js')
     const { VirtualFileSystem } = require('../core/VirtualFileSystem.js')
@@ -374,7 +349,17 @@ class OutputWriter {
       }
     }
 
-    return FlatOpcConverter.serialize(vfs, options)
+    const isPath = typeof destinationPathOrOptions === 'string'
+    const opts = isPath ? (options || {}) : (destinationPathOrOptions || {})
+    const xml = FlatOpcConverter.serialize(vfs, opts)
+
+    if (isPath) {
+      const resolvedPath = path.resolve(destinationPathOrOptions)
+      await ensureDir(path.dirname(resolvedPath))
+      await writeFile(resolvedPath, xml, 'utf8')
+    }
+
+    return xml
   }
 
   /**

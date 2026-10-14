@@ -64,7 +64,7 @@ describe('Typography, Text Formatting & Text Runs', () => {
     expect(slideXml).toContain('anchor="ctr"')
     expect(slideXml).toContain('lIns="95250"')
 
-    await ppt.save(outputPath)
+    await ppt.saveToFile(outputPath)
     expect(existsSync(outputPath)).toBe(true)
 
     const reloaded = await PPTXTemplater.load(outputPath)
@@ -133,7 +133,7 @@ describe('Typography, Text Formatting & Text Runs', () => {
     expect(slideXml).toContain('val="AA0000"')
     expect(slideXml).toContain('u="sng"')
 
-    await ppt.save(outputPath)
+    await ppt.saveToFile(outputPath)
     expect(existsSync(outputPath)).toBe(true)
 
     const reloaded = await PPTXTemplater.load(outputPath)

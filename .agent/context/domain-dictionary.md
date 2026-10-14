@@ -135,3 +135,19 @@ This glossary defines standard Open Packaging Conventions (OPC) and OpenXML conc
   Child container within a `<pkg:part>` holding raw, unescaped OpenXML markup for XML parts (slides, charts, relationships).
 - **`<pkg:binaryData>`**:
   Child container within a `<pkg:part>` holding base64-encoded binary content for binary assets such as images (`ppt/media/`) or embedded Excel workbooks (`ppt/embeddings/`).
+
+---
+
+## 9. Framework Streaming & Memory Caching Terminology
+
+- **Express Stream Piping (`toExpress`)**:
+  Streaming the generated presentation directly into an Express `res` (`http.ServerResponse`) object with standard OpenXML MIME type, RFC-5987 Unicode content disposition headers, and client abort event handling.
+- **Fastify Reply Piping (`toFastify`)**:
+  Streaming presentation binary data through Fastify's encapsulated `reply` object (`reply.type().header().send()`), ensuring compatibility with Fastify payload serializers.
+- **Web Standard API Response (`toResponse`)**:
+  Synthesizing a web-standard `Response` object (`new Response(arrayBuffer, { headers })`) containing the presentation binary and OpenXML attachment headers, designed for Next.js App Router Route Handlers, Remix, Cloudflare Workers, and Vercel Edge.
+- **Flat OPC XML Package Serialization (`toFlatXml`)**:
+  Compiling the in-memory Virtual File System into a monolithic Microsoft Flat OPC XML string (`<pkg:package>`), either saving directly to a destination disk path or returning the raw XML string in memory.
+- **In-Memory Template Caching (`preload`, `fromCache`, `clearCache`)**:
+  Static memory cache storing pre-parsed template instances (`Map<string, PPTXTemplater>`), enabling sub-millisecond slide deck instantiation without repetitive disk reads or ZIP decompression.
+

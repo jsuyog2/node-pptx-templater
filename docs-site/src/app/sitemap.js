@@ -67,6 +67,12 @@ export default function sitemap() {
       changeFrequency: 'weekly',
       priority: 0.64,
     },
+    ...guidesData.map((guide) => ({
+      url: `${baseUrl}/guides/${guide.slug}/`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    })),
     ...secondaryCategories.map((category) => ({
       url: `${baseUrl}/docs/api/?category=${encodeURIComponent(category)}`,
       lastModified: now,

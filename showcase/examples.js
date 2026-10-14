@@ -562,7 +562,7 @@ async function demo11_XmlFolderWorkflow() {
   const outPath = path.join(OUTPUT_DIR, '11-xml-folder-rebuilt.pptx')
 
   // 1. Extract PPTX to folder
-  await PPTXTemplater.extractPptx(TEMPLATE_SAMPLE, workFolder)
+  await PPTXTemplater.extractPptx(TEMPLATE_SAMPLE, workFolder, { overwrite: true })
   console.log(`✓ Extracted presentation OpenXML to folder: ${workFolder}`)
 
   // 2. Load directly from folder
@@ -572,7 +572,7 @@ async function demo11_XmlFolderWorkflow() {
   console.log('✓ Loaded directly from extracted XML folder and replaced placeholders.')
 
   // 3. Save modified XML in-place
-  await ppt.saveToFolder(workFolder)
+  await ppt.extractToXml(workFolder)
   console.log('✓ Saved modifications back to XML folder.')
 
   // 4. Rebuild folder back into binary PPTX

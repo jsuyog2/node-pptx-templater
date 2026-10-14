@@ -3,7 +3,7 @@ import path from 'path'
 import fs from 'fs-extra'
 import JSZip from 'jszip'
 import { fileURLToPath } from 'url'
-import { PPTXTemplater, PPTXTemplate } from '../../src/index.js'
+import { PPTXTemplater } from '../../src/index.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -60,8 +60,8 @@ describe('PowerPoint XML Folder Support Integration Tests', () => {
     expect(ppt.slideManager.slideCount).toBeGreaterThan(0)
   })
 
-  it('should successfully load a presentation using fromPresentationXml', async () => {
-    const ppt = await PPTXTemplate.fromPresentationXml({
+  it('should successfully load a presentation using fromPresentationXml compatibility', async () => {
+    const ppt = await PPTXTemplater.load({
       presentation: path.join(templateDir, 'ppt/presentation.xml'),
       root: templateDir,
     })
@@ -70,14 +70,14 @@ describe('PowerPoint XML Folder Support Integration Tests', () => {
   })
 
   it('should support modifications and saving directly back to a folder', async () => {
-    const ppt = await PPTXTemplate.fromPresentationXml(templateDir)
+    const ppt = await PPTXTemplater.load(templateDir)
 
     // Select first slide and replace text
     ppt.useSlide(1)
     ppt.replaceText({ '{{title}}': 'Hello XML Folder' })
 
     // Save modifications to a new folder
-    await ppt.saveToFolder(outputFolder)
+    await ppt.extractToXml(outputFolder)
 
     // Verify slide1.xml exists and has the replaced text
     const slide1XmlPath = path.join(outputFolder, 'ppt/slides/slide1.xml')
@@ -88,10 +88,10 @@ describe('PowerPoint XML Folder Support Integration Tests', () => {
   })
 
   it('should support saving a folder template to a .pptx ZIP archive', async () => {
-    const ppt = await PPTXTemplate.fromPresentationXml(outputFolder)
+    const ppt = await PPTXTemplater.load(outputFolder)
 
     // Save as .pptx file
-    await ppt.save(outputPptx)
+    await ppt.saveToFile(outputPptx)
     expect(await fs.pathExists(outputPptx)).toBe(true)
 
     // Reload from file to verify
@@ -103,7 +103,7 @@ describe('PowerPoint XML Folder Support Integration Tests', () => {
   })
 
   it('should validate XML presentation files and relationships', async () => {
-    const ppt = await PPTXTemplate.fromPresentationXml(outputFolder)
+    const ppt = await PPTXTemplater.load(outputFolder)
     const report = await ppt.validatePresentationXml()
     expect(report.valid).toBe(true)
     expect(report.errors).toHaveLength(0)
@@ -117,7 +117,7 @@ describe('PowerPoint XML Folder Support Integration Tests', () => {
     const layoutRelsPath = path.join(corruptFolder, 'ppt/slides/_rels/slide1.xml.rels')
     await fs.remove(layoutRelsPath)
 
-    const ppt = await PPTXTemplate.fromPresentationXml(corruptFolder)
+    const ppt = await PPTXTemplater.load(corruptFolder)
     const report = await ppt.validatePresentationXml()
     expect(report.valid).toBe(false)
     expect(report.errors.some(e => e.includes('relationship'))).toBe(true)

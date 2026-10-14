@@ -135,3 +135,20 @@ This file documents core architectural decisions, their historical context, alte
   - Added multi-target serialization in `OutputWriter` and `PPTXTemplater`: `toFlatXml(options)` and `toFlatOpc(options)` to compile VFS back into valid `<pkg:package>` documents.
 - **Consequences**: Presentations can be loaded from and exported to Flat OPC XML without ZIP compression/decompression overhead, while supporting all fluent mutation methods (`useSlide`, `replaceText`, `updateChart`, `updateTable`, `saveToFile`).
 
+---
+
+## ADR-014: Strict 18-Method I/O API Whitelist and Purge of Extraneous/Deprecated Aliases
+
+- **Status**: Accepted
+- **Context**: Across iterations, redundant aliases and utility methods (`fromUrl`, `fromCloud`, `fromFlatOpc`, `importPresentation`, `cache`, `saveToFolder`, `toZipBuffer`, `toFlatOpc`, `save`, `toFile`, `saveXml`) accumulated. Having multiple entry points for the same underlying capabilities increased API surface complexity, bloated documentation, and made TypeScript interfaces harder to navigate.
+- **Decision**:
+  - Enforce a strict 18-method I/O API whitelist:
+    - **Static API (7 methods)**: `PPTXTemplater.load(source, options)`, `PPTXTemplater.createBlank(options)`, `PPTXTemplater.extractPptx(pptxPath, outputDir, options)`, `PPTXTemplater.buildPptx(sourceDir, outputPath, options)`, `PPTXTemplater.preload(source, options)`, `PPTXTemplater.fromCache(source)`, `PPTXTemplater.clearCache()`.
+    - **Export Instance Methods (8 methods)**: `ppt.saveToFile(destinationPath, options)`, `ppt.toBuffer(options)`, `ppt.toStream(options)`, `ppt.toBase64(options)`, `ppt.toArrayBuffer(options)`, `ppt.toResponse(options)`, `ppt.toExpress(res, filename, options)`, `ppt.toFastify(reply, filename, options)`.
+    - **Extraction & Conversion Instance Methods (3 methods)**: `ppt.extractToZip(destinationPath, options)`, `ppt.extractToXml(destinationDir, options)`, `ppt.toFlatXml(destinationPathOrOptions, options)`.
+  - Unify all polymorphic inputs into `PPTXTemplater.load()` (which auto-detects local files, remote URLs, in-memory buffers, readable streams, cloud configs, and Flat OPC XML).
+  - Unify Flat OPC export into `ppt.toFlatXml(destinationPathOrOptions, options)`, writing directly to disk if passed a file path string or returning the XML string in memory.
+  - Purge all deprecated aliases and non-whitelisted methods across `src/`, `types/`, test suites, and documentation.
+- **Consequences**: Minimal, unambiguous developer API surface, clean documentation catalog (103 public methods), unified polymorphic ingestion mental model, and zero deprecated code baggage.
+
+

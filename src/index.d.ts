@@ -1,19 +1,12 @@
 export class PPTXTemplater {
   static load(source: string | Buffer | any, options?: any): Promise<PPTXTemplater>;
-  static fromUrl(url: string, options?: any): Promise<PPTXTemplater>;
-  static fromCloud(cloudConfig: any, options?: any): Promise<PPTXTemplater>;
-  static fromFlatOpc(source: string | Buffer | any, options?: any): Promise<PPTXTemplater>;
-  static importPresentation(source: any, options?: any): Promise<PPTXTemplater>;
   static createBlank(options?: any): Promise<PPTXTemplater>;
-  static setLogLevel(level: string): void;
-  static preload(source: string | Buffer): Promise<any>;
-  static cache(source: string | Buffer): Promise<any>;
-  static fromCache(source: string | Buffer): Promise<PPTXTemplater>;
-  static clearCache(): void;
-  static fromPresentationXml(options: any): Promise<PPTXTemplater>;
-  static create(): Promise<PPTXTemplater>;
   static extractPptx(pptxPath: string, outputPath: string, options?: any): Promise<void>;
-  static buildPptx(folderPath: string, pptxPath: string): Promise<void>;
+  static buildPptx(sourceDir: string, outputPath: string, options?: any): Promise<void>;
+  static preload(source: string | Buffer | any, options?: any): Promise<any>;
+  static fromCache(source: string | Buffer | any): Promise<PPTXTemplater>;
+  static clearCache(): void;
+  static setLogLevel(level: string): void;
 
   slideCount: number;
   useSlide(slideNumber: number): this;
@@ -56,23 +49,16 @@ export class PPTXTemplater {
   mergeCells(tableName: string, startRow: number, startCol: number, endRow: number, endCol: number): this;
   splitTableOnOverflow(tableName: string, options?: any): Promise<{ splitCount: number; slidesCreated: number }>;
   saveToFile(filePath: string, options?: any): Promise<void>;
-  toFile(filePath: string, options?: any): Promise<void>;
-  save(filePath: string, options?: any): Promise<void>;
-  saveXml(folderPath: string, options?: any): Promise<void>;
-  saveToFolder(folderPath: string, options?: any): Promise<void>;
-  extractToXml(destinationDir: string, options?: any): Promise<void>;
-  extractToZip(destinationPath: string, options?: any): Promise<void>;
-  toZipBuffer(options?: any): Promise<Buffer>;
   toBuffer(options?: any): Promise<Buffer>;
-  toArrayBuffer(options?: any): Promise<ArrayBuffer>;
+  toStream(options?: any): Promise<any>;
   toBase64(options?: { dataUri?: boolean }): Promise<string>;
+  toArrayBuffer(options?: any): Promise<ArrayBuffer>;
+  toResponse(options?: any): Promise<Response>;
   toExpress(res: any, filename?: string, options?: any): Promise<void>;
   toFastify(reply: any, filename?: string, options?: any): Promise<void>;
-  toResponse(options?: any): Promise<Response>;
-  toFlatXml(options?: any): Promise<string>;
-  toFlatOpc(options?: any): Promise<string>;
-  toStream(options?: any): Promise<any>;
-  saveToStream(writableOrOptions: any, options?: any): Promise<void>;
+  extractToZip(destinationPath: string, options?: any): Promise<void>;
+  extractToXml(destinationDir: string, options?: any): Promise<void>;
+  toFlatXml(destinationPathOrOptions?: string | any, options?: any): Promise<string>;
   exportSlides(...slideNumbers: number[]): Promise<any>;
   importSlideFrom(sourceEngine: PPTXTemplater, slideRef: any): Promise<any>;
   repair(): Promise<this>;
@@ -105,9 +91,6 @@ export const PPTXTemplate: typeof PPTXTemplater;
 
 export class PackageLoader {
   static load(source: any, options?: any): Promise<VirtualFileSystem>;
-  static fromUrl(url: string, options?: any): Promise<VirtualFileSystem>;
-  static fromCloud(cloudConfig: any, options?: any): Promise<VirtualFileSystem>;
-  static fromFlatOpc(source: any, options?: any): Promise<VirtualFileSystem>;
 }
 export function isPkZip(buf: Uint8Array | Buffer): boolean;
 export function isLegacyPpt(buf: Uint8Array | Buffer): boolean;

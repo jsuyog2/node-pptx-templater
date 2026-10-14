@@ -33,14 +33,14 @@ describe('PPTXTemplater - Slide Import & Slide Navigation Hyperlinks', () => {
 
   it('should successfully import a slide from a template into a blank presentation and maintain integrity', async () => {
     const sourceEngine = await PPTXTemplater.load(fixtureFile)
-    const destEngine = await PPTXTemplater.create()
+    const destEngine = await PPTXTemplater.createBlank()
 
-    // The destination blank presentation initially has 3 slides
-    expect(destEngine.slideCount).toBe(3)
+    const initialCount = destEngine.slideCount
+    expect(initialCount).toBe(1)
 
     // Import slide 1 from sourceEngine into destEngine
     await destEngine.importSlideFrom(sourceEngine, 1)
-    expect(destEngine.slideCount).toBe(4)
+    expect(destEngine.slideCount).toBe(2)
 
     const outPath = resolve(OUTPUT_DIR, 'imported-slide-test.pptx')
     await destEngine.saveToFile(outPath)

@@ -68,7 +68,7 @@ describe('Images & Media: Base64, WebP, Metadata Extraction', () => {
     expect(embedded.mimeType).toBe('image/png')
     expect(embedded.rId).toMatch(/^rId/i)
 
-    await ppt.save(outputPath)
+    await ppt.saveToFile(outputPath)
     expect(existsSync(outputPath)).toBe(true)
 
     const reloaded = await PPTXTemplater.load(outputPath)

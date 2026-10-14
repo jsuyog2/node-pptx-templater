@@ -10,7 +10,7 @@
 [![Node.js Support](https://img.shields.io/badge/node-%3E%3D20.12.0-blue.svg?style=flat-square)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-**High-Performance OpenXML & Flat OPC PowerPoint Engine for Node.js**  
+**Low-Level OpenXML PowerPoint Template Engine for Node.js**  
 **Serverless PPTX Generation for AWS Lambda, Vercel & Cloudflare**
 
 [📖 Documentation Portal](https://node-pptx-templater.pages.dev/) &nbsp;•&nbsp; [⚡ 5-Minute Quick Start](https://node-pptx-templater.pages.dev/docs/installation/) &nbsp;•&nbsp; [📚 API Reference](https://node-pptx-templater.pages.dev/docs/api/)
@@ -19,7 +19,7 @@
 
 ---
 
-## 🚀 High-Performance OpenXML & Flat OPC PowerPoint Engine for Node.js
+## 🚀 Low-Level OpenXML & Flat OPC PowerPoint Engine for Node.js
 
 **`node-pptx-templater`** is an enterprise-grade, high-performance, spatial-aware PowerPoint OpenXML manipulation and templating engine built for **Node.js (>=20.12.0)**, **AWS Lambda**, **Cloudflare Workers**, **Vercel Edge**, and containerless cloud environments.
 
@@ -27,7 +27,7 @@ Unlike legacy solutions that require spinning up heavyweight LibreOffice Docker 
 
 ### 🌟 Architectural Highlights
 
-- **Multi-Format Polymorphic Ingestion:** Seamlessly loads `.pptx`, `.pptm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.ppam`, legacy binary `.ppt`, OpenDocument `.odp`, raw ZIP buffers, uncompressed XML directories, remote HTTP/HTTPS URLs, and Cloud Object Stores (S3/GCS/Azure).
+- **Multi-Format Polymorphic Ingestion:** Seamlessly loads `.pptx`, `.pptm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.ppam`, legacy binary `.ppt`, OpenDocument `.odp`, raw ZIP buffers, uncompressed XML directories, remote HTTP/HTTPS URLs.
 - **Microsoft Flat OPC XML Support (`<pkg:package>`):** Ingest and export single-file XML presentations (`sample.xml`) directly with zero ZIP overhead. Decodes embedded base64 media and workbooks into the in-memory Virtual File System (VFS).
 - **Template-Free Blank Deck Generation:** Create pristine, valid OpenXML presentations from scratch with exact aspect ratios (`16:9`, `4:3`, `16:10`) or custom EMU/pixel dimensions without any template fixtures.
 - **Anti-Corruption Run Fragment Healing:** PowerPoint frequently splits placeholder tokens like `{{COMPANY_NAME}}` into disjoint `<a:r>` XML run nodes. Our AST paragraph normalizer merges split runs while preserving font styles, weights, colors, and layout intact.
@@ -47,16 +47,15 @@ Unlike legacy solutions that require spinning up heavyweight LibreOffice Docker 
 | **Macro-Enabled Presentation** | `.pptm` | ✅ Native VFS | ✅ Preserved Macros | ✅ Pure JS |
 | **PowerPoint Template** | `.potx`, `.potm` | ✅ Native VFS | ✅ Direct OpenXML compile | ✅ Pure JS |
 | **PowerPoint Slide Show** | `.ppsx`, `.ppsm` | ✅ Native VFS | ✅ Direct OpenXML compile | ✅ Pure JS |
-| **Microsoft Flat OPC XML** | `.xml`, `<pkg:package>` | ✅ Direct XML Parse (No ZIP) | ✅ `.toFlatXml()`, `.toFlatOpc()` | ✅ Pure JS |
-| **Uncompressed XML Folder** | Directory (`[Content_Types].xml`, `ppt/`) | ✅ VFS Direct Mount | ✅ `.saveToFolder()`, `.extractToXml()` | ✅ Pure JS |
+| **Microsoft Flat OPC XML** | `.xml`, `<pkg:package>` | ✅ Direct XML Parse (No ZIP) | ✅ `.toFlatXml()` | ✅ Pure JS |
+| **Uncompressed XML Folder** | Directory (`[Content_Types].xml`, `ppt/`) | ✅ VFS Direct Mount | ✅ `.extractToXml()` | ✅ Pure JS |
 | **Raw ZIP Buffer / Stream** | `Buffer`, `Uint8Array`, `ReadableStream` | ✅ In-Memory Streaming | ✅ `.toBuffer()`, `.toStream()` | ✅ Pure JS |
-| **Remote HTTP/HTTPS URL** | Remote Endpoint | ✅ `PPTXTemplater.fromUrl()` | ✅ Direct Web Response | ✅ Pure JS |
-| **Cloud Object Storage** | S3, GCS, Azure Blob | ✅ `PPTXTemplater.fromCloud()` | ✅ Buffer / Stream Pipe | ✅ Pure JS |
+| **Remote HTTP/HTTPS URL** | Remote Endpoint | ✅ `PPTXTemplater.load(url)` | ✅ Direct Web Response | ✅ Pure JS |
 | **Legacy & Alternative Formats** | `.ppt`, `.odp` | ✅ Header Detection & OPC Ingestion | ✅ Normalizes to OpenXML | ✅ Pure JS |
 
 ---
 
-## ⚡ Serverless PPTX Generation for AWS Lambda, Vercel & Cloudflare
+## ⚡ Flat OPC XML & Serverless PPTX Generator for AWS Lambda & Cloudflare
 
 Engineered specifically for serverless and edge architectures:
 - **Instant Cold Boot:** < 15ms initialization time.
@@ -72,7 +71,7 @@ Engineered specifically for serverless and edge architectures:
 | :--- | :---: | :---: | :---: | :---: |
 | **Existing PPTX Template Ingestion** | ✅ **Full In-Place Mutation** | ❌ Blank only | ❌ Blank only | ⚠️ Macro scripting |
 | **Multi-Format (.pptm, .potx, .ppt, .odp)** | ✅ **Native Auto-Conversion** | ❌ Unsupported | ❌ Unsupported | ⚠️ External binary |
-| **Remote Web URL & Cloud Ingestion** | ✅ **`fromUrl` / `fromCloud`** | ❌ Unsupported | ❌ Unsupported | ❌ Unsupported |
+| **Remote Web URL** | ✅ **`PPTXTemplater.load()`** | ❌ Unsupported | ❌ Unsupported | ❌ Unsupported |
 | **Template-Free Blank Generation** | ✅ **`createBlank()` (16:9, 4:3)** | ✅ Supported | ⚠️ Basic | ⚠️ Macro required |
 | **Run Fragment Normalizer (Anti-Corruption)** | ✅ **AST Paragraph Healer** | ❌ N/A | ❌ N/A | ❌ Brittle regex |
 | **Chart & Excel Workbook Dual-Sync** | ✅ **XML + XLSX Cache Sync** | ⚠️ Basic values only | ❌ Unsupported | ⚠️ Slow headless calc |
@@ -136,45 +135,17 @@ const { PPTXTemplater } = require('node-pptx-templater');
 async function handleFlatOpc() {
   // Ingest directly from Flat OPC XML file, XML string, or Buffer
   const ppt = await PPTXTemplater.load('./templates/sample.xml');
-  // Or explicitly from XML string or buffer:
-  // const ppt = await PPTXTemplater.fromFlatOpc(xmlStringOrBuffer);
 
   ppt.useSlide(1).replaceText({ '{{METRIC}}': '$1.2M ARR' });
 
-  // Export to standard .pptx binary OR serialize back to Flat OPC XML string
+  // Export to standard .pptx binary OR serialize to Flat OPC XML (disk or string)
   await ppt.saveToFile('./output/converted-deck.pptx');
+  await ppt.toFlatXml('./output/converted-deck.xml');
   const flatXml = await ppt.toFlatXml();
 }
 ```
 
-### 3. Remote Web URL & Cloud Object Store Loading
-
-```javascript
-const { PPTXTemplater } = require('node-pptx-templater');
-
-async function loadRemote() {
-  // Load directly from a remote HTTP/HTTPS URL
-  const remotePpt = await PPTXTemplater.fromUrl('https://cdn.example.com/templates/pitch-deck.pptx');
-
-  // Ingest directly from AWS S3 (SDK v3 / v2)
-  const s3Ppt = await PPTXTemplater.fromCloud({
-    provider: 's3',
-    client: s3Client,
-    bucket: 'corporate-assets',
-    key: 'decks/quarterly-template.pptx'
-  });
-
-  // Ingest from Google Cloud Storage
-  const gcsPpt = await PPTXTemplater.fromCloud({
-    provider: 'gcs',
-    storage: gcsStorage,
-    bucket: 'report-templates',
-    key: 'metrics.pptx'
-  });
-}
-```
-
-### 4. Template-Free Blank Presentation Creation
+### 3. Template-Free Blank Presentation Creation
 
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');
@@ -197,7 +168,7 @@ async function createFromScratch() {
 }
 ```
 
-### 5. Multi-Target Export & Web Framework Streaming
+### 4. Fastify & Express.js PowerPoint Streaming
 
 ```javascript
 import { PPTXTemplater } from 'node-pptx-templater';
@@ -207,7 +178,7 @@ ppt.useSlide(1).replaceText({ '{{STATUS}}': 'Approved' });
 
 // 1. Commit directly to local disk or unpacked XML folder
 await ppt.saveToFile('./output/ApprovedReport.pptx');
-await ppt.saveToFolder('./output/unpacked-tree');
+await ppt.extractToXml('./output/unpacked-tree');
 
 // 2. Compile to Node.js Buffer or ReadableStream
 const buffer = await ppt.toBuffer();
@@ -217,18 +188,27 @@ const stream = await ppt.toStream();
 const arrayBuffer = await ppt.toArrayBuffer();
 const dataUri = await ppt.toBase64({ dataUri: true });
 
-// 4. Express.js / Fastify HTTP Response stream
+// 4. Express.js HTTP response streaming
 app.get('/api/report/express', async (req, res) => {
   await ppt.toExpress(res, 'ApprovedReport.pptx');
 });
 
-// 5. Next.js App Router / Cloudflare Workers Web API Response
+// 5. Fastify reply streaming
+fastify.get('/api/report/fastify', async (request, reply) => {
+  await ppt.toFastify(reply, 'ApprovedReport.pptx');
+});
+
+// 6. Next.js App Router / Cloudflare Workers Web API Response
 export async function GET(request) {
   return await ppt.toResponse({ filename: 'ApprovedReport.pptx' });
 }
+
+// 7. High-concurrency template caching (< 1ms clone)
+await PPTXTemplater.preload('./templates/report.pptx');
+const fastPpt = await PPTXTemplater.fromCache('./templates/report.pptx');
 ```
 
-### 6. XML & ZIP Direct Extraction for Git Inspection
+### 5. XML & ZIP Direct Extraction for Git Inspection
 
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');
@@ -244,7 +224,7 @@ async function inspectPresentation() {
 }
 ```
 
-### 7. Dynamic Text Replacement & Fragment Healing
+### 6. Dynamic Text Replacement & Fragment Healing
 
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');
@@ -263,7 +243,7 @@ async function updateText() {
 }
 ```
 
-### 8. Native Chart Update with Excel Dual-Sync
+### 7. Native Chart Update with Excel Dual-Sync
 
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');
@@ -285,7 +265,7 @@ async function updateMetrics() {
 }
 ```
 
-### 9. Dynamic Tables, Nested Rows & Overflow Auto-Pagination
+### 8. Dynamic Tables, Nested Rows & Overflow Auto-Pagination
 
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');

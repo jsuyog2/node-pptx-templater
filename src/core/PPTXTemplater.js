@@ -283,6 +283,7 @@ class PPTXTemplater {
    *
    * @static
    * @param {string|Buffer|Object} source - File path, Buffer, or folder object.
+   * @param {Object} [options={}] - Options (e.g. { key: string, logLevel: string }).
    * @returns {Promise<Map>} The cache Map keyed by file paths.
    *
    * @example
@@ -290,13 +291,16 @@ class PPTXTemplater {
    * // Later, in request handlers:
    * const ppt = await PPTXTemplater.fromCache('./template.pptx');
    */
-  static async preload(source) {
-    let key = source
-    if (Buffer.isBuffer(source)) {
+  static async preload(source, options = {}) {
+    if (options && options.logLevel) {
+      setGlobalLogLevel(options.logLevel)
+    }
+    let key = options && options.key ? options.key : source
+    if (Buffer.isBuffer(key)) {
       const crypto = require('crypto')
-      key = crypto.createHash('sha256').update(source).digest('hex')
-    } else if (typeof source === 'object' && source !== null) {
-      key = JSON.stringify(source)
+      key = crypto.createHash('sha256').update(key).digest('hex')
+    } else if (typeof key === 'object' && key !== null) {
+      key = JSON.stringify(key)
     }
 
     if (PPTXTemplater.#templateCache.has(key)) {
@@ -304,7 +308,7 @@ class PPTXTemplater {
     }
 
     const zipManager = new ZipManager()
-    await zipManager.load(source)
+    await zipManager.load(source, options)
     const files = zipManager.listFiles()
     const cachedFiles = new Map()
     for (const file of files) {
@@ -321,20 +325,6 @@ class PPTXTemplater {
 
     PPTXTemplater.#templateCache.set(key, cachedFiles)
     return cachedFiles
-  }
-
-  /**
-   * Alias for `preload()`. Caches a PPTX template in memory.
-   *
-   * @static
-   * @param {string|Buffer|Object} source - File path, Buffer, or folder object.
-   * @returns {Promise<Map>} The cache Map.
-   *
-   * @example
-   * await PPTXTemplater.cache('./template.pptx');
-   */
-  static async cache(source) {
-    return PPTXTemplater.preload(source)
   }
 
   /**
@@ -511,9 +501,10 @@ class PPTXTemplater {
    * @static
    * @param {string} folderPath - Path to the source folder structure.
    * @param {string} pptxPath - Path to the destination PPTX file.
+   * @param {Object} [options={}] - Options (e.g. { compressionLevel }).
    * @returns {Promise<void>}
    */
-  static async buildPptx(folderPath, pptxPath) {
+  static async buildPptx(folderPath, pptxPath, options = {}) {
     const fs = require('fs-extra')
     const path = require('path')
 
@@ -536,7 +527,7 @@ class PPTXTemplater {
 
     const engine = await PPTXTemplater.load(resolvedFolder)
     await fs.ensureDir(path.dirname(resolvedPptx))
-    await engine.saveToFile(resolvedPptx)
+    await engine.saveToFile(resolvedPptx, options)
   }
 
   /**
@@ -1504,7 +1495,8 @@ class PPTXTemplater {
    * @returns {Promise<void>}
    */
   async extractToZip(destinationPath, options = {}) {
-    return this.saveToFile(destinationPath, options)
+    this.#assertLoaded()
+    return this.#outputWriter.extractToZip(this.#slideManager, this.#zipManager, destinationPath, options)
   }
 
   /**
@@ -1562,17 +1554,27 @@ class PPTXTemplater {
   }
 
   /**
-   * Serializes the presentation into a Microsoft Flat OPC XML string (<pkg:package>).
+   * Converts the entire presentation package into a single Microsoft Office Flat OPC XML file (<pkg:package>) or string.
    *
-   * @param {Object} [options={}] - Serialization options.
+   * @param {string|Object} [destinationPathOrOptions={}] - Path to output file, or serialization options.
+   * @param {Object} [options={}] - Additional serialization options when destinationPath is provided.
    * @returns {Promise<string>} Complete Flat OPC XML string.
    *
    * @example
+   * // Convert to string
    * const flatXml = await ppt.toFlatXml();
+   *
+   * // Convert and save directly to file
+   * await ppt.toFlatXml('./output/presentation.xml');
    */
-  async toFlatXml(options = {}) {
+  async toFlatXml(destinationPathOrOptions = {}, options = {}) {
     this.#assertLoaded()
-    return this.#outputWriter.toFlatXml(this.#slideManager, this.#zipManager, options)
+    return this.#outputWriter.toFlatXml(
+      this.#slideManager,
+      this.#zipManager,
+      destinationPathOrOptions,
+      options
+    )
   }
 
   /**

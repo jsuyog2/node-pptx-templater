@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest'
 const { PPTXTemplater } = require('../../src/index.js')
 
 async function createTestEngine() {
-  const ppt = await PPTXTemplater.create()
+  const ppt = await PPTXTemplater.createBlank()
   ppt.addSlide({
     title: 'Shape Test Slide',
     elements: [],

@@ -85,7 +85,7 @@ describe('Slide Dimensions and Layout Inspection', () => {
     expect(dims.width).toBe(12192000)
     expect(dims.height).toBe(6858000)
 
-    await ppt.save(outputPath)
+    await ppt.saveToFile(outputPath)
     expect(existsSync(outputPath)).toBe(true)
 
     // Reload saved file and verify persisted dimensions

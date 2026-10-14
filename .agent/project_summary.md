@@ -65,7 +65,7 @@ The library is organized into specialized managers orchestrated through a single
 ### Core Architecture Roles
 
 1. **`PPTXTemplater` (`src/core/PPTXTemplater.js`):** The primary user-facing orchestrator. Exposes fluent methods for slide scoping (`useSlide`, `useAllSlides`), text substitution, element creation, and multi-target serialization.
-2. **`PackageLoader` (`src/core/PackageLoader.js`):** Polymorphic ingestion layer that auto-detects inputs: local file paths (.pptx, .pptm, .potx, .potm, .ppsx, .ppsm, .ppam, .ppt, .odp), Microsoft Flat OPC XML packages (`.xml`, `<pkg:package>`), in-memory `Buffer`, `Uint8Array`, streams, remote web URLs (`PPTXTemplater.fromUrl`), cloud object stores (`PPTXTemplater.fromCloud`), and raw unpacked OpenXML directory trees into an in-memory `VirtualFileSystem`.
+2. **`PackageLoader` (`src/core/PackageLoader.js`):** Polymorphic ingestion layer that auto-detects inputs: local file paths (.pptx, .pptm, .potx, .potm, .ppsx, .ppsm, .ppam, .ppt, .odp), Microsoft Flat OPC XML packages (`.xml`, `<pkg:package>`), in-memory `Buffer`, `Uint8Array`, streams, remote web URLs, cloud object stores (S3/GCS/Azure), and raw unpacked OpenXML directory trees into an in-memory `VirtualFileSystem`.
 3. **`FlatOpcConverter` (`src/converters/FlatOpcConverter.js`):** Parses and serializes Microsoft Flat OPC XML packages (`<pkg:package>`), extracting `<pkg:xmlData>` into VFS XML strings and base64 decoding `<pkg:binaryData>` into binary buffers for media and workbooks, with zero ZIP decompression overhead.
 4. **`LegacyFormatConverter` (`src/converters/LegacyFormatConverter.js`):** Binary signature detector (`isLegacyPpt`, `isOdp`, `isPkZip`) that parses legacy OLE Compound binary PPT streams and OpenDocument ODP XML, normalizing text and slides into standard OpenXML VFS trees.
 5. **`VirtualFileSystem` (`src/core/VirtualFileSystem.js`):** In-memory map (`Map<string, Uint8Array | string>`) holding raw presentation parts, preventing disk thrashing and concurrency conflicts.
@@ -78,14 +78,14 @@ The library is organized into specialized managers orchestrated through a single
 12. **`RelationshipManager` & `ContentTypesManager` (`src/managers/RelationshipManager.js`, `src/managers/ContentTypesManager.js`):** Manages `_rels/*.rels` relationship trees, sequential `rId` generation, and `[Content_Types].xml` extension/override registrations.
 13. **`TemplateEngine` (`src/core/TemplateEngine.js`):** AST-level run normalization and token extraction/replacement across paragraph nodes.
 14. **`BlankPresentation` (`src/templates/blankPresentation.js`):** Minimal valid OpenXML AST generator synthesizing `[Content_Types].xml`, `_rels/.rels`, `presentation.xml`, `slideMaster1.xml`, `slideLayout1.xml`, `theme1.xml`, and blank `slide1.xml` for template-free creation with configurable aspect ratios.
-15. **`OutputWriter` (`src/writer/OutputWriter.js`):** Multi-target serialization engine supporting disk files (`saveToFile`), Node.js Buffers (`toBuffer`, `toZipBuffer`), streams (`toStream`), ArrayBuffers (`toArrayBuffer`), Base64 data URIs (`toBase64`), Flat OPC XML (`toFlatXml`), Express.js (`toExpress`), Fastify (`toFastify`), Web API Response (`toResponse`), and raw extraction (`extractToZip`, `extractToXml`, `saveToFolder`).
+15. **`OutputWriter` (`src/writer/OutputWriter.js`):** Multi-target serialization engine supporting disk files (`saveToFile`), Node.js Buffers (`toBuffer`), streams (`toStream`), ArrayBuffers (`toArrayBuffer`), Base64 data URIs (`toBase64`), Flat OPC XML (`toFlatXml`), Express.js (`toExpress`), Fastify (`toFastify`), Web API Response (`toResponse`), and raw extraction (`extractToZip`, `extractToXml`).
 16. **`FrameworkAdapters` (`src/writer/FrameworkAdapters.js`):** HTTP streaming adapters for Express (`sendExpress`), Fastify (`sendFastify`), Koa (`sendKoa`), and Web standard fetch Response (`createWebResponse`).
 
 ---
 
 ## 4. Key Primary APIs
 
-### Lifecycle & Loading
+### Lifecycle & Loading (Strict Whitelist: 7 Static, 8 Export, 3 Extraction)
 ```javascript
 // Load standard OpenXML presentation or template (.pptx, .pptm, .potx, .potm, .ppsx)
 const ppt = await PPTXTemplater.load('./template.pptx', { logLevel: 'warn' });
@@ -94,24 +94,27 @@ const ppt = await PPTXTemplater.load('./template.pptx', { logLevel: 'warn' });
 const pptFromBuffer = await PPTXTemplater.load(buffer);
 
 // Load from remote HTTP/HTTPS URL
-const pptFromUrl = await PPTXTemplater.fromUrl('https://example.com/templates/deck.pptx');
+const pptFromUrl = await PPTXTemplater.load('https://example.com/templates/deck.pptx');
 
 // Ingest cloud storage stream or buffer directly
-const pptFromCloud = await PPTXTemplater.fromCloud({ provider: 's3', stream: s3Stream });
+const pptFromCloud = await PPTXTemplater.load({ provider: 's3', stream: s3Stream });
 
 // Ingest Microsoft Flat OPC XML package (single-file XML, zero ZIP overhead)
 const pptFromFlatXml = await PPTXTemplater.load('./sample.xml');
-// Or explicitly from XML string/buffer:
-// const pptFromFlatXml = await PPTXTemplater.fromFlatOpc(xmlContent);
 
 // Ingest legacy binary PPT or OpenDocument ODP with automatic normalization
-const pptLegacy = await PPTXTemplater.importPresentation('./archive.ppt');
+const pptLegacy = await PPTXTemplater.load('./archive.ppt');
 
 // Ingest unpacked OpenXML directory directly into memory
 const pptFromDir = await PPTXTemplater.load('./extracted_folder');
 
 // Create brand-new, template-free blank presentation with custom aspect ratio
 const blankDeck = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });
+
+// High-concurrency template caching (<1ms deep clone)
+await PPTXTemplater.preload('./template.pptx');
+const cachedPpt = await PPTXTemplater.fromCache('./template.pptx');
+PPTXTemplater.clearCache();
 ```
 
 ### Slide Context & Duplication
@@ -228,10 +231,10 @@ await ppt.extractToXml('./unpacked-deck', { formatXml: true });
     - 📌 **Overview** (`/docs`): Library philosophy, visual PowerPoint template mutation vs legacy code canvas assembly.
     - 🚀 **Installation Guides** (`/docs/installation`): Package managers (npm, pnpm, yarn, bun), Node.js >= 18 requirements, ESM/CJS, and native TypeScript types.
     - ⚡ **Compatibility Matrix** (`/docs/compatibility`): Zero Office/Electron runtime guarantees, cold boot benchmarks (<15ms, <2MB), AWS Lambda and Cloudflare Workers streaming recipes.
-    - 📚 **API Reference** (`/docs/api`): 111 public methods across all 10 domain categories with live search, category filters, parameter tables, and copyable snippets.
+    - 📚 **API Reference** (`/docs/api`): 103 public methods across all 10 domain categories with live search, category filters, parameter tables, and copyable snippets.
   - **Features Catalog (`/features`):** Full 96 itemized capabilities across 12 domain categories with interactive search, category filters, and flagship indicators.
 - **Content Decoupling & Ingestion:**
-  - Content source: Type-safe, modular JSON schemas in `docs-site/src/data/`: `features.json` (96 features), `apiReference.json` (111 methods), `docsNavigation.json`, `compatibility.json`, `guides.json`, and `siteMeta.json`.
+  - Content source: Type-safe, modular JSON schemas in `docs-site/src/data/`: `features.json` (96 features), `apiReference.json` (103 methods), `docsNavigation.json`, `compatibility.json`, `guides.json`, and `siteMeta.json`.
   - Sitemaps & Robots automated via Next.js metadata handlers (`sitemap.js` and `robots.js`).
 
 

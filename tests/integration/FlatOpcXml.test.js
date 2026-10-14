@@ -58,10 +58,16 @@ describe('Flat OPC XML Ingestion & Manipulation Integration Tests', () => {
     expect(ppt.slideCount).toBe(6)
   })
 
-  it('5. should load via explicit static PPTXTemplater.fromFlatOpc()', async () => {
-    const ppt = await PPTXTemplater.fromFlatOpc(sampleXmlPath)
-    expect(ppt).toBeInstanceOf(PPTXTemplater)
-    expect(ppt.slideCount).toBe(6)
+  it('5. should support toFlatXml() saving directly to a destination file path', async () => {
+    const ppt = await PPTXTemplater.load(sampleXmlPath)
+    const outXml = path.join(tempOutputDir, 'test-flat-opc-direct.xml')
+    const xml = await ppt.toFlatXml(outXml)
+    expect(typeof xml).toBe('string')
+    expect(fs.existsSync(outXml)).toBe(true)
+
+    const reloaded = await PPTXTemplater.load(outXml)
+    expect(reloaded.slideCount).toBe(6)
+    try { fs.unlinkSync(outXml) } catch {}
   })
 
   it('6. should execute text and table replacements and export to a valid .pptx file', async () => {

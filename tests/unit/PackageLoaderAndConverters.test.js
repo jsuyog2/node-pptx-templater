@@ -117,7 +117,7 @@ describe('PackageLoader & LegacyFormatConverter', () => {
     globalThis.fetch = mockFetch
 
     try {
-      const ppt = await PPTXTemplater.fromUrl('https://example.com/remote-presentation.pptx')
+      const ppt = await PPTXTemplater.load('https://example.com/remote-presentation.pptx')
       expect(ppt).toBeInstanceOf(PPTXTemplater)
       expect(ppt.slideCount).toBe(1)
       expect(mockFetch).toHaveBeenCalledWith(
@@ -129,7 +129,7 @@ describe('PackageLoader & LegacyFormatConverter', () => {
     }
   })
 
-  it('should support fromCloud ingestion with S3 client mock', async () => {
+  it('should support cloud S3 ingestion via PPTXTemplater.load', async () => {
     const blank = await PPTXTemplater.createBlank()
     const buffer = await blank.toBuffer()
 
@@ -139,7 +139,7 @@ describe('PackageLoader & LegacyFormatConverter', () => {
       }),
     }
 
-    const ppt = await PPTXTemplater.fromCloud({
+    const ppt = await PPTXTemplater.load({
       provider: 's3',
       client: mockS3Client,
       bucket: 'corporate-templates',
@@ -151,7 +151,7 @@ describe('PackageLoader & LegacyFormatConverter', () => {
     expect(mockS3Client.send).toHaveBeenCalled()
   })
 
-  it('should support fromCloud ingestion with GCS storage mock', async () => {
+  it('should support cloud GCS ingestion via PPTXTemplater.load', async () => {
     const blank = await PPTXTemplater.createBlank()
     const buffer = await blank.toBuffer()
 
@@ -163,7 +163,7 @@ describe('PackageLoader & LegacyFormatConverter', () => {
       }),
     }
 
-    const ppt = await PPTXTemplater.fromCloud({
+    const ppt = await PPTXTemplater.load({
       provider: 'gcs',
       storage: mockGcsStorage,
       bucket: 'my-gcs-bucket',
@@ -174,7 +174,7 @@ describe('PackageLoader & LegacyFormatConverter', () => {
     expect(ppt.slideCount).toBe(1)
   })
 
-  it('should support fromCloud ingestion with Azure blobClient mock', async () => {
+  it('should support cloud Azure ingestion via PPTXTemplater.load', async () => {
     const blank = await PPTXTemplater.createBlank()
     const buffer = await blank.toBuffer()
 
@@ -182,7 +182,7 @@ describe('PackageLoader & LegacyFormatConverter', () => {
       downloadToBuffer: vi.fn().mockResolvedValue(buffer),
     }
 
-    const ppt = await PPTXTemplater.fromCloud({
+    const ppt = await PPTXTemplater.load({
       provider: 'azure',
       blobClient: mockBlobClient,
     })

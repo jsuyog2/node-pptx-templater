@@ -110,7 +110,7 @@ class PackageLoader {
       !(source instanceof Uint8Array) &&
       source.provider
     ) {
-      return PackageLoader.fromCloud(source, options)
+      return PackageLoader.#loadFromCloud(source, options)
     }
 
     // Web ReadableStream or Node.js ReadableStream
@@ -137,7 +137,7 @@ class PackageLoader {
       }
 
       if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-        return PackageLoader.fromUrl(trimmed, options)
+        return PackageLoader.#loadFromUrl(trimmed, options)
       }
 
       const resolved = path.resolve(trimmed)
@@ -182,7 +182,7 @@ class PackageLoader {
    * @param {Object} [options={}] - HTTP fetch and parser options.
    * @returns {Promise<VirtualFileSystem>}
    */
-  static async fromUrl(url, options = {}) {
+  static async #loadFromUrl(url, options = {}) {
     logger.info(`Fetching presentation from URL: ${url}`)
     const fetchFn =
       typeof globalThis.fetch === 'function'
@@ -214,7 +214,7 @@ class PackageLoader {
     const response = await fetchFn(url, fetchOptions)
     if (!response.ok) {
       throw new Error(
-        `PackageLoader.fromUrl: HTTP request failed with status ${response.status} ${response.statusText}`
+        `PackageLoader: HTTP request failed with status ${response.status} ${response.statusText}`
       )
     }
 
@@ -226,6 +226,7 @@ class PackageLoader {
   /**
    * Ingests a presentation from cloud object storage (AWS S3, Google Cloud Storage, Azure Blob).
    *
+   * @private
    * @param {Object} cloudConfig
    * @param {'s3'|'gcs'|'azure'} cloudConfig.provider - Cloud provider.
    * @param {import('stream').Readable|Buffer|Uint8Array} [cloudConfig.stream] - Direct stream.
@@ -237,7 +238,7 @@ class PackageLoader {
    * @param {Object} [options={}]
    * @returns {Promise<VirtualFileSystem>}
    */
-  static async fromCloud(cloudConfig, options = {}) {
+  static async #loadFromCloud(cloudConfig, options = {}) {
     if (!cloudConfig || typeof cloudConfig !== 'object') {
       throw new Error('PackageLoader.fromCloud: cloudConfig must be a valid object')
     }
@@ -322,34 +323,6 @@ class PackageLoader {
     )
   }
 
-  /**
-   * Ingests a presentation directly from a Microsoft Flat OPC XML package (<pkg:package>).
-   *
-   * @param {string|Buffer|Uint8Array} source - Flat OPC XML file path, XML string, or Buffer.
-   * @param {Object} [options={}] - Conversion options.
-   * @returns {Promise<VirtualFileSystem>}
-   */
-  static async fromFlatOpc(source, options = {}) {
-    if (!source) {
-      throw new Error('PackageLoader.fromFlatOpc: source must not be null or undefined')
-    }
-
-    if (Buffer.isBuffer(source) || source instanceof Uint8Array) {
-      return FlatOpcConverter.convert(source, options)
-    }
-
-    if (typeof source === 'string') {
-      const trimmed = source.trim()
-      if (isFlatOpc(trimmed)) {
-        return FlatOpcConverter.convert(trimmed, options)
-      }
-      const resolved = path.resolve(trimmed)
-      const bytes = await fs.readFile(resolved)
-      return FlatOpcConverter.convert(bytes, options)
-    }
-
-    throw new Error('PackageLoader.fromFlatOpc: expected string file path/XML or Buffer')
-  }
 
   static async #loadFromBytes(bytes, options = {}) {
     // 0. Check for Flat OPC XML

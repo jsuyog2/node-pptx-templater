@@ -4,42 +4,51 @@
     "tasks": [
         {
             "id": "TASK-001",
-            "title": "Flat OPC XML Package Ingestion Support (Fix sample.xml)",
+            "title": "Refactor I/O Core Methods & Remove Deprecated Functions",
             "status": "completed",
-            "description": "Add native support in PackageLoader to parse single-file Microsoft Office XML packages (<pkg:package> / Flat OPC). Extract XML parts from <pkg:xmlData> and binary parts (embedded images/workbooks) from <pkg:binaryData> directly into the Virtual File System (VFS).",
+            "description": "Clean up src/core/PPTXTemplater.js, src/core/PackageLoader.js, and src/writer/OutputWriter.js. Enforce the exact 18-method whitelist across Static API (load, createBlank, extractPptx, buildPptx, preload, fromCache, clearCache), Export (saveToFile, toBuffer, toStream, toBase64, toArrayBuffer, toResponse, toExpress, toFastify), and Extraction (extractToZip, extractToXml, toFlatXml). Remove all deprecated methods.",
             "deliverables": [
-                "src/core/PackageLoader.js (Flat OPC detection & part parser)",
-                "src/core/PPTXTemplater.js (support .xml file path / string / Buffer input)",
-                "tests/fixtures/sample.xml (add integration test)"
+                "src/core/PPTXTemplater.js",
+                "src/core/PackageLoader.js",
+                "src/writer/OutputWriter.js"
             ]
         },
         {
             "id": "TASK-002",
-            "title": "Documentation Cleanup & Complete Function Audit",
+            "title": "Comprehensive Showcase Script (showcase/input_export.js)",
             "status": "completed",
-            "description": "Audit all exported functions and remove references to obsolete or removed routines across README.md, docs-site/ data files, and JSDoc. Document all updated import/export, flat XML, and table/chart APIs with clean copy-paste snippets.",
+            "description": "Implement an end-to-end executable showcase script covering every single one of the 18 approved API functions. Include complete JSDoc annotations, detailed inline explanations, and informative console.log statements for each operation.",
             "deliverables": [
-                "README.md (remove deprecated methods, document flat XML & updated APIs)",
+                "showcase/input_export.js"
+            ]
+        },
+        {
+            "id": "TASK-003",
+            "title": "Documentation Cleanup & Complete API Audit",
+            "status": "completed",
+            "description": "Purge all removed or deprecated function names across README.md, docs-site/src/data/apiReference.json, and docs-site/src/data/features.json. Fully document all 18 approved functions with signatures, parameters, return types, and copy-paste snippets.",
+            "deliverables": [
+                "README.md",
                 "docs-site/src/data/apiReference.json",
                 "docs-site/src/data/features.json"
             ]
         },
         {
-            "id": "TASK-003",
+            "id": "TASK-004",
             "title": "Search Engine Optimization (SEO) Overhaul",
             "status": "completed",
-            "description": "Optimize repository discoverability across GitHub, NPM, Google, and Bing for terms such as 'PowerPoint Flat OPC XML Node.js', 'Pure JS PPTX template engine', and 'Serverless PowerPoint generation'.",
+            "description": "Enhance repository discoverability across GitHub, NPM, Google, and Bing for high-intent search terms (e.g., 'PowerPoint template engine Node.js', 'Express PPTX download', 'Fastify stream PPTX', 'Flat XML PowerPoint', 'Serverless PPTX generator').",
             "deliverables": [
                 "package.json (keywords, description, repository tags)",
-                "README.md (SEO-optimized headings, badges, comparison matrix)",
-                "docs-site/src/app/sitemap.js & robots.js"
+                "README.md (SEO-optimized headings, badges, comparison table)",
+                "docs-site/src/app/sitemap.js"
             ]
         },
         {
-            "id": "TASK-004",
-            "title": "Update '.agent' Folder File Paths for Current Architecture",
+            "id": "TASK-005",
+            "title": "Synchronize Workspace Paths & Architecture in .agent Folder",
             "status": "completed",
-            "description": "Synchronize all path references, active directory structures, and architectural rules in the '.agent/' workspace to reflect the latest state (Next.js docs-site, Flat OPC parser, updated VFS paths).",
+            "description": "Update all file path references and memory files inside '.agent/' to match the current Next.js static docs site, showcase/input_export.js, and the 18-method API boundary.",
             "deliverables": [
                 ".agent/project_summary.md",
                 ".agent/rules/features.md",

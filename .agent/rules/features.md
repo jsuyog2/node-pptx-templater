@@ -152,8 +152,11 @@ This document specifies mandatory rules and invariants for every feature domain 
   - OLE Compound File signature (`0xD0 0xCF 0x11 0xE0 0xA1 0xB1 0x1A 0xE1`) for legacy `.ppt` files.
   - OpenDocument signatures for `.odp` files (or PKZip containing `mimetype` with `application/vnd.oasis.opendocument.presentation`).
 - Legacy binary PPT and ODP formats must be routed through `LegacyFormatConverter` to normalize extracted text atoms and slides into an OpenXML `VirtualFileSystem`.
-- Remote web URLs (`PPTXTemplater.fromUrl`) must use fetch/streaming with custom headers and error handling for non-2xx responses.
-- Cloud object storage configurations (`PPTXTemplater.fromCloud`) must accept stream or buffer payloads from S3, GCS, or Azure Blob without intermediate disk writes.
+- All ingestion routes polymorphic sources through `PPTXTemplater.load(source, options)`:
+  - Local file paths, buffers, and streams.
+  - Remote web URLs (`https://...`) are ingested via internal streaming fetch.
+  - Cloud object storage configurations (`{ provider: 's3' | 'gcs' | 'azure', ... }`) ingest streams or buffers directly into the in-memory VFS.
+  - Uncompressed directory trees mount directly without intermediate archiving.
 
 ### 8.2 Blank Presentation Generation Invariants
 - `PPTXTemplater.createBlank(options)` must generate minimal valid OpenXML schemas purely in memory without relying on external file fixtures.
@@ -167,17 +170,31 @@ This document specifies mandatory rules and invariants for every feature domain 
 
 ### 8.3 Multi-Target Export & Framework Responses
 - All serialization pipelines must route through `OutputWriter` and `FrameworkAdapters`.
-- Deprecated legacy I/O aliases (`save`, `toFile`, `saveXml`, `fromPresentationXml`) must log deprecation warnings (only when `logLevel` permits) and forward to modernized methods.
+- The public export interface consists strictly of:
+  - `saveToFile(destinationPath, options)`: Commits presentation to local disk.
+  - `toBuffer(options)`: Compiles presentation into a Node.js `Buffer`.
+  - `toStream(options)`: Emits a readable stream (`ReadableStream`).
+  - `toBase64(options)`: Returns standard Base64 string or Data URI.
+  - `toArrayBuffer(options)`: Returns a web-standard `ArrayBuffer` / `Uint8Array` for Edge runtimes.
+  - `toResponse(options)`: Emits a web-standard `Response` object for Next.js Route Handlers and Edge workers.
+  - `toExpress(res, filename, options)`: Pipes presentation to Express.js HTTP response with OpenXML headers and handles client aborts.
+  - `toFastify(reply, filename, options)`: Pipes presentation to Fastify reply with content type and disposition headers.
 - Web framework adapters (`toExpress`, `toFastify`, `toResponse`) must automatically inject:
   - `Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation`
   - `Content-Disposition: attachment; filename="<filename>"` with RFC-5987 Unicode encoding
   - `Content-Length` where applicable.
 
-### 8.4 XML & ZIP Extraction Invariants
-- `extractToZip(destinationPath)` / `toZipBuffer()`: Packages and dumps raw compressed ZIP archives.
-- `extractToXml(destinationDir, options)` / `saveToFolder(destinationDir)`: Unpacks all presentation parts into uncompressed folders. When `{ formatXml: true }` is enabled, all XML files must be formatted with 2-space indentation while preserving binary media files intact.
+### 8.4 In-Memory Template Caching Invariants
+- Static template cache methods on `PPTXTemplater`:
+  - `preload(source)`: Parses and caches template in static memory (`Map<string, PPTXTemplater>`).
+  - `fromCache(source)`: Deep clones pre-parsed template in <1ms without disk I/O or ZIP decompression.
+  - `clearCache()`: Purges cached templates from memory to prevent memory leaks in long-running processes.
 
-### 8.5 Flat OPC Single-File XML Ingestion & Export Rules
+### 8.5 XML & ZIP Extraction Invariants
+- `extractToZip(destinationPath)`: Packages and dumps raw compressed ZIP archives to disk.
+- `extractToXml(destinationDir, options)`: Unpacks all presentation parts into uncompressed folders. When `{ formatXml: true }` is enabled, all XML files must be formatted with 2-space indentation while preserving binary media files intact.
+
+### 8.6 Flat OPC Single-File XML Ingestion & Export Rules
 - Single-file XML packages starting with `<pkg:package>` must be parsed directly without ZIP overhead via `FlatOpcConverter`.
 - Ingestion rules:
   - Strip leading slashes from `pkg:name` attributes (e.g., `/ppt/presentation.xml` -> `ppt/presentation.xml`) to mount into standard VFS paths.
@@ -185,7 +202,9 @@ This document specifies mandatory rules and invariants for every feature domain 
   - Decode base64 strings from `<pkg:binaryData>` into binary `Uint8Array` / `Buffer` for embedded Excel workbooks (`ppt/embeddings/`) and images (`ppt/media/`).
   - Synthesize `[Content_Types].xml` with default extension mappings and part overrides so standard OpenXML managers operate transparently.
 - Export rules:
-  - `toFlatXml()` and `toFlatOpc()` serialize all VFS entries back into standard `<pkg:package>` XML with `<pkg:part pkg:name="..." pkg:contentType="...">` tags.
+  - `toFlatXml(destinationPathOrOptions)`: Serializes all VFS entries back into standard `<pkg:package>` XML with `<pkg:part pkg:name="..." pkg:contentType="...">` tags.
+  - When passed a string, writes directly to local disk at `destinationPath` and returns the XML string.
+  - When passed options or omitted, returns the XML string in memory.
   - XML parts emit `<pkg:xmlData>` with raw XML DOM/AST content; binary parts emit `<pkg:binaryData>` containing base64 strings.
 - Standard operations (`useSlide`, `replaceText`, `updateChart`, `updateTable`, `saveToFile`, `toBuffer`) must execute seamlessly on decks loaded from Flat OPC XML.
 

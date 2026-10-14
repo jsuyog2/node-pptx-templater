@@ -6,7 +6,7 @@ const { PPTXTemplater } = require('../../src/index.js')
  * and returns both the engine and the index of the newly added slide.
  */
 async function createTestEngine() {
-  const ppt = await PPTXTemplater.create()
+  const ppt = await PPTXTemplater.createBlank()
 
   ppt.addSlide({
     title: 'Test Slide',

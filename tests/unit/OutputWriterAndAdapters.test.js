@@ -113,15 +113,12 @@ describe('OutputWriter & Framework Adapters', () => {
     await fs.remove(TEMP_DIR)
   })
 
-  it('should package to ZIP archive via extractToZip and toZipBuffer', async () => {
+  it('should package to ZIP archive via extractToZip', async () => {
     await fs.remove(TEMP_DIR)
     await fs.ensureDir(TEMP_DIR)
 
     const ppt = await PPTXTemplater.createBlank()
     const zipPath = path.join(TEMP_DIR, 'extracted.zip')
-
-    const zipBuffer = await ppt.toZipBuffer()
-    expect(Buffer.isBuffer(zipBuffer)).toBe(true)
 
     await ppt.extractToZip(zipPath)
     expect(await fs.pathExists(zipPath)).toBe(true)
@@ -133,25 +130,17 @@ describe('OutputWriter & Framework Adapters', () => {
     await fs.remove(TEMP_DIR)
   })
 
-  it('should log deprecation warnings on legacy aliases', async () => {
-    const ppt = await PPTXTemplater.createBlank()
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
+  it('should support toFlatXml to disk file and string', async () => {
     await fs.ensureDir(TEMP_DIR)
-    const outPath = path.join(TEMP_DIR, 'legacy-out.pptx')
+    const ppt = await PPTXTemplater.createBlank()
+    const xmlPath = path.join(TEMP_DIR, 'out.xml')
 
-    // save() alias
-    await ppt.save(outPath)
-    // toFile() alias
-    await ppt.toFile(outPath)
-    // saveXml() alias
-    const xmlDir = path.join(TEMP_DIR, 'xml-out')
-    await ppt.saveXml(xmlDir)
+    const xml = await ppt.toFlatXml(xmlPath)
+    expect(typeof xml).toBe('string')
+    expect(await fs.pathExists(xmlPath)).toBe(true)
 
-    // fromPresentationXml alias
-    await PPTXTemplater.fromPresentationXml(outPath)
-
-    warnSpy.mockRestore()
+    const reloaded = await PPTXTemplater.load(xmlPath)
+    expect(reloaded.slideCount).toBe(1)
     await fs.remove(TEMP_DIR)
   })
 })
