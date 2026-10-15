@@ -2,18 +2,34 @@
   "mcpServers": {
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
-      "description": "Local repository filesystem access for inspecting source code, test suites, and XML templates."
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "e:/Code/pptx-templater"
+      ],
+      "env": {},
+      "description": "Local filesystem access server for inspecting repository sources, XML assets, test fixtures, and documentation schemas."
     },
     "git": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-git", "."],
-      "description": "Git repository operations for status checks, diffing, and inspecting revision history."
+      "args": [
+        "-y",
+        "mcp-server-git"
+      ],
+      "env": {},
+      "description": "Git repository operations server for inspecting branches, commit histories, staging diffs, and verifying clean working trees."
     },
-    "openxml-validator": {
+    "test-runner": {
       "command": "node",
-      "args": ["-e", "const { validateXml, safeParseXml } = require('./src/index.js'); console.log('OpenXML Validator Tooling Ready');"],
-      "description": "Internal XML schema and security validator tool for inspecting OpenXML AST fragments and preventing XXE/DTD injection."
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "--run"
+      ],
+      "env": {
+        "NODE_ENV": "test",
+        "PPTX_LOG_LEVEL": "silent"
+      },
+      "description": "Automated test runner server executing unit and integration test suites via Vitest."
     }
   }
 }

@@ -1,210 +1,124 @@
-# Feature Implementation Rules
+# Rule: Technical Feature Invariants & OpenXML Protocol
 
-This document specifies mandatory rules and invariants for every feature domain in `node-pptx-templater`.
-
----
-
-## 1. Text & Placeholder Templating
-
-### 1.1 Run Healing Across Split Runs
-- PowerPoint frequently fragments user-typed placeholder strings (e.g., `{{company_name}}`) across multiple `<a:r>` (text run) elements and `<a:t>` tags due to spelling checks, grammar tags, font switches, or editing pauses.
-- **Rule**: Prior to token matching or replacement, the template engine must normalize and "heal" adjacent text runs within each paragraph (`<a:p>`).
-- If a placeholder tag is split across runs:
-  1. Detect the boundary of the tag (`{{` to `}}`).
-  2. Merge the run text into the leading run while preserving the leading run's text properties (`<a:rPr>`).
-  3. Clear or remove subsequent runs consumed by the placeholder tag.
-- Text outside placeholder tags must remain unmodified.
-
-### 1.2 Formatting Preservation
-- When substituting text into `{{placeholder}}`, existing run styling (color `<a:solidFill>`, bold `<a:b>`, italic `<a:i>`, font size `sz`, font typeface `<a:latin>`) must be preserved unless explicit override styles are passed by the user.
-- Multi-line replacements (containing `\n`) must be converted into separate `<a:p>` (paragraphs) or `<a:br>` (break runs) with matching paragraph properties (`<a:pPr>`).
+> **Scope**: Implementation standards for core OpenXML features in `node-pptx-templater`.  
+> **Applies to**: `TemplateEngine`, `ChartManager`, `TableManager`, `ZOrderManager`, `SlideManager`, `FlatOpcConverter`.
 
 ---
 
-## 2. Table Engine & Merging
+## 1. Text Run Healing Invariant
 
-### 2.1 Table Structure & OpenXML Elements
-- A PowerPoint table resides in `<p:graphicFrame>` -> `<a:graphic>` -> `<a:graphicData>` -> `<a:tbl>`.
-- The `<a:tbl>` element consists of:
-  - `<a:tblPr>`: Table properties.
-  - `<a:tblGrid>`: Column definitions with `<a:gridCol w="..."/>` widths in EMUs.
-  - `<a:tr h="..."/>`: Rows with row height attribute and cell children.
-  - `<a:tc>`: Table cells containing `<a:txBody>` (text body) and `<a:tcPr>` (cell properties).
+PowerPoint frequently splits contiguous text strings across multiple XML runs (`<a:r>`), especially when edits, spellchecks, or language tags occur. A template placeholder like `{{COMPANY_NAME}}` is often serialized as:
+```xml
+<a:p>
+  <a:r><a:rPr sz="1400" b="1"/><a:t>{{</a:t></a:r>
+  <a:r><a:rPr sz="1400" b="1"/><a:t>COMPANY_</a:t></a:r>
+  <a:r><a:rPr sz="1400" b="1"/><a:t>NAME}}</a:t></a:r>
+</a:p>
+```
 
-### 2.2 Cell Merging Rules (Spans and Dummy Cells)
-- **Horizontal Merges (`gridSpan`)**:
-  - The primary (top-left) cell must define `gridSpan="N"`.
-  - The remaining $N-1$ horizontally merged cells in that row must exist as `<a:tc hMerge="1">` placeholder cells.
-- **Vertical Merges (`rowSpan`)**:
-  - The top cell must define `rowSpan="M"`.
-  - The lower $M-1$ cells directly below it in subsequent rows must exist as `<a:tc vMerge="1">` placeholder cells.
-- **Total Columns Invariant**: Every `<a:tr>` must contain the exact same number of `<a:tc>` elements (including dummy `hMerge`/`vMerge` cells) matching the count of `<a:gridCol>` elements in `<a:tblGrid>`. Mismatches cause immediate presentation repair corruption.
-
-### 2.3 Row Identification (`<a16:rowId>`)
-- In PowerPoint 2016+, PowerPoint tracks table rows using 32-bit unsigned integers:
-  `<a16:rowId val="123456789" xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main"/>`
-- **Rule**: When adding or duplicating rows dynamically, each newly generated `<a:tr>` MUST be assigned a unique 32-bit unsigned integer ID ($1 \le \text{rowId} \le 4,294,967,295$). Duplicate or non-numeric row IDs trigger PowerPoint's "Presentation Repair" dialog.
-
-### 2.4 Auto-Pagination on Overflow
-- When dynamic rows overflow the slide boundary:
-  1. Calculate available vertical space ($Y_{\text{limit}} = \text{SlideHeight} - \text{MarginBottom}$).
-  2. Estimate row heights based on font size, line count, and cell padding.
-  3. Clone the host slide, split rows at the overflow threshold, copy table headers to the subsequent slide, and continue row insertion.
+### Invariant Implementation:
+1. **Paragraph-Level Run Aggregation**:
+   - The engine must iterate over paragraph `<a:p>` elements and concatenate child `<a:r>/<a:t>` string values into a consolidated paragraph text buffer.
+2. **Tag Matching & Substitution**:
+   - Check if any requested placeholder key exists in the combined text buffer. If found, perform substitution across the buffer.
+3. **Format Retention**:
+   - The new text MUST NOT be dumped into raw unstyled text.
+   - Clone the first run's `<a:rPr>` properties (font size, bold, italic, colors, Latin typeface) into a single new `<a:r>` node.
+   - Replace the multiple fragmented runs with the unified run:
+     ```javascript
+     const firstRun = this.#xmlParser.deepClone(runs[0]);
+     firstRun['a:t'] = replacedText;
+     p['a:r'] = [firstRun];
+     ```
 
 ---
 
-## 3. Native Chart Engine & Dual-Sync
+## 2. Chart Dual-Sync Invariant
 
-### 3.1 Dual-Sync Architecture
-- PowerPoint charts are hybrid structures consisting of two components:
-  1. **DrawingML Chart Definition**: Stored in `ppt/charts/chartX.xml` (`<c:chartSpace>`), which PowerPoint uses to visually render the chart.
-  2. **Embedded Excel Workbook**: Stored in `ppt/embeddings/Microsoft_Excel_Worksheet*.xlsx`, which PowerPoint uses when the user clicks "Edit Data in Excel".
-- **Rule**: When updating chart categories or series values, both `chartX.xml` and the embedded Excel sheet MUST be synchronized. Updating only the XML causes PowerPoint to show repair warnings or revert data upon user editing.
+In OpenXML PresentationML, a native chart consists of two interdependent components:
+1. **DrawingML Visual Presentation Cache**: `ppt/charts/chartX.xml` (`<c:chartSpace>`), which contains cached series names (`<c:strRef>/<c:strCache>`) and data points (`<c:numRef>/<c:numCache>`).
+2. **Embedded Excel Workbook**: `ppt/embeddings/Microsoft_Excel_WorksheetX.xlsx`, which contains the underlying spreadsheet data (`xl/worksheets/sheet1.xml` and `xl/sharedStrings.xml`).
 
-### 3.2 DrawingML `<c:chartSpace>` Structure
-- Series data is represented within `<c:plotArea>` under the chart type element (e.g., `<c:barChart>`, `<c:lineChart>`, `<c:pieChart>`).
-- Each `<c:ser>` contains:
-  - `<c:tx>`: Series title/name (`<c:strRef>` or `<c:v>`).
-  - `<c:cat>`: Category axis labels (`<c:strRef>` or `<c:numRef>`).
-  - `<c:val>`: Values array (`<c:numRef>` with `<c:ptCount>` and `<c:pt idx="i"><c:v>val</c:v></c:pt>`).
-- `<c:ptCount>` must strictly match the count of `<c:pt>` entries. Points must use 0-indexed contiguous `idx` attributes.
+> [!WARNING]
+> Updating only the `<c:chartSpace>` cache without updating the embedded `.xlsx` workbook will cause Microsoft PowerPoint to prompt the user to **"Repair Presentation"** as soon as they click "Edit Data in Excel".
 
----
-
-## 4. Shapes & Spatial Placement
-
-### 4.1 EMU Coordinate Standards
-- All coordinates and dimensions in OpenXML must be integer values represented in **English Metric Units (EMUs)**:
-  - $1 \text{ pt} = 12,700 \text{ EMUs}$
-  - $1 \text{ in} = 914,400 \text{ EMUs}$
-  - $1 \text{ px (96 DPI)} = 9,525 \text{ EMUs}$
-  - $1 \text{ cm} = 360,000 \text{ EMUs}$
-- Floating-point EMU values are invalid in OpenXML schema and must always be rounded (`Math.round()`).
-
-### 4.2 Element Positioning (`<a:xfrm>`)
-- Elements must define their spatial box within `<p:spPr>` -> `<a:xfrm>`:
-  - `<a:off x="X" y="Y"/>`: Offset from the slide top-left origin.
-  - `<a:ext cx="WIDTH" cy="HEIGHT"/>`: Element extents (bounding box).
-  - Optional `rot="ANGLE_60000"`: Rotation angle measured in $1/60,000\text{ths}$ of a degree.
-
-### 4.3 Shapes in Table Cells
-- Shapes embedded inside or visually mapped over table cells must be calculated using the cell's absolute slide coordinates (sum of table offset + column offsets + row offsets) to guarantee non-reflow during slide renders.
+### Invariant Implementation:
+1. **Cache Synchronization (`ChartCacheGenerator.js`)**:
+   - Mutate `<c:ser>` elements in `ppt/charts/chartX.xml`.
+   - Rebuild `<c:cat>/<c:strRef>/<c:strCache>` with updated category count and point `<c:pt idx="i">`.
+   - Rebuild `<c:val>/<c:numRef>/<c:numCache>` with updated series values and format codes (`General` or custom).
+2. **Workbook Synchronization (`ChartWorkbookUpdater.js`)**:
+   - Decompress the embedded `.xlsx` binary via JSZip.
+   - Parse `xl/worksheets/sheet1.xml` and `xl/sharedStrings.xml`.
+   - Update cell references: series titles in row 1 (`B1`, `C1`, etc.), categories in column A (`A2`, `A3`, etc.), and numeric values in the grid (`B2`, `C2`, etc.).
+   - Clean up existing table definitions (`xl/tables/`) and sheet relationships to avoid schema validation conflicts.
+   - Recompress with DEFLATE (level 6) and write back to the VFS.
 
 ---
 
-## 5. Z-Order & Layering
+## 3. Table Integrity & Row ID Invariant
 
-### 5.1 `<p:spTree>` Child Ordering
-- In PowerPoint OpenXML, visual layering (Z-index) is determined strictly by the document order of child elements inside `<p:spTree>` (shape tree) in `ppt/slides/slideX.xml`.
-- Elements rendered later in the `<p:spTree>` XML tree appear on top of earlier elements.
-- **Rule**:
-  - `bringToFront()` moves the target element node to the end of `<p:spTree>`.
-  - `sendToBack()` moves the target element node to the beginning of `<p:spTree>` (directly after `<p:nvGrpSpPr>` and `<p:grpSpPr>`).
-  - `moveForward()` / `moveBackward()` swaps the target element with its adjacent visual sibling.
-- Do NOT alter element IDs (`id`) or non-visual property relationships when reordering `<p:spTree>` nodes.
+PowerPoint tables (`<a:tbl>`) require strict conformance to row identification and cell merge rules:
 
----
+### Invariant 1: Unique `<a16:rowId>` 32-Bit Unsigned Integers
+- In modern PowerPoint (DrawingML 2014 extension lists), each table row `<a:tr>` contains an extension block:
+  ```xml
+  <a:extLst>
+    <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
+      <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="384918234"/>
+    </a:ext>
+  </a:extLst>
+  ```
+- **Rule**: When adding or cloning rows (`addTableRow()`, row duplication, or table auto-pagination), NEVER copy the existing `a16:rowId` value.
+- **Action**: Generate a new, unique random 32-bit unsigned integer (`0` to `4294967295`) for every newly inserted or cloned row. Duplicate `val` attributes trigger PowerPoint repair dialogs.
 
-## 6. Slide Lifecycle & Relationship Management
-
-### 6.1 Slide Cloning
-- When duplicating a slide:
-  1. Create a unique part name (`ppt/slides/slideN.xml`).
-  2. Duplicate the relationship file (`ppt/slides/_rels/slideN.xml.rels`).
-  3. Register the new slide relationship in `ppt/_rels/presentation.xml.rels` with a newly generated, unique `rId` (e.g. `rIdN`).
-  4. Register the new slide in `ppt/presentation.xml` inside `<p:sldIdLst>` with a unique `id` ($id \ge 256$).
-  5. Register the part in `[Content_Types].xml` with content type `application/vnd.openxmlformats-officedocument.presentationml.slide+xml`.
-
-### 6.2 Relationship Integrity
-- Every media asset (`ppt/media/*`), chart (`ppt/charts/*`), or layout link referenced in a slide must have a corresponding `<Relationship>` entry in `ppt/slides/_rels/slideX.xml.rels`.
-- Unused or orphaned relationship IDs must be purged to avoid OpenXML validation errors.
-
----
-
-## 7. Documentation Portal & Next.js Static Export Rules
-
-### 7.1 Pure Static HTML Export (`output: 'export'`)
-- All documentation code residing in `docs-site/` must compile to static HTML for native zero-node hosting on Cloudflare Pages.
-- `next.config.mjs` must strictly preserve:
-  - `output: 'export'`
-  - `images: { unoptimized: true }` (Required because static export does not include a Node image optimization server)
-  - `trailingSlash: true` (Guarantees directory-style index.html generation for static web servers)
-- Dynamic route segments (such as `/guides/[slug]`) must implement `generateStaticParams()` to pre-render every guide page statically at build time.
-
-### 7.2 Strict Content Decoupling into JSON Data Schemas
-- Never hardcode API method signatures, parameter tables, feature descriptions, or navigation links directly into React JSX components.
-- All content must be managed in type-safe, decoupled JSON files in `docs-site/src/data/`:
-  - `features.json`: Single source of truth for the 96 capabilities across 12 domain categories.
-  - `apiReference.json`: Complete 111 public methods across all 10 engine domains.
-  - `docsNavigation.json`: Navigation items, categories, and sidebar hierarchy.
-  - `compatibility.json`: Runtimes matrix and serverless execution guarantees.
-  - `siteMeta.json`: Global title, author, canonical domain, keywords, and OpenGraph metadata.
-- Automated route handlers (`sitemap.js`, `robots.js`) must generate `sitemap.xml` and `robots.txt` automatically during `next build`.
+### Invariant 2: Cell Merging Protocol (`gridSpan`, `rowSpan`, `hMerge`, `vMerge`)
+- When merging a rectangular block of cells from `(startRow, startCol)` to `(endRow, endCol)`:
+  - **Origin Cell** `(startRow, startCol)`:
+    - Set `@_gridSpan` = column span count (if `> 1`).
+    - Set `@_rowSpan` = row span count (if `> 1`).
+  - **Horizontally Shadowed Cells** (`startRow`, `startCol + 1` ... `endCol`):
+    - Set `@_hMerge="1"`.
+    - Strip `@_gridSpan`.
+  - **Vertically Shadowed Cells** (`startRow + 1` ... `endRow`, `col`):
+    - Set `@_vMerge="1"`.
+    - Strip `@_rowSpan`.
+  - Delete duplicate content from shadowed cells to prevent corrupted visual overlapping.
 
 ---
 
-## 8. Ingestion, Multi-Target Export & Extraction Rules
+## 4. Z-Order & `<p:spTree>` Child Ordering Invariant
 
-### 8.1 Unified Ingestion Pipeline & Signature Detection
-- `PackageLoader` must detect container signatures prior to parsing:
-  - PKZip standard magic bytes (`0x50 0x4B 0x03 0x04`) for `.pptx`, `.pptm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.ppam`, `.zip`.
-  - Microsoft Flat OPC single-file XML packages (`<?xml` and `<pkg:package`).
-  - OLE Compound File signature (`0xD0 0xCF 0x11 0xE0 0xA1 0xB1 0x1A 0xE1`) for legacy `.ppt` files.
-  - OpenDocument signatures for `.odp` files (or PKZip containing `mimetype` with `application/vnd.oasis.opendocument.presentation`).
-- Legacy binary PPT and ODP formats must be routed through `LegacyFormatConverter` to normalize extracted text atoms and slides into an OpenXML `VirtualFileSystem`.
-- All ingestion routes polymorphic sources through `PPTXTemplater.load(source, options)`:
-  - Local file paths, buffers, and streams.
-  - Remote web URLs (`https://...`) are ingested via internal streaming fetch.
-  - Cloud object storage configurations (`{ provider: 's3' | 'gcs' | 'azure', ... }`) ingest streams or buffers directly into the in-memory VFS.
-  - Uncompressed directory trees mount directly without intermediate archiving.
+Within any slide `<p:sld>`, the main visual drawing container is `<p:spTree>` (or `<p:grpSp>` for groups).
 
-### 8.2 Blank Presentation Generation Invariants
-- `PPTXTemplater.createBlank(options)` must generate minimal valid OpenXML schemas purely in memory without relying on external file fixtures.
-- Synthesized AST must include valid:
-  - `[Content_Types].xml` with presentation, slide, slideMaster, slideLayout, theme, and relationship overrides.
-  - `_rels/.rels` pointing to `ppt/presentation.xml`.
-  - `ppt/presentation.xml` with `<p:sldSz>` (16:9, 4:3, 16:10, or custom EMU/pixel dimensions) and `<p:sldIdLst>`.
-  - `ppt/slideMasters/slideMaster1.xml` and `ppt/slideLayouts/slideLayout1.xml` with layout relationships.
-  - `ppt/theme/theme1.xml` with default font schemes and color palettes.
-  - `ppt/slides/slide1.xml` containing a minimal valid `<p:sld>` ready for element additions.
+### Strict Element Order Requirement:
+ECMA-376 Part 1 §19.3.1.51 strictly requires container property headers to appear **BEFORE** any visual drawing shapes:
+1. `<p:nvGrpSpPr>` (Non-visual group shape properties) — MUST BE FIRST.
+2. `<p:grpSpPr>` (Group shape transform & visual properties) — MUST BE SECOND.
+3. Drawing shapes (`<p:sp>`, `<p:pic>`, `<p:graphicFrame>`, `<p:grpSp>`, `<p:cxnSp>`) in their exact Z-order sequence.
 
-### 8.3 Multi-Target Export & Framework Responses
-- All serialization pipelines must route through `OutputWriter` and `FrameworkAdapters`.
-- The public export interface consists strictly of:
-  - `saveToFile(destinationPath, options)`: Commits presentation to local disk.
-  - `toBuffer(options)`: Compiles presentation into a Node.js `Buffer`.
-  - `toStream(options)`: Emits a readable stream (`ReadableStream`).
-  - `toBase64(options)`: Returns standard Base64 string or Data URI.
-  - `toArrayBuffer(options)`: Returns a web-standard `ArrayBuffer` / `Uint8Array` for Edge runtimes.
-  - `toResponse(options)`: Emits a web-standard `Response` object for Next.js Route Handlers and Edge workers.
-  - `toExpress(res, filename, options)`: Pipes presentation to Express.js HTTP response with OpenXML headers and handles client aborts.
-  - `toFastify(reply, filename, options)`: Pipes presentation to Fastify reply with content type and disposition headers.
-- Web framework adapters (`toExpress`, `toFastify`, `toResponse`) must automatically inject:
-  - `Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation`
-  - `Content-Disposition: attachment; filename="<filename>"` with RFC-5987 Unicode encoding
-  - `Content-Length` where applicable.
+### Invariant Implementation:
+- In `XMLParser.js` and `ZOrderManager.js`:
+  - Visual shapes are reordered using the `[Z_ORDER_SYMBOL]` internal array.
+  - When rebuilding the XML string via `serializeContainer()`, header elements (`<p:nvGrpSpPr>` and `<p:grpSpPr>`) are ALWAYS serialized at the very top.
+  - Never allow a shape element (`<p:sp>`, `<p:pic>`) to precede `<p:nvGrpSpPr>`.
 
-### 8.4 In-Memory Template Caching Invariants
-- Static template cache methods on `PPTXTemplater`:
-  - `preload(source)`: Parses and caches template in static memory (`Map<string, PPTXTemplater>`).
-  - `fromCache(source)`: Deep clones pre-parsed template in <1ms without disk I/O or ZIP decompression.
-  - `clearCache()`: Purges cached templates from memory to prevent memory leaks in long-running processes.
+---
 
-### 8.5 XML & ZIP Extraction Invariants
-- `extractToZip(destinationPath)`: Packages and dumps raw compressed ZIP archives to disk.
-- `extractToXml(destinationDir, options)`: Unpacks all presentation parts into uncompressed folders. When `{ formatXml: true }` is enabled, all XML files must be formatted with 2-space indentation while preserving binary media files intact.
+## 5. Blank Presentation & Flat OPC Invariant
 
-### 8.6 Flat OPC Single-File XML Ingestion & Export Rules
-- Single-file XML packages starting with `<pkg:package>` must be parsed directly without ZIP overhead via `FlatOpcConverter`.
-- Ingestion rules:
-  - Strip leading slashes from `pkg:name` attributes (e.g., `/ppt/presentation.xml` -> `ppt/presentation.xml`) to mount into standard VFS paths.
-  - Extract `<pkg:xmlData>` child nodes and serialize them as clean XML strings into the in-memory `VirtualFileSystem`.
-  - Decode base64 strings from `<pkg:binaryData>` into binary `Uint8Array` / `Buffer` for embedded Excel workbooks (`ppt/embeddings/`) and images (`ppt/media/`).
-  - Synthesize `[Content_Types].xml` with default extension mappings and part overrides so standard OpenXML managers operate transparently.
-- Export rules:
-  - `toFlatXml(destinationPathOrOptions)`: Serializes all VFS entries back into standard `<pkg:package>` XML with `<pkg:part pkg:name="..." pkg:contentType="...">` tags.
-  - When passed a string, writes directly to local disk at `destinationPath` and returns the XML string.
-  - When passed options or omitted, returns the XML string in memory.
-  - XML parts emit `<pkg:xmlData>` with raw XML DOM/AST content; binary parts emit `<pkg:binaryData>` containing base64 strings.
-- Standard operations (`useSlide`, `replaceText`, `updateChart`, `updateTable`, `saveToFile`, `toBuffer`) must execute seamlessly on decks loaded from Flat OPC XML.
+### 5.1 Blank Presentation Deck Generation (`PPTXTemplater.createBlank()`)
+To ensure presentations created from scratch open cleanly in PowerPoint, the generated VFS must contain:
+1. `[Content_Types].xml`: Must include default MIME types and explicit `<Override>` entries for `/ppt/presentation.xml`, `/ppt/slideMasters/slideMaster1.xml`, `/ppt/slideLayouts/slideLayout1.xml`, `/ppt/theme/theme1.xml`, and `/ppt/slides/slide1.xml`.
+2. Slide ID Minimum: In `ppt/presentation.xml`, the `<p:sldId>` attribute `@_id` MUST be `>= 256` (ECMA-376 standard; values `< 256` are reserved by PowerPoint).
+3. Slide Master ID: `<p:sldMasterId id="2147483648" r:id="rId1"/>` (starts at $2^{31}$).
+4. Bidirectional `.rels` Chains:
+   - `_rels/.rels` -> `ppt/presentation.xml`
+   - `ppt/_rels/presentation.xml.rels` -> `slideMasters/slideMaster1.xml`, `slides/slide1.xml`, `theme/theme1.xml`
+   - `ppt/slides/_rels/slide1.xml.rels` -> `../slideLayouts/slideLayout1.xml`
 
+### 5.2 Flat OPC XML (`<pkg:package>`) Handling
+- ISO/IEC 29500-2 Part 2 Annex A Flat OPC packages encapsulate an entire PPTX archive into a single XML document.
+- **XML Parts**: Serialized inside `<pkg:part pkg:name="/..." pkg:contentType="...">` wrapping `<pkg:xmlData>`. The root XML declaration (`<?xml ...?>`) must be stripped inside `<pkg:xmlData>`.
+- **Binary Parts**: Images and `.xlsx` workbooks must be Base64-encoded inside `<pkg:binaryData>`.
+- **Content Types Synthesis**: When converting Flat OPC to VFS, synthesize `[Content_Types].xml` dynamically if omitted in the flat package.

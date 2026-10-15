@@ -1,116 +1,113 @@
-# Skill: Dual-Sync Native Chart Data
+# Skill: Native Chart Updating & Dual Excel Synchronization
 
-This skill explains how to update PowerPoint native charts (`<c:chartSpace>`) while keeping the embedded Excel cache synchronized to prevent PowerPoint Repair warnings.
-
----
-
-## 1. Anatomy of a PowerPoint Chart
-
-A chart in OpenXML comprises:
-1. **Host Slide (`ppt/slides/slideX.xml`)**:
-   Contains a `<p:graphicFrame>` whose `<a:graphicData>` has URI `http://schemas.openxmlformats.org/drawingml/2006/chart` and links via `r:id` to a chart part.
-2. **Slide Relationship (`ppt/slides/_rels/slideX.xml.rels`)**:
-   Maps the `rId` to `../charts/chartY.xml`.
-3. **Chart Definition (`ppt/charts/chartY.xml`)**:
-   DrawingML `<c:chartSpace>` describing the visual plot (series, colors, labels, categories, values).
-4. **Chart Relationship (`ppt/charts/_rels/chartY.xml.rels`)**:
-   Maps an `rId` to the embedded spreadsheet: `../embeddings/Microsoft_Excel_Worksheet1.xlsx`.
-5. **Embedded Excel Workbook (`ppt/embeddings/Microsoft_Excel_Worksheet*.xlsx`)**:
-   Binary OpenXML spreadsheet storing the backing data table.
+> **Domain**: DrawingML ChartML (`<c:chartSpace>`) & SpreadsheetML Integration  
+> **Target Subsystems**: `ChartManager.js`, `ChartCacheGenerator.js`, `ChartWorkbookUpdater.js`
 
 ---
 
-## 2. The Dual-Sync Requirement
+## 1. Context & Architecture
 
-When PowerPoint opens a presentation:
-- It renders the graphic using the cached numbers inside `ppt/charts/chartY.xml`.
-- If a user clicks **"Edit Data in Excel"**, PowerPoint opens the embedded `.xlsx` workbook.
-- If the values or dimensions in `chartY.xml` conflict with the `.xlsx` sheet, or if the formula references (e.g. `Sheet1!$B$2:$B$5`) point to non-existent rows/cols, PowerPoint flags the presentation as **corrupt** and prompts the user to "Repair" it.
+Native PowerPoint charts do not store series data in a single location. They operate on a dual-store architecture:
+1. **The DrawingML XML Cache (`ppt/charts/chartX.xml`)**:
+   Used by PowerPoint's graphics pipeline to render the chart immediately when opening the deck.
+2. **The Embedded Excel Workbook (`ppt/embeddings/Microsoft_Excel_WorksheetX.xlsx`)**:
+   Used when the user clicks "Edit Data in PowerPoint" or "Edit Data in Excel".
+
+If the DrawingML cache and the embedded `.xlsx` workbook become desynchronized, PowerPoint will display mismatched figures or prompt the user with a repair error dialog.
+
+```
+                    ┌─────────────────────────┐
+                    │    ppt.updateChart()    │
+                    └───────────┬─────────────┘
+                                │
+        ┌───────────────────────┴───────────────────────┐
+        ▼                                               ▼
+┌──────────────────────────────┐        ┌──────────────────────────────┐
+│  DrawingML Cache Sync        │        │ Embedded XLSX Workbook Sync  │
+│  (ppt/charts/chart1.xml)     │        │ (ppt/embeddings/*.xlsx)      │
+│  • <c:cat> categories cache  │        │ • xl/worksheets/sheet1.xml   │
+│  • <c:val> series points     │        │ • xl/sharedStrings.xml       │
+│  • <c:dLbls> data labels     │        │ • Remove xl/tables/ conflicts│
+└──────────────────────────────┘        └──────────────────────────────┘
+```
 
 ---
 
-## 3. Step-by-Step Chart Synchronization
+## 2. Playbook: Step-by-Step Chart Update Procedure
 
 ### Step 1: Locate the Target Chart
-Find the chart relationship ID from the slide:
+Query the slide to locate the chart by its element name or non-visual ID:
 ```javascript
-const chartRel = slideRels.find(rel => rel['@_Type'].includes('chart'));
-const chartPath = `ppt/${chartRel['@_Target'].replace('../', '')}`;
-const chartXml = vfs.readText(chartPath);
-const chartDoc = xmlParser.parse(chartXml);
+const chartInfo = chartManager.findChart(slideIndex, chartIdOrName);
+// Returns: { chartPartName: 'ppt/charts/chart1.xml', rId: 'rId2', workbookPart: 'ppt/embeddings/Microsoft_Excel_Worksheet1.xlsx' }
 ```
 
-### Step 2: Update DrawingML Series Data (`chartY.xml`)
-Navigate to the plot area:
+### Step 2: Update the `<c:chartSpace>` DrawingML Cache
+Use `ChartCacheGenerator` to rewrite the category and value nodes:
 ```javascript
-const plotArea = chartDoc['c:chartSpace']['c:chart']['c:plotArea'];
-// Determine chart type: barChart, lineChart, pieChart, etc.
-const chartTypeKey = Object.keys(plotArea).find(k => k.startsWith('c:') && k.endsWith('Chart'));
-const chartObj = plotArea[chartTypeKey];
-const seriesList = ensureArray(chartObj['c:ser']);
-```
+// 1. Locate plot area <c:plotArea> and target chart type element (<c:barChart>, <c:lineChart>, etc.)
+const chartTypeNode = plotArea[chartTypeName];
+const seriesNodes = Array.isArray(chartTypeNode['c:ser']) ? chartTypeNode['c:ser'] : [chartTypeNode['c:ser']];
 
-For each series in `seriesList`:
-1. **Update Categories (`<c:cat>`)**:
-   ```javascript
-   const strRef = series['c:cat']['c:strRef'];
-   strRef['c:f'] = `Sheet1!$A$2:$A$${categories.length + 1}`;
-   strRef['c:strCache']['c:ptCount']['@_val'] = categories.length;
-   strRef['c:strCache']['c:pt'] = categories.map((cat, idx) => ({
-     '@_idx': idx,
-     'c:v': String(cat)
-   }));
-   ```
+// 2. Iterate through series and categories
+for (let sIdx = 0; sIdx < newSeries.length; sIdx++) {
+  const ser = seriesNodes[sIdx];
+  const sData = newSeries[sIdx];
 
-2. **Update Values (`<c:val>`)**:
-   ```javascript
-   const numRef = series['c:val']['c:numRef'];
-   numRef['c:f'] = `Sheet1!$B$2:$B$${values.length + 1}`;
-   numRef['c:numCache']['c:ptCount']['@_val'] = values.length;
-   numRef['c:numCache']['c:pt'] = values.map((val, idx) => ({
-     '@_idx': idx,
-     'c:v': String(val)
-   }));
-   ```
+  // Set series title in <c:tx>/<c:strRef>
+  ser['c:tx']['c:strRef']['c:strCache']['c:pt'] = [{ '@_idx': '0', 'c:v': sData.name }];
 
-3. **Update Series Title (`<c:tx>`)**:
-   ```javascript
-   if (series['c:tx'] && series['c:tx']['c:strRef']) {
-     series['c:tx']['c:strRef']['c:strCache']['c:pt']['c:v'] = seriesName;
-   }
-   ```
+  // Set category references in <c:cat>/<c:strRef>
+  const catPoints = newCategories.map((cat, idx) => ({
+    '@_idx': String(idx),
+    'c:v': String(cat)
+  }));
+  ser['c:cat']['c:strRef']['c:strCache']['c:pt'] = catPoints;
+  ser['c:cat']['c:strRef']['c:strCache']['c:ptCount'] = { '@_val': String(newCategories.length) };
 
-### Step 3: Update Embedded Excel Workbook (`.xlsx`)
-Locate the embedded workbook from `ppt/charts/_rels/chartY.xml.rels`:
-```javascript
-const chartRelPath = `ppt/charts/_rels/${path.basename(chartPath)}.rels`;
-const chartRels = xmlParser.parse(vfs.readText(chartRelPath));
-const sheetRel = ensureArray(chartRels.Relationships.Relationship)
-  .find(r => r['@_Type'].includes('package') || r['@_Target'].endsWith('.xlsx'));
-
-if (sheetRel) {
-  const xlsxPath = `ppt/${sheetRel['@_Target'].replace('../', '')}`;
-  const xlsxBuffer = vfs.readBinary(xlsxPath);
-  
-  // Use ChartWorkbookUpdater to patch sheet1.xml inside the embedded xlsx zip:
-  const updatedXlsxBuffer = await updateEmbeddedExcelData(xlsxBuffer, {
-    categories,
-    seriesData: [{ name: seriesName, values }]
-  });
-  
-  vfs.writeBinary(xlsxPath, updatedXlsxBuffer);
+  // Set value points in <c:val>/<c:numRef>
+  const numPoints = sData.values.map((val, idx) => ({
+    '@_idx': String(idx),
+    'c:v': String(val)
+  }));
+  ser['c:val']['c:numRef']['c:numCache']['c:pt'] = numPoints;
+  ser['c:val']['c:numRef']['c:numCache']['c:ptCount'] = { '@_val': String(sData.values.length) };
 }
 ```
 
+### Step 3: Synchronize the Embedded Excel Workbook
+Pass the raw workbook binary buffer to `ChartWorkbookUpdater.updateWorkbook`:
+```javascript
+const updatedXlsxBuffer = await ChartWorkbookUpdater.updateWorkbook(rawXlsxBuffer, {
+  categories: newCategories,
+  series: newSeries
+});
+vfs.writeBytes(workbookPartName, updatedXlsxBuffer);
+```
+
+Within `ChartWorkbookUpdater`:
+1. **Decompress Excel Archive**: Load with JSZip.
+2. **Re-populate Cell Grid**:
+   - `A1`: Empty header.
+   - Row 1 (`B1`, `C1`, `D1`...): Series names.
+   - Column A (`A2`, `A3`, `A4`...): Category names.
+   - Grid (`B2`, `C2`, etc.): Numeric series point values.
+3. **Table Cleansing (Critical)**:
+   - When updating data row/column counts, any pre-existing Excel table objects (`xl/tables/table1.xml`) will have stale dimensions (`ref="A1:C5"`). If row counts expand or shrink, Excel throws a repair prompt.
+   - **Fix**: Remove `xl/tables/` files, delete worksheet `tableParts` relationships, and strip `<Override PartName="/xl/tables/..." />` from the embedded workbook's `[Content_Types].xml`.
+
 ---
 
-## 4. Common Chart Sync Traps & How to Avoid Them
+## 3. Data Labels Configuration
 
-1. **Mismatched `ptCount` vs. `pt` length**:
-   Always set `<c:ptCount @_val="N"/>` exactly equal to the length of the `c:pt` array.
-2. **Skipped or Non-Contiguous `idx`**:
-   The `idx` attribute in `<c:pt @_idx="0">` must start at `0` and increment by `1` without gaps.
-3. **Invalid Formula Ranges**:
-   If you expand the data from 4 items to 8 items, update `<c:f>` from `$A$2:$A$5` to `$A$2:$A$9`. Leaving a stale formula range causes Excel to prompt "Formula cell range does not match series data".
-4. **Data Type Mismatches**:
-   Categories are typically strings (`<c:strRef>` / `<c:strCache>`), whereas values are numeric (`<c:numRef>` / `<c:numCache>`). Do not put numbers in `<c:strCache>` unless the chart is using text categories.
+To toggle or customize data labels on charts:
+```javascript
+ppt.useSlide(1).updateDataLabels('SalesChart', {
+  showVal: true,        // Show point numeric value
+  showCatName: false,   // Hide category name
+  showLegendKey: false, // Hide legend key
+  showPercent: false,   // Show percentage (for pie/doughnut)
+  position: 'outEnd'    // 'bestFit' | 'b' | 'ctr' | 'inBase' | 'inEnd' | 'l' | 'r' | 't' | 'outEnd'
+});
+```
+This mutates `<c:dLbls>` in `ppt/charts/chartX.xml` without corrupting plot area layout settings.

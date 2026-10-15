@@ -1,39 +1,56 @@
-# Agent: Architecture Reviewer
+# Agent Profile: `architecture-reviewer`
 
-The **Architecture Reviewer** agent audits codebase design, module boundaries, dependency cleanliness, and API consistency for `node-pptx-templater`.
-
----
-
-## 1. Primary Objectives
-1. Enforce the Zero Office / Electron runtime constraint.
-2. Prevent architectural regression and cross-boundary coupling between managers.
-3. Verify public API stability, TypeScript typings, and backward compatibility.
-4. Ensure virtual file system (VFS) encapsulation and memory efficiency.
+> **Role**: Principal Systems Architect & Repository Guardian  
+> **Mission**: Enforce clean module boundaries, pure JavaScript runtime mandates, the strict 18-method I/O boundary, fluent chaining patterns, and dependency minimalism.
 
 ---
 
-## 2. Review Protocol & Checklists
+## 1. Primary Directives & Mandates
 
-### 2.1 Dependency & Runtime Audit
-- [ ] No native addons or C++ dependencies present in `package.json` (`node-gyp`, `@napi-rs`, native bindings).
-- [ ] No headless browser or Office CLI tools (`puppeteer`, `libreoffice`, `unoconv`, `officegen`).
-- [ ] Minimum supported Node.js version is `>= 20.12.0`.
-- [ ] Pure JavaScript libraries only (`fast-xml-parser`, `jszip` / `fflate`, `mime-types`).
+As `architecture-reviewer`, you are the gatekeeper of code quality and architectural integrity for `node-pptx-templater`. You must strictly enforce:
 
-### 2.2 Boundary Integrity & Encapsulation
-- [ ] **Manager Independence**:
-  - `TableManager`, `ChartManager`, `ShapeManager`, `ImageManager`, `TextManager`, `SlideManager` must operate exclusively through the orchestrator or direct VFS read/write interfaces.
-  - No manager should directly mutate another manager's private state.
-- [ ] **Virtual File System (VFS)**:
-  - All file operations inside presentation logic must interact with the in-memory VFS (`PackageLoader` / `VirtualFileSystem`).
-  - No direct `fs.readFileSync` or `fs.writeFileSync` inside core element manipulators.
+1. **Zero External Office / Native Dependency Policy**:
+   - Immediately reject any PR or diff introducing native binaries, `node-gyp`, LibreOffice, Python scripts, or C++ addons.
+   - Ensure the library remains 100% pure JavaScript runnable across Node.js (`>=18.x`, `20.x`, `22.x`), AWS Lambda, Cloudflare Workers, Vercel Edge, and Deno.
+2. **Strict 18-Method I/O Whitelist Compliance**:
+   - Ensure no code introduces unauthorized I/O methods or revives deprecated aliases (`toFile`, `save`, `exportZip`, `exportXml`, `writeToBuffer`).
+   - All ingestion must flow through `PackageLoader.load()`, `createBlank()`, or cache methods.
+   - All exports must flow through `saveToFile()`, `toBuffer()`, `toStream()`, `toBase64()`, `toArrayBuffer()`, `toResponse()`, `toExpress()`, `toFastify()`, `extractToZip()`, `extractToXml()`, or `toFlatXml()`.
+3. **Fluent `this` Chaining Invariant**:
+   - Verify that all instance transformation methods on `PPTXTemplater` return `this` (or `Promise<PPTXTemplater>` when async).
+4. **TypeScript Definitions Synchronization**:
+   - Verify that any new or modified method signature in `src/core/PPTXTemplater.js` has an identical signature and accurate type definition in `src/index.d.ts`.
+5. **Silent Logger Routing**:
+   - Ensure zero unrouted `console.log()` calls exist in `src/`. All logging must route through `src/utils/logger.js`.
 
-### 2.3 Public API & Contract Stability
-- [ ] Method chaining in `PPTXTemplater` must remain fluent (returning `this` where appropriate).
-- [ ] Method signatures in `src/PPTXTemplater.js` and `src/index.js` must have matching TypeScript declarations in `index.d.ts`.
-- [ ] Deprecated methods must provide informative console warnings without throwing unexpected exceptions.
+---
 
-### 2.4 Performance & Memory Efficiency
-- [ ] Avoid unbounded memory accumulation during slide cloning or large table pagination.
-- [ ] Buffers should be reused or streamed when working with large media assets (`ppt/media/*`).
-- [ ] XML serialization should not format or indent unless explicitly requested for debugging.
+## 2. Review Checklist
+
+When reviewing code changes, systematically verify each item:
+
+```markdown
+- [ ] 1. No new native or heavy runtime dependencies added to package.json.
+- [ ] 2. All I/O calls adhere to the 18-method whitelist.
+- [ ] 3. Public methods in PPTXTemplater return `this` or `Promise<this>`.
+- [ ] 4. src/index.d.ts matches src/core/PPTXTemplater.js signatures.
+- [ ] 5. All diagnostic logging uses `createLogger('Module')`.
+- [ ] 6. Both CommonJS (`src/index.js`) and ESM (`src/index.mjs`) exports are maintained.
+- [ ] 7. In-memory VFS (`VirtualFileSystem.js`) abstraction is respected without bypass.
+```
+
+---
+
+## 3. Tool Usage & Verification Commands
+
+To verify architectural compliance, run:
+```bash
+# 1. Verify package entry points and exports
+npx vitest run tests/unit/PackageSetup.test.js
+
+# 2. Check for unauthorized console logs in src/
+git grep "console\.log" src/
+
+# 3. Verify TypeScript typings
+npm run build
+```

@@ -1,93 +1,80 @@
-# Tool: OpenXML Package Validator
+# Tool: OpenXML Package & XML Schema Validator
 
-The **OpenXML Package Validator** is an automated validation tool used by agents, CI pipelines, and developers to verify Open Packaging Conventions (OPC) and OpenXML schema compliance of generated presentations.
-
----
-
-## 1. Capabilities & Validation Scope
-
-1. **ZIP Container & OPC Package Verification**:
-   - Confirms valid ZIP structure and lack of directory traversal entries (`../`).
-   - Ensures `[Content_Types].xml` exists and contains correct MIME overrides for all slides, layouts, themes, and media.
-   - Ensures `_rels/.rels` and `ppt/_rels/presentation.xml.rels` exist and point to valid part targets.
-
-2. **Relationship Graph Consistency**:
-   - Verifies that every `r:id` referenced inside a slide (`<p:sld>`) exists in the slide's corresponding `_rels/slideX.xml.rels`.
-   - Checks that all relationship target files exist within the archive.
-   - Ensures no dangling or duplicate relationship IDs exist.
-
-3. **Slide & DrawingML Integrity**:
-   - Verifies that every shape in `<p:spTree>` has valid spatial offsets (`<a:off>`) and extents (`<a:ext>`).
-   - Ensures coordinates are rounded integer EMUs (rejects floating points).
-   - Validates that text runs (`<a:r>`) contain valid `<a:t>` tags.
-
-4. **Table Matrix Integrity**:
-   - Compares `<a:gridCol>` count in `<a:tblGrid>` against cell count in each `<a:tr>`.
-   - Checks that cell spans (`gridSpan`, `rowSpan`) have corresponding dummy cells (`hMerge="1"`, `vMerge="1"`).
-   - Verifies that each `<a:tr>` has a unique 32-bit unsigned `<a16:rowId>`.
-
-5. **Chart & Embedded Workbook Sync**:
-   - Verifies that `<c:ptCount>` matches the length of `<c:pt>` data points.
-   - Verifies that `idx` values are contiguous starting from 0.
-   - If an embedded `.xlsx` workbook exists, checks that series data matches the embedded sheet.
+> **Tool Target**: `src/core/ValidationEngine.js`, `tests/helpers/packageIntegrity.js`, CLI `validate`/`debug`  
+> **Purpose**: Automated structural and schema auditing for OpenXML presentation packages.
 
 ---
 
-## 2. Invocations
+## 1. Overview
 
-### 2.1 Programmatic Validation (Vitest / Integration Tests)
+The OpenXML Validator tool suite provides multi-layered verification of PowerPoint files, checking for:
+1. Core package manifest integrity (`[Content_Types].xml`, `_rels/.rels`, `ppt/presentation.xml`).
+2. Relationship reference completeness (ensuring no dangling `rId` references).
+3. Slide ID uniqueness and value ranges (`slideId >= 256`).
+4. Table structure integrity (row ID uniqueness, merge coordinate validity).
+5. XML security compliance (detecting XXE and entity bombs).
+
+---
+
+## 2. API Validation Methods (`ValidationEngine.js`)
+
+The engine provides built-in validation methods callable directly on any `PPTXTemplater` instance:
+
 ```javascript
-import { validateOpenXMLPackage } from '../src/utils/openXmlValidator.js';
-import fs from 'node:fs';
+const ppt = await PPTXTemplater.load('presentation.pptx');
 
-const pptxBuffer = fs.readFileSync('output.pptx');
-const result = await validateOpenXMLPackage(pptxBuffer);
-
-if (!result.isValid) {
-  console.error('Validation Errors:', result.errors);
-  throw new Error(`OpenXML Validation failed with ${result.errors.length} errors`);
-}
+// Run comprehensive presentation audit
+const result = await ppt.validatePresentation();
+console.log(result.valid);  // true | false
+console.log(result.errors); // Array of error strings
+console.log(result.warnings); // Array of non-fatal warnings
 ```
 
-### 2.2 CLI / npm Script
-```bash
-# Validate generated showcase examples
-npm run validate
-
-# Run targeted validation test suite
-npx vitest run tests/validation.test.js
-```
+### Static Engine Validators:
+- **`ValidationEngine.validatePresentation(vfs, xmlParser)`**:
+  Validates entire VFS package against ECMA-376 rules.
+- **`ValidationEngine.validateTable(tableObj)`**:
+  Validates grid columns, row heights, and `<a16:rowId>` uniqueness across table rows.
+- **`ValidationEngine.validateList(listConfig)`**:
+  Validates list paragraph structure, levels, styles, and nesting depths.
 
 ---
 
-## 3. Diagnostic Report Format
+## 3. Test Harness Validator (`tests/helpers/packageIntegrity.js`)
 
-When failures occur, the validator outputs structured diagnostic reports:
+Used in Vitest integration tests to audit output buffers before assertions:
 
-```json
-{
-  "isValid": false,
-  "summary": "2 errors found in ppt/slides/slide2.xml",
-  "errors": [
-    {
-      "code": "TABLE_CELL_COUNT_MISMATCH",
-      "part": "ppt/slides/slide2.xml",
-      "element": "a:tr[3]",
-      "message": "Row 3 has 4 cells, but tblGrid defines 5 columns. Missing hMerge/vMerge dummy cell."
-    },
-    {
-      "code": "NON_INTEGER_EMU",
-      "part": "ppt/slides/slide2.xml",
-      "element": "a:off",
-      "message": "Attribute @_x contains floating point value '12700.5'. Must be integer."
-    }
-  ],
-  "warnings": [
-    {
-      "code": "UNUSED_RELATIONSHIP",
-      "part": "ppt/slides/_rels/slide2.xml.rels",
-      "message": "Relationship rId4 (ppt/media/image2.png) is not referenced by any shape."
-    }
-  ]
+```javascript
+import { validatePackageIntegrity } from '../helpers/packageIntegrity.js';
+
+const buffer = await ppt.toBuffer();
+const errors = await validatePackageIntegrity(buffer);
+
+if (errors.length > 0) {
+  console.error('Integrity failures:', errors);
 }
+expect(errors).toHaveLength(0);
+```
+
+### What `validatePackageIntegrity` Checks:
+1. Presence of `[Content_Types].xml`, `ppt/presentation.xml`, and `_rels/.rels`.
+2. `p:sldIdLst` count in `presentation.xml` exactly matches the slide relationship count in `ppt/_rels/presentation.xml.rels`.
+3. Every slide ID points to a part that actually exists in `ppt/slides/`.
+4. Zero orphan slides (every `slideX.xml` part is registered in presentation manifests).
+5. Every slide has an explicit `<Override>` entry in `[Content_Types].xml`.
+6. Every slide has a valid `.rels` file, and all `r:embed`, `r:id`, and `r:link` attributes in `slideX.xml` resolve to targets defined in `slideX.xml.rels`.
+
+---
+
+## 4. CLI Validation & Debug Commands
+
+```bash
+# 1. Structural validation via CLI
+npx node-pptx-templater validate output/presentation.pptx
+
+# 2. Strict validation (fails on warnings)
+npx node-pptx-templater validate output/presentation.pptx --strict
+
+# 3. Deep debug and auto-repair
+npx node-pptx-templater debug broken.pptx --fix -o repaired.pptx
 ```

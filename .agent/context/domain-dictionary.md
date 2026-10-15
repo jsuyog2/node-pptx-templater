@@ -1,153 +1,115 @@
-# Domain Dictionary: OpenXML & PPTX Terminology
+# Context: Domain Dictionary & OpenXML Glossary
 
-This glossary defines standard Open Packaging Conventions (OPC) and OpenXML concepts, element tags, and metrics used throughout `node-pptx-templater`.
-
----
-
-## 1. Metrics & Units
-
-- **EMU (English Metric Unit)**:
-  The fundamental integer unit of measurement in OpenXML. Designed to be evenly divisible by both inches and centimeters.
-  - $1 \text{ pt} = 12,700 \text{ EMUs}$
-  - $1 \text{ inch} = 914,400 \text{ EMUs}$
-  - $1 \text{ pixel (at 96 DPI)} = 9,525 \text{ EMUs}$
-  - $1 \text{ cm} = 360,000 \text{ EMUs}$
-  - All coordinates in `<a:off>` and dimensions in `<a:ext>` must be integer EMUs.
-- **Points (pt)**:
-  Standard typography unit ($1/72\text{ inch}$). Font sizes in DrawingML are specified in hundredths of a point (e.g. `sz="1400"` for $14\text{ pt}$).
-- **Degrees (60k)**:
-  Rotations in DrawingML `<a:xfrm rot="...">` are measured in $1/60,000\text{ths}$ of a degree (e.g., $90^\circ = 5,400,000$).
+> **Scope**: Exhaustive technical glossary of OpenXML, PresentationML, DrawingML, OPC, and `node-pptx-templater` terminology.
 
 ---
 
-## 2. Package & OPC Conventions
+## 1. Standards & Packaging Concepts
 
-- **OPC (Open Packaging Conventions)**:
-  The ZIP-based container standard defining parts, content types, and relationships.
-- **Part**:
-  A file within the ZIP container (e.g., `ppt/slides/slide1.xml`, `[Content_Types].xml`).
-- **`[Content_Types].xml`**:
-  The root MIME registry. Defines default extensions (`.png`, `.xml`, `.rels`) and explicit part overrides (`Override PartName="..." ContentType="..."`).
-- **Relationships (`_rels`)**:
-  XML files defining directed connections between parts.
-  - Package root relationships: `_rels/.rels`
-  - Presentation relationships: `ppt/_rels/presentation.xml.rels`
-  - Slide relationships: `ppt/slides/_rels/slideX.xml.rels`
-  - Chart relationships: `ppt/charts/_rels/chartX.xml.rels`
-- **Relationship ID (`rId` / `r:id`)**:
-  A unique alphanumeric identifier (e.g., `rId2`) linking an XML element to an entry in a `.rels` file.
+### OpenXML / ECMA-376 / ISO/IEC 29500
+The international open standard defining XML formats for office applications:
+- **Part 1**: Fundamentals and Markup Language Reference (PresentationML, DrawingML, SpreadsheetML).
+- **Part 2**: Open Packaging Conventions (OPC), defining how parts are packaged inside ZIP archives or Flat OPC XML files.
 
----
+### OPC (Open Packaging Conventions)
+A container technology that packages multiple XML documents, binary media files, and relationship graphs into a single file (usually a standard PKZip archive). Every file inside an OPC container is termed a **Part**.
 
-## 3. PresentationML Elements (`p:`)
+### `[Content_Types].xml`
+The mandatory package-level part residing at the root of every OPC container. It declares the MIME type of every part in the package using two elements:
+- `<Default Extension="ext" ContentType="mime/type"/>`: Maps generic file extensions (`xml`, `rels`, `png`, `jpeg`).
+- `<Override PartName="/ppt/slides/slide1.xml" ContentType="mime/type"/>`: Explicitly maps specific parts to exact OpenXML schemas.
 
-- `<p:sld>`: The root container for a slide.
-- `<p:spTree>` (Shape Tree): The container holding all visual slide elements (shapes, pictures, tables, charts, groups). Order determines visual Z-index.
-- `<p:sp>`: A standard shape or text box element.
-- `<p:pic>`: An image element. Links to a media file via `r:embed="rIdX"`.
-- `<p:graphicFrame>`: Container for complex graphics including tables and charts.
-- `<p:nvSpPr>`: Non-visual shape properties (shape ID, name, locking).
-- `<p:txBody>`: Text body containing paragraphs and formatting.
+### Relationships (`.rels` / `r:id`)
+OPC files never link to other parts via direct raw paths; they link via relationship identifiers (`rId`).
+- Relationship files are named `[partName].rels` and live in a `_rels/` subfolder (e.g. `ppt/_rels/presentation.xml.rels`, `ppt/slides/_rels/slide1.xml.rels`).
+- Each `<Relationship Id="rId1" Type="..." Target="..." [TargetMode="External"]/>` establishes a directed connection.
+- References in XML use `r:id="rId1"` or `r:embed="rId1"`.
 
----
-
-## 4. DrawingML Elements (`a:`)
-
-- `<a:xfrm>` (2D Transform): Defines spatial bounding box.
-  - `<a:off x="..." y="..."/>`: Offset coordinates from top-left.
-  - `<a:ext cx="..." cy="..."/>`: Extent width (`cx`) and height (`cy`).
-- `<a:p>`: A text paragraph.
-  - `<a:pPr>`: Paragraph properties (alignment, line spacing, margins).
-- `<a:r>`: A text run.
-  - `<a:rPr>`: Run properties (font size, bold, italic, color `<a:solidFill>`).
-  - `<a:t>`: Text content node.
-- `<a:br>`: Line break run.
+### Flat OPC XML (`<pkg:package>`)
+ISO/IEC 29500-2 Part 2 Annex A representation of an entire OPC container within a single monolithic XML document:
+- `<pkg:package>`: The root envelope element.
+- `<pkg:part pkg:name="/..." pkg:contentType="...">`: Represents each individual part.
+- `<pkg:xmlData>`: Contains inline XML for text parts (stripping the root `<?xml...?>` header).
+- `<pkg:binaryData>`: Contains Base64-encoded binary content for images, fonts, and embedded workbooks.
 
 ---
 
-## 5. Table Structures
+## 2. PresentationML & Markup Namespaces
 
-- `<a:tbl>`: Table root element.
-- `<a:tblPr>`: Table properties (style ID, band rows, first column styling).
-- `<a:tblGrid>`: Column definitions container.
-  - `<a:gridCol w="..."/>`: Defines the width of a column in EMUs.
-- `<a:tr h="..."/>`: Table row with height in EMUs.
-  - `<a16:rowId>`: Unique 32-bit unsigned integer ID required by PowerPoint 2016+.
+### PresentationML (`p:` Namespace)
+Namespace: `http://schemas.openxmlformats.org/presentationml/2006/main`  
+Defines PowerPoint presentation structure:
+- `<p:presentation>`: Presentation root defining slide sizing, slide ID list, and slide masters.
+- `<p:sldIdLst>`: The ordered list of slides in the presentation.
+- `<p:sldId id="256" r:id="rId2"/>`: Represents an individual slide. The `@_id` attribute must be $\ge 256$.
+- `<p:sld>`: The root element of a slide document (`ppt/slides/slideX.xml`).
+- `<p:cSld>`: Common slide data wrapper containing the background and shape tree.
+- `<p:spTree>`: The shape tree container holding all drawable elements on a slide.
+- `<p:sp>`: Vector shape or text box element.
+- `<p:pic>`: Picture/image element.
+- `<p:graphicFrame>`: Container for complex visual elements (tables, charts, SmartArt).
+- `<p:grpSp>`: Group shape containing nested visual shapes.
+
+### DrawingML (`a:` Namespace)
+Namespace: `http://schemas.openxmlformats.org/drawingml/2006/main`  
+Defines graphics, geometry, text styling, colors, and coordinates across all Office applications:
+- `<a:xfrm>`: 2D transform defining position (`<a:off x="..." y="..."/>`) and extent/dimensions (`<a:ext cx="..." cy="..."/>`).
+- `<a:p>`: Text paragraph.
+- `<a:r>`: Text run holding contiguous characters with identical styling.
+- `<a:rPr>`: Text run properties (font size `@_sz`, bold `@_b`, italic `@_i`, Latin font `<a:latin typeface="..."/>`).
+- `<a:t>`: Text content node holding raw string characters.
+- `<a:tbl>`: Table element containing grid columns (`<a:gridCol>`) and rows (`<a:tr>`).
 - `<a:tc>`: Table cell.
-  - `<a:tcPr>`: Cell properties (margins, fill, borders, vertical alignment).
-  - `gridSpan`: Number of horizontal columns merged by this cell.
-  - `rowSpan`: Number of vertical rows merged by this cell.
-  - `hMerge="1"`: Indicator that this cell is horizontally covered by a preceding merged cell.
-  - `vMerge="1"`: Indicator that this cell is vertically covered by an upper merged cell.
+
+### ChartML (`c:` Namespace)
+Namespace: `http://schemas.openxmlformats.org/drawingml/2006/chart`  
+Defines native charts:
+- `<c:chartSpace>`: Root chart element in `ppt/charts/chartX.xml`.
+- `<c:plotArea>`: Container for the actual chart visualization (`<c:barChart>`, `<c:lineChart>`, `<c:pieChart>`).
+- `<c:ser>`: A chart series.
+- `<c:cat>`: Category data reference and cache (`<c:strRef>/<c:strCache>`).
+- `<c:val>`: Values data reference and cache (`<c:numRef>/<c:numCache>`).
+- `<c:dLbls>`: Data label configuration.
+
+### DrawingML 2014 Extension (`a16:` Namespace)
+Namespace: `http://schemas.microsoft.com/office/drawing/2014/main`  
+Modern Office extensions:
+- `<a16:rowId val="...">`: 32-bit unsigned integer uniquely identifying a table row in PowerPoint 2016+. Must be unique across all rows in a table.
 
 ---
 
-## 6. Chart Structures (`c:`)
+## 3. Spatial Math & Units
 
-- `<c:chartSpace>`: Root container of a chart part (`ppt/charts/chartX.xml`).
-- `<c:chart>`: Main chart node containing title, plot area, and legend.
-- `<c:plotArea>`: The area containing visual charts (`<c:barChart>`, `<c:lineChart>`, `<c:pieChart>`, `<c:areaChart>`).
-- `<c:ser>`: A data series.
-  - `<c:tx>`: Series title.
-  - `<c:cat>`: Category axis labels (`<c:strRef>` or `<c:numRef>`).
-  - `<c:val>`: Data values (`<c:numRef>`).
-  - `<c:ptCount @_val="N"/>`: Total point count in cache.
-  - `<c:pt @_idx="i">`: Data point element at 0-based index `i`.
-- **Embedded Workbook**:
-  `ppt/embeddings/Microsoft_Excel_Worksheet*.xlsx` storing the backing table queried by PowerPoint's "Edit Data in Excel" tool.
+### EMU (English Metric Unit)
+The fundamental coordinate unit in OpenXML DrawingML. EMUs allow integer arithmetic to represent both fractional inches and millimeters without rounding errors:
+- $1 \text{ pt} = 12,700 \text{ EMUs}$
+- $1 \text{ in} = 914,400 \text{ EMUs}$
+- $1 \text{ px (at 96 DPI)} = 9,525 \text{ EMUs}$
+- $1 \text{ cm} = 360,000 \text{ EMUs}$
+- $1 \text{ mm} = 36,000 \text{ EMUs}$
 
----
-
-## 7. File Formats & MIME Types
-
-- **`.pptx`**:
-  `application/vnd.openxmlformats-officedocument.presentationml.presentation` — Standard OpenXML presentation archive.
-- **`.pptm`**:
-  `application/vnd.ms-powerpoint.presentation.macroEnabled.12` — Macro-enabled presentation archive.
-- **`.potx`**:
-  `application/vnd.openxmlformats-officedocument.presentationml.template` — OpenXML presentation template.
-- **`.potm`**:
-  `application/vnd.ms-powerpoint.template.macroEnabled.12` — Macro-enabled presentation template.
-- **`.ppsx`**:
-  `application/vnd.openxmlformats-officedocument.presentationml.slideshow` — Auto-playing slide show presentation.
-- **`.ppsm`**:
-  `application/vnd.ms-powerpoint.slideshow.macroEnabled.12` — Macro-enabled auto-playing slide show.
-- **`.ppam`**:
-  `application/vnd.ms-powerpoint.addin.macroEnabled.12` — PowerPoint Add-in package.
-- **`.ppt`**:
-  `application/vnd.ms-powerpoint` — Legacy Microsoft PowerPoint binary format (OLE Compound File, signature `0xD0 0xCF 0x11 0xE0 0xA1 0xB1 0x1A 0xE1`).
-- **`.odp`**:
-  `application/vnd.oasis.opendocument.presentation` — OpenDocument Presentation XML package.
-- **`.zip`**:
-  `application/zip` — PKZip container format (magic number `0x50 0x4B 0x03 0x04`).
+### Standard Slide Dimensions in EMUs:
+- **16:9 Widescreen**: $12,192,000 \times 6,858,000 \text{ EMUs}$ ($13.333 \times 7.5 \text{ in}$)
+- **4:3 Standard**: $9,144,000 \times 6,858,000 \text{ EMUs}$ ($10 \times 7.5 \text{ in}$)
+- **16:10 Widescreen**: $12,192,000 \times 7,620,000 \text{ EMUs}$ ($13.333 \times 8.333 \text{ in}$)
 
 ---
 
-## 8. Flat OPC XML Concepts & Tags
+## 4. Engine Internal Architecture Terms
 
-- **Flat OPC (Microsoft Flat Open Packaging Conventions)**:
-  Single uncompressed XML representation of an OpenXML package, containing a `<pkg:package>` root node enclosing individual `<pkg:part>` entries.
-- **`<pkg:package>`**:
-  The root container element of a Flat OPC XML document (`xmlns:pkg="http://schemas.microsoft.com/office/2006/xmlPackage"`).
-- **`<pkg:part>`**:
-  An element representing an OPC part within a Flat OPC document, defining attributes `pkg:name` (e.g. `"/ppt/presentation.xml"`) and `pkg:contentType` (e.g. `"application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"`).
-- **`<pkg:xmlData>`**:
-  Child container within a `<pkg:part>` holding raw, unescaped OpenXML markup for XML parts (slides, charts, relationships).
-- **`<pkg:binaryData>`**:
-  Child container within a `<pkg:part>` holding base64-encoded binary content for binary assets such as images (`ppt/media/`) or embedded Excel workbooks (`ppt/embeddings/`).
+### VFS (Virtual File System)
+An in-memory `Map<string, Uint8Array>` implemented in `VirtualFileSystem.js`. Decouples the templating engine from disk I/O, allowing pure in-memory execution in serverless lambdas and cloud workers.
 
----
+### Run Fragmentation
+The phenomenon where a continuous string of text (such as a placeholder `{{customer_name}}`) is chopped across multiple `<a:r>` and `<a:t>` nodes by Microsoft PowerPoint. Handled by `TemplateEngine.js` via text run healing.
 
-## 9. Framework Streaming & Memory Caching Terminology
+### Shadowed Cells
+Table cells that are covered by an adjacent cell with `gridSpan > 1` or `rowSpan > 1`.
+- Horizontally shadowed cells must declare `hMerge="1"`.
+- Vertically shadowed cells must declare `vMerge="1"`.
 
-- **Express Stream Piping (`toExpress`)**:
-  Streaming the generated presentation directly into an Express `res` (`http.ServerResponse`) object with standard OpenXML MIME type, RFC-5987 Unicode content disposition headers, and client abort event handling.
-- **Fastify Reply Piping (`toFastify`)**:
-  Streaming presentation binary data through Fastify's encapsulated `reply` object (`reply.type().header().send()`), ensuring compatibility with Fastify payload serializers.
-- **Web Standard API Response (`toResponse`)**:
-  Synthesizing a web-standard `Response` object (`new Response(arrayBuffer, { headers })`) containing the presentation binary and OpenXML attachment headers, designed for Next.js App Router Route Handlers, Remix, Cloudflare Workers, and Vercel Edge.
-- **Flat OPC XML Package Serialization (`toFlatXml`)**:
-  Compiling the in-memory Virtual File System into a monolithic Microsoft Flat OPC XML string (`<pkg:package>`), either saving directly to a destination disk path or returning the raw XML string in memory.
-- **In-Memory Template Caching (`preload`, `fromCache`, `clearCache`)**:
-  Static memory cache storing pre-parsed template instances (`Map<string, PPTXTemplater>`), enabling sub-millisecond slide deck instantiation without repetitive disk reads or ZIP decompression.
+### Visual Stacking Order (Z-Order)
+The rendering hierarchy of shapes on a slide. In OpenXML, Z-order is implicit: shapes declared later in `<p:spTree>` render on top of earlier shapes. Managed via `ZOrderManager.js` and `Z_ORDER_SYMBOL`.
 
+### Chart Dual-Sync
+The requirement to simultaneously update both the DrawingML visual cache (`<c:chartSpace>`) and the underlying embedded Excel spreadsheet (`ppt/embeddings/*.xlsx`) to prevent PowerPoint repair dialogs.

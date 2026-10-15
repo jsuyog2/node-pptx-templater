@@ -1,140 +1,137 @@
-# Skill: OpenXML Table Merging & Row Generation
+# Skill: Table Cell Merging, Row ID Integrity & Auto-Pagination
 
-This skill details how to manipulate DrawingML tables (`<a:tbl>`), apply horizontal and vertical cell merges, and generate rows with valid `<a16:rowId>` identifiers.
+> **Domain**: PresentationML Table Processing (`<a:tbl>`), Extension Lists (`<a16:rowId>`), and Overflow Pagination  
+> **Target Subsystems**: `TableManager.js`, `SlideManager.js`, `spatial/units.js`
 
 ---
 
-## 1. Structure of an OpenXML Table
+## 1. Table Architecture in OpenXML
 
-An OpenXML table in PresentationML is defined under `<a:tbl>`:
-
+A table in PresentationML is contained within a `<p:graphicFrame>` whose `<a:graphicData>` has URI `http://schemas.openxmlformats.org/drawingml/2006/table`:
 ```xml
-<a:tbl>
-  <a:tblPr rtl="0" firstRow="1">
-    <a:tableStyleId>{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId>
-  </a:tblPr>
-  <a:tblGrid>
-    <a:gridCol w="2500000"/>
-    <a:gridCol w="2500000"/>
-    <a:gridCol w="2500000"/>
-  </a:tblGrid>
-  <a:tr h="450000">
-    <a16:rowId val="1001" xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main"/>
-    <a:tc>...</a:tc>
-    <a:tc>...</a:tc>
-    <a:tc>...</a:tc>
-  </a:tr>
-</a:tbl>
+<p:graphicFrame>
+  <p:nvGraphicFramePr>
+    <p:cNvPr id="5" name="Table 4"/>
+  </p:nvGraphicFramePr>
+  <p:xfrm>
+    <a:off x="914400" y="1828800"/>
+    <a:ext cx="10363200" cy="4572000"/>
+  </p:xfrm>
+  <a:graphic>
+    <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">
+      <a:tbl>
+        <a:tblPr/>
+        <a:tblGrid>
+          <a:gridCol w="2590800"/>
+          <a:gridCol w="2590800"/>
+        </a:tblGrid>
+        <a:tr h="370840">
+          <a:tc><a:txBody><a:p><a:r><a:t>Cell 1</a:t></a:r></a:p></a:txBody></a:tc>
+          <a:tc><a:txBody><a:p><a:r><a:t>Cell 2</a:t></a:r></a:p></a:txBody></a:tc>
+          <a:extLst>
+            <a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">
+              <a16:rowId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" val="12938472"/>
+            </a:ext>
+          </a:extLst>
+        </a:tr>
+      </a:tbl>
+    </a:graphicData>
+  </a:graphic>
+</p:graphicFrame>
 ```
 
 ---
 
-## 2. Horizontal Merging (`gridSpan` & `hMerge`)
+## 2. Cell Merging Playbook
 
-To merge cells across columns in the same row:
+### Coordinate System:
+- Tables use 0-based indexing: `(startRow, startCol)` to `(endRow, endCol)`.
+- Example: Merging header row across columns 0 to 3: `ppt.mergeCells('TableId', 0, 0, 0, 3)`.
 
-1. **Origin Cell (Top-Left)**:
-   Add the attribute `gridSpan="COL_COUNT"` to the origin `<a:tc>`.
-2. **Covered Cells (Right)**:
-   Add dummy `<a:tc>` elements for the remaining `COL_COUNT - 1` columns with the attribute `hMerge="1"`.
-
-```xml
-<!-- A 3-column row where cell 1 spans across columns 1 and 2 -->
-<a:tr h="400000">
-  <!-- Origin cell spanning 2 columns -->
-  <a:tc gridSpan="2">
-    <a:txBody>
-      <a:bodyPr/>
-      <a:p><a:r><a:t>Spanning Columns 1 & 2</a:t></a:r></a:p>
-    </a:txBody>
-    <a:tcPr/>
-  </a:tc>
-  <!-- Dummy covered cell -->
-  <a:tc hMerge="1">
-    <a:txBody><a:bodyPr/><a:p/></a:txBody>
-    <a:tcPr/>
-  </a:tc>
-  <!-- Normal third cell -->
-  <a:tc>
-    <a:txBody><a:bodyPr/><a:p><a:r><a:t>Column 3</a:t></a:r></a:p></a:txBody>
-    <a:tcPr/>
-  </a:tc>
-</a:tr>
-```
+### Step-by-Step Procedure:
+1. **Locate Target Table**:
+   Retrieve the `<a:tbl>` AST node for the specified table identifier.
+2. **Compute Spans**:
+   ```javascript
+   const gridSpan = endCol - startCol + 1;
+   const rowSpan = endRow - startRow + 1;
+   ```
+3. **Configure Origin Cell**:
+   At `(startRow, startCol)`:
+   - If `gridSpan > 1`, set `@_gridSpan = String(gridSpan)`.
+   - If `rowSpan > 1`, set `@_rowSpan = String(rowSpan)`.
+   - Strip any `@_hMerge` or `@_vMerge`.
+4. **Configure Horizontally Shadowed Cells**:
+   For cells `(r, c)` where `r = startRow` and `startCol < c <= endCol`:
+   - Set `@_hMerge = "1"`.
+   - Delete `@_gridSpan` and empty the text frame `<a:txBody>` (or leave a single empty `<a:p>`).
+5. **Configure Vertically Shadowed Cells**:
+   For cells `(r, c)` where `startRow < r <= endRow` and `startCol <= c <= endCol`:
+   - Set `@_vMerge = "1"`.
+   - If also horizontally shadowed, set `@_hMerge = "1"`.
+   - Delete `@_rowSpan` and clear cell text.
 
 ---
 
-## 3. Vertical Merging (`rowSpan` & `vMerge`)
+## 3. Row ID Integrity Rule (`<a16:rowId>`)
 
-To merge cells vertically down rows:
-
-1. **Origin Cell (Top)**:
-   Add the attribute `rowSpan="ROW_COUNT"` to the origin `<a:tc>`.
-2. **Covered Cells (Below)**:
-   In the subsequent `ROW_COUNT - 1` rows, place dummy `<a:tc>` elements in that column with the attribute `vMerge="1"`.
-
-```xml
-<!-- Row 1: Cell 1 spans 2 rows down -->
-<a:tr h="400000">
-  <a:tc rowSpan="2">
-    <a:txBody>
-      <a:bodyPr/>
-      <a:p><a:r><a:t>Spanning Rows 1 & 2</a:t></a:r></a:p>
-    </a:txBody>
-    <a:tcPr/>
-  </a:tc>
-  <a:tc>...</a:tc>
-</a:tr>
-
-<!-- Row 2: Cell 1 is vertically covered -->
-<a:tr h="400000">
-  <a:tc vMerge="1">
-    <a:txBody><a:bodyPr/><a:p/></a:txBody>
-    <a:tcPr/>
-  </a:tc>
-  <a:tc>...</a:tc>
-</a:tr>
-```
-
----
-
-## 4. Crucial Invariant: The Equal Cell Matrix Rule
-
-**RULE**: Every `<a:tr>` MUST have the exact same number of `<a:tc>` children as the total number of `<a:gridCol>` definitions in `<a:tblGrid>`.
-
-- Even if a cell is merged horizontally or vertically, its placeholder `<a:tc>` MUST exist in the XML tree.
-- Omitting covered cells will cause PowerPoint to fail schema validation and corrupt the presentation.
-
----
-
-## 5. Generating Unique `<a16:rowId>` Values
-
-Modern versions of PowerPoint (2016+) assign a unique 32-bit unsigned integer to each row.
-
+Whenever rows are added or cloned:
 ```javascript
-/**
- * Generates a unique 32-bit unsigned row ID for an OpenXML table row.
- * @param {Set<number>} existingIds Set of currently used row IDs in the presentation.
- * @returns {number}
- */
-export function generateUniqueRowId(existingIds = new Set()) {
-  let id;
-  do {
-    // Generate an unsigned 32-bit integer (1 to 2^31 - 1)
-    id = Math.floor(Math.random() * 2147483647) + 1;
-  } while (existingIds.has(id));
-  existingIds.add(id);
-  return id;
+#updateRowId(rowObj) {
+  const randomVal = String(Math.floor(Math.random() * 4294967295));
+  if (!rowObj['a:extLst']) {
+    rowObj['a:extLst'] = {
+      'a:ext': {
+        '@_uri': '{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}',
+        'a16:rowId': {
+          '@_xmlns:a16': 'http://schemas.microsoft.com/office/drawing/2014/main',
+          '@_val': randomVal
+        }
+      }
+    };
+  } else {
+    // Traverse existing extLst and replace the val attribute with randomVal
+  }
 }
+```
+**Never omit or duplicate `a16:rowId`.**
 
-// Applying to newly cloned or created row AST:
-newRow['a16:rowId'] = {
-  '@_val': String(generateUniqueRowId(existingRowIds)),
-  '@_xmlns:a16': 'http://schemas.microsoft.com/office/drawing/2014/main'
-};
+---
+
+## 4. Table Auto-Pagination Engine (`splitTableOnOverflow`)
+
+When large datasets are populated into a table, rows can overflow beyond the bottom edge of the slide canvas. The flagship `splitTableOnOverflow()` method dynamically paginates the table:
+
+```
+Slide 1: Initial Slide                  Slide 2: Cloned Slide
+┌─────────────────────────────┐        ┌─────────────────────────────┐
+│ Header Title                │        │ Header Title                │
+│ ┌─────────────────────────┐ │        │ ┌─────────────────────────┐ │
+│ │ Header Row (Repeated)   │ │        │ │ Header Row (Repeated)   │ │
+│ ├─────────────────────────┤ │        │ ├─────────────────────────┤ │
+│ │ Rows 1 to 15            │ │  ───►  │ │ Rows 16 to 30           │ │
+│ └─────────────────────────┘ │        │ ├─────────────────────────┤ │
+│ (Overflows Bottom Margin)   │        │ │ Summary Row (Pinned)    │ │
+│                             │        │ └─────────────────────────┘ │
+└─────────────────────────────┘        └─────────────────────────────┘
 ```
 
-**Never**:
-- Leave `<a16:rowId>` as duplicate when cloning a row.
-- Assign non-numeric or negative strings.
-- Exceed $4,294,967,295$ (the 32-bit unsigned limit).
+### Protocol:
+1. **Calculate Available Space**:
+   - $Y_{\text{table}} = \text{Table bounding box top offset}$
+   - $H_{\text{slide}} = \text{Slide total height in EMUs}$
+   - $M_{\text{bottom}} = \text{Bottom margin in EMUs (default: 0.5in)}$
+   - $Y_{\text{limit}} = H_{\text{slide}} - M_{\text{bottom}}$
+2. **Estimate Row Heights**:
+   - Inspect font size, typeface metrics, column width, and line wrapping for every cell in the row.
+   - Cumulative table height = $\sum \text{RowHeight}_i$.
+3. **Partition Rows**:
+   - Find the cutoff row index $k$ where the table reaches $Y_{\text{limit}}$.
+   - Slice rows $1 \dots k$ on the current slide.
+4. **Deep-Clone Host Slide**:
+   - Call `slideManager.duplicateSlide()`, generating unique relationship IDs and `[Content_Types].xml` overrides.
+5. **Inject Repeated Headers & Pinned Summaries**:
+   - If `repeatHeaders > 0`, prepend the top header rows to the table on the newly cloned slide.
+   - If `summaryRows > 0`, pin the final total/summary rows to the last generated slide.
+6. **Recurse**:
+   - If the remaining rows still exceed $Y_{\text{limit}}$, recursively continue paginating onto subsequent slides until all rows fit cleanly.

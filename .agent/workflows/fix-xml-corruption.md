@@ -1,85 +1,86 @@
-# Workflow: Fixing OpenXML Corruption
+# Workflow: Diagnosing & Fixing PowerPoint XML Corruption
 
-This workflow provides a systematic procedure for debugging, isolating, and resolving OpenXML corruption and PowerPoint repair warnings.
-
----
-
-## Step 1: Reproduce & Isolate
-
-1. **Pinpoint the Trigger**:
-   - Identify the exact code path, data structure, or template causing PowerPoint to trigger the "PowerPoint found a problem with content... Do you want to repair?" warning.
-2. **Minimal Reproduction**:
-   - Write a minimal failing test case in `tests/debug_repro.test.js` or run the specific example in `showcase/examples.js`.
-   - Export the corrupted presentation to disk: `await pptx.toFile('corrupted.pptx')`.
+> **Purpose**: Systematic forensic workflow for identifying, diagnosing, and resolving Microsoft PowerPoint "Needs Repair" or "PowerPoint found a problem with content" alerts.
 
 ---
 
-## Step 2: Unpack and Format Package Contents
+## 1. Common Causes of PowerPoint Repair Alerts
 
-1. **Extract Archive**:
-   Extract both the clean input template and the corrupted output into separate directories:
-   ```bash
-   mkdir clean_dump && unzip template.pptx -d clean_dump/
-   mkdir corrupt_dump && unzip corrupted.pptx -d corrupt_dump/
-   ```
-2. **Pretty-Print XML**:
-   Format XML files for diffing:
-   ```bash
-   # Format all XML files
-   npx prettier --write "corrupt_dump/**/*.xml"
-   npx prettier --write "clean_dump/**/*.xml"
-   ```
+Microsoft PowerPoint strictly enforces ISO/IEC 29500 (ECMA-376) schema validation. The top causes of corruption alerts in generated presentations are:
+
+1. **Duplicate or Copied `<a16:rowId>` Values**:
+   Cloned table rows sharing identical `rowId` values trigger instant table corruption alerts in PowerPoint 2016+.
+2. **Missing `[Content_Types].xml` Overrides**:
+   Adding a new slide (`slide2.xml`) without an `<Override PartName="/ppt/slides/slide2.xml" ContentType="..."/>` entry.
+3. **Broken or Orphaned Relationship Chains**:
+   A slide containing `r:id="rId5"` or `r:embed="rId2"` when that identifier does not exist in `ppt/slides/_rels/slideX.xml.rels`.
+4. **Displaced `<p:spTree>` Header Elements**:
+   Visual shapes (`<p:sp>`, `<p:pic>`) appearing before `<p:nvGrpSpPr>` or `<p:grpSpPr>` in `<p:spTree>` or `<p:grpSp>`.
+5. **Chart Desynchronization**:
+   Updating series values in `<c:chartSpace>` without updating the embedded `.xlsx` workbook, or leaving stale `xl/tables/` definitions.
+6. **Invalid Slide ID Ranges**:
+   Slide IDs (`<p:sldId id="...">`) in `ppt/presentation.xml` set to values `< 256`.
 
 ---
 
-## Step 3: Inspect Diff & Common Culprits
+## 2. Step-by-Step Diagnostic Protocol
 
-Execute a git diff or file diff across the directories:
-```bash
-git diff --no-index clean_dump/ corrupt_dump/
+```
+┌────────────────────────────────────────────────────────┐
+│ Step 1: Extract Presentation with Formatting           │
+│ npx node-pptx-templater extract corrupted.pptx --all   │
+│     --folder ./unpacked_debug --format-xml             │
+└──────────────────────────┬─────────────────────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│ Step 2: Run Automated Integrity Validator             │
+│ npx vitest run tests/helpers/packageIntegrity.js       │
+└──────────────────────────┬─────────────────────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│ Step 3: Inspect Relationship Graphs & Content Types    │
+│ • Compare presentation.xml sldIdLst vs .rels           │
+│ • Compare slideX.xml r:id references vs slideX.rels    │
+│ • Check [Content_Types].xml for all part overrides     │
+└──────────────────────────┬─────────────────────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│ Step 4: Inspect Element Ordering & Extensions          │
+│ • Inspect <p:spTree> header elements                   │
+│ • Check <a16:rowId> values across <a:tr> rows          │
+│ • Check chart cache vs xl/worksheets/sheet1.xml        │
+└──────────────────────────┬─────────────────────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│ Step 5: Apply Fix, Rebuild & Verify                    │
+│ npx node-pptx-templater build ./unpacked_debug         │
+│     ./repaired.pptx                                    │
+│ npx node-pptx-templater validate ./repaired.pptx       │
+└────────────────────────────────────────────────────────┘
 ```
 
-Check the following known failure patterns:
-
-1. **Table Structure**:
-   - Does `<a:tbl>` have an `<a:tblGrid>` with $N$ `<a:gridCol>` elements?
-   - Does every `<a:tr>` contain exactly $N$ `<a:tc>` elements?
-   - Are merged cells accompanied by dummy cells (`<a:tc hMerge="1">` or `<a:tc vMerge="1">`)?
-   - Does every `<a:tr>` contain a unique 32-bit unsigned `<a16:rowId>`?
-2. **Relationships (`.rels`)**:
-   - Does every `r:id="rIdX"` in `ppt/slides/slideN.xml` exist in `ppt/slides/_rels/slideN.xml.rels`?
-   - Do all target file paths in `.rels` exist in the ZIP container?
-   - Is `[Content_Types].xml` updated with an `<Override>` entry for any newly added part?
-3. **Coordinates & Measurements**:
-   - Are any values in `<a:off @_x="..." @_y="..."/>` or `<a:ext @_cx="..." @_cy="..."/>` floating-point numbers? (They must be integer EMUs).
-4. **Native Charts**:
-   - Does `<c:ptCount @_val="N"/>` equal the number of `<c:pt>` entries?
-   - Are `idx` attributes 0-indexed and continuous?
-   - Is the embedded Excel spreadsheet in `ppt/embeddings/Microsoft_Excel_Worksheet*.xlsx` synchronized with the DrawingML series?
-
 ---
 
-## Step 4: Implement Fix & Add Regression Test
+## 3. Targeted Remediation Playbooks
 
-1. **Apply the Fix**:
-   - Modify the relevant element manipulator or manager in `src/`.
-2. **Write a Vitest Regression Test**:
-   - Add a test in `tests/` that recreates the exact scenario and asserts:
-     - The output XML contains the required tags, attributes, and dummy cells.
-     - `validateOpenXMLPackage(pptxBuffer)` reports `isValid === true`.
-3. **Run Validation**:
-   ```bash
-   npm test
-   npm run validate
-   ```
+### Issue A: Missing `[Content_Types].xml` Override
+- **Symptom**: PowerPoint opens but slides after slide 1 are blank or missing.
+- **Fix**: Open `[Content_Types].xml` and ensure every part in `ppt/slides/` has an override:
+  ```xml
+  <Override PartName="/ppt/slides/slide2.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>
+  ```
+- **Code Fix**: Verify that `SlideManager.js` calls `contentTypesManager.addOverride()` during `duplicateSlide()`.
 
----
+### Issue B: Duplicate `<a16:rowId>` in Cloned Rows
+- **Symptom**: "PowerPoint found a problem with content in presentation.pptx. PowerPoint can attempt to repair the presentation." Clicking repair removes table rows.
+- **Fix**: Open `ppt/slides/slideX.xml` and search for `a16:rowId`. Ensure every row has a unique random 32-bit unsigned integer value.
+- **Code Fix**: In `src/elements/TableManager.js`, ensure `#updateRowId(rowObj)` is invoked on every newly inserted or cloned row.
 
-## Step 5: Verification in PowerPoint / LibreOffice
+### Issue C: Displaced `<p:spTree>` Header Nodes
+- **Symptom**: Schema validation fails on `<p:spTree>`.
+- **Fix**: In `ppt/slides/slideX.xml`, ensure `<p:nvGrpSpPr>` is the first child of `<p:spTree>`, followed immediately by `<p:grpSpPr>`.
+- **Code Fix**: In `src/parsers/XMLParser.js`, check `serializeContainer()`. Ensure `headerXml` (`<p:nvGrpSpPr>` and `<p:grpSpPr>`) is prepended before any visual shapes.
 
-1. Open the resulting `.pptx` in Microsoft PowerPoint or LibreOffice Impress.
-2. Verify:
-   - File opens immediately without any repair prompts or modal alerts.
-   - Merged table cells render with correct visual bounds.
-   - Charts render properly, and clicking "Edit Data in Excel" opens the spreadsheet with accurate values.
-   - Text formatting, colors, and line breaks match expectations.
+### Issue D: Stale Embedded Excel Table Dimensions
+- **Symptom**: PowerPoint opens cleanly, but clicking "Edit Data in Excel" triggers an Excel repair dialog.
+- **Fix**: In `ppt/embeddings/*.xlsx`, remove `xl/tables/` and sheet relationship references. Re-sync `sheet1.xml` with `ChartWorkbookUpdater`.

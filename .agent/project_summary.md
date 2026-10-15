@@ -1,240 +1,189 @@
-# `node-pptx-templater` — Project Architecture & System Summary
+# Project Architecture Summary: `node-pptx-templater`
 
-## 1. Project Overview & Mission
-
-`node-pptx-templater` is an enterprise-grade, low-level PowerPoint (PPTX) OpenXML template and manipulation engine for Node.js. It operates with **zero external native binary dependencies** (no LibreOffice, no Java, no headless browser, no C++ addons) and performs non-blocking, in-memory OpenXML transformations.
-
-The library solves the critical flaws of traditional string-based PowerPoint patchers:
-- **Zero Repair Warnings:** Synchronizes DrawingML chart definitions alongside embedded Excel workbook binaries (`ppt/embeddings/Microsoft_Excel_Worksheet*.xlsx`) so PowerPoint never displays "PowerPoint found a problem with content" repair dialogs.
-- **Run Normalization (Anti-Fragmentation):** Reassembles fragmented text placeholder tokens (e.g. `{{` in one XML run, variable name in another) across adjacent `<a:r>` and `<a:t>` nodes without breaking font, color, or style declarations.
-- **Strict Coordinate Precision:** Standardizes all spatial coordinates and dimensions in integer English Metric Units (EMUs).
-- **Flagship Table Pagination:** Recursively slices overflowing tables across duplicated slides against vertical margins while repeating headers and preserving pinned summary/total rows.
+> **Version**: 3.0.0-alpha.0  
+> **Repository Type**: Pure JavaScript Low-Level OpenXML Presentation Manipulation Engine  
+> **Standards Compliance**: ISO/IEC 29500 (ECMA-376) Parts 1 & 2 (OPC & PresentationML)  
+> **Runtime Target**: Node.js (`>=18.x`, `20.x`, `22.x+`), AWS Lambda, Cloudflare Workers, Vercel Edge
 
 ---
 
-## 2. Technology Stack & Runtimes
+## 1. High-Level System Architecture
 
-| Component | Technology | Rationale / Details |
+`node-pptx-templater` is architectured as an in-memory virtual OpenXML package manipulator. Rather than depending on heavyweight office automation binaries or high-level abstraction wrappers, it interacts directly with the OpenXML AST (Abstract Syntax Tree) and the underlying ZIP container.
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                INGESTION & PARSING                                     │
+│  ┌─────────────────────────┐  ┌──────────────────────────┐  ┌────────────────────────┐ │
+│  │ PackageLoader.js        │  │ FlatOpcConverter.js      │  │ LegacyConverter.js     │ │
+│  │ (Buffer/Stream/URL/Dir) │  │ (<pkg:package> Single-XML│  │ (.ppt / .odp detection)│ │
+│  └───────────┬─────────────┘  └────────────┬─────────────┘  └───────────┬────────────┘ │
+└──────────────┼─────────────────────────────┼────────────────────────────┼──────────────┘
+               ▼                             ▼                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                         IN-MEMORY VIRTUAL FILE SYSTEM (VFS)                            │
+│  VirtualFileSystem.js: Map<string, Uint8Array> — Zero synchronous disk blocking        │
+│  Files: [Content_Types].xml, _rels/.rels, ppt/presentation.xml, ppt/slides/slide*.xml  │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                         AST PARSING & NORMALIZATION LAYER                              │
+│  XMLParser.js: fast-xml-parser engine with dual-mode parsing                          │
+│  • Normal Parser: Fast structural navigation with @_ attributes & #text                │
+│  • Ordered Parser (preserveOrder: true): Extracts precise <p:spTree> Z-order symbol    │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                           SPECIALIZED SUBSYSTEM MANAGERS                               │
+│  ┌────────────────────────┐ ┌────────────────────────┐ ┌─────────────────────────────┐ │
+│  │ SlideManager.js        │ │ TableManager.js        │ │ ChartManager.js             │ │
+│  │ (Clone, reorder, sldId)│ │ (Row CRUD, merge, auto)│ │ (Dual-sync: cache + XLSX)   │ │
+│  ├────────────────────────┤ ├────────────────────────┤ ├─────────────────────────────┤ │
+│  │ ShapeManager.js        │ │ ImageManager.js        │ │ TextManager.js              │ │
+│  │ (Geometry, fill, stroke│ │ (MIME, aspect ratio)   │ │ (Typography, run styling)   │ │
+│  ├────────────────────────┤ ├────────────────────────┤ ├─────────────────────────────┤ │
+│  │ ZOrderManager.js       │ │ HyperlinkManager.js    │ │ MediaManager.js             │ │
+│  │ (Layer stacking, group)│ │ (External & internal)  │ │ (Audio, video, embedded)    │ │
+│  ├────────────────────────┤ ├────────────────────────┤ ├─────────────────────────────┤ │
+│  │ RelationshipManager.js │ │ ContentTypesManager.js │ │ TemplateEngine.js           │ │
+│  │ (_rels target chains)  │ │ (Overrides & Defaults) │ │ (Run healing, list builder) │ │
+│  └────────────────────────┘ └────────────────────────┘ └─────────────────────────────┘ │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        SERIALIZATION & STRICT 18-METHOD I/O                            │
+│  OutputWriter.js & FrameworkAdapters.js: Multi-target streaming, buffer, and exports   │
+│  Targeting: File, Buffer, Stream, ArrayBuffer, Base64, Response, Express, Fastify      │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. Core Engine Components
+
+### 2.1 The Virtual File System (`src/core/VirtualFileSystem.js`)
+- **Storage Model**: All package assets (XML documents, binary PNG/JPEG images, Excel workbooks, `.rels` manifests) are stored in an internal `Map<string, Uint8Array>`.
+- **Normalization**: Enforces uniform forward-slash relative paths matching standard ZIP entry names (e.g., `ppt/slides/slide1.xml`, `[Content_Types].xml`).
+- **Zero Disk Blocking**: Decoupled from physical disk storage. Read and write operations occur strictly in memory via `readBytes()`, `writeBytes()`, `readText()`, and `writeText()`.
+
+### 2.2 Package Ingestion Engine (`src/core/PackageLoader.js`)
+- **Polymorphic Ingestion**: Autodetects and loads presentations from 6 distinct source categories:
+  1. Local file paths (`.pptx`, `.pptm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.ppam`).
+  2. Binary `Buffer` or `Uint8Array` (e.g., AWS S3 `getObject` body, multipart uploads).
+  3. Node.js `Readable` streams and Web Standard `ReadableStream`.
+  4. PKZip containers via magic bytes (`0x50 0x4B 0x03 0x04`).
+  5. Uncompressed OpenXML directory trees containing `[Content_Types].xml`, `_rels/`, and `ppt/`.
+  6. Remote HTTP/HTTPS URLs via streaming fetch.
+  7. Cloud object configurations (AWS S3, Google Cloud Storage, Azure Blob).
+  8. Microsoft Flat OPC single-file XML packages (`<pkg:package>`).
+
+### 2.3 XML Parser & Serializer (`src/parsers/XMLParser.js`)
+- **Fast XML Processing**: Powered by `fast-xml-parser` configured for lossless round-tripping.
+- **Attributes & Namespaces**: Attributes are prefixed with `@_` (e.g., `@_id`, `@_name`). XML namespaces (`a:`, `p:`, `c:`, `r:`) are strictly preserved.
+- **Dual-Mode AST Parsing**:
+  - Standard Parser: Parses documents into indexed JavaScript objects for rapid node traversal.
+  - Ordered Parser (`preserveOrder: true`): Used on `<p:spTree>` containers to accurately record drawing element visual stacking sequences without disturbing DOM structure.
+- **Z-Order Symbol Binding**: Attaches `[Z_ORDER_SYMBOL]` to `<p:spTree>` and `<p:grpSp>` nodes to guarantee element rendering order is preserved across serialization.
+- **Non-Visual Properties Protection**: Guarantees `<p:nvGrpSpPr>` and `<p:grpSpPr>` header elements remain at the top of the container during rebuilding.
+
+### 2.4 Template Engine (`src/core/TemplateEngine.js`)
+- **AST-Level Text Run Healing**: Solves the classic OpenXML problem where Microsoft PowerPoint fragments placeholder tokens across multiple `<a:r>` and `<a:t>` nodes (e.g., `{{` in run 1, `FIRST_` in run 2, `NAME}}` in run 3).
+- **Format Preservation**: Merges run text strings, performs substitutions, and preserves the original formatting (`<a:rPr>`) from the first run.
+- **Native List Engine**: Generates multi-level bulleted or numbered list paragraphs directly in the AST with custom indentation and font formatting.
+
+### 2.5 Validation & Security Engine (`src/core/ValidationEngine.js`, `src/utils/xmlUtils.js`)
+- **XXE Guard**: Rejects documents containing `<!DOCTYPE>` declarations with `SYSTEM` or `PUBLIC` external entity identifiers.
+- **Billion Laughs / Entity Bomb Shield**: Detects custom entity declarations and rejects recursive expansion attacks.
+- **Package Integrity Audit**: Verifies presentation manifests, slide ID lists, relationship targets, and Content Types overrides.
+
+---
+
+## 3. Subsystem Managers & Responsibilities
+
+| Subsystem Manager | File Location | Key Responsibilities |
 | :--- | :--- | :--- |
-| **Runtime Target** | Node.js `>= 20.12.0` (also compatible with Node 22 and 24) | Pure JavaScript execution suitable for AWS Lambda, Google Cloud Functions, Cloud Run, and Docker. |
-| **Module Formats** | Dual ESM (`dist/index.mjs`) & CJS (`dist/index.js`) | Bundled via `tsup` with native `.d.ts` TypeScript declaration files. |
-| **XML Parsing & Serialization** | `fast-xml-parser` `^5.9.3` | High-throughput AST parsing, attribute preservation (`@_`), and CDATA/entity escaping. |
-| **ZIP Package Container** | `jszip` `^3.10.1` | In-memory archive extraction and non-blocking compression. |
-| **Test Framework** | `vitest` `^4.1.9` | 306 unit, integration, and snapshot tests (47 test files) with v8 code coverage. |
-| **Linter & Formatter** | `eslint` `^8.57.0`, `prettier` `^3.2.5` | Strict style consistency across `src/`, `tests/`, and `showcase/`. |
-| **CLI Framework** | `commander` `^12.0.0`, `ora`, `chalk` | Developer CLI (`node-pptx-templater`) for inspection, extraction, and validation. |
+| **`SlideManager`** | `src/managers/SlideManager.js` | Slide indexing (1-based), deep cloning, deletion, reordering, layout mapping, cross-deck slide import, section synchronization. |
+| **`TableManager`** | `src/elements/TableManager.js` | Dynamic row/column addition, cell data mutation, alternating zebra striping, custom borders, cell merging (`gridSpan`, `rowSpan`), `<a16:rowId>` allocation. |
+| **`ChartManager`** | `src/elements/ChartManager.js` | Bar, Column, Line, Pie, Doughnut, Area, Scatter chart updates; series data & category mutations; data label controls. |
+| **`ChartWorkbookUpdater`** | `src/elements/charts/ChartWorkbookUpdater.js` | Synchronizes embedded Excel workbooks (`sheet1.xml`, `sharedStrings.xml`) and clears conflicting table definitions. |
+| **`ShapeManager`** | `src/elements/ShapeManager.js` | Adding vector shapes, setting fills (solid, gradient), strokes, geometry, text inside shapes, aligning and distributing shapes. |
+| **`CellShapeManager`** | `src/elements/TableManager.js` | Embedding vector shapes, badges, and status pills directly into table cells. |
+| **`ImageManager`** | `src/elements/ImageManager.js` | PNG, JPEG, SVG, GIF, WebP insertion; in-place image swapping; aspect ratio locking; Base64 data URI handling. |
+| **`MediaManager`** | `src/managers/MediaManager.js` | Managing binary media files, MIME type mappings, and audio/video relationship links. |
+| **`TextManager`** | `src/elements/TextManager.js` | In-place text replacements, font sizing, font families, color fills, character styling (bold, italic, underline, strikethrough). |
+| **`ZOrderManager`** | `src/spatial/ZOrderManager.js` | Element layer management: `bringToFront`, `sendToBack`, `stepForward`, `stepBackward`, `setZIndex`, `moveObjectBefore`, `moveObjectAfter`. |
+| **`RelationshipManager`**| `src/managers/RelationshipManager.js` | Managing `.rels` files across presentation root, slides, slide layouts, and slide masters; generating unique `rId` keys. |
+| **`ContentTypesManager`**| `src/managers/ContentTypesManager.js` | Managing `[Content_Types].xml`; registering MIME type `<Default>` extensions and part `<Override>` elements. |
+| **`HyperlinkManager`** | `src/managers/HyperlinkManager.js` | Attaching external web URLs and internal slide-jump action links to shapes, text runs, and images. |
+| **`ZipManager`** | `src/managers/ZipManager.js` | In-memory compression and decompression of OpenXML packages using JSZip. |
 
 ---
 
-## 3. Subsystem & Manager Architecture
+## 4. Strict 18-Method I/O API Whitelist
 
-The library is organized into specialized managers orchestrated through a single fluent interface:
+The entire I/O surface of `PPTXTemplater` is strictly defined by the following 18 methods:
 
-```
-                          ┌─────────────────────────────┐
-                          │        PPTXTemplater        │
-                          │   (Fluent Orchestrator)     │
-                          └──────────────┬──────────────┘
-                                         │
-    ┌──────────────────┬─────────────────┼─────────────────┬──────────────────┐
-    ▼                  ▼                 ▼                 ▼                  ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────────────┐
-│PackageLoader │ │SlideManager  │ │TableManager  │ │ChartManager  │ │ShapeManager    │
-│& VirtualFS   │ │& RelManager  │ │& Pagination  │ │& Excel Sync  │ │& ZOrderManager │
-└──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘ └────────────────┘
-    │                  │                 │                 │                  │
-    ▼                  ▼                 ▼                 ▼                  ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────────────┐
-│ZipManager    │ │ContentTypes  │ │Cell Shapes   │ │ChartCache    │ │Spatial Units   │
-│& XMLParser   │ │& Hyperlinks  │ │& Row ID Gen  │ │& Workbook    │ │(EMU Engine)    │
-└──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘ └────────────────┘
-    │                  │                                               │
-    ▼                  ▼                                               ▼
-┌──────────────┐ ┌──────────────┐                       ┌─────────────────────────────┐
-│LegacyFormat- │ │FlatOpc-      │                       │        OutputWriter         │
-│Converter     │ │Converter     │                       │ & FrameworkAdapters         │
-└──────────────┘ └──────────────┘                       └─────────────────────────────┘
-                                                                       │
-                                                                       ▼
-                                                        ┌─────────────────────────────┐
-                                                        │File, Buffer, Stream, Array, │
-                                                        │Base64, Express, FlatXml, Web│
-                                                        └─────────────────────────────┘
-```
+```text
+STATIC LIFECYCLE & FACTORY METHODS (7)
+├── PPTXTemplater.load(source, options)
+├── PPTXTemplater.createBlank(options)
+├── PPTXTemplater.extractPptx(pptxPath, outputDir, options)
+├── PPTXTemplater.buildPptx(sourceDir, outputPath, options)
+├── PPTXTemplater.preload(source, options)
+├── PPTXTemplater.fromCache(source)
+└── PPTXTemplater.clearCache()
 
-### Core Architecture Roles
+EXPORT INSTANCE METHODS (8)
+├── ppt.saveToFile(destinationPath, options)
+├── ppt.toBuffer(options)
+├── ppt.toStream(options)
+├── ppt.toBase64(options)
+├── ppt.toArrayBuffer(options)
+├── ppt.toResponse(options)
+├── ppt.toExpress(res, filename, options)
+└── ppt.toFastify(reply, filename, options)
 
-1. **`PPTXTemplater` (`src/core/PPTXTemplater.js`):** The primary user-facing orchestrator. Exposes fluent methods for slide scoping (`useSlide`, `useAllSlides`), text substitution, element creation, and multi-target serialization.
-2. **`PackageLoader` (`src/core/PackageLoader.js`):** Polymorphic ingestion layer that auto-detects inputs: local file paths (.pptx, .pptm, .potx, .potm, .ppsx, .ppsm, .ppam, .ppt, .odp), Microsoft Flat OPC XML packages (`.xml`, `<pkg:package>`), in-memory `Buffer`, `Uint8Array`, streams, remote web URLs, cloud object stores (S3/GCS/Azure), and raw unpacked OpenXML directory trees into an in-memory `VirtualFileSystem`.
-3. **`FlatOpcConverter` (`src/converters/FlatOpcConverter.js`):** Parses and serializes Microsoft Flat OPC XML packages (`<pkg:package>`), extracting `<pkg:xmlData>` into VFS XML strings and base64 decoding `<pkg:binaryData>` into binary buffers for media and workbooks, with zero ZIP decompression overhead.
-4. **`LegacyFormatConverter` (`src/converters/LegacyFormatConverter.js`):** Binary signature detector (`isLegacyPpt`, `isOdp`, `isPkZip`) that parses legacy OLE Compound binary PPT streams and OpenDocument ODP XML, normalizing text and slides into standard OpenXML VFS trees.
-5. **`VirtualFileSystem` (`src/core/VirtualFileSystem.js`):** In-memory map (`Map<string, Uint8Array | string>`) holding raw presentation parts, preventing disk thrashing and concurrency conflicts.
-6. **`XMLParser` (`src/parsers/XMLParser.js`):** Configured fast-xml-parser instance with custom symbol-based Z-order preservation (`Z_ORDER_SYMBOL`) and security sanitization.
-7. **`SlideManager` (`src/managers/SlideManager.js`):** Slide graph life-cycle: enumeration, deep-duplication with relationship remapping, deletion with manifest cleanup, and slide sizing/dimensions.
-8. **`TableManager` (`src/elements/TableManager.js`):** Table mutation, row/column CRUD, multi-directional cell merges (`rowspan`/`gridSpan`), zebra striping, cell borders, cell shapes, and recursive auto-pagination (`splitTableOnOverflow`).
-9. **`ChartManager` & `ChartWorkbookUpdater` (`src/elements/ChartManager.js`, `src/managers/charts/`):** Mutates `<c:chartSpace>` series and synchronizes matching `.xlsx` workbook binary parts (`ppt/embeddings/Microsoft_Excel_Worksheet*.xlsx`).
-10. **`ShapeManager` & `ZOrderManager` (`src/elements/ShapeManager.js`, `src/spatial/ZOrderManager.js`):** Vector shape generation, absolute geometry calculations in EMUs, and `<p:spTree>` visual layer reordering (`bringToFront`, `sendToBack`).
-11. **`ImageManager` & `MediaManager` (`src/elements/ImageManager.js`, `src/managers/MediaManager.js`):** Image insertion and replacement across PNG, JPEG, SVG, WebP, Base64 data URIs, and TIFF with aspect-ratio containment.
-12. **`RelationshipManager` & `ContentTypesManager` (`src/managers/RelationshipManager.js`, `src/managers/ContentTypesManager.js`):** Manages `_rels/*.rels` relationship trees, sequential `rId` generation, and `[Content_Types].xml` extension/override registrations.
-13. **`TemplateEngine` (`src/core/TemplateEngine.js`):** AST-level run normalization and token extraction/replacement across paragraph nodes.
-14. **`BlankPresentation` (`src/templates/blankPresentation.js`):** Minimal valid OpenXML AST generator synthesizing `[Content_Types].xml`, `_rels/.rels`, `presentation.xml`, `slideMaster1.xml`, `slideLayout1.xml`, `theme1.xml`, and blank `slide1.xml` for template-free creation with configurable aspect ratios.
-15. **`OutputWriter` (`src/writer/OutputWriter.js`):** Multi-target serialization engine supporting disk files (`saveToFile`), Node.js Buffers (`toBuffer`), streams (`toStream`), ArrayBuffers (`toArrayBuffer`), Base64 data URIs (`toBase64`), Flat OPC XML (`toFlatXml`), Express.js (`toExpress`), Fastify (`toFastify`), Web API Response (`toResponse`), and raw extraction (`extractToZip`, `extractToXml`).
-16. **`FrameworkAdapters` (`src/writer/FrameworkAdapters.js`):** HTTP streaming adapters for Express (`sendExpress`), Fastify (`sendFastify`), Koa (`sendKoa`), and Web standard fetch Response (`createWebResponse`).
-
----
-
-## 4. Key Primary APIs
-
-### Lifecycle & Loading (Strict Whitelist: 7 Static, 8 Export, 3 Extraction)
-```javascript
-// Load standard OpenXML presentation or template (.pptx, .pptm, .potx, .potm, .ppsx)
-const ppt = await PPTXTemplater.load('./template.pptx', { logLevel: 'warn' });
-
-// Load from in-memory Buffer / Uint8Array (AWS S3, Google Cloud Storage, Azure Blob)
-const pptFromBuffer = await PPTXTemplater.load(buffer);
-
-// Load from remote HTTP/HTTPS URL
-const pptFromUrl = await PPTXTemplater.load('https://example.com/templates/deck.pptx');
-
-// Ingest cloud storage stream or buffer directly
-const pptFromCloud = await PPTXTemplater.load({ provider: 's3', stream: s3Stream });
-
-// Ingest Microsoft Flat OPC XML package (single-file XML, zero ZIP overhead)
-const pptFromFlatXml = await PPTXTemplater.load('./sample.xml');
-
-// Ingest legacy binary PPT or OpenDocument ODP with automatic normalization
-const pptLegacy = await PPTXTemplater.load('./archive.ppt');
-
-// Ingest unpacked OpenXML directory directly into memory
-const pptFromDir = await PPTXTemplater.load('./extracted_folder');
-
-// Create brand-new, template-free blank presentation with custom aspect ratio
-const blankDeck = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });
-
-// High-concurrency template caching (<1ms deep clone)
-await PPTXTemplater.preload('./template.pptx');
-const cachedPpt = await PPTXTemplater.fromCache('./template.pptx');
-PPTXTemplater.clearCache();
-```
-
-### Slide Context & Duplication
-```javascript
-ppt.useSlide(1);               // Target 1-based slide 1
-ppt.useAllSlides();            // Target all slides in deck
-await ppt.duplicateSlide(1, 2);// Clone slide 1 and insert at position 2
-ppt.reorderSlides([2, 3, 1]);  // Permute slide order
-await ppt.importSlideFrom(sourceDeck, 1); // Cross-deck slide import
-```
-
-### Text & Placeholders
-```javascript
-ppt.replaceTextByTag('{{name}}', 'Jane Doe', { caseSensitive: true });
-ppt.replaceMultiple({ '{{company}}': 'Acme Inc.', '{{quarter}}': 'Q3' });
-const matches = ppt.findText('{{');
-ppt.appendTextRun('Shape1', ' [Appended Text]', { style: { bold: true, color: '#059669' } });
-```
-
-### Table Operations & Auto-Pagination
-```javascript
-ppt.updateTable('Table1', [['Col 1', 'Col 2'], ['Val 1', 'Val 2']]);
-ppt.addTableRow('Table1', ['Region', ['Q1', 'Q2'], '$10,000'], { mergeStrategy: 'rowspan' });
-ppt.stripeRows('Table1', { oddColor: 'F8FAFC', evenColor: 'EDF2F7', startRow: 1 });
-await ppt.splitTableOnOverflow('Table1', { bottomMargin: '0.5in', repeatHeaders: 1, summaryRows: 1 });
-const rows = await ppt.getTableRows('Table1', { includeMetadata: true });
-```
-
-### Native Chart Updates
-```javascript
-await ppt.updateChart('RevenueChart', {
-  categories: ['Q1', 'Q2', 'Q3', 'Q4'],
-  series: [
-    { name: 'Direct Sales', values: [150, 185, 220, 290] },
-    { name: 'Channel', values: [85, 110, 140, 195] }
-  ]
-});
-ppt.updateDataLabels('RevenueChart', { showVal: true, showCatName: false });
-```
-
-### Shapes & Z-Order
-```javascript
-await ppt.addShape('roundedRectangle', {
-  name: 'KpiCard', x: 50, y: 100, width: 400, height: 200, fill: '#1E293B'
-});
-ppt.bringToFront('KpiCard');
-ppt.alignShapes(['ShapeA', 'ShapeB'], 'middle');
-ppt.distributeShapes(['ShapeA', 'ShapeB', 'ShapeC'], 'horizontally');
-```
-
-### Media & Images
-```javascript
-await ppt.addImage('./assets/logo.png', { x: 100, y: 100, width: 150, height: 150 });
-await ppt.replaceImage('demo-logo', './assets/new-logo.png');
-```
-
-### Serialization & Multi-Target Export
-```javascript
-// Local file write
-await ppt.saveToFile('./output/report.pptx');
-
-// In-memory Buffer for Lambda / Cloud Run / S3
-const buffer = await ppt.toBuffer();
-
-// Node.js stream for piping
-const stream = await ppt.toStream();
-
-// Web-standard ArrayBuffer for Edge runtimes (Cloudflare Workers, Vercel Edge)
-const arrayBuffer = await ppt.toArrayBuffer();
-
-// Standard Base64 string or Data URI
-const dataUri = await ppt.toBase64({ dataUri: true });
-
-// Export to Microsoft Flat OPC XML string
-const flatXml = await ppt.toFlatXml();
-
-// Direct Express.js HTTP download response
-await ppt.toExpress(res, 'report.pptx');
-
-// Direct Fastify HTTP reply download
-await ppt.toFastify(reply, 'report.pptx');
-
-// Standard Web API Response for Next.js Route Handlers, Remix, SvelteKit
-return await ppt.toResponse({ filename: 'report.pptx' });
-
-// Extract raw compressed ZIP archive
-await ppt.extractToZip('./backups/deck.zip');
-
-// Unpack presentation into folder with pretty-printed XML for Git inspection
-await ppt.extractToXml('./unpacked-deck', { formatXml: true });
+EXTRACTION & CONVERSION INSTANCE METHODS (3)
+├── ppt.extractToZip(destinationPath, options)
+├── ppt.extractToXml(destinationDir, options)
+└── ppt.toFlatXml(destinationPathOrOptions, options)
 ```
 
 ---
 
-## 5. Performance & Profiling Methods
+## 5. Command-Line Interface (CLI)
 
-- **Sub-Second Scaling:** Benchmarked to process 200 concurrent shape/text replacements in `< 400ms`.
-- **Cached Memory Loading:** Pre-parsed cache loading is `> 10x` faster than disk/ZIP decompression.
-- **Concurrent Safety:** Supports 50+ concurrent slide generation instances from the same cached template without cross-talk.
-- **Benchmarking Suite:** Run benchmarks via `npm run benchmark` (`node benchmarks/run.js`).
-- **Comprehensive Showcase:** Run all 12 feature scenarios with `npm run examples` (`node showcase/examples.js`).
+The CLI (`src/cli/index.js`) is installed globally as `node-pptx-templater` and provides 5 commands:
+
+1. **`build <template> <output>`**:
+   Builds a PPTX from a template with data injected from a JSON file.
+   - `-d, --data <file>`: JSON file with template data.
+   - `-s, --slide <numbers>`: Comma-separated slide numbers (e.g. `1,3,5`).
+2. **`validate <file>`**:
+   Validates the structural integrity and OpenXML compliance of a presentation.
+   - `--strict`: Treats warnings as fatal errors.
+3. **`inspect <file>`**:
+   Inspects the internal parts, slide elements, charts, tables, media, and relationship tree.
+   - `--slides`, `--charts`, `--tables`, `--media`, `--rels`, `--all`.
+4. **`extract <file>`**:
+   Extracts slide XML, chart XML, relationship files, or entire uncompressed folder trees.
+   - `-s, --slide <num>`, `-o, --out <path>`, `--all`, `--folder <path>`, `--zip <path>`, `--format-xml`.
+5. **`debug <file>`**:
+   Analyzes potentially corrupted presentations and reports diagnostics.
+   - `--fix`: Attempts automatic XML repairs.
+   - `-o, --out <path>`: Destination path for repaired presentation.
 
 ---
 
-## 6. Next.js Documentation Portal (`docs-site`)
+## 6. Documentation Portal Architecture (`docs-site/`)
 
-- **Architecture & Deployment:** Transitioned from legacy static HTML to Next.js (App Router) configured for pure Static HTML Export (`docs-site/`, `next.config.mjs` with `output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`). Deployed natively to Cloudflare Pages (`wrangler.toml` pointing to `pages_build_output_dir = "out"`).
-- **Design System & UI Stack:** Modern Tailwind CSS Glassmorphism theme (`glass-card`, `glass-header`, `glass-sidebar`, ambient mesh gradients). Native Light and Dark modes with smooth transitions, system preference detection, and `localStorage` persistence via `ThemeContext` and `ThemeToggle`.
-- **Motion & Interaction Engine:** GSAP animation engine (`src/animations/gsapTransitions.js`) powering staggered hero typography reveals (`animateHero`), feature grid reveals (`animateFeaturesGrid`), and smooth API card category transitions (`animateApiCards`).
-- **Fixed Always-on-Top Sidebar:** Dedicated `DocsSidebar` with fixed viewport positioning (`top-16 left-0 h-[calc(100vh-4rem)] w-72 z-40 overflow-y-auto`), non-scrolling layout locking, and active route tracking via `usePathname`.
-- **Site Route Structure:**
-  - **Header Navigation:** Home (`/`), Docs (`/docs`), Features (`/features`), and API Reference (`/docs/api`), with Theme Toggle and GitHub star link.
-  - **Docs Section (`/docs/*` with `DocsLayout` & `DocsSidebar`):**
-    - 📌 **Overview** (`/docs`): Library philosophy, visual PowerPoint template mutation vs legacy code canvas assembly.
-    - 🚀 **Installation Guides** (`/docs/installation`): Package managers (npm, pnpm, yarn, bun), Node.js >= 18 requirements, ESM/CJS, and native TypeScript types.
-    - ⚡ **Compatibility Matrix** (`/docs/compatibility`): Zero Office/Electron runtime guarantees, cold boot benchmarks (<15ms, <2MB), AWS Lambda and Cloudflare Workers streaming recipes.
-    - 📚 **API Reference** (`/docs/api`): 103 public methods across all 10 domain categories with live search, category filters, parameter tables, and copyable snippets.
-  - **Features Catalog (`/features`):** Full 96 itemized capabilities across 12 domain categories with interactive search, category filters, and flagship indicators.
-- **Content Decoupling & Ingestion:**
-  - Content source: Type-safe, modular JSON schemas in `docs-site/src/data/`: `features.json` (96 features), `apiReference.json` (103 methods), `docsNavigation.json`, `compatibility.json`, `guides.json`, and `siteMeta.json`.
-  - Sitemaps & Robots automated via Next.js metadata handlers (`sitemap.js` and `robots.js`).
-
-
+The documentation portal is built using **Next.js 14+ (App Router)** and deployed to **Cloudflare Pages**:
+- **Static Export**: Configured with `output: 'export'`, `images: { unoptimized: true }`, and `trailingSlash: true` in `docs-site/next.config.mjs`.
+- **Wrangler Configuration**: Deploys via `docs-site/wrangler.toml` targeting `pages_build_output_dir = "out"`.
+- **Decoupled JSON Schemas**: All documentation content is driven by structured data files in `docs-site/src/data/`:
+  - `apiReference.json`: 103 documented methods across 10 functional categories with signatures, OpenXML impact, edge cases, parameters, returns, and runnable code samples.
+  - `features.json`: Granular feature catalog and capability matrix.
+  - `docsNavigation.json`: Hierarchical sidebar navigation tree.
+  - `compatibility.json`: Version support matrices (Node, Cloudflare Workers, AWS Lambda, browsers).
+  - `siteMeta.json`: SEO titles, metadata, OpenGraph tags, and repository links.
+- **Design System**: Glassmorphism UI using Tailwind CSS, supporting dark/light mode (`ThemeContext.jsx`), GSAP smooth page transitions (`gsapTransitions.js`), sticky header, and fixed non-scrolling documentation sidebar.

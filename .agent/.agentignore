@@ -1,59 +1,50 @@
-# Dependencies & Package Managers
+# Dependencies
 node_modules/
-docs-site/node_modules/
-.pnpm-store/
 package-lock.json
-pnpm-lock.yaml
-yarn.lock
 
-# Build Outputs & Bundles
+# Build and distribution artifacts
 dist/
 build/
-.next/
-docs-site/.next/
-docs-site/out/
 *.tsbuildinfo
 
-# Binary Presentations, Workbooks & Media Fixtures
-*.pptx
-*.ppt
-*.xlsx
-*.xls
-*.docx
-*.zip
-*.tar.gz
-*.png
-*.jpg
-*.jpeg
-*.webp
-*.gif
-*.bmp
-*.tiff
+# Next.js docs site outputs
+docs-site/.next/
+docs-site/out/
+docs-site/node_modules/
 
-# Output & Temporary Test Fixtures
+# Temporary work directories, scratchpad, and outputs
+scratch/
+output/
 showcase/output/
 tests/output/
-tests/temp*/
-benchmarks/results/
-coverage/
-scratch/
-tmp/
 temp/
-
-# Version Control & IDE
-.git/
-.svn/
-.hg/
-.vscode/
-.idea/
-*.sublime-*
-
-# Environment, Secrets & Logs
-.env
-.env.*
+tmp/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-Thumbs.db
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Version control
+.git/
+.github/
+
+# Office binary assets & raw templates (binary formats to ignore from agent index)
+*.pptx
+*.pptm
+*.potx
+*.potm
+*.ppsx
+*.ppsm
+*.ppam
+*.ppt
+*.odp
+*.xlsx
+*.xls
+*.zip
+*.tar.gz
+*.tgz
+
+# OS artifacts
 .DS_Store
+Thumbs.db
