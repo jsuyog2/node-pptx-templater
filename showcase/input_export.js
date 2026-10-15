@@ -175,6 +175,17 @@ async function main() {
     const deckFromUrl = await PPTXTemplater.load(sampleUrl)
     console.log(`  ✓ [1.f] Remote URL                 : ${deckFromUrl.slideCount} slides`)
 
+    // (g) Preload template into memory cache for faster access
+    await PPTXTemplater.preload(samplePptxPath, { key: 'deck1' });
+
+    // (h) Get template from cache
+    const pptFromCache = await PPTXTemplater.fromCache('deck1');
+    console.log(`  ✓ [1.g] From cache                 : ${pptFromCache.slideCount} slides`)
+
+    // (i) Clear cache
+    PPTXTemplater.clearCache();
+    console.log(`  ✓ [1.h] Clear cache`)
+
     /**
      * [2/18] PPTXTemplater.createBlank(options)
      * Use Case: Cold-start deck generation in AWS Lambda, Google Cloud Run, or microservices
@@ -191,9 +202,10 @@ async function main() {
         fill: '#1E293B',
         text: 'Synthesized with PPTXTemplater.createBlank()',
     })
+    const valResult = await blank16x9.validatePresentation()
     const blankOutPath = path.join(OUTPUT_DIR, '01-created-blank-16x9.pptx')
     await blank16x9.saveToFile(blankOutPath)
-    console.log(`  ✓ Blank 16:9 widescreen created    : ${path.basename(blankOutPath)}`)
+    console.log(`  ✓ Blank 16:9 widescreen created    : ${path.basename(blankOutPath)} (valid: ${valResult.valid}, errors: ${valResult.errors.length})`)
 
     /**
      * [3/18] PPTXTemplater.extractPptx(pptxPath, outputDir, options)

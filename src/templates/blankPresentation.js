@@ -303,9 +303,9 @@ function createBlankPresentationVfs(options = {}) {
         </a:gradFill>
       </a:fillStyleLst>
       <a:lnStyleLst>
-        <a:ln w="9525" cap="flat" cmpd="s" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>
-        <a:ln w="25400" cap="flat" cmpd="s" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>
-        <a:ln w="38100" cap="flat" cmpd="s" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>
+        <a:ln w="9525" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>
+        <a:ln w="25400" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>
+        <a:ln w="38100" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>
       </a:lnStyleLst>
       <a:effectStyleLst>
         <a:effectStyle><a:effectLst/></a:effectStyle>
@@ -325,6 +325,8 @@ function createBlankPresentationVfs(options = {}) {
       </a:bgFillStyleLst>
     </a:fmtScheme>
   </a:themeElements>
+  <a:objectDefaults/>
+  <a:extraClrSchemeLst/>
 </a:theme>`
   )
 

@@ -1,61 +1,35 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.1.0",
+    "version": "3.1.1",
     "tasks": [
         {
             "id": "TASK-001",
-            "title": "Refactor I/O Core Methods & Remove Deprecated Functions",
+            "title": "Fix PowerPoint Repair Error on createBlank() PPTX Export",
             "status": "completed",
-            "description": "Clean up src/core/PPTXTemplater.js, src/core/PackageLoader.js, and src/writer/OutputWriter.js. Enforce the exact 18-method whitelist across Static API (load, createBlank, extractPptx, buildPptx, preload, fromCache, clearCache), Export (saveToFile, toBuffer, toStream, toBase64, toArrayBuffer, toResponse, toExpress, toFastify), and Extraction (extractToZip, extractToXml, toFlatXml). Remove all deprecated methods.",
+            "description": "Investigate and resolve the OpenXML corruption causing PowerPoint to prompt for repair when opening PPTX decks exported from PPTXTemplater.createBlank(). Fix missing/malformed root relationships (_rels/.rels), slide layouts, theme structures, content type overrides ([Content_Types].xml), and ensure synchronous/asynchronous readiness (e.g. preloading cached XML tree).",
             "deliverables": [
-                "src/core/PPTXTemplater.js",
-                "src/core/PackageLoader.js",
-                "src/writer/OutputWriter.js"
+                "src/templates/blankPresentation.js (or src/templates/blankPptx.js schema audit)",
+                "src/core/PPTXTemplater.js (#initializeBlank / createBlank lifecycle fix)",
+                "tests/integration/createBlankExport.test.js (export, zip validation, schema check)"
             ]
         },
         {
             "id": "TASK-002",
-            "title": "Comprehensive Showcase Script (showcase/input_export.js)",
+            "title": "Validate OpenXML Integrity Across All Export Adapters",
             "status": "completed",
-            "description": "Implement an end-to-end executable showcase script covering every single one of the 18 approved API functions. Include complete JSDoc annotations, detailed inline explanations, and informative console.log statements for each operation.",
+            "description": "Ensure presentations created via createBlank() export cleanly across saveToFile(), toBuffer(), toStream(), toArrayBuffer(), toExpress(), and toFastify() without throwing corrupt ZIP or schema warnings during validatePresentation().",
             "deliverables": [
-                "showcase/input_export.js"
+                "src/writer/OutputWriter.js",
+                "tests/integration/blankPresentationAdapters.test.js"
             ]
         },
         {
             "id": "TASK-003",
-            "title": "Documentation Cleanup & Complete API Audit",
+            "title": "Update Documentation & Showcase for createBlank",
             "status": "completed",
-            "description": "Purge all removed or deprecated function names across README.md, docs-site/src/data/apiReference.json, and docs-site/src/data/features.json. Fully document all 18 approved functions with signatures, parameters, return types, and copy-paste snippets.",
+            "description": "Verify showcase/input_export.js creates and exports a blank presentation cleanly with zero repair prompts.",
             "deliverables": [
-                "README.md",
-                "docs-site/src/data/apiReference.json",
-                "docs-site/src/data/features.json"
-            ]
-        },
-        {
-            "id": "TASK-004",
-            "title": "Search Engine Optimization (SEO) Overhaul",
-            "status": "completed",
-            "description": "Enhance repository discoverability across GitHub, NPM, Google, and Bing for high-intent search terms (e.g., 'PowerPoint template engine Node.js', 'Express PPTX download', 'Fastify stream PPTX', 'Flat XML PowerPoint', 'Serverless PPTX generator').",
-            "deliverables": [
-                "package.json (keywords, description, repository tags)",
-                "README.md (SEO-optimized headings, badges, comparison table)",
-                "docs-site/src/app/sitemap.js"
-            ]
-        },
-        {
-            "id": "TASK-005",
-            "title": "Synchronize Workspace Paths & Architecture in .agent Folder",
-            "status": "completed",
-            "description": "Update all file path references and memory files inside '.agent/' to match the current Next.js static docs site, showcase/input_export.js, and the 18-method API boundary.",
-            "deliverables": [
-                ".agent/project_summary.md",
-                ".agent/rules/features.md",
-                ".agent/rules/general.md",
-                ".agent/memory/architectural-decisions.md",
-                ".agent/context/domain-dictionary.md",
-                ".agent/workflows/build-docs.md"
+                "showcase/input_export.js"
             ]
         }
     ]

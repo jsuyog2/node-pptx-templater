@@ -257,17 +257,17 @@ class ZipManager {
    * @returns {Promise<void>}
    */
   async createBlank(options = {}) {
-    if (options && (options.aspectRatio || options.width || options.height || options.templateFree)) {
-      const { createBlankPresentationVfs } = require('../templates/blankPresentation.js')
-      const vfs = createBlankPresentationVfs(options)
-      await this.load(vfs)
-      logger.debug('Created blank template-free PPTX structure')
+    if (options && options.legacy) {
+      const buffer = Buffer.from(BLANK_PPTX_BASE64, 'base64')
+      this.#zip = await JSZip.loadAsync(buffer)
+      await this.#loadCoreProperties()
+      logger.debug('Created blank PPTX structure from legacy fixture')
       return
     }
-    const buffer = Buffer.from(BLANK_PPTX_BASE64, 'base64')
-    this.#zip = await JSZip.loadAsync(buffer)
-    await this.#loadCoreProperties()
-    logger.debug('Created blank PPTX structure')
+    const { createBlankPresentationVfs } = require('../templates/blankPresentation.js')
+    const vfs = createBlankPresentationVfs(options)
+    await this.load(vfs)
+    logger.debug('Created blank template-free PPTX structure')
   }
 
   /**

@@ -253,9 +253,7 @@ class PPTXTemplater {
       setGlobalLogLevel(options.logLevel)
     }
     const engine = new PPTXTemplater()
-    const { createBlankPresentationVfs } = require('../templates/blankPresentation.js')
-    const vfs = createBlankPresentationVfs(options)
-    await engine.#initialize(vfs)
+    await engine.#initializeBlank(options)
     return engine
   }
 
@@ -605,17 +603,12 @@ class PPTXTemplater {
   /**
    * Initializes a blank PPTX structure from embedded template XML.
    * @private
+   * @param {Object} [options={}]
    */
-  async #initializeBlank() {
-    await this.#zipManager.createBlank()
-    await this.#contentTypesManager.initialize(this.#zipManager)
-    await this.#relationshipManager.initialize(this.#zipManager)
-    await this.#slideManager.initialize(this.#zipManager)
-    // Pre-load all slide XML so synchronous operations work on the blank template's existing slides
-    await this.#slideManager.preloadAll()
-    await this.#chartManager.initialize(this.#zipManager)
-    await this.#mediaManager.initialize(this.#zipManager)
-    this.#loaded = true
+  async #initializeBlank(options = {}) {
+    const { createBlankPresentationVfs } = require('../templates/blankPresentation.js')
+    const vfs = createBlankPresentationVfs(options)
+    await this.#initialize(vfs)
   }
 
   /**
