@@ -152,3 +152,17 @@ To ensure presentations created from scratch open cleanly in PowerPoint, the gen
 - Slide comments are stored in dedicated parts `ppt/comments/commentN.xml` (`application/vnd.openxmlformats-officedocument.presentationml.comments+xml`) and linked to parent slides via relationship type `http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments`.
 - Targeted removal supports zero-based comment index, author ID, or author name matching.
 
+### 6.6 Non-Blocking Lifecycle Validation Protocol
+- Internal lifecycle methods (`createBlank`, `load`, `addShape`, `importSlideFrom`, `saveToFile`, `toBuffer`, `toStream`) must never automatically invoke blocking presentation validation.
+- `ppt.validatePresentation()` and `ppt.validateArchive()` serve as on-demand, non-blocking diagnostic utilities unless explicitly opted in via `options.strict` or `options.validate`.
+
+### 6.7 Global Percentage Coordinate Invariant (0–100%)
+- All visual elements (`addShape`, `addTable`, `addChart`, `addImage`, `addTextAtPosition`, `setBounds`) support percentage strings (`'0%'`, `'50%'`, `'100%'`) and percentage numbers (`unit: '%'`).
+- Coordinates resolve dynamically against the slide canvas dimensions defined in `<p:sldSz cx="..." cy="..."/>` in `ppt/presentation.xml` (default 16:9 widescreen: `12192000 x 6858000` EMUs).
+- Coordinate mapping rules:
+  - `(0, 0)`: Top-Left corner ($x = 0$, $y = 0$).
+  - `(100%, 0)`: Top-Right corner ($x = 100\%$, $y = 0$).
+  - `(0, 100%)`: Bottom-Left corner ($x = 0$, $y = 100\%$).
+  - `(100%, 100%)`: Bottom-Right corner ($x = 100\%$, $y = 100\%$).
+
+

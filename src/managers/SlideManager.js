@@ -427,6 +427,16 @@ class SlideManager {
     const info = this.#slides.get(slideIndex)
     const state = this.#slideStates.get(slideIndex)
 
+    if (state.dirty && state.xmlObj) {
+      const decl = this.#xmlParser.extractDeclaration(
+        state.xmlStr || '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      )
+      state.xmlStr = this.#xmlParser.build(state.xmlObj, decl)
+      this.#zipManager.writeFile(info.zipPath, state.xmlStr)
+      this.#slideXmlCache.set(info.zipPath, state.xmlStr)
+      state.dirty = false
+    }
+
     const dirtyContent = this.#zipManager.readCachedFile(info.zipPath)
     if (dirtyContent && dirtyContent !== state.xmlStr) {
       state.xmlStr = dirtyContent
@@ -1261,9 +1271,10 @@ class SlideManager {
    * @param {PPTXTemplater} sourceEngine - Source presentation.
    * @param {number|string} slideRef - Slide index (1-based), slide ID, or custom tag.
    * @param {MediaManager} mediaManager - Destination media manager.
+   * @param {number} [atPosition] - 1-based target insertion index.
    * @returns {Promise<number>} Index of the imported slide.
    */
-  async importSlide(sourceEngine, slideRef, mediaManager) {
+  async importSlide(sourceEngine, slideRef, mediaManager, atPosition) {
     const sourceSlideManager = sourceEngine.slideManager
     const sourceRelManager = sourceEngine.relationshipManager
     const sourceZip = sourceEngine.zipManager
@@ -1273,7 +1284,8 @@ class SlideManager {
       throw new SlideNotFoundError(`Source slide "${slideRef}" not found`)
     }
 
-    const newIndex = this.#slides.size + 1
+    const priorSlideCount = this.#slides.size
+    const newIndex = priorSlideCount + 1
     let nextFileIndex = 1
     while (this.#zipManager.hasFile(`ppt/slides/slide${nextFileIndex}.xml`)) {
       nextFileIndex++
@@ -1480,6 +1492,29 @@ class SlideManager {
 
     // Register slide in content types
     this.#registerSlideContentType(slideFileName)
+
+    // Handle positional insertion if atPosition is provided
+    let targetIndex = newIndex
+    if (atPosition !== undefined && typeof atPosition === 'number') {
+      if (atPosition <= 0) {
+        targetIndex = 1
+      } else if (atPosition > priorSlideCount) {
+        targetIndex = newIndex
+      } else {
+        targetIndex = Math.floor(atPosition)
+      }
+    }
+
+    if (targetIndex < newIndex) {
+      const order = []
+      for (let i = 1; i < newIndex; i++) {
+        order.push(i)
+      }
+      order.splice(targetIndex - 1, 0, newIndex)
+      this.reorderSlides(order)
+      logger.debug(`Repositioned imported slide "${slideRef}" from ${newIndex} to ${targetIndex}`)
+      return targetIndex
+    }
 
     logger.debug(`Successfully imported slide "${slideRef}" to index ${newIndex}`)
     return newIndex
@@ -1893,16 +1928,289 @@ class SlideManager {
   }
 
   /**
-   * Gets all slides in the presentation.
+   * Gets all slides in the presentation with rich element and geometry metadata.
    *
-   * @returns {SlideInfo[]}
+   * @returns {Object[]}
    */
   getSlides() {
-    return this.getAllSlideInfo()
+    return this.getAllSlideIndices().map(idx => this.getSlide(idx))
   }
 
   /**
-   * Retrieves detailed metadata for a specific slide by 1-based index or reference.
+   * Extracts comprehensive elements and geometry from <p:spTree>.
+   * @private
+   */
+  #extractElementsFromSpTree(spTree, slideIndex) {
+    if (!spTree || typeof spTree !== 'object') return []
+
+    const elements = []
+    const slideInfo = this.#slides.get(slideIndex)
+    const rels = slideInfo?.zipPath
+      ? this.#relationshipManager.getRelationships(slideInfo.zipPath)
+      : []
+
+    // Helper to extract text and textRuns from a txBody
+    const extractTextDetails = txBody => {
+      if (!txBody) return { text: '', textRuns: [] }
+      const pNodes = txBody['a:p']
+        ? Array.isArray(txBody['a:p'])
+          ? txBody['a:p']
+          : [txBody['a:p']]
+        : []
+      const textRuns = []
+      const paragraphTexts = []
+
+      for (const p of pNodes) {
+        const runNodes = p['a:r'] ? (Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]) : []
+        const currentParaRuns = []
+        for (const r of runNodes) {
+          const tVal =
+            r['a:t'] !== undefined
+              ? typeof r['a:t'] === 'object'
+                ? r['a:t']['#text'] || ''
+                : String(r['a:t'])
+              : ''
+          const rPr = r['a:rPr'] || {}
+          const runDetail = {
+            text: tVal,
+            bold: rPr['@_b'] === '1' || rPr['@_b'] === true,
+            italic: rPr['@_i'] === '1' || rPr['@_i'] === true,
+            fontSize: rPr['@_sz'] ? parseInt(rPr['@_sz'], 10) / 100 : undefined,
+            color: rPr['a:solidFill']?.['a:srgbClr']?.['@_val']
+              ? `#${rPr['a:solidFill']['a:srgbClr']['@_val']}`
+              : undefined,
+          }
+          textRuns.push(runDetail)
+          currentParaRuns.push(tVal)
+        }
+        paragraphTexts.push(currentParaRuns.join(''))
+      }
+
+      return {
+        text: paragraphTexts.join('\n').trim(),
+        textRuns,
+      }
+    }
+
+    // Helper to extract transform geometry
+    const extractGeometry = xfrm => {
+      const off = xfrm?.['a:off']
+      const ext = xfrm?.['a:ext']
+      const xEmu = parseInt(off?.['@_x'] || '0', 10)
+      const yEmu = parseInt(off?.['@_y'] || '0', 10)
+      const wEmu = parseInt(ext?.['@_cx'] || '0', 10)
+      const hEmu = parseInt(ext?.['@_cy'] || '0', 10)
+      const rot = xfrm?.['@_rot'] ? Math.round(parseInt(xfrm['@_rot'], 10) / 60000) : 0
+
+      const geom = {
+        x: xEmu,
+        y: yEmu,
+        width: wEmu,
+        height: hEmu,
+        xPx: Math.round(xEmu / 9525),
+        yPx: Math.round(yEmu / 9525),
+        widthPx: Math.round(wEmu / 9525),
+        heightPx: Math.round(hEmu / 9525),
+        rotation: rot,
+      }
+      return {
+        ...geom,
+        bounds: { x: xEmu, y: yEmu, width: wEmu, height: hEmu },
+        boundsPx: {
+          x: Math.round(xEmu / 9525),
+          y: Math.round(yEmu / 9525),
+          width: Math.round(wEmu / 9525),
+          height: Math.round(hEmu / 9525),
+        },
+      }
+    }
+
+    // 1. Shapes & Text Boxes (<p:sp>)
+    if (spTree['p:sp']) {
+      const spList = Array.isArray(spTree['p:sp']) ? spTree['p:sp'] : [spTree['p:sp']]
+      for (const sp of spList) {
+        const cNvPr = sp['p:nvSpPr']?.['p:cNvPr'] || {}
+        const ph = sp['p:nvSpPr']?.['p:nvPr']?.['p:ph']
+        const isTxBox =
+          sp['p:nvSpPr']?.['p:cNvSpPr']?.['@_txBox'] === '1' ||
+          sp['p:nvSpPr']?.['p:cNvSpPr']?.['@_txBox'] === true
+        const textInfo = extractTextDetails(sp['p:txBody'])
+
+        const geom = extractGeometry(sp['p:spPr']?.['a:xfrm'])
+        elements.push({
+          id: String(cNvPr['@_id'] || ''),
+          name: String(cNvPr['@_name'] || ''),
+          type: isTxBox ? 'textBox' : 'shape',
+          geometry: geom,
+          bounds: geom.bounds,
+          boundsPx: geom.boundsPx,
+          placeholder: ph ? { type: ph['@_type'] || 'body', idx: ph['@_idx'] || null } : null,
+          text: textInfo.text,
+          textRuns: textInfo.textRuns,
+        })
+      }
+    }
+
+    // 2. Pictures / Images (<p:pic>)
+    if (spTree['p:pic']) {
+      const picList = Array.isArray(spTree['p:pic']) ? spTree['p:pic'] : [spTree['p:pic']]
+      for (const pic of picList) {
+        const cNvPr = pic['p:nvPicPr']?.['p:cNvPr'] || {}
+        const blip = pic['p:blipFill']?.['a:blip']
+        const rId = blip?.['@_r:embed'] || blip?.['@_r:link']
+        let targetPath = null
+        if (rId) {
+          const rel = rels.find(r => r.id === rId)
+          if (rel) targetPath = rel.target
+        }
+
+        const geom = extractGeometry(pic['p:spPr']?.['a:xfrm'])
+        elements.push({
+          id: String(cNvPr['@_id'] || ''),
+          name: String(cNvPr['@_name'] || ''),
+          type: 'image',
+          geometry: geom,
+          bounds: geom.bounds,
+          boundsPx: geom.boundsPx,
+          placeholder: null,
+          relationshipId: rId || null,
+          target: targetPath,
+          text: '',
+          textRuns: [],
+        })
+      }
+    }
+
+    // 3. GraphicFrames (<p:graphicFrame>): Tables & Charts
+    if (spTree['p:graphicFrame']) {
+      const gfList = Array.isArray(spTree['p:graphicFrame'])
+        ? spTree['p:graphicFrame']
+        : [spTree['p:graphicFrame']]
+      for (const gf of gfList) {
+        const cNvPr = gf['p:nvGraphicFramePr']?.['p:cNvPr'] || {}
+        const gData = gf['a:graphic']?.['a:graphicData'] || {}
+        const uri = gData['@_uri'] || ''
+        const xfrm = gf['p:xfrm']
+
+        if (uri.includes('table') || gData['a:tbl']) {
+          const tbl = gData['a:tbl'] || {}
+          const rows = tbl['a:tr'] ? (Array.isArray(tbl['a:tr']) ? tbl['a:tr'] : [tbl['a:tr']]) : []
+          const cols = tbl['a:tblGrid']?.['a:gridCol']
+            ? Array.isArray(tbl['a:tblGrid']['a:gridCol'])
+              ? tbl['a:tblGrid']['a:gridCol']
+              : [tbl['a:tblGrid']['a:gridCol']]
+            : []
+          const tableTexts = []
+          for (const row of rows) {
+            const cells = row['a:tc']
+              ? Array.isArray(row['a:tc'])
+                ? row['a:tc']
+                : [row['a:tc']]
+              : []
+            for (const cell of cells) {
+              const cellText = extractTextDetails(cell['a:txBody']).text
+              if (cellText) tableTexts.push(cellText)
+            }
+          }
+
+          const geom = extractGeometry(xfrm)
+          elements.push({
+            id: String(cNvPr['@_id'] || ''),
+            name: String(cNvPr['@_name'] || ''),
+            type: 'table',
+            geometry: geom,
+            bounds: geom.bounds,
+            boundsPx: geom.boundsPx,
+            placeholder: null,
+            rowCount: rows.length,
+            columnCount: cols.length,
+            text: tableTexts.join(' | '),
+            textRuns: [],
+          })
+        } else if (uri.includes('chart') || gData['c:chart']) {
+          const chartRelId = gData['c:chart']?.['@_r:id'] || null
+          let targetPath = null
+          if (chartRelId) {
+            const rel = rels.find(r => r.id === chartRelId)
+            if (rel) targetPath = rel.target
+          }
+
+          const geom = extractGeometry(xfrm)
+          elements.push({
+            id: String(cNvPr['@_id'] || ''),
+            name: String(cNvPr['@_name'] || ''),
+            type: 'chart',
+            geometry: geom,
+            bounds: geom.bounds,
+            boundsPx: geom.boundsPx,
+            placeholder: null,
+            relationshipId: chartRelId,
+            target: targetPath,
+            text: '',
+            textRuns: [],
+          })
+        } else {
+          const geom = extractGeometry(xfrm)
+          elements.push({
+            id: String(cNvPr['@_id'] || ''),
+            name: String(cNvPr['@_name'] || ''),
+            type: 'graphicFrame',
+            geometry: geom,
+            bounds: geom.bounds,
+            boundsPx: geom.boundsPx,
+            placeholder: null,
+            text: '',
+            textRuns: [],
+          })
+        }
+      }
+    }
+
+    // 4. Group Shapes (<p:grpSp>)
+    if (spTree['p:grpSp']) {
+      const grpList = Array.isArray(spTree['p:grpSp']) ? spTree['p:grpSp'] : [spTree['p:grpSp']]
+      for (const grp of grpList) {
+        const cNvPr = grp['p:nvGrpSpPr']?.['p:cNvPr'] || {}
+        const geom = extractGeometry(grp['p:grpSpPr']?.['a:xfrm'])
+        elements.push({
+          id: String(cNvPr['@_id'] || ''),
+          name: String(cNvPr['@_name'] || ''),
+          type: 'group',
+          geometry: geom,
+          bounds: geom.bounds,
+          boundsPx: geom.boundsPx,
+          placeholder: null,
+          text: '',
+          textRuns: [],
+        })
+      }
+    }
+
+    // 5. Connectors (<p:cxnSp>)
+    if (spTree['p:cxnSp']) {
+      const cxnList = Array.isArray(spTree['p:cxnSp']) ? spTree['p:cxnSp'] : [spTree['p:cxnSp']]
+      for (const cxn of cxnList) {
+        const cNvPr = cxn['p:nvCxnSpPr']?.['p:cNvPr'] || {}
+        const geom = extractGeometry(cxn['p:spPr']?.['a:xfrm'])
+        elements.push({
+          id: String(cNvPr['@_id'] || ''),
+          name: String(cNvPr['@_name'] || ''),
+          type: 'connector',
+          geometry: geom,
+          bounds: geom.bounds,
+          boundsPx: geom.boundsPx,
+          placeholder: null,
+          text: '',
+          textRuns: [],
+        })
+      }
+    }
+
+    return elements
+  }
+
+  /**
+   * Retrieves detailed metadata and element geometries for a specific slide.
    *
    * @param {number|string} slideRef - 1-based index or reference.
    * @returns {Object} Normalized slide metadata object.
@@ -1928,16 +2236,101 @@ class SlideManager {
     const info = this.#slides.get(index)
     const xml = this.getSlideXml(index)
     const isHidden = /<p:sld[^>]*\sshow="0"/.test(xml)
+    const slideObj = this.getSlideObj(index)
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] || {}
+
+    // 1. Dimensions
+    const dims = this.getSlideSize()
+    const dimensions = {
+      width: dims.width,
+      height: dims.height,
+      widthPx: Math.round(dims.width / 9525),
+      heightPx: Math.round(dims.height / 9525),
+    }
+
+    // 2. Layout
+    const layout = info.layout || this.getSlideLayout(index)
+
+    // 3. Elements inspection
+    const elements = this.#extractElementsFromSpTree(spTree, index)
+
+    // 4. Slide Title
+    let title = info.title || ''
+    if (!title) {
+      const titleElem = elements.find(
+        e =>
+          (e.placeholder &&
+            (e.placeholder.type === 'title' || e.placeholder.type === 'ctrTitle')) ||
+          e.name.toLowerCase().includes('title')
+      )
+      if (titleElem && titleElem.text) {
+        title = titleElem.text
+      }
+    }
+
+    // 5. Notes slide text
+    let notes = ''
+    try {
+      const rels = this.#relationshipManager.getRelationships(info.zipPath)
+      const notesRel = rels.find(r => r.type === REL_TYPES.NOTES_SLIDE)
+      if (notesRel) {
+        const notesPath = this.#relationshipManager.resolveTarget(info.zipPath, notesRel.target)
+        if (this.#zipManager.hasFile(notesPath)) {
+          const notesXml = this.#zipManager.readText(notesPath)
+          const parsedNotes = this.#xmlParser.parse(notesXml)
+          const notesTextRuns = this.#xmlParser.findAll(parsedNotes, 'a:t')
+          notes = notesTextRuns
+            .map(t => (typeof t === 'object' ? t['#text'] || '' : String(t)))
+            .filter(Boolean)
+            .join(' ')
+            .trim()
+        }
+      }
+    } catch {
+      // Notes slide parsing failure non-fatal
+    }
+
+    // 6. Transition
+    let transition = null
+    const transNode = slideObj?.['p:sld']?.['p:transition']
+    if (transNode) {
+      const transTypes = Object.keys(transNode).filter(k => k.startsWith('p:') && k !== 'p:extLst')
+      transition = {
+        type: transTypes[0] ? transTypes[0].replace('p:', '') : 'custom',
+        speed: transNode['@_spd'] || 'medium',
+        duration: transNode['@_dur'] ? parseInt(transNode['@_dur'], 10) : undefined,
+      }
+    }
+
+    // 7. Animations (<p:timing>)
+    const animations = []
+    const timingNode = slideObj?.['p:sld']?.['p:timing']
+    if (timingNode) {
+      const bldLst = this.#xmlParser.findAll(timingNode, 'p:bldP') || []
+      for (const bld of bldLst) {
+        if (bld && bld['@_spid']) {
+          animations.push({
+            shapeId: String(bld['@_spid']),
+            build: bld['@_build'] || 'allAtOnce',
+          })
+        }
+      }
+    }
 
     return {
       index: info.index,
       slideId: info.slideId,
       relationshipId: info.relationshipId,
       zipPath: info.zipPath,
-      title: info.title || '',
-      layout: info.layout || this.getSlideLayout(index),
+      title,
+      layout,
+      dimensions,
       tags: [...info.tags],
       hidden: isHidden,
+      notes,
+      transition,
+      animations,
+      elements,
     }
   }
 
@@ -1987,6 +2380,7 @@ class SlideManager {
           name,
           slideIds,
           slideIndices,
+          startSlideIndex: slideIndices.length > 0 ? Math.min(...slideIndices) : null,
         })
       }
     }
@@ -2030,13 +2424,17 @@ class SlideManager {
       throw new PPTXError('Presentation XML not loaded')
     }
 
-    // Ensure presentation.xml extension list exists
+    // Ensure presentation root has xmlns:p14 namespace
     let pres = this.#presentationObj['p:presentation']
     if (!pres) {
       this.#presentationObj['p:presentation'] = {}
       pres = this.#presentationObj['p:presentation']
     }
+    if (!pres['@_xmlns:p14']) {
+      pres['@_xmlns:p14'] = 'http://schemas.microsoft.com/office/powerpoint/2010/main'
+    }
 
+    // Ensure presentation.xml extension list exists
     if (!pres['p:extLst']) {
       pres['p:extLst'] = { 'p:ext': [] }
     } else if (!Array.isArray(pres['p:extLst']['p:ext'])) {
@@ -2063,6 +2461,9 @@ class SlideManager {
         '@_xmlns:p14': 'http://schemas.microsoft.com/office/powerpoint/2010/main',
         'p14:section': [],
       }
+    } else if (!ext['p14:sectionLst']['@_xmlns:p14']) {
+      ext['p14:sectionLst']['@_xmlns:p14'] =
+        'http://schemas.microsoft.com/office/powerpoint/2010/main'
     }
 
     if (!ext['p14:sectionLst']['p14:section']) {
@@ -2076,20 +2477,65 @@ class SlideManager {
 
     // Determine slides to assign to this section
     const allIndices = this.getAllSlideIndices()
-    const allSlideIds = allIndices.map(i => this.#slides.get(i).slideId)
+    const slideCount = allIndices.length
 
-    let assignedSlideIds = []
-    if (startSlideIndex !== undefined) {
-      if (!this.#slides.has(startSlideIndex)) {
-        throw new SlideNotFoundError(`startSlideIndex ${startSlideIndex} out of bounds`)
+    let clampedStart = 1
+    if (slideCount > 0) {
+      if (startSlideIndex !== undefined) {
+        const num = Number(startSlideIndex)
+        clampedStart = Math.max(1, Math.min(isNaN(num) ? 1 : Math.floor(num), slideCount))
+      } else {
+        // If omitted, find first slide not in any existing section
+        const assignedIds = new Set()
+        for (const sec of sections) {
+          const slds = sec['p14:sldIdLst']?.['p14:sldId']
+          if (slds) {
+            const arr = Array.isArray(slds) ? slds : [slds]
+            arr.forEach(s => {
+              if (s?.['@_id']) assignedIds.add(String(s['@_id']))
+            })
+          }
+        }
+        const unassignedIdx = allIndices.find(idx => {
+          const sid = this.#slides.get(idx)?.slideId
+          return sid && !assignedIds.has(String(sid))
+        })
+        clampedStart =
+          unassignedIdx !== undefined ? unassignedIdx : sections.length === 0 ? 1 : slideCount
       }
-      const startId = this.#slides.get(startSlideIndex).slideId
-      const startIndex = allSlideIds.indexOf(startId)
-      if (startIndex !== -1) {
-        assignedSlideIds = allSlideIds.slice(startIndex)
+    }
+
+    // Determine start of the next section (if any) starting strictly after clampedStart
+    const sectionStarts = []
+    for (const sec of sections) {
+      const slds = sec['p14:sldIdLst']?.['p14:sldId']
+      if (slds) {
+        const arr = Array.isArray(slds) ? slds : [slds]
+        const indices = arr
+          .map(s => {
+            for (const [idx, info] of this.#slides) {
+              if (String(info.slideId) === String(s['@_id'])) return idx
+            }
+            return null
+          })
+          .filter(i => i !== null)
+        if (indices.length > 0) {
+          sectionStarts.push(Math.min(...indices))
+        }
       }
-    } else if (sections.length === 0) {
-      assignedSlideIds = [...allSlideIds]
+    }
+
+    const laterStarts = sectionStarts.filter(s => s > clampedStart)
+    const endSlideIndex = laterStarts.length > 0 ? Math.min(...laterStarts) - 1 : slideCount
+
+    const assignedSlideIds = []
+    if (slideCount > 0 && clampedStart <= endSlideIndex) {
+      for (let i = clampedStart; i <= endSlideIndex; i++) {
+        const info = this.#slides.get(i)
+        if (info && info.slideId) {
+          assignedSlideIds.push(String(info.slideId))
+        }
+      }
     }
 
     // Remove newly assigned slides from any earlier sections
@@ -2111,10 +2557,30 @@ class SlideManager {
       },
     }
 
-    sections.push(newSection)
+    // Insert section in chronological slide order
+    let insertIndex = sections.length
+    for (let i = 0; i < sections.length; i++) {
+      const slds = sections[i]['p14:sldIdLst']?.['p14:sldId']
+      if (slds) {
+        const arr = Array.isArray(slds) ? slds : [slds]
+        const firstId = arr[0]?.['@_id']
+        let secStart = slideCount + 1
+        for (const [idx, info] of this.#slides) {
+          if (String(info.slideId) === String(firstId)) {
+            secStart = idx
+            break
+          }
+        }
+        if (clampedStart < secStart) {
+          insertIndex = i
+          break
+        }
+      }
+    }
+    sections.splice(insertIndex, 0, newSection)
     this.#flushPresentation()
 
-    return this.getSection(guid)
+    return this
   }
 
   /**

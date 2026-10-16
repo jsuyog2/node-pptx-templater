@@ -44,6 +44,7 @@ const { ChartNotFoundError } = require('../utils/errors.js')
 const { REL_TYPES } = require('../managers/RelationshipManager.js')
 const { ChartWorkbookUpdater } = require('./charts/ChartWorkbookUpdater.js')
 const { ChartCacheGenerator } = require('./charts/ChartCacheGenerator.js')
+const { resolveElementBounds } = require('../utils/coordinateUtils.js')
 
 const JSZip = require('jszip')
 
@@ -1810,7 +1811,22 @@ class ChartManager {
   }
 
   async addTextAtPosition(slideIndex, options, slideManager) {
-    const { text, x, y, width = 1200000, height = 300000, style = {} } = options
+    const { text, style = {} } = options
+    const bounds = resolveElementBounds(
+      {
+        x: options.x !== undefined ? options.x : 0,
+        y: options.y !== undefined ? options.y : 0,
+        width: options.width !== undefined ? options.width : 1200000,
+        height: options.height !== undefined ? options.height : 300000,
+        unit: options.unit,
+        isPercent: options.isPercent,
+      },
+      slideManager
+    )
+    const x = bounds.x
+    const y = bounds.y
+    const width = bounds.width
+    const height = bounds.height
     const slideInfo = slideManager.getSlideInfo(slideIndex)
     const slideZipPath = slideInfo.zipPath
 

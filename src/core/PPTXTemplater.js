@@ -845,6 +845,8 @@ class PPTXTemplater {
     let finalOptions = {}
     if (typeof tableIdOrOptions === 'string') {
       finalOptions = { ...options, id: tableIdOrOptions }
+    } else if (Array.isArray(tableIdOrOptions)) {
+      finalOptions = { ...options, rows: tableIdOrOptions }
     } else if (typeof tableIdOrOptions === 'object' && tableIdOrOptions !== null) {
       finalOptions = { ...tableIdOrOptions }
     }
@@ -1146,11 +1148,12 @@ class PPTXTemplater {
    *
    * @param {PPTXTemplater} sourceEngine - Source PPTXTemplater instance.
    * @param {number|string} slideRef - Slide index (1-based), ID, or custom tag.
+   * @param {number} [atPosition] - 1-based target insertion index.
    * @returns {Promise<PPTXTemplater>} this (chainable)
    */
-  async importSlideFrom(sourceEngine, slideRef) {
+  async importSlideFrom(sourceEngine, slideRef, atPosition) {
     this.#assertLoaded()
-    await this.#slideManager.importSlide(sourceEngine, slideRef, this.#mediaManager)
+    await this.#slideManager.importSlide(sourceEngine, slideRef, this.#mediaManager, atPosition)
     return this
   }
 
@@ -1407,17 +1410,21 @@ class PPTXTemplater {
    */
   async saveToFile(filePath, options = {}) {
     this.#assertLoaded()
-    const result = await this.validatePresentation()
-    if (!result.valid) {
-      if (options.strict) {
-        throw new PPTXError(`Validation failed before save: ${result.errors.join(', ')}`)
-      } else {
-        logger.warn(
-          `Validation issues found before save:\n${result.errors.map(e => `  • ${e}`).join('\n')}`
-        )
+    if (options.validate || options.strict) {
+      const result = await this.validatePresentation()
+      if (!result.valid) {
+        if (options.strict) {
+          throw new PPTXError(`Validation failed before save: ${result.errors.join(', ')}`)
+        } else {
+          logger.warn(
+            `Validation issues found before save:\n${result.errors.map(e => `  • ${e}`).join('\n')}`
+          )
+        }
       }
     }
-    await this.validateArchive()
+    if (options.validateArchive) {
+      await this.validateArchive()
+    }
 
     const t0 = performance.now()
     await this.#outputWriter.saveToFile(filePath, this.#slideManager, this.#zipManager, options)
@@ -1468,7 +1475,9 @@ class PPTXTemplater {
    */
   async toResponse(options = {}) {
     this.#assertLoaded()
-    await this.validateArchive()
+    if (options.validateArchive) {
+      await this.validateArchive()
+    }
     return this.#outputWriter.toResponse(this.#slideManager, this.#zipManager, options)
   }
 
@@ -1482,7 +1491,9 @@ class PPTXTemplater {
    */
   async toFastify(reply, filename = 'presentation.pptx', options = {}) {
     this.#assertLoaded()
-    await this.validateArchive()
+    if (options.validateArchive) {
+      await this.validateArchive()
+    }
     await this.#outputWriter.toFastify(
       this.#slideManager,
       this.#zipManager,
@@ -1552,7 +1563,9 @@ class PPTXTemplater {
    */
   async toBuffer(options = {}) {
     this.#assertLoaded()
-    await this.validateArchive()
+    if (options.validateArchive) {
+      await this.validateArchive()
+    }
 
     const t0 = performance.now()
     const buffer = await this.#outputWriter.toBuffer(this.#slideManager, this.#zipManager, options)
@@ -1569,7 +1582,9 @@ class PPTXTemplater {
    */
   async toStream(options = {}) {
     this.#assertLoaded()
-    await this.validateArchive()
+    if (options.validateArchive) {
+      await this.validateArchive()
+    }
 
     const t0 = performance.now()
     const stream = await this.#outputWriter.toStream(this.#slideManager, this.#zipManager, options)
@@ -2705,13 +2720,16 @@ class PPTXTemplater {
   setBounds(objectIdOrName, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
-    const units = require('../spatial/units.js')
+    const { resolveCoordinate } = require('../utils/coordinateUtils.js')
+    const dims = this.#slideManager.getSlideSize()
 
     const emuOptions = {}
-    if (options.x !== undefined) emuOptions.x = units.toEmu(options.x)
-    if (options.y !== undefined) emuOptions.y = units.toEmu(options.y)
-    if (options.width !== undefined) emuOptions.width = units.toEmu(options.width)
-    if (options.height !== undefined) emuOptions.height = units.toEmu(options.height)
+    if (options.x !== undefined) emuOptions.x = resolveCoordinate(options.x, dims.width, options)
+    if (options.y !== undefined) emuOptions.y = resolveCoordinate(options.y, dims.height, options)
+    if (options.width !== undefined)
+      emuOptions.width = resolveCoordinate(options.width, dims.width, options)
+    if (options.height !== undefined)
+      emuOptions.height = resolveCoordinate(options.height, dims.height, options)
     if (options.rotation !== undefined) emuOptions.rotation = options.rotation
     if (options.flipH !== undefined) emuOptions.flipH = options.flipH
     if (options.flipV !== undefined) emuOptions.flipV = options.flipV
@@ -3283,11 +3301,19 @@ class PPTXTemplater {
    * @param {Object} [options.style] Font formatting properties (fontSize, fontFamily, color, bold, italic, align).
    * @returns {this} The chainable presentation engine instance.
    */
-  addTextAtPosition(options) {
+  addTextAtPosition(textOrOptions, maybeOptions = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
+    let config = {}
+    if (typeof textOrOptions === 'string') {
+      config = { ...maybeOptions, text: textOrOptions }
+    } else if (typeof textOrOptions === 'object' && textOrOptions !== null) {
+      config = { ...textOrOptions }
+    }
     for (const idx of targetIndices) {
-      const p = this.#chartManager.addTextAtPosition(idx, options, this.#slideManager)
+      // Ensure dirty XML from prior synchronous operations (like addTable) is flushed to zip
+      this.#slideManager.getSlideXml(idx)
+      const p = this.#chartManager.addTextAtPosition(idx, config, this.#slideManager)
       this.#zipManager.addPendingPromise(p)
     }
     return this

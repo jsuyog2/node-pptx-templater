@@ -37,7 +37,7 @@ function emuToPx(emu) {
   return emu / EMU_PER_PX
 }
 
-function toEmu(value) {
+function toEmu(value, totalEmu = 12192000) {
   if (value === undefined || value === null) return 0
 
   if (typeof value === 'number') {
@@ -47,6 +47,11 @@ function toEmu(value) {
 
   if (typeof value === 'string') {
     const val = value.trim().toLowerCase()
+    if (val.endsWith('%')) {
+      const pct = parseFloat(val)
+      if (!isNaN(pct)) return Math.round((pct / 100) * totalEmu)
+      return 0
+    }
     const num = parseFloat(val)
     if (isNaN(num)) return 0
 

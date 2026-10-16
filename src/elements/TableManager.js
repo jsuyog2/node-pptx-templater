@@ -38,6 +38,7 @@
 const { createLogger } = require('../utils/logger.js')
 const { TableNotFoundError, PPTXError } = require('../utils/errors.js')
 const { toEmu } = require('../spatial/units.js')
+const { resolveCoordinate, getCanvasDimensions } = require('../utils/coordinateUtils.js')
 const { Z_ORDER_SYMBOL } = require('../parsers/XMLParser.js')
 
 const logger = createLogger('TableManager')
@@ -815,9 +816,20 @@ class TableManager {
 
     const name = options.id || options.name || `Table ${newId}`
 
-    const rawData = Array.isArray(options.data) ? options.data : null
-    let numRows =
-      options.rows !== undefined ? parseInt(options.rows, 10) : rawData ? rawData.length : 2
+    const rawData = Array.isArray(options.data)
+      ? options.data
+      : Array.isArray(options.rows)
+        ? options.rows
+        : null
+
+    let numRows = 2
+    if (typeof options.rows === 'number') {
+      numRows = options.rows
+    } else if (rawData) {
+      numRows = rawData.length
+    } else if (options.rows !== undefined && !isNaN(parseInt(options.rows, 10))) {
+      numRows = parseInt(options.rows, 10)
+    }
     if (rawData && rawData.length > numRows) numRows = rawData.length
     if (numRows < 1) numRows = 1
 
@@ -831,19 +843,26 @@ class TableManager {
     }
     if (numCols < 1) numCols = 1
 
-    const xEmu = toEmu(options.x !== undefined ? options.x : 50)
-    const yEmu = toEmu(options.y !== undefined ? options.y : 50)
+    const dims = getCanvasDimensions(slideManager)
+    const canvasWidth = dims.width
+    const canvasHeight = dims.height
+
+    const xEmu = resolveCoordinate(options.x !== undefined ? options.x : 50, canvasWidth, options)
+    const yEmu = resolveCoordinate(options.y !== undefined ? options.y : 50, canvasHeight, options)
+
+    const totalWidthEmu = resolveCoordinate(
+      options.width !== undefined ? options.width : options.w !== undefined ? options.w : 500,
+      canvasWidth,
+      options
+    )
 
     let colWidthsEmu = []
     if (Array.isArray(options.colWidths) && options.colWidths.length > 0) {
-      colWidthsEmu = options.colWidths.map(w => toEmu(w))
+      colWidthsEmu = options.colWidths.map(w => resolveCoordinate(w, totalWidthEmu, options))
       while (colWidthsEmu.length < numCols) {
         colWidthsEmu.push(colWidthsEmu[colWidthsEmu.length - 1] || 1905000)
       }
     } else {
-      const totalWidthEmu = toEmu(
-        options.width !== undefined ? options.width : options.w !== undefined ? options.w : 500
-      )
       const colW = Math.round(totalWidthEmu / numCols)
       colWidthsEmu = Array(numCols).fill(colW)
     }
@@ -851,12 +870,16 @@ class TableManager {
 
     let rowHeightsEmu = []
     if (Array.isArray(options.rowHeights) && options.rowHeights.length > 0) {
-      rowHeightsEmu = options.rowHeights.map(h => toEmu(h))
+      rowHeightsEmu = options.rowHeights.map(h => resolveCoordinate(h, canvasHeight, options))
       while (rowHeightsEmu.length < numRows) {
         rowHeightsEmu.push(rowHeightsEmu[rowHeightsEmu.length - 1] || 370840)
       }
     } else if (options.height !== undefined || options.h !== undefined) {
-      const totalHeightEmu = toEmu(options.height !== undefined ? options.height : options.h)
+      const totalHeightEmu = resolveCoordinate(
+        options.height !== undefined ? options.height : options.h,
+        canvasHeight,
+        options
+      )
       const rowH = Math.round(totalHeightEmu / numRows)
       rowHeightsEmu = Array(numRows).fill(rowH)
     } else {

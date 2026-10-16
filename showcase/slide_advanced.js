@@ -68,9 +68,9 @@ async function runSlideAdvancedShowcase() {
   ppt.useSlide(1)
   console.log(`[5/23] ppt.useSlide(1) -> Active slide context scoped to slide 1`)
 
-  // // 6. ppt.useAllSlides()
-  // ppt.useAllSlides()
-  // console.log(`[6/23] ppt.useAllSlides() -> Scoped context widened to all slides`)
+  // 6. ppt.useAllSlides()
+  ppt.useAllSlides()
+  console.log(`[6/23] ppt.useAllSlides() -> Scoped context widened to all slides`)
 
   // 7. ppt.tagSlide(slideIndex, tag)
   ppt.tagSlide(1, 'cover-slide')
@@ -126,8 +126,8 @@ async function runSlideAdvancedShowcase() {
   console.log(`[19/23] ppt.removeSection('Untitled Section', false) -> Section deleted, slides preserved`)
 
   // 20. ppt.addSection(name, startSlideIndex)
-  ppt.addSection('Executive Overview', 4)
-  console.log(`[20/23] ppt.addSection('Executive Overview', 4) -> Created PowerPoint section`)
+  ppt.addSection('Executive Overview', 5)
+  console.log(`[20/23] ppt.addSection('Executive Overview', 5) -> Created PowerPoint section`)
 
 
   // 21. ppt.addComment(text, options)
@@ -142,8 +142,8 @@ async function runSlideAdvancedShowcase() {
   // 22. ppt.removeComment(commentIdentifier, options)
   await ppt.useSlide(1).addComment('Temporary review flag', {
     author: 'Reviewer',
-    x: '0.2',
-    y: '0.2',
+    x: 20,
+    y: 20,
   })
   await ppt.useSlide(1).removeComment('Temporary review flag')
   console.log(`[22/23] ppt.removeComment('Temporary review flag') -> Removed targeted comment`)
@@ -159,9 +159,8 @@ async function runSlideAdvancedShowcase() {
     fill: '#1E293B',
     text: 'Synthesized with PPTXTemplater.createBlank()',
   })
-  await blankDeck.validatePresentation()
-  await ppt.importSlideFrom(blankDeck, 1)
-  console.log(`[23/23] ppt.importSlideFrom(blankDeck, 1) -> Imported slide across presentations, count: ${blankDeck.slideCount}`)
+  await ppt.importSlideFrom(blankDeck, 1, 3)
+  console.log(`[23/23] ppt.importSlideFrom(blankDeck, 1, 3) -> Imported slide across presentations, count: ${blankDeck.slideCount}`)
 
   // 24. ppt.exportSlides(...slideIndices)
   const exportedDeck = await ppt.exportSlides(1)

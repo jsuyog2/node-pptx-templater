@@ -199,6 +199,19 @@ COLLABORATIVE COMMENTS (2)
 
 All non-standard aliases (such as `cloneSlide`, `deleteSlide`, `insertSlide`, `importSlides`, `setSlideDimensions`, `setSlideSize`, `setAspectRatio`, `getSlideSize`) are strictly prohibited and purged from the library to preserve clean API boundaries and zero ambiguity.
 
+### 4.2 Coordinate Subsystem Overhaul & Positional Import (v3.3.0 Scope)
+1. **Global Percentage-Based Coordinates**:
+   - Universal translation of percentages (`'0%'`–`'100%'` or numeric values with `unit: '%'`) into exact English Metric Units (EMUs) mapped against presentation canvas dimensions (16:9 widescreen default `12192000 x 6858000`).
+   - Standard 4-corner mapping: Top-Left `(0, 0)`, Top-Right `(100%, 0)`, Bottom-Left `(0, 100%)`, Bottom-Right `(100%, 100%)`.
+2. **Positional Slide Import (`importSlideFrom`)**:
+   - Insertion index targeting via `atPosition` (1-based index) with boundary clamping (`<= 0` -> 1, `> count` -> end).
+3. **PowerPoint Section Protocol (`addSection`)**:
+   - Generates unique GUIDs and `<p14:section>` with `<p14:sldIdLst>` within presentation extension lists (`<p:extLst>`), properly registering `xmlns:p14`.
+4. **Rich Metadata & Geometry Extraction (`getSlide` / `getSlides`)**:
+   - Comprehensive extraction of geometry (EMUs and px), element types, text runs, placeholders, notes, transitions, and animations with zero circular references.
+5. **Non-Blocking In-Memory Lifecycles**:
+   - Validation is fully decoupled from core mutation flows (`createBlank`, `load`, `addShape`, `importSlideFrom`, exports) and accessible on-demand via `ppt.validatePresentation()`.
+
 ---
 
 ## 5. Command-Line Interface (CLI)

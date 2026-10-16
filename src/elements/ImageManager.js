@@ -5,6 +5,7 @@
 const { createLogger } = require('../utils/logger.js')
 const { PPTXError } = require('../utils/errors.js')
 const { REL_TYPES } = require('../managers/RelationshipManager.js')
+const { resolveElementBounds } = require('../utils/coordinateUtils.js')
 
 const logger = createLogger('ImageManager')
 
@@ -238,30 +239,57 @@ class ImageManager {
     const newId = maxId + 1
 
     // Convert positions
-    const x =
-      options.x === undefined
-        ? 0
-        : options.x < 100
-          ? Math.round(options.x * 914400)
-          : Math.round(options.x)
-    const y =
-      options.y === undefined
-        ? 0
-        : options.y < 100
-          ? Math.round(options.y * 914400)
-          : Math.round(options.y)
-    const cx =
-      options.width === undefined
-        ? 2743200
-        : options.width < 100
-          ? Math.round(options.width * 914400)
-          : Math.round(options.width)
-    const cy =
-      options.height === undefined
-        ? 1828800
-        : options.height < 100
-          ? Math.round(options.height * 914400)
-          : Math.round(options.height)
+    let x, y, cx, cy
+    if (
+      typeof options.x === 'string' ||
+      typeof options.y === 'string' ||
+      typeof options.width === 'string' ||
+      typeof options.height === 'string' ||
+      options.unit === '%' ||
+      options.unit === 'percent' ||
+      options.isPercent
+    ) {
+      const bounds = resolveElementBounds(
+        {
+          x: options.x !== undefined ? options.x : 0,
+          y: options.y !== undefined ? options.y : 0,
+          width: options.width !== undefined ? options.width : '25%',
+          height: options.height !== undefined ? options.height : '25%',
+          unit: options.unit,
+          isPercent: options.isPercent,
+        },
+        slideManager
+      )
+      x = bounds.x
+      y = bounds.y
+      cx = bounds.width
+      cy = bounds.height
+    } else {
+      x =
+        options.x === undefined
+          ? 0
+          : options.x < 100
+            ? Math.round(options.x * 914400)
+            : Math.round(options.x)
+      y =
+        options.y === undefined
+          ? 0
+          : options.y < 100
+            ? Math.round(options.y * 914400)
+            : Math.round(options.y)
+      cx =
+        options.width === undefined
+          ? 2743200
+          : options.width < 100
+            ? Math.round(options.width * 914400)
+            : Math.round(options.width)
+      cy =
+        options.height === undefined
+          ? 1828800
+          : options.height < 100
+            ? Math.round(options.height * 914400)
+            : Math.round(options.height)
+    }
     const name = options.name || `Picture ${newId}`
 
     // Build the pic XML snippet using mediaManager's builder and parse it

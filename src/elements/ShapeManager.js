@@ -5,6 +5,7 @@
 const { createLogger } = require('../utils/logger.js')
 const { PPTXError } = require('../utils/errors.js')
 const { Z_ORDER_SYMBOL } = require('../parsers/XMLParser.js')
+const { resolveElementBounds, resolveCoordinate } = require('../utils/coordinateUtils.js')
 
 const logger = createLogger('ShapeManager')
 
@@ -783,10 +784,18 @@ class ShapeManager {
       preset = type
     }
 
-    const xEmu = Math.round((normalized.x || 0) * 9525)
-    const yEmu = Math.round((normalized.y || 0) * 9525)
-    const wEmu = Math.round(width * 9525)
-    const hEmu = Math.round(height * 9525)
+    const bounds = resolveElementBounds(
+      {
+        ...normalized,
+        width,
+        height,
+      },
+      slideManager
+    )
+    const xEmu = bounds.x
+    const yEmu = bounds.y
+    const wEmu = bounds.width
+    const hEmu = bounds.height
 
     const name = normalized.id || `${type.charAt(0).toUpperCase() + type.slice(1)} ${newId}`
 
@@ -939,10 +948,22 @@ class ShapeManager {
 
     const xfrm = spPr['a:xfrm']
     if (xfrm) {
-      if (normalized.x !== undefined) xfrm['a:off']['@_x'] = String(Math.round(normalized.x * 9525))
-      if (normalized.y !== undefined) xfrm['a:off']['@_y'] = String(Math.round(normalized.y * 9525))
-      if (w !== undefined) xfrm['a:ext']['@_cx'] = String(Math.round(w * 9525))
-      if (h !== undefined) xfrm['a:ext']['@_cy'] = String(Math.round(h * 9525))
+      const dims =
+        slideManager && typeof slideManager.getSlideDimensions === 'function'
+          ? slideManager.getSlideDimensions()
+          : { width: 12192000, height: 6858000 }
+      if (normalized.x !== undefined) {
+        xfrm['a:off']['@_x'] = String(resolveCoordinate(normalized.x, dims.width, normalized))
+      }
+      if (normalized.y !== undefined) {
+        xfrm['a:off']['@_y'] = String(resolveCoordinate(normalized.y, dims.height, normalized))
+      }
+      if (w !== undefined) {
+        xfrm['a:ext']['@_cx'] = String(resolveCoordinate(w, dims.width, normalized))
+      }
+      if (h !== undefined) {
+        xfrm['a:ext']['@_cy'] = String(resolveCoordinate(h, dims.height, normalized))
+      }
 
       // Update rotation
       if (normalized.rotation !== undefined) {
