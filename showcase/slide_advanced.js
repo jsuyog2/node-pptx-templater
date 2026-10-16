@@ -58,8 +58,6 @@ async function runSlideAdvancedShowcase() {
 
   // 3. ppt.getSlide(index)
   const firstSlide = ppt.getSlide(1)
-  console.log(firstSlide);
-
   console.log(`[3/23] ppt.getSlide(1) -> Slide ID: ${firstSlide.slideId}, RelID: ${firstSlide.relationshipId}`)
 
   // 4. ppt.getSlideLayout(slideIndex)
