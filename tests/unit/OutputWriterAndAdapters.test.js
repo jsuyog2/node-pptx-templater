@@ -24,7 +24,11 @@ describe('OutputWriter & Framework Adapters', () => {
     expect(b64.length).toBeGreaterThan(1000)
 
     const dataUri = await ppt.toBase64({ dataUri: true })
-    expect(dataUri.startsWith('data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,')).toBe(true)
+    expect(
+      dataUri.startsWith(
+        'data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,'
+      )
+    ).toBe(true)
   })
 
   it('should export to Web Standard Response for Edge / Serverless runtimes', async () => {

@@ -28,6 +28,7 @@ const { ZipManager } = require('../managers/ZipManager.js')
 const { XMLParser } = require('../parsers/XMLParser.js')
 const { ContentTypesManager } = require('../managers/ContentTypesManager.js')
 const { SlideManager } = require('../managers/SlideManager.js')
+const { CommentManager } = require('../managers/CommentManager.js')
 const { ChartManager } = require('../elements/ChartManager.js')
 const { TableManager } = require('../elements/TableManager.js')
 const { HyperlinkManager } = require('../managers/HyperlinkManager.js')
@@ -143,6 +144,12 @@ class PPTXTemplater {
 
   /**
    * @private
+   * @type {CommentManager}
+   */
+  #commentManager
+
+  /**
+   * @private
    * @type {TemplateEngine}
    */
   #templateEngine
@@ -173,6 +180,11 @@ class PPTXTemplater {
     this.#contentTypesManager = new ContentTypesManager(this.#xmlParser)
     this.#relationshipManager = new RelationshipManager(this.#xmlParser)
     this.#slideManager = new SlideManager(
+      this.#xmlParser,
+      this.#relationshipManager,
+      this.#contentTypesManager
+    )
+    this.#commentManager = new CommentManager(
       this.#xmlParser,
       this.#relationshipManager,
       this.#contentTypesManager
@@ -560,6 +572,9 @@ class PPTXTemplater {
     // Deduplicate and index media files
     await this.#mediaManager.initialize(this.#zipManager)
 
+    // Initialize comment manager
+    this.#commentManager.initialize(this.#zipManager)
+
     const t2 = performance.now()
     this.#profiler.parseMs = t2 - t1
 
@@ -593,6 +608,9 @@ class PPTXTemplater {
 
     // Deduplicate and index media files
     await this.#mediaManager.initialize(this.#zipManager)
+
+    // Initialize comment manager
+    this.#commentManager.initialize(this.#zipManager)
 
     const t2 = performance.now()
     this.#profiler.parseMs = t2 - t1
@@ -1039,10 +1057,11 @@ class PPTXTemplater {
    * Adds a new slide to the presentation.
    * Automatically generates required XML and relationship entries.
    *
-   * @param {NewSlideOptions} options - Slide definition.
+   * @param {NewSlideOptions} [options={}] - Slide definition.
    * @param {string} [options.title] - Slide title text.
    * @param {string} [options.layout] - Layout name to use (default: 'blank').
    * @param {SlideElement[]} [options.elements] - Elements to add to the slide.
+   * @param {number} [position] - Optional 1-based target slide position.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
@@ -1054,30 +1073,11 @@ class PPTXTemplater {
    *   ]
    * });
    */
-  addSlide(options = {}) {
+  addSlide(options = {}, position) {
     this.#assertLoaded()
-    this.#slideManager.addNewSlide(options, this.#relationshipManager, this.#mediaManager)
+    this.#slideManager.addNewSlide(options, position, this.#relationshipManager, this.#mediaManager)
     logger.debug(`Added new slide: "${options.title || 'Untitled'}"`)
     return this
-  }
-
-  /**
-   * Clones an existing slide and appends it to the end (or at a position).
-   *
-   * @param {number} sourceSlideNumber - 1-based source slide number.
-   * @param {number} [atPosition] - Optional position to insert (1-based). Default: append.
-   * @returns {PPTXTemplater} this (chainable)
-   */
-  cloneSlide(sourceSlideNumber, atPosition) {
-    this.#assertLoaded()
-    const promise = this.#slideManager.cloneSlide(
-      sourceSlideNumber,
-      atPosition,
-      this.#relationshipManager,
-      this.#mediaManager
-    )
-    this.#zipManager.addPendingPromise(promise)
-    return promise.then(() => this)
   }
 
   /**
@@ -1151,48 +1151,6 @@ class PPTXTemplater {
   async importSlideFrom(sourceEngine, slideRef) {
     this.#assertLoaded()
     await this.#slideManager.importSlide(sourceEngine, slideRef, this.#mediaManager)
-    return this
-  }
-
-  /**
-   * Imports selected slides from the current template, discarding the rest.
-   * The remaining slides are reordered to match the provided array.
-   * Preserves all layouts, themes, relationships, and embedded media.
-   *
-   * @param {number[]} slideIndices - Array of 1-based slide indices to keep.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.importSlides([1, 3, 5]);
-   */
-  importSlides(slideIndices) {
-    this.#assertLoaded()
-    const slidesToKeep = slideIndices.map(i => this.#slideManager.getSlideInfo(i).slideId)
-
-    // Remove unneeded slides from highest to lowest index to avoid shifting issues
-    const allIndices = this.#slideManager.getAllSlideIndices()
-    for (let i = allIndices.length; i >= 1; i--) {
-      const info = this.#slideManager.getSlideInfo(i)
-      if (!slidesToKeep.includes(info.slideId)) {
-        this.#slideManager.removeSlide(i)
-      }
-    }
-
-    // Calculate new target order based on the requested slideIndices
-    const currentOrder = this.#slideManager
-      .getAllSlideIndices()
-      .map(i => this.#slideManager.getSlideInfo(i).slideId)
-
-    const newOrder = slidesToKeep.map(id => {
-      return currentOrder.indexOf(id) + 1
-    })
-
-    // Only reorder if needed
-    if (newOrder.join(',') !== currentOrder.map((_, i) => i + 1).join(',')) {
-      this.#slideManager.reorderSlides(newOrder)
-    }
-
-    logger.debug(`Imported ${slideIndices.length} slide(s).`)
     return this
   }
 
@@ -1404,7 +1362,7 @@ class PPTXTemplater {
           found = true
           break
         }
-      } catch (e) { }
+      } catch (e) {}
     }
     if (!found) logger.info('Chart not found.')
     return this
@@ -1477,7 +1435,12 @@ class PPTXTemplater {
    */
   async extractToXml(destinationDir, options = {}) {
     this.#assertLoaded()
-    await this.#outputWriter.extractToXml(this.#slideManager, this.#zipManager, destinationDir, options)
+    await this.#outputWriter.extractToXml(
+      this.#slideManager,
+      this.#zipManager,
+      destinationDir,
+      options
+    )
   }
 
   /**
@@ -1489,7 +1452,12 @@ class PPTXTemplater {
    */
   async extractToZip(destinationPath, options = {}) {
     this.#assertLoaded()
-    return this.#outputWriter.extractToZip(this.#slideManager, this.#zipManager, destinationPath, options)
+    return this.#outputWriter.extractToZip(
+      this.#slideManager,
+      this.#zipManager,
+      destinationPath,
+      options
+    )
   }
 
   /**
@@ -1515,7 +1483,13 @@ class PPTXTemplater {
   async toFastify(reply, filename = 'presentation.pptx', options = {}) {
     this.#assertLoaded()
     await this.validateArchive()
-    await this.#outputWriter.toFastify(this.#slideManager, this.#zipManager, reply, filename, options)
+    await this.#outputWriter.toFastify(
+      this.#slideManager,
+      this.#zipManager,
+      reply,
+      filename,
+      options
+    )
   }
 
   /**
@@ -1628,21 +1602,6 @@ class PPTXTemplater {
   }
 
   /**
-   * Removes a slide from the presentation. Alias for `removeSlide()`.
-   *
-   * @param {number} slideIndex - 1-based index of the slide to delete.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.deleteSlide(3); // Remove slide 3
-   */
-  deleteSlide(slideIndex) {
-    this.#assertLoaded()
-    this.#slideManager.removeSlide(slideIndex)
-    return this
-  }
-
-  /**
    * Moves a slide from one position to another within the presentation.
    *
    * @param {number} fromIndex - 1-based source slide index.
@@ -1655,28 +1614,6 @@ class PPTXTemplater {
   moveSlide(fromIndex, toIndex) {
     this.#assertLoaded()
     this.#slideManager.moveSlide(fromIndex, toIndex)
-    return this
-  }
-
-  /**
-   * Inserts a new blank slide at the specified position.
-   *
-   * @param {number} slideIndex - 1-based position to insert the slide at.
-   * @param {Object} [options] - Insert options.
-   * @param {number} [options.layoutIndex] - Slide layout index to apply.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.insertSlide(2, { layoutIndex: 1 }); // Insert blank slide at position 2
-   */
-  insertSlide(slideIndex, options = {}) {
-    this.#assertLoaded()
-    this.#slideManager.insertSlide(
-      slideIndex,
-      options,
-      this.#relationshipManager,
-      this.#mediaManager
-    )
     return this
   }
 
@@ -1695,61 +1632,225 @@ class PPTXTemplater {
   }
 
   /**
-   * Sets slide dimensions and/or aspect ratio for the presentation.
+   * Retrieves detailed metadata for a specific slide by 1-based index or reference.
    *
-   * @param {Object|string|number} widthOrOptions - Dimensions object `{ width, height, aspectRatio }`, ratio string ('16:9', '16:10', '4:3'), or numeric width.
-   * @param {number|string} [height] - Height if width was passed first.
+   * @param {number|string} slideRef - 1-based slide index or custom tag/ID.
+   * @returns {Object} Normalized slide metadata object.
+   *
+   * @example
+   * const slide = ppt.getSlide(1);
+   * console.log(`Slide ${slide.index} (ID: ${slide.slideId})`);
+   */
+  getSlide(slideRef) {
+    this.#assertLoaded()
+    return this.#slideManager.getSlide(slideRef)
+  }
+
+  /**
+   * Selects slides belonging to a section for subsequent operations.
+   *
+   * @param {string|number} sectionRef - Section name, GUID, or 1-based section index.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.setSlideDimensions('16:9');
-   * ppt.setSlideDimensions({ width: '10in', height: '7.5in' });
-   * ppt.setSlideDimensions(12192000, 6858000);
+   * ppt.useSection('Appendix').replaceText({ '{{CONFIDENTIAL}}': 'TRUE' });
    */
-  setSlideDimensions(widthOrOptions, height) {
+  useSection(sectionRef) {
     this.#assertLoaded()
-    this.#slideManager.setSlideSize(widthOrOptions, height)
+    const section = this.#slideManager.getSection(sectionRef)
+    if (!section) {
+      throw new PPTXError(`Section "${sectionRef}" not found`)
+    }
+    this.#selectedSlides = [...section.slideIndices]
+    logger.debug(`Selected slides in section "${section.name}": ${this.#selectedSlides.join(', ')}`)
     return this
   }
 
   /**
-   * Sets slide dimensions (alias for setSlideDimensions).
+   * Adds a new section to the presentation.
    *
-   * @param {Object|string|number} widthOrOptions - Dimensions object, ratio string, or width.
-   * @param {number|string} [height] - Height.
+   * @param {string} name - Section title.
+   * @param {number} [startSlideIndex] - 1-based start slide index. Defaults to 1 (or next unassigned).
    * @returns {PPTXTemplater} this (chainable)
-   */
-  setSlideSize(widthOrOptions, height) {
-    return this.setSlideDimensions(widthOrOptions, height)
-  }
-
-  /**
-   * Sets slide aspect ratio ('16:9', '16:10', '4:3').
    *
-   * @param {string} ratio - '16:9', '16:10', or '4:3'.
-   * @returns {PPTXTemplater} this (chainable)
+   * @example
+   * ppt.addSection('Executive Summary', 1);
    */
-  setAspectRatio(ratio) {
-    return this.setSlideDimensions(ratio)
-  }
-
-  /**
-   * Retrieves current presentation slide dimensions in EMUs.
-   *
-   * @returns {{width: number, height: number}} Slide dimensions in EMUs.
-   */
-  getSlideDimensions() {
+  addSection(name, startSlideIndex) {
     this.#assertLoaded()
-    return this.#slideManager.getSlideSize()
+    this.#slideManager.addSection(name, startSlideIndex)
+    return this
   }
 
   /**
-   * Retrieves current presentation slide dimensions (alias for getSlideDimensions).
+   * Updates an existing section's name or metadata.
    *
-   * @returns {{width: number, height: number}} Slide dimensions in EMUs.
+   * @param {string|number} sectionIdentifier - Name, GUID, or 1-based section index.
+   * @param {Object} options - Update options.
+   * @param {string} [options.name] - New section title.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateSection('Summary', { name: 'Executive Overview' });
    */
-  getSlideSize() {
-    return this.getSlideDimensions()
+  updateSection(sectionIdentifier, options = {}) {
+    this.#assertLoaded()
+    this.#slideManager.updateSection(sectionIdentifier, options)
+    return this
+  }
+
+  /**
+   * Removes a section from the presentation, optionally deleting its member slides.
+   *
+   * @param {string|number} sectionIdentifier - Name, GUID, or 1-based section index.
+   * @param {boolean} [removeSlides=false] - Whether to delete all member slides.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.removeSection('Appendix', false); // Keep slides, remove section grouping
+   */
+  removeSection(sectionIdentifier, removeSlides = false) {
+    this.#assertLoaded()
+    this.#slideManager.removeSection(sectionIdentifier, removeSlides)
+    return this
+  }
+
+  /**
+   * Retrieves section metadata by name, GUID, or 1-based index.
+   *
+   * @param {string|number} sectionRef - Name, GUID, or 1-based section index.
+   * @returns {Object|null} Section metadata or null if not found.
+   *
+   * @example
+   * const section = ppt.getSection('Financials');
+   * console.log(`Section "${section.name}" has ${section.slideIndices.length} slides`);
+   */
+  getSection(sectionRef) {
+    this.#assertLoaded()
+    return this.#slideManager.getSection(sectionRef)
+  }
+
+  /**
+   * Hides one or more slides so they are skipped during slide show presentation.
+   *
+   * @param {...(number|string)} slideRefs - 1-based slide indices, IDs, or tags.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.hideSlide(2, 3);
+   */
+  hideSlide(...slideRefs) {
+    this.#assertLoaded()
+    const targets =
+      slideRefs.length > 0
+        ? slideRefs.flatMap(ref =>
+            typeof ref === 'number' ? [ref] : this.#slideManager.resolveSlideRef(ref)
+          )
+        : this.#getTargetSlideIndices()
+
+    for (const idx of targets) {
+      this.#slideManager.hideSlide(idx)
+    }
+    return this
+  }
+
+  /**
+   * Unhides one or more previously hidden slides.
+   *
+   * @param {...(number|string)} slideRefs - 1-based slide indices, IDs, or tags.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.unhideSlide(2);
+   */
+  unhideSlide(...slideRefs) {
+    this.#assertLoaded()
+    const targets =
+      slideRefs.length > 0
+        ? slideRefs.flatMap(ref =>
+            typeof ref === 'number' ? [ref] : this.#slideManager.resolveSlideRef(ref)
+          )
+        : this.#getTargetSlideIndices()
+
+    for (const idx of targets) {
+      this.#slideManager.unhideSlide(idx)
+    }
+    return this
+  }
+
+  /**
+   * Resets the slide canvas by purging user elements while preserving group non-visual properties and placeholders.
+   *
+   * @param {number|string} [slideRef] - 1-based slide index or tag. Defaults to active/selected slide.
+   * @param {Object} [options={ preservePlaceholders: true }] - Reset options.
+   * @param {boolean} [options.preservePlaceholders=true] - Whether layout placeholders are preserved.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.resetSlide(1, { preservePlaceholders: true });
+   */
+  resetSlide(slideRef, options = { preservePlaceholders: true }) {
+    this.#assertLoaded()
+    let targets = []
+    if (slideRef !== undefined && (typeof slideRef === 'number' || typeof slideRef === 'string')) {
+      targets =
+        typeof slideRef === 'number' ? [slideRef] : this.#slideManager.resolveSlideRef(slideRef)
+    } else {
+      targets = this.#getTargetSlideIndices()
+      if (typeof slideRef === 'object' && slideRef !== null) {
+        options = slideRef
+      }
+    }
+
+    for (const idx of targets) {
+      this.#slideManager.resetSlide(idx, options)
+    }
+    return this
+  }
+
+  /**
+   * Adds a collaborative review comment to slide(s).
+   *
+   * @param {string} text - Comment text.
+   * @param {Object} [options={}] - Author and coordinate options.
+   * @param {string} [options.author='Author'] - Reviewer name.
+   * @param {string} [options.initials='A'] - Reviewer initials.
+   * @param {number|string} [options.x] - Horizontal coordinate.
+   * @param {number|string} [options.y] - Vertical coordinate.
+   * @param {string} [options.dateTime] - ISO timestamp.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   *
+   * @example
+   * await ppt.useSlide(1).addComment('Please verify Q3 ARR data', { author: 'Sarah', x: '1in', y: '1in' });
+   */
+  async addComment(text, options = {}) {
+    this.#assertLoaded()
+    const targets = this.#getTargetSlideIndices()
+    await this.#commentManager.addComment(this.#slideManager, targets, text, options)
+    return this
+  }
+
+  /**
+   * Removes a comment by index (1-based), text match, or author filter from slide(s).
+   *
+   * @param {number|string} commentIdentifier - 1-based comment index or comment text search query.
+   * @param {Object} [options={}] - Removal options (e.g. { author: '...' }).
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   *
+   * @example
+   * await ppt.useSlide(1).removeComment(1); // Remove first comment
+   * await ppt.useSlide(1).removeComment('verify Q3'); // Remove comment containing text
+   */
+  async removeComment(commentIdentifier, options = {}) {
+    this.#assertLoaded()
+    const targets = this.#getTargetSlideIndices()
+    await this.#commentManager.removeComment(
+      this.#slideManager,
+      targets,
+      commentIdentifier,
+      options
+    )
+    return this
   }
 
   /**
@@ -1762,6 +1863,20 @@ class PPTXTemplater {
     this.#assertLoaded()
     const targetIndex = slideIndex !== undefined ? slideIndex : this.activeSlideIndex
     return this.#slideManager.getSlideLayout(targetIndex)
+  }
+
+  /**
+   * Retrieves presentation slide dimensions in EMUs.
+   *
+   * @returns {{width: number, height: number}} Slide dimensions in EMUs.
+   *
+   * @example
+   * const dimensions = ppt.getSlideDimensions();
+   * console.log(`Presentation size: ${dimensions.width} x ${dimensions.height} EMUs`);
+   */
+  getSlideDimensions() {
+    this.#assertLoaded()
+    return this.#slideManager.getSlideSize()
   }
 
   // === Table Features ===

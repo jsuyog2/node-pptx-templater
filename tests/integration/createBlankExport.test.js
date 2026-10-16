@@ -80,10 +80,14 @@ describe('PPTXTemplater.createBlank() OpenXML Export & Validation', () => {
     expect(masterText).toContain('<p:sldLayoutIdLst>')
     expect(masterText).toContain('r:id="rId1"')
 
-    const masterRelsText = await zip.file('ppt/slideMasters/_rels/slideMaster1.xml.rels').async('text')
+    const masterRelsText = await zip
+      .file('ppt/slideMasters/_rels/slideMaster1.xml.rels')
+      .async('text')
     expect(masterRelsText).toContain('Target="../slideLayouts/slideLayout1.xml"')
 
-    const layoutRelsText = await zip.file('ppt/slideLayouts/_rels/slideLayout1.xml.rels').async('text')
+    const layoutRelsText = await zip
+      .file('ppt/slideLayouts/_rels/slideLayout1.xml.rels')
+      .async('text')
     expect(layoutRelsText).toContain('Target="../slideMasters/slideMaster1.xml"')
 
     const slideRelsText = await zip.file('ppt/slides/_rels/slide1.xml.rels').async('text')

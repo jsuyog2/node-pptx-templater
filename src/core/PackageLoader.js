@@ -55,9 +55,7 @@ async function streamToBuffer(stream) {
   // Node.js Readable stream support (event emitter)
   return new Promise((resolve, reject) => {
     const chunks = []
-    stream.on('data', chunk =>
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-    )
+    stream.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
     stream.on('end', () => resolve(Buffer.concat(chunks)))
     stream.on('error', reject)
   })
@@ -190,19 +188,21 @@ class PackageLoader {
         : async (u, opt) => {
             const https = u.startsWith('https:') ? require('https') : require('http')
             return new Promise((resolve, reject) => {
-              https.get(u, opt, res => {
-                const chunks = []
-                res.on('data', c => chunks.push(c))
-                res.on('end', () => {
-                  resolve({
-                    ok: res.statusCode >= 200 && res.statusCode < 300,
-                    status: res.statusCode,
-                    statusText: res.statusMessage,
-                    arrayBuffer: async () => Buffer.concat(chunks),
+              https
+                .get(u, opt, res => {
+                  const chunks = []
+                  res.on('data', c => chunks.push(c))
+                  res.on('end', () => {
+                    resolve({
+                      ok: res.statusCode >= 200 && res.statusCode < 300,
+                      status: res.statusCode,
+                      statusText: res.statusMessage,
+                      arrayBuffer: async () => Buffer.concat(chunks),
+                    })
                   })
+                  res.on('error', reject)
                 })
-                res.on('error', reject)
-              }).on('error', reject)
+                .on('error', reject)
             })
           }
 
@@ -290,9 +290,7 @@ class PackageLoader {
         return PackageLoader.#loadFromBytes(buf, options)
       }
 
-      throw new Error(
-        `PackageLoader.fromCloud: S3 provider requires valid client and bucket/key`
-      )
+      throw new Error(`PackageLoader.fromCloud: S3 provider requires valid client and bucket/key`)
     }
 
     // 4. Google Cloud Storage integration
@@ -304,7 +302,9 @@ class PackageLoader {
         const [contents] = await file.download()
         return PackageLoader.#loadFromBytes(contents, options)
       }
-      throw new Error('PackageLoader.fromCloud: GCS provider requires storage client and bucket/key')
+      throw new Error(
+        'PackageLoader.fromCloud: GCS provider requires storage client and bucket/key'
+      )
     }
 
     // 5. Azure Blob Storage integration
@@ -315,14 +315,15 @@ class PackageLoader {
         const buf = await targetClient.downloadToBuffer()
         return PackageLoader.#loadFromBytes(buf, options)
       }
-      throw new Error('PackageLoader.fromCloud: Azure provider requires blobClient with downloadToBuffer')
+      throw new Error(
+        'PackageLoader.fromCloud: Azure provider requires blobClient with downloadToBuffer'
+      )
     }
 
     throw new Error(
       `PackageLoader.fromCloud: unsupported or incomplete provider configuration for "${provider}"`
     )
   }
-
 
   static async #loadFromBytes(bytes, options = {}) {
     // 0. Check for Flat OPC XML

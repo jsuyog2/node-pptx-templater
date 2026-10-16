@@ -9,8 +9,7 @@
 
 'use strict'
 
-const PPTX_MIME_TYPE =
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+const PPTX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
 
 /**
  * Sends a PPTX presentation via an Express.js response.
@@ -39,9 +38,7 @@ function sendExpress(res, streamOrBuffer, filename = 'presentation.pptx', option
     return streamOrBuffer.pipe(res)
   }
 
-  throw new TypeError(
-    'sendExpress: Expected Node.js Buffer or Readable stream.'
-  )
+  throw new TypeError('sendExpress: Expected Node.js Buffer or Readable stream.')
 }
 
 /**
@@ -94,11 +91,7 @@ function sendKoa(ctx, streamOrBuffer, filename = 'presentation.pptx', options = 
  * @param {Object} [options={}] - Response options (status, headers).
  * @returns {Response}
  */
-function createWebResponse(
-  bufferOrArrayBuffer,
-  filename = 'presentation.pptx',
-  options = {}
-) {
+function createWebResponse(bufferOrArrayBuffer, filename = 'presentation.pptx', options = {}) {
   let arrayBuffer
   let byteLength
 
@@ -118,9 +111,7 @@ function createWebResponse(
     arrayBuffer = bufferOrArrayBuffer
     byteLength = bufferOrArrayBuffer.byteLength
   } else {
-    throw new TypeError(
-      'createWebResponse: expected Buffer, Uint8Array, or ArrayBuffer.'
-    )
+    throw new TypeError('createWebResponse: expected Buffer, Uint8Array, or ArrayBuffer.')
   }
 
   const headers = new Headers({

@@ -101,7 +101,7 @@ describe('PPTXTemplater - Slide package structural integrity', () => {
     const ppt = await PPTXTemplater.load(fixtureFile)
     await ppt.duplicateSlide(1)
     ppt.moveSlide(ppt.slideCount, 1)
-    ppt.insertSlide(2, { title: 'Inserted' })
+    ppt.addSlide({ title: 'Inserted' }, 2)
     await assertValidBuffer(await ppt.toBuffer(), 'move + insert')
   })
 

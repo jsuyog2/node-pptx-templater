@@ -29,7 +29,7 @@ const { PPTXError, SlideNotFoundError } = require('../utils/errors.js')
 const { REL_TYPES } = require('./RelationshipManager.js')
 const { buildNewSlideXml } = require('../templates/slideTemplate.js')
 const { remapRelationshipIds, generateRelationshipId } = require('../utils/relationshipUtils.js')
-const { generateSlideId } = require('../utils/idUtils.js')
+const { generateSlideId, generateGuid } = require('../utils/idUtils.js')
 
 const logger = createLogger('SlideManager')
 
@@ -319,24 +319,6 @@ class SlideManager {
   }
 
   /**
-   * Retrieves the slide dimensions (alias for getSlideSize).
-   * @returns {{width: number, height: number}}
-   */
-  getSlideDimensions() {
-    return this.getSlideSize()
-  }
-
-  /**
-   * Sets slide dimensions (alias for setSlideSize).
-   * @param {Object|string|number} options
-   * @param {number|string} [height]
-   * @returns {{width: number, height: number}}
-   */
-  setSlideDimensions(options, height) {
-    return this.setSlideSize(options, height)
-  }
-
-  /**
    * Retrieves the layout target path for a slide.
    * @param {number} slideIndex - 1-based slide index.
    * @returns {string|null}
@@ -514,11 +496,13 @@ class SlideManager {
    * Adds a completely new slide to the presentation.
    * Creates the XML file, adds it to presentation.xml, and registers relationships.
    *
-   * @param {NewSlideOptions} options
+   * @param {NewSlideOptions} [options={}]
+   * @param {number} [position] - 1-based target insertion index.
    * @param {RelationshipManager} relationshipManager
-   * @param {MediaManager} mediaManager
+   * @param {MediaManager} _mediaManager
+   * @returns {number} 1-based index of the newly added slide.
    */
-  addNewSlide(options, relationshipManager, _mediaManager) {
+  addNewSlide(options = {}, position, relationshipManager, _mediaManager) {
     const newIndex = this.#slides.size + 1
     let nextFileIndex = 1
     while (this.#zipManager.hasFile(`ppt/slides/slide${nextFileIndex}.xml`)) {
@@ -583,26 +567,23 @@ class SlideManager {
     this.#registerSlideContentType(slideFileName)
 
     logger.debug(`Added new slide ${newIndex} at ${slideZipPath}`)
-  }
 
-  /**
-   * Clones an existing slide, duplicating its XML and relationships.
-   *
-   * @param {number} sourceIndex - 1-based source slide number.
-   * @param {number} [atPosition] - Insert position (1-based). Default: append.
-   * @param {RelationshipManager} relationshipManager
-   * @param {MediaManager} mediaManager
-   * @returns {Promise<void>}
-   */
-  async cloneSlide(sourceIndex, atPosition, relationshipManager, mediaManager) {
-    const promise = this.#cloneSlideInternal(
-      sourceIndex,
-      atPosition,
-      relationshipManager,
-      mediaManager
-    )
-    this.#zipManager.addPendingPromise(promise)
-    return promise
+    if (
+      position !== undefined &&
+      typeof position === 'number' &&
+      position >= 1 &&
+      position < newIndex
+    ) {
+      const order = []
+      for (let i = 1; i < newIndex; i++) {
+        order.push(i)
+      }
+      order.splice(position - 1, 0, newIndex)
+      this.reorderSlides(order)
+      return position
+    }
+
+    return newIndex
   }
 
   /**
@@ -1516,7 +1497,7 @@ class SlideManager {
     const { PPTXTemplater } = require('../core/PPTXTemplater.js')
 
     // Create a blank new PPTX
-    const newEngine = await PPTXTemplater.create()
+    const newEngine = await PPTXTemplater.createBlank()
 
     // Remove the default slides from the blank template to avoid orphans
     const defaultSlides = newEngine.slideManager.getAllSlideIndices()
@@ -1912,33 +1893,395 @@ class SlideManager {
   }
 
   /**
-   * Inserts a new slide at a specific index.
-   *
-   * @param {number} slideIndex
-   * @param {Object} options
-   * @param {RelationshipManager} relationshipManager
-   * @param {MediaManager} mediaManager
-   */
-  insertSlide(slideIndex, options, relationshipManager, mediaManager) {
-    this.addNewSlide(options, relationshipManager, mediaManager)
-    const count = this.slideCount
-    if (slideIndex !== undefined && slideIndex !== count) {
-      const order = []
-      for (let i = 1; i < count; i++) {
-        order.push(i)
-      }
-      order.splice(slideIndex - 1, 0, count)
-      this.reorderSlides(order)
-    }
-  }
-
-  /**
-   * Gets all slides.
+   * Gets all slides in the presentation.
    *
    * @returns {SlideInfo[]}
    */
   getSlides() {
     return this.getAllSlideInfo()
+  }
+
+  /**
+   * Retrieves detailed metadata for a specific slide by 1-based index or reference.
+   *
+   * @param {number|string} slideRef - 1-based index or reference.
+   * @returns {Object} Normalized slide metadata object.
+   */
+  getSlide(slideRef) {
+    let index
+    if (typeof slideRef === 'number') {
+      index = slideRef
+    } else {
+      const resolved = this.resolveSlideRef(slideRef)
+      if (resolved && resolved.length > 0) {
+        index = resolved[0]
+      } else {
+        const info = this.resolveSlideInfo(slideRef)
+        if (info) index = info.index
+      }
+    }
+
+    if (!index || !this.#slides.has(index)) {
+      throw new SlideNotFoundError(`Slide "${slideRef}" not found`)
+    }
+
+    const info = this.#slides.get(index)
+    const xml = this.getSlideXml(index)
+    const isHidden = /<p:sld[^>]*\sshow="0"/.test(xml)
+
+    return {
+      index: info.index,
+      slideId: info.slideId,
+      relationshipId: info.relationshipId,
+      zipPath: info.zipPath,
+      title: info.title || '',
+      layout: info.layout || this.getSlideLayout(index),
+      tags: [...info.tags],
+      hidden: isHidden,
+    }
+  }
+
+  /**
+   * Retrieves all sections defined in presentation.xml.
+   *
+   * @returns {Array<{ id: string, name: string, slideIds: string[], slideIndices: number[] }>}
+   */
+  getSections() {
+    if (!this.#presentationObj) return []
+    const extLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:extLst')
+    if (!extLst?.['p:ext']) return []
+
+    const exts = Array.isArray(extLst['p:ext']) ? extLst['p:ext'] : [extLst['p:ext']]
+    const results = []
+
+    const slideIdToIndex = new Map()
+    for (const [idx, info] of this.#slides) {
+      slideIdToIndex.set(String(info.slideId), idx)
+    }
+
+    for (const ext of exts) {
+      const sectionLst = ext['p14:sectionLst']
+      if (!sectionLst?.['p14:section']) continue
+
+      const sections = Array.isArray(sectionLst['p14:section'])
+        ? sectionLst['p14:section']
+        : [sectionLst['p14:section']]
+
+      for (const section of sections) {
+        const name = section['@_name'] || ''
+        const id = section['@_id'] || ''
+        const sldIdLstObj = section['p14:sldIdLst']
+        const sldIds = sldIdLstObj?.['p14:sldId']
+          ? Array.isArray(sldIdLstObj['p14:sldId'])
+            ? sldIdLstObj['p14:sldId']
+            : [sldIdLstObj['p14:sldId']]
+          : []
+
+        const slideIds = sldIds.map(s => String(s['@_id'])).filter(Boolean)
+        const slideIndices = slideIds
+          .map(sid => slideIdToIndex.get(sid))
+          .filter(idx => idx !== undefined)
+
+        results.push({
+          id,
+          name,
+          slideIds,
+          slideIndices,
+        })
+      }
+    }
+
+    return results
+  }
+
+  /**
+   * Retrieves a section by its name, GUID, or 1-based section index.
+   *
+   * @param {string|number} sectionRef - Section name, GUID, or 1-based index.
+   * @returns {Object|null} Section metadata or null.
+   */
+  getSection(sectionRef) {
+    const sections = this.getSections()
+    if (sections.length === 0) return null
+
+    if (typeof sectionRef === 'number') {
+      return sections[sectionRef - 1] || null
+    }
+
+    const query = String(sectionRef).trim().toLowerCase()
+    return (
+      sections.find(s => s.name.toLowerCase() === query || s.id.toLowerCase() === query) || null
+    )
+  }
+
+  /**
+   * Adds a new section to presentation.xml.
+   *
+   * @param {string} name - Section title.
+   * @param {number} [startSlideIndex] - 1-based start slide index. Defaults to 1 (or next unassigned).
+   * @returns {{ id: string, name: string, slideIds: string[], slideIndices: number[] }} Created section info.
+   */
+  addSection(name, startSlideIndex) {
+    if (!name || typeof name !== 'string') {
+      throw new PPTXError('addSection requires a non-empty name string')
+    }
+
+    if (!this.#presentationObj) {
+      throw new PPTXError('Presentation XML not loaded')
+    }
+
+    // Ensure presentation.xml extension list exists
+    let pres = this.#presentationObj['p:presentation']
+    if (!pres) {
+      this.#presentationObj['p:presentation'] = {}
+      pres = this.#presentationObj['p:presentation']
+    }
+
+    if (!pres['p:extLst']) {
+      pres['p:extLst'] = { 'p:ext': [] }
+    } else if (!Array.isArray(pres['p:extLst']['p:ext'])) {
+      pres['p:extLst']['p:ext'] = [pres['p:extLst']['p:ext']]
+    }
+
+    let ext = pres['p:extLst']['p:ext'].find(
+      e => e['@_uri'] === '{521415E9-D7F1-4817-A0E5-A8B5D396264A}'
+    )
+
+    if (!ext) {
+      ext = {
+        '@_uri': '{521415E9-D7F1-4817-A0E5-A8B5D396264A}',
+        'p14:sectionLst': {
+          '@_xmlns:p14': 'http://schemas.microsoft.com/office/powerpoint/2010/main',
+          'p14:section': [],
+        },
+      }
+      pres['p:extLst']['p:ext'].push(ext)
+    }
+
+    if (!ext['p14:sectionLst']) {
+      ext['p14:sectionLst'] = {
+        '@_xmlns:p14': 'http://schemas.microsoft.com/office/powerpoint/2010/main',
+        'p14:section': [],
+      }
+    }
+
+    if (!ext['p14:sectionLst']['p14:section']) {
+      ext['p14:sectionLst']['p14:section'] = []
+    } else if (!Array.isArray(ext['p14:sectionLst']['p14:section'])) {
+      ext['p14:sectionLst']['p14:section'] = [ext['p14:sectionLst']['p14:section']]
+    }
+
+    const sections = ext['p14:sectionLst']['p14:section']
+    const guid = generateGuid()
+
+    // Determine slides to assign to this section
+    const allIndices = this.getAllSlideIndices()
+    const allSlideIds = allIndices.map(i => this.#slides.get(i).slideId)
+
+    let assignedSlideIds = []
+    if (startSlideIndex !== undefined) {
+      if (!this.#slides.has(startSlideIndex)) {
+        throw new SlideNotFoundError(`startSlideIndex ${startSlideIndex} out of bounds`)
+      }
+      const startId = this.#slides.get(startSlideIndex).slideId
+      const startIndex = allSlideIds.indexOf(startId)
+      if (startIndex !== -1) {
+        assignedSlideIds = allSlideIds.slice(startIndex)
+      }
+    } else if (sections.length === 0) {
+      assignedSlideIds = [...allSlideIds]
+    }
+
+    // Remove newly assigned slides from any earlier sections
+    const assignedSet = new Set(assignedSlideIds)
+    for (const sec of sections) {
+      if (sec['p14:sldIdLst']?.['p14:sldId']) {
+        const slds = Array.isArray(sec['p14:sldIdLst']['p14:sldId'])
+          ? sec['p14:sldIdLst']['p14:sldId']
+          : [sec['p14:sldIdLst']['p14:sldId']]
+        sec['p14:sldIdLst']['p14:sldId'] = slds.filter(s => !assignedSet.has(String(s['@_id'])))
+      }
+    }
+
+    const newSection = {
+      '@_name': name,
+      '@_id': guid,
+      'p14:sldIdLst': {
+        'p14:sldId': assignedSlideIds.map(sid => ({ '@_id': sid })),
+      },
+    }
+
+    sections.push(newSection)
+    this.#flushPresentation()
+
+    return this.getSection(guid)
+  }
+
+  /**
+   * Updates an existing section's name or slide assignments.
+   *
+   * @param {string|number} sectionIdentifier - Name, GUID, or index.
+   * @param {Object} options - Update options.
+   * @param {string} [options.name] - New section name.
+   */
+  updateSection(sectionIdentifier, options = {}) {
+    if (!this.#presentationObj) {
+      throw new PPTXError('Presentation XML not loaded')
+    }
+
+    const extLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:extLst')
+    if (!extLst?.['p:ext']) {
+      throw new PPTXError(`Section "${sectionIdentifier}" not found`)
+    }
+
+    const exts = Array.isArray(extLst['p:ext']) ? extLst['p:ext'] : [extLst['p:ext']]
+    let foundSection = null
+
+    for (const ext of exts) {
+      const sectionLst = ext['p14:sectionLst']
+      if (!sectionLst?.['p14:section']) continue
+
+      const sections = Array.isArray(sectionLst['p14:section'])
+        ? sectionLst['p14:section']
+        : [sectionLst['p14:section']]
+
+      if (typeof sectionIdentifier === 'number') {
+        foundSection = sections[sectionIdentifier - 1] || null
+      } else {
+        const query = String(sectionIdentifier).trim().toLowerCase()
+        foundSection =
+          sections.find(
+            s =>
+              String(s['@_name'] || '').toLowerCase() === query ||
+              String(s['@_id'] || '').toLowerCase() === query
+          ) || null
+      }
+
+      if (foundSection) break
+    }
+
+    if (!foundSection) {
+      throw new PPTXError(`Section "${sectionIdentifier}" not found`)
+    }
+
+    if (options.name) {
+      foundSection['@_name'] = options.name
+    }
+
+    this.#flushPresentation()
+  }
+
+  /**
+   * Removes a section from presentation.xml, optionally removing its member slides.
+   *
+   * @param {string|number} sectionIdentifier - Name, GUID, or index.
+   * @param {boolean} [removeSlides=false] - Whether to delete all member slides.
+   */
+  removeSection(sectionIdentifier, removeSlides = false) {
+    const sec = this.getSection(sectionIdentifier)
+    if (!sec) {
+      throw new PPTXError(`Section "${sectionIdentifier}" not found`)
+    }
+
+    if (removeSlides && sec.slideIndices && sec.slideIndices.length > 0) {
+      // Remove from highest to lowest index
+      const sortedIndices = [...sec.slideIndices].sort((a, b) => b - a)
+      for (const idx of sortedIndices) {
+        this.removeSlide(idx)
+      }
+    }
+
+    // Now remove section element from presentation.xml
+    const extLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:extLst')
+    if (extLst?.['p:ext']) {
+      const exts = Array.isArray(extLst['p:ext']) ? extLst['p:ext'] : [extLst['p:ext']]
+      for (const ext of exts) {
+        const sectionLst = ext['p14:sectionLst']
+        if (!sectionLst?.['p14:section']) continue
+
+        let sections = Array.isArray(sectionLst['p14:section'])
+          ? sectionLst['p14:section']
+          : [sectionLst['p14:section']]
+
+        sections = sections.filter(s => s['@_id'] !== sec.id)
+        sectionLst['p14:section'] = sections
+      }
+    }
+
+    this.#flushPresentation()
+  }
+
+  /**
+   * Hides a slide so it is skipped during slide show presentation (show="0").
+   *
+   * @param {number} slideIndex - 1-based slide index.
+   */
+  hideSlide(slideIndex) {
+    this.#assertSlideExists(slideIndex)
+    const slideObj = this.getSlideObj(slideIndex)
+    if (slideObj && slideObj['p:sld']) {
+      slideObj['p:sld']['@_show'] = '0'
+      this.markSlideObjDirty(slideIndex)
+    }
+  }
+
+  /**
+   * Unhides a previously hidden slide (show="1" or removes show attribute).
+   *
+   * @param {number} slideIndex - 1-based slide index.
+   */
+  unhideSlide(slideIndex) {
+    this.#assertSlideExists(slideIndex)
+    const slideObj = this.getSlideObj(slideIndex)
+    if (slideObj && slideObj['p:sld']) {
+      delete slideObj['p:sld']['@_show']
+      this.markSlideObjDirty(slideIndex)
+    }
+  }
+
+  /**
+   * Resets the slide canvas by removing user-created shapes/elements
+   * while preserving non-visual root group properties and optional placeholders.
+   *
+   * @param {number} slideIndex - 1-based slide index.
+   * @param {Object} [options={}] - Reset options.
+   * @param {boolean} [options.preservePlaceholders=true] - Retain slide layout placeholders.
+   */
+  resetSlide(slideIndex, options = { preservePlaceholders: true }) {
+    this.#assertSlideExists(slideIndex)
+    const slideObj = this.getSlideObj(slideIndex)
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    if (!spTree) return
+
+    const preservePh = options.preservePlaceholders !== false
+
+    const filterElements = elemList => {
+      if (!elemList) return []
+      const arr = Array.isArray(elemList) ? elemList : [elemList]
+      if (!preservePh) return []
+      return arr.filter(el => {
+        const ph = el?.['p:nvSpPr']?.['p:nvPr']?.['p:ph']
+        return ph !== undefined
+      })
+    }
+
+    if (spTree['p:sp']) {
+      spTree['p:sp'] = filterElements(spTree['p:sp'])
+    }
+    if (spTree['p:pic']) {
+      spTree['p:pic'] = []
+    }
+    if (spTree['p:graphicFrame']) {
+      spTree['p:graphicFrame'] = []
+    }
+    if (spTree['p:grpSp']) {
+      spTree['p:grpSp'] = []
+    }
+    if (spTree['p:cxnSp']) {
+      spTree['p:cxnSp'] = []
+    }
+
+    this.markSlideObjDirty(slideIndex)
   }
 
   /**

@@ -61,6 +61,9 @@ const REL_TYPES = {
   EXTENDED_PROPERTIES:
     'http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties',
   PACKAGE: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/package',
+  COMMENT_AUTHORS:
+    'http://schemas.openxmlformats.org/officeDocument/2006/relationships/commentAuthors',
+  COMMENTS: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments',
 }
 
 /**

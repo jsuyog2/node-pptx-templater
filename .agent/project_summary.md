@@ -114,7 +114,7 @@
 | **`ZOrderManager`** | `src/spatial/ZOrderManager.js` | Element layer management: `bringToFront`, `sendToBack`, `stepForward`, `stepBackward`, `setZIndex`, `moveObjectBefore`, `moveObjectAfter`. |
 | **`RelationshipManager`**| `src/managers/RelationshipManager.js` | Managing `.rels` files across presentation root, slides, slide layouts, and slide masters; generating unique `rId` keys. |
 | **`ContentTypesManager`**| `src/managers/ContentTypesManager.js` | Managing `[Content_Types].xml`; registering MIME type `<Default>` extensions and part `<Override>` elements. |
-| **`HyperlinkManager`** | `src/managers/HyperlinkManager.js` | Attaching external web URLs and internal slide-jump action links to shapes, text runs, and images. |
+| **`CommentManager`** | `src/managers/CommentManager.js` | Managing collaborative review comments, authors manifest (`ppt/commentAuthors.xml`), comment parts (`ppt/comments/commentN.xml`), and slide relationship links. |
 | **`ZipManager`** | `src/managers/ZipManager.js` | In-memory compression and decompression of OpenXML packages using JSZip. |
 
 ---
@@ -148,6 +148,56 @@ EXTRACTION & CONVERSION INSTANCE METHODS (3)
 ├── ppt.extractToXml(destinationDir, options)
 └── ppt.toFlatXml(destinationPathOrOptions, options)
 ```
+
+---
+
+## 4.1 Strict 23-Method Slide Management API Whitelist
+
+The Slide Management domain of `PPTXTemplater` is strictly locked to **exactly 23 approved methods**:
+
+```text
+SLIDE SELECTION & SCOPING (2)
+├── ppt.useSlide(...slideRefs)
+└── ppt.useAllSlides()
+
+SLIDE CREATION & DUPLICATION (2)
+├── ppt.addSlide(options, position)
+└── ppt.duplicateSlide(sourceIndex, atPosition)
+
+SLIDE LIFECYCLE & REORDERING (3)
+├── ppt.removeSlide(position)
+├── ppt.moveSlide(fromIndex, toIndex)
+└── ppt.reorderSlides(order)
+
+SLIDE INSPECTION & METADATA (5)
+├── ppt.getSlides()
+├── ppt.getSlide(index)
+├── ppt.tagSlide(slideIndex, tag)
+├── ppt.getSlideDimensions()
+└── ppt.getSlideLayout(slideIndex)
+
+CROSS-DECK TRANSFER (2)
+├── ppt.importSlideFrom(sourcePpt, sourceIndex, atPosition)
+└── ppt.exportSlides(...slideIndices)
+
+SECTION MANAGEMENT (<p14:sectionLst>) (5)
+├── ppt.useSection(sectionRef)
+├── ppt.addSection(name, startSlideIndex)
+├── ppt.updateSection(sectionIdentifier, options)
+├── ppt.removeSection(sectionIdentifier, removeSlides)
+└── ppt.getSection(sectionRef)
+
+SLIDE VISIBILITY & CANVAS RESET (3)
+├── ppt.hideSlide(...slideRefs)
+├── ppt.unhideSlide(...slideRefs)
+└── ppt.resetSlide(slideRef, options)
+
+COLLABORATIVE COMMENTS (2)
+├── ppt.addComment(text, options)
+└── ppt.removeComment(commentIdentifier, options)
+```
+
+All non-standard aliases (such as `cloneSlide`, `deleteSlide`, `insertSlide`, `importSlides`, `setSlideDimensions`, `setSlideSize`, `setAspectRatio`, `getSlideSize`) are strictly prohibited and purged from the library to preserve clean API boundaries and zero ambiguity.
 
 ---
 

@@ -70,16 +70,21 @@ async function isOdp(buf) {
     const mimetypeFile = zip.file('mimetype')
     if (mimetypeFile) {
       const mime = (await mimetypeFile.async('text')).trim()
-      if (mime.includes('oasis.opendocument.presentation') || mime.includes('opendocument.presentation')) {
+      if (
+        mime.includes('oasis.opendocument.presentation') ||
+        mime.includes('opendocument.presentation')
+      ) {
         return true
       }
     }
     const contentFile = zip.file('content.xml')
     if (contentFile) {
       const content = await contentFile.async('text')
-      if (content.includes('urn:oasis:names:tc:opendocument:xmlns:presentation:1.0') ||
-          content.includes('office:presentation') ||
-          content.includes('draw:page')) {
+      if (
+        content.includes('urn:oasis:names:tc:opendocument:xmlns:presentation:1.0') ||
+        content.includes('office:presentation') ||
+        content.includes('draw:page')
+      ) {
         return true
       }
     }
@@ -355,7 +360,8 @@ class LegacyFormatConverter {
       const contentTypes = vfs.readText('[Content_Types].xml')
 
       let sldIdEntries = '    <p:sldId id="256" r:id="rId2"/>\n'
-      let relEntries = '  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>\n  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>\n  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>\n'
+      let relEntries =
+        '  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>\n  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>\n  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>\n'
       let contentTypesOverrides = ''
 
       for (let i = 1; i < pages.length; i++) {

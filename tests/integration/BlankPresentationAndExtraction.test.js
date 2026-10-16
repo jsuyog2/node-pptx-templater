@@ -57,10 +57,13 @@ describe('Template-Free Blank Presentation Generation & Mutation', () => {
     })
 
     // Add table to slide 1
-    ppt.addTable([
-      ['Header 1', 'Header 2'],
-      ['Cell 1', 'Cell 2'],
-    ], { x: 100, y: 300, width: 400, height: 100 })
+    ppt.addTable(
+      [
+        ['Header 1', 'Header 2'],
+        ['Cell 1', 'Cell 2'],
+      ],
+      { x: 100, y: 300, width: 400, height: 100 }
+    )
 
     // Add a second slide
     ppt.addSlide({ title: 'Analytics Slide' })

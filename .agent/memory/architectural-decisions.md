@@ -17,6 +17,7 @@
 - [ADR-008: Dynamic Row-Height Estimation and Table Auto-Pagination](#adr-008-dynamic-row-height-estimation-and-table-auto-pagination)
 - [ADR-009: Decoupled Data-Driven Next.js Static Documentation Portal](#adr-009-decoupled-data-driven-nextjs-static-documentation-portal)
 - [ADR-010: Flat OPC XML (`<pkg:package>`) First-Class Native Support](#adr-010-flat-opc-xml-pkgpackage-first-class-native-support)
+- [ADR-011: Strict 23-Method Slide Management Boundary & Presentation Structure](#adr-011-strict-23-method-slide-management-boundary--presentation-structure)
 
 ---
 
@@ -100,3 +101,19 @@
 - **Context**: Standard PPTX files are binary ZIP archives, preventing line-by-line git version control and requiring decompression on serverless runtimes.
 - **Decision**: Implement `FlatOpcConverter.js` to natively ingest and export single-file Microsoft Flat OPC XML packages (`<pkg:package>`). Handle XML parts inside `<pkg:xmlData>` and binary media/workbooks inside `<pkg:binaryData>` Base64 containers.
 - **Consequences**: Enables git-tracked, diffable slide decks, direct database text column storage, and zero-ZIP serverless execution.
+
+---
+
+### ADR-011: Strict 23-Method Slide Management Boundary & Presentation Structure
+- **Status**: Approved
+- **Context**: Slide manipulation methods had accumulated redundant legacy aliases (`cloneSlide`, `deleteSlide`, `insertSlide`, `importSlides`, `setSlideDimensions`, `setSlideSize`, `setAspectRatio`, `getSlideSize`), leading to API fragmentation, inconsistent index handling, and maintenance overhead. Furthermore, advanced slide capabilities such as section management (`<p14:sectionLst>`), slide visibility toggle (`show="0|1"`), canvas clearing (`resetSlide`), and collaborative comments (`ppt/comments/`) were missing unified first-class APIs.
+- **Decision**:
+  1. Enforce a strict 23-method whitelist for Slide Management: `useSlide`, `useAllSlides`, `addSlide`, `duplicateSlide`, `removeSlide`, `getSlides`, `getSlide`, `importSlideFrom`, `exportSlides`, `moveSlide`, `reorderSlides`, `tagSlide`, `getSlideDimensions`, `getSlideLayout`, `useSection`, `addSection`, `updateSection`, `removeSection`, `getSection`, `hideSlide`, `unhideSlide`, `resetSlide`, `addComment`, `removeComment`.
+  2. Permanently remove all non-whitelisted slide methods and aliases from the runtime engine, TypeScript definitions, and documentation.
+  3. Standardize on 1-based slide and section indexing across the entire API.
+  4. Implement section management via presentation extension list `<p14:sectionLst>` with GUID allocation and member slide list synchronization.
+  5. Implement slide visibility toggling via the `show="0"` attribute on the root `<p:sld>` element without altering child DrawingML trees or slide relationships.
+  6. Implement canvas reset (`resetSlide`) to cleanly purge user drawing shapes in `<p:spTree>` while preserving `<p:nvGrpSpPr>`, `<p:grpSpPr>`, and optional layout placeholders.
+  7. Introduce `CommentManager.js` to handle collaborative comments (`ppt/commentAuthors.xml`, `ppt/comments/commentN.xml`, and slide relationship mappings) with coordinate anchoring and targeted removal.
+- **Consequences**: Provides an airtight, predictable, and robust slide management surface that produces 100% compliant OpenXML packages without presentation repair warnings.
+

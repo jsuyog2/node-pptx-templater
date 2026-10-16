@@ -16,7 +16,11 @@ async function extractCommand(filePath, opts) {
       const targetDir = resolve(opts.folder || opts.out || './extracted')
       const format = Boolean(opts.format || opts.formatXml)
       await ppt.extractToXml(targetDir, { formatXml: format })
-      console.log(chalk.green(`✓ Extracted all OpenXML parts to ${targetDir}${format ? ' (formatted XML)' : ''}`))
+      console.log(
+        chalk.green(
+          `✓ Extracted all OpenXML parts to ${targetDir}${format ? ' (formatted XML)' : ''}`
+        )
+      )
       return
     }
 
@@ -104,7 +108,11 @@ async function extractCommand(filePath, opts) {
       return
     }
 
-    console.log(chalk.yellow('Specify --slide <number>, --chart <name>, --rels, --all, or --zip <file> to extract'))
+    console.log(
+      chalk.yellow(
+        'Specify --slide <number>, --chart <name>, --rels, --all, or --zip <file> to extract'
+      )
+    )
     process.exit(1)
   } catch (err) {
     console.error(chalk.red(`Extract failed: ${err.message}`))

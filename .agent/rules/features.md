@@ -122,3 +122,33 @@ To ensure presentations created from scratch open cleanly in PowerPoint, the gen
 - **XML Parts**: Serialized inside `<pkg:part pkg:name="/..." pkg:contentType="...">` wrapping `<pkg:xmlData>`. The root XML declaration (`<?xml ...?>`) must be stripped inside `<pkg:xmlData>`.
 - **Binary Parts**: Images and `.xlsx` workbooks must be Base64-encoded inside `<pkg:binaryData>`.
 - **Content Types Synthesis**: When converting Flat OPC to VFS, synthesize `[Content_Types].xml` dynamically if omitted in the flat package.
+
+---
+
+## 6. Slide Lifecycle, Section Management & Collaboration Invariants
+
+### 6.1 Strict 23-Method Slide Management API Boundary
+- The public slide management surface consists of **strictly 23 methods**:
+  `useSlide`, `useAllSlides`, `addSlide`, `duplicateSlide`, `removeSlide`, `getSlides`, `getSlide`, `importSlideFrom`, `exportSlides`, `moveSlide`, `reorderSlides`, `tagSlide`, `getSlideDimensions`, `getSlideLayout`, `useSection`, `addSection`, `updateSection`, `removeSection`, `getSection`, `hideSlide`, `unhideSlide`, `resetSlide`, `addComment`, `removeComment`.
+- Never introduce, restore, or allow deprecated aliases (e.g., `cloneSlide`, `deleteSlide`, `insertSlide`, `importSlides`, `setSlideDimensions`, `setSlideSize`, `setAspectRatio`, `getSlideSize`).
+- All slide indexing is **1-based** (`1` to `slideCount`).
+
+### 6.2 PowerPoint Sections Protocol (`<p14:sectionLst>`)
+- Sections are structured inside `<p:presentation>` -> `<p:extLst>` -> `<p:ext uri="{521415D9-36F7-43E2-AB2F-EE99092638D7}">` -> `<p14:sectionLst>` using the `http://schemas.microsoft.com/office/powerpoint/2010/main` namespace.
+- Each section `<p14:section>` must have a valid GUID `id` (e.g., `{UUID}`), a `name`, and a child `<p14:sldIdLst>` listing member slide IDs (`<p14:sldId id="..."/>`).
+- When removing a section with `removeSlides: true`, member slides must be cleanly unlinked and purged from `ppt/presentation.xml`, `[Content_Types].xml`, and physical slide parts.
+
+### 6.3 Slide Visibility Protocol (`show="0|1"`)
+- Toggling slide visibility must directly set or strip the `show="0"` attribute on the root `<p:sld>` element in `ppt/slides/slideN.xml`.
+- Never delete DrawingML shapes, slide layout bindings, or relationship entries when hiding a slide.
+
+### 6.4 Canvas Reset Invariant (`resetSlide`)
+- When clearing a slide's visual canvas, user-created drawing shapes (`<p:sp>`, `<p:pic>`, `<p:graphicFrame>`, `<p:grpSp>`) are purged from `<p:spTree>`.
+- Non-visual container properties (`<p:nvGrpSpPr>` and `<p:grpSpPr>`) **MUST ALWAYS** be preserved at the top of `<p:spTree>`.
+- If `options.preservePlaceholders` is `true` (default), shapes containing layout placeholders (`<p:ph>` inside `<p:nvSpPr>`) must be retained intact.
+
+### 6.5 Collaborative Comments Architecture
+- Author entries are managed in `ppt/commentAuthors.xml` (`application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml`).
+- Slide comments are stored in dedicated parts `ppt/comments/commentN.xml` (`application/vnd.openxmlformats-officedocument.presentationml.comments+xml`) and linked to parent slides via relationship type `http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments`.
+- Targeted removal supports zero-based comment index, author ID, or author name matching.
+

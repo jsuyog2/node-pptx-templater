@@ -80,41 +80,56 @@
       "items": [
         {
           "id": 13,
-          "title": "Presentation Metadata Query",
-          "description": "Read deck-level metadata (total slide count, slide dimensions in EMUs/pixels/points, layout schemes)."
+          "title": "Slide Query & Normalized Inspection (`getSlides`, `getSlide`)",
+          "description": "Read presentation-level and slide-level metadata (indices, slide IDs, layout paths, tags, visibility states, and dimensions)."
         },
         {
           "id": 14,
-          "title": "Add Blank Slide",
-          "description": "Append or insert empty slides associated with specific master layouts."
+          "title": "Dynamic Slide Addition (`addSlide`)",
+          "description": "Append or insert new slides at specific target positions with titles, layouts, and initial visual elements."
         },
         {
           "id": 15,
-          "title": "Slide Deletion",
-          "description": "Remove slides by zero-based index or internal slide identifier without corrupting presentation manifests."
+          "title": "Slide Deletion (`removeSlide`)",
+          "description": "Remove slides by 1-based index or reference without corrupting OpenXML relationship graphs or presentation manifests."
         },
         {
           "id": 16,
-          "title": "Slide Reordering",
-          "description": "Change the display sequence of slides dynamically."
+          "title": "Slide Reordering & Moving (`moveSlide`, `reorderSlides`)",
+          "description": "Dynamically reorder slides or move specific slides between positions while preserving PowerPoint section assignments."
         },
         {
           "id": 17,
-          "title": "Deep Slide Duplication",
-          "description": "Clone existing slides with complete element trees, shapes, and layouts preserved."
+          "title": "Deep Slide Duplication (`duplicateSlide`)",
+          "description": "Clone slides with complete visual trees, isolated relationship mappings, duplicated embedded charts/workbooks, and regenerated row IDs."
         },
         {
           "id": 18,
-          "title": "Isolated Slide Relationship Cloning",
-          "description": "Generate dedicated relationship mappings (`slideX.xml.rels`) during duplication to eliminate relationship ID (`rId`) collisions."
+          "title": "Slide Import & Export (`importSlideFrom`, `exportSlides`)",
+          "description": "Import slides from external presentations preserving all dependencies, or export selected slides into standalone deck packages."
         },
         {
           "id": 19,
-          "title": "Manifest Synchronization",
-          "description": "Automatically synchronize slide additions, duplicates, and deletions across `[Content_Types].xml` and `ppt/presentation.xml`."
+          "title": "Section Organization (`useSection`, `addSection`, `updateSection`, `removeSection`, `getSection`)",
+          "description": "Manage PowerPoint sections via <p14:sectionLst> extension lists with UUID tracking and member slide ID list synchronization."
+        },
+        {
+          "id": 20,
+          "title": "Slide Visibility Control (`hideSlide`, `unhideSlide`)",
+          "description": "Toggle slide show visibility via root <p:sld show=\"0|1\"> attribute without altering DrawingML elements or relationships."
+        },
+        {
+          "id": 21,
+          "title": "Canvas Reset (`resetSlide`)",
+          "description": "Purge user-created shape trees while preserving root non-visual properties and layout placeholders."
+        },
+        {
+          "id": 22,
+          "title": "Collaborative Slide Comments (`addComment`, `removeComment`)",
+          "description": "Manage collaborative review comments with authors, initials, coordinate anchors, and targeted comment removal."
         }
       ],
-      "count": 7
+      "count": 10
     },
     {
       "id": "spatial-coordinate-engine-unit-system",

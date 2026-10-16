@@ -4,7 +4,7 @@
 
 [![npm version](https://img.shields.io/npm/v/node-pptx-templater.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/node-pptx-templater)
 [![npm downloads](https://img.shields.io/npm/dm/node-pptx-templater.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/node-pptx-templater)
-[![Vitest Tests](https://img.shields.io/badge/tests-306%20passing-brightgreen.svg?style=flat-square)](https://github.com/jsuyog2/node-pptx-templater/actions)
+[![Vitest Tests](https://img.shields.io/badge/tests-338%20passing-brightgreen.svg?style=flat-square)](https://github.com/jsuyog2/node-pptx-templater/actions)
 [![Bundle Size](https://img.shields.io/badge/bundle%20size-pure%20JS%20%3C2MB-success.svg?style=flat-square)](https://www.npmjs.com/package/node-pptx-templater)
 [![Serverless](https://img.shields.io/badge/serverless-AWS%20Lambda%20%7C%20Cloudflare%20Workers-purple.svg?style=flat-square)](https://node-pptx-templater.pages.dev/guides/serverless-deployment/)
 [![Node.js Support](https://img.shields.io/badge/node-%3E%3D20.12.0-blue.svg?style=flat-square)](https://nodejs.org)
@@ -301,6 +301,56 @@ async function generateTable() {
 }
 ```
 
+### 9. Slide Lifecycle, Section Management & Collaborative Comments (Strict 23 Methods)
+
+```javascript
+const { PPTXTemplater } = require('node-pptx-templater');
+
+async function manageSlideDeck() {
+  const ppt = await PPTXTemplater.load('./templates/annual-deck.pptx');
+
+  // 1. Fluent slide selection & metadata inspection
+  ppt.useSlide(1);
+  const slides = ppt.getSlides();
+  const slide1 = ppt.getSlide(1);
+  const dims = ppt.getSlideDimensions();
+  const layout = ppt.getSlideLayout(1);
+
+  // 2. Lifecycle operations: add, duplicate, reorder, move, tag & remove
+  await ppt.addSlide({ title: 'Executive Summary', layout: 'Title and Content' }, 2);
+  await ppt.duplicateSlide(2, 3);
+  ppt.moveSlide(3, 1);
+  ppt.reorderSlides([1, 2, 3]);
+  ppt.tagSlide(1, 'reviewed');
+
+  // 3. Section organization (<p14:sectionLst>)
+  await ppt.addSection('Executive Overview', 1);
+  ppt.useSection('Executive Overview');
+  ppt.updateSection('Executive Overview', { name: 'Leadership Overview' });
+  const section = ppt.getSection('Leadership Overview');
+
+  // 4. Slide visibility & canvas reset
+  ppt.hideSlide(2);
+  ppt.unhideSlide(2);
+  ppt.resetSlide(3, { preservePlaceholders: true });
+
+  // 5. Collaborative review comments (ppt/commentAuthors.xml & ppt/comments/commentN.xml)
+  await ppt.addComment('Please verify Q3 ARR metrics prior to board presentation.', {
+    author: 'Sarah Jenkins',
+    initials: 'SJ',
+    x: 100, y: 150
+  });
+  await ppt.removeComment(0);
+
+  // 6. Cross-deck slide import & selective export
+  const sourceDeck = await PPTXTemplater.load('./templates/appendix.pptx');
+  await ppt.importSlideFrom(sourceDeck, 1, 4);
+  const exportedBuffer = await ppt.exportSlides(1, 2);
+
+  await ppt.saveToFile('./output/final-presentation.pptx');
+}
+```
+
 ---
 
 ## 🎪 CLI Usage
@@ -324,7 +374,7 @@ node-pptx-templater validate deck.pptx
 ## 🛠️ Verification & Testing
 
 ```bash
-# Run complete test suite (306 passing Vitest tests)
+# Run complete test suite (338 passing Vitest tests)
 npm test
 
 # Run validation and showcase integration tests

@@ -133,10 +133,9 @@ async function demo01_BasicTextReplacement() {
   const ppt = await PPTXTemplater.load(TEMPLATE_SAMPLE, { logLevel: 'warn' })
   ppt.useAllSlides()
 
-  // 1. Set custom slide size (16:9 widescreen)
-  ppt.setSlideSize('16:9')
+  // 1. Inspect slide dimensions
   const dims = ppt.getSlideDimensions()
-  console.log(`✓ Slide dimensions set to: ${dims.width} x ${dims.height} EMUs (16:9)`)
+  console.log(`✓ Slide dimensions: ${dims.width} x ${dims.height} EMUs`)
 
   // 2. Discover placeholders across slides
   const placeholders = ppt.findText('{{')

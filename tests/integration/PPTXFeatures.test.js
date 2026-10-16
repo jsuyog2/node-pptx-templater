@@ -188,10 +188,10 @@ describe('PPTXTemplater - Extended Features & Safety', () => {
       expect(ppt.slideCount).toBe(startCount + 1)
 
       ppt.moveSlide(ppt.slideCount, 1)
-      ppt.insertSlide(2, { title: 'New Layout Slide' })
+      ppt.addSlide({ title: 'New Layout Slide' }, 2)
       expect(ppt.slideCount).toBe(startCount + 2) // 1 duplicate + 1 insert
 
-      ppt.deleteSlide(1)
+      ppt.removeSlide(1)
       expect(ppt.slideCount).toBe(startCount + 1)
 
       const report = await ppt.validatePresentation()

@@ -412,11 +412,11 @@ class ShapeManager {
       const xfrm = shape['p:spPr']?.['a:xfrm']
       const position = xfrm
         ? {
-          x: parseInt(xfrm['a:off']?.['@_x'] || 0, 10),
-          y: parseInt(xfrm['a:off']?.['@_y'] || 0, 10),
-          cx: parseInt(xfrm['a:ext']?.['@_cx'] || 0, 10),
-          cy: parseInt(xfrm['a:ext']?.['@_cy'] || 0, 10),
-        }
+            x: parseInt(xfrm['a:off']?.['@_x'] || 0, 10),
+            y: parseInt(xfrm['a:off']?.['@_y'] || 0, 10),
+            cx: parseInt(xfrm['a:ext']?.['@_cx'] || 0, 10),
+            cy: parseInt(xfrm['a:ext']?.['@_cy'] || 0, 10),
+          }
         : null
 
       results.push({
@@ -806,16 +806,16 @@ class ShapeManager {
         fillXml = `<a:gradFill flip="none" rotWithShape="1">
           <a:gsLst>
             ${colors
-            .map((color, i) => {
-              const pos = Math.round((i / (colors.length - 1)) * 100000)
-              const hexColor = color.replace('#', '').toUpperCase()
-              const alphaXml =
-                transparency !== undefined
-                  ? `<a:alpha val="${Math.round((100 - transparency) * 1000)}"/>`
-                  : ''
-              return `<a:gs pos="${pos}"><a:srgbClr val="${hexColor}">${alphaXml}</a:srgbClr></a:gs>`
-            })
-            .join('')}
+              .map((color, i) => {
+                const pos = Math.round((i / (colors.length - 1)) * 100000)
+                const hexColor = color.replace('#', '').toUpperCase()
+                const alphaXml =
+                  transparency !== undefined
+                    ? `<a:alpha val="${Math.round((100 - transparency) * 1000)}"/>`
+                    : ''
+                return `<a:gs pos="${pos}"><a:srgbClr val="${hexColor}">${alphaXml}</a:srgbClr></a:gs>`
+              })
+              .join('')}
           </a:gsLst>
           <a:lin ang="5400000" scaled="1"/>
         </a:gradFill>`
@@ -996,16 +996,16 @@ class ShapeManager {
         fillXml = `<a:gradFill flip="none" rotWithShape="1">
           <a:gsLst>
             ${colors
-            .map((color, i) => {
-              const pos = Math.round((i / (colors.length - 1)) * 100000)
-              const hexColor = color.replace('#', '').toUpperCase()
-              const alphaXml =
-                transparency !== undefined
-                  ? `<a:alpha val="${Math.round((100 - transparency) * 1000)}"/>`
-                  : ''
-              return `<a:gs pos="${pos}"><a:srgbClr val="${hexColor}">${alphaXml}</a:srgbClr></a:gs>`
-            })
-            .join('')}
+              .map((color, i) => {
+                const pos = Math.round((i / (colors.length - 1)) * 100000)
+                const hexColor = color.replace('#', '').toUpperCase()
+                const alphaXml =
+                  transparency !== undefined
+                    ? `<a:alpha val="${Math.round((100 - transparency) * 1000)}"/>`
+                    : ''
+                return `<a:gs pos="${pos}"><a:srgbClr val="${hexColor}">${alphaXml}</a:srgbClr></a:gs>`
+              })
+              .join('')}
           </a:gsLst>
           <a:lin ang="5400000" scaled="1"/>
         </a:gradFill>`

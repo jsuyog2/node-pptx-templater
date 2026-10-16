@@ -28,7 +28,9 @@ describe('PackageLoader & LegacyFormatConverter', () => {
   it('should normalize legacy binary PPT into an OpenXML VirtualFileSystem', async () => {
     // Construct mock binary PPT with CFBF header and text
     const oleHeader = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])
-    const textData = Buffer.from('Legacy Quarterly Presentation\x00Revenue Highlights\x00Growth Strategy\x00')
+    const textData = Buffer.from(
+      'Legacy Quarterly Presentation\x00Revenue Highlights\x00Growth Strategy\x00'
+    )
     const pptBuffer = Buffer.concat([oleHeader, textData])
 
     expect(await LegacyFormatConverter.supports(pptBuffer)).toBe(true)

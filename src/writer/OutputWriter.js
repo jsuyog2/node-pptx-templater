@@ -19,11 +19,7 @@ const path = require('path')
 const { XMLParser } = require('../parsers/XMLParser.js')
 const { createLogger } = require('../utils/logger.js')
 const { PPTXError } = require('../utils/errors.js')
-const {
-  sendExpress,
-  sendFastify,
-  createWebResponse,
-} = require('./FrameworkAdapters.js')
+const { sendExpress, sendFastify, createWebResponse } = require('./FrameworkAdapters.js')
 
 const logger = createLogger('OutputWriter')
 
@@ -40,7 +36,10 @@ function formatXml(xml) {
     let pad = 0
     const PADDING = '  '
     // Split into tags and content
-    const tokens = xml.replace(/>\s*</g, '><').split(/(<[^>]+>)/g).filter(Boolean)
+    const tokens = xml
+      .replace(/>\s*</g, '><')
+      .split(/(<[^>]+>)/g)
+      .filter(Boolean)
 
     for (const token of tokens) {
       if (token.startsWith('<?') || token.startsWith('<!')) {
@@ -181,13 +180,7 @@ class OutputWriter {
    * @param {Object} [options={}]
    * @returns {Promise<void>}
    */
-  async toExpress(
-    slideManager,
-    zipManager,
-    res,
-    filename = 'presentation.pptx',
-    options = {}
-  ) {
+  async toExpress(slideManager, zipManager, res, filename = 'presentation.pptx', options = {}) {
     const stream = await this.toStream(slideManager, zipManager, options)
     sendExpress(res, stream, filename, options)
   }
@@ -217,13 +210,7 @@ class OutputWriter {
    * @param {Object} [options={}]
    * @returns {Promise<void>}
    */
-  async toFastify(
-    slideManager,
-    zipManager,
-    reply,
-    filename = 'presentation.pptx',
-    options = {}
-  ) {
+  async toFastify(slideManager, zipManager, reply, filename = 'presentation.pptx', options = {}) {
     const buffer = await this.toBuffer(slideManager, zipManager, options)
     sendFastify(reply, buffer, filename, options)
   }
@@ -248,7 +235,6 @@ class OutputWriter {
 
     return buffer
   }
-
 
   /**
    * Extracts and packages the presentation into a compressed ZIP file at destinationPath.
@@ -350,7 +336,7 @@ class OutputWriter {
     }
 
     const isPath = typeof destinationPathOrOptions === 'string'
-    const opts = isPath ? (options || {}) : (destinationPathOrOptions || {})
+    const opts = isPath ? options || {} : destinationPathOrOptions || {}
     const xml = FlatOpcConverter.serialize(vfs, opts)
 
     if (isPath) {

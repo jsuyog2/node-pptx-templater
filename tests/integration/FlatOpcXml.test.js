@@ -1,11 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'fs'
 import path from 'path'
-import {
-  PPTXTemplater,
-  isFlatOpc,
-  isPkZip,
-} from '../../src/index.js'
+import { PPTXTemplater, isFlatOpc, isPkZip } from '../../src/index.js'
 
 describe('Flat OPC XML Ingestion & Manipulation Integration Tests', () => {
   const sampleXmlPath = path.resolve(__dirname, '../fixtures/sample.xml')
@@ -67,7 +63,9 @@ describe('Flat OPC XML Ingestion & Manipulation Integration Tests', () => {
 
     const reloaded = await PPTXTemplater.load(outXml)
     expect(reloaded.slideCount).toBe(6)
-    try { fs.unlinkSync(outXml) } catch {}
+    try {
+      fs.unlinkSync(outXml)
+    } catch {}
   })
 
   it('6. should execute text and table replacements and export to a valid .pptx file', async () => {

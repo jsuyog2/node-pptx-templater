@@ -1,6 +1,6 @@
 {
   "version": "3.0.0-alpha.0",
-  "totalMethods": 103,
+  "totalMethods": 115,
   "categories": [
     "Lifecycle & I/O",
     "Slides",
@@ -612,310 +612,30 @@
       }
     ],
     "Slides": [
-      {
-        "id": "useslide",
-        "name": "useSlide",
-        "signature": "ppt.useSlide(slideNumber)",
-        "category": "Slides",
-        "description": "Directs subsequent slide-level operations (replacements, shape mutations, table updates, chart refreshes) to a specific 1-based slide index.",
-        "openXmlImpact": "Sets internal pointer targeting ppt/slides/slide{N}.xml.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "slideNumber",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "1-based slide index to target."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable) for fluent method chaining."
-        },
-        "exampleCode": "ppt.useSlide(2)\n   .replaceText({ '{{agenda}}': 'Financial Overview' });"
-      },
-      {
-        "id": "useallslides",
-        "name": "useAllSlides",
-        "signature": "ppt.useAllSlides()",
-        "category": "Slides",
-        "description": "Switches the operation scope to target every slide currently present in the presentation deck. Operations like replaceText will execute across all slides.",
-        "openXmlImpact": "Iterates through all  elements listed in ppt/presentation.xml .",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "// Global replacement across all slides in deck\nppt.useAllSlides()\n   .replaceText({\n     '{{year}}': '2026',\n     '{{company}}': 'Acme Corp',\n     '{{confidential}}': 'CONFIDENTIAL'\n   });"
-      },
-      {
-        "id": "addslide",
-        "name": "addSlide",
-        "signature": "ppt.addSlide(options = {})",
-        "category": "Slides",
-        "description": "Creates and appends a new blank slide to the end of the presentation. Automatically assigns a new relationship ID, links the slide layout part, and updates [Content_Types].xml.",
-        "openXmlImpact": "Generates ppt/slides/slide{N}.xml, ppt/slides/_rels/slide{N}.xml.rels, appends  in presentation.xml, and registers in [Content_Types].xml.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Slide creation options."
-          },
-          {
-            "name": "options.layoutNumber",
-            "type": "number",
-            "required": false,
-            "default": "1",
-            "description": "Target slide layout index to link as parent."
-          }
-        ],
-        "returns": {
-          "type": "Promise<{ slideIndex: number, rId: string }>",
-          "description": "Object containing 1-based slide index and assigned relationship ID."
-        },
-        "exampleCode": "const newSlide = await ppt.addSlide({ layoutNumber: 1 });\nppt.useSlide(newSlide.slideIndex);\nawait ppt.addShape('rect', { text: 'Title on New Slide' });"
-      },
-      {
-        "id": "insertslide",
-        "name": "insertSlide",
-        "signature": "ppt.insertSlide(slideNumber, options = {})",
-        "category": "Slides",
-        "description": "Inserts a new slide at a specific 1-based position within the presentation sequence, shifting subsequent slide entries accordingly.",
-        "openXmlImpact": "Splices a new  into  in ppt/presentation.xml at the requested position.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "slideNumber",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "1-based index where the new slide should be inserted."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Slide options."
-          }
-        ],
-        "returns": {
-          "type": "Promise<{ slideIndex: number, rId: string }>",
-          "description": "Metadata for inserted slide."
-        },
-        "exampleCode": "// Insert slide at position 2\nawait ppt.insertSlide(2);\nppt.useSlide(2).replaceText({ '{{section}}': 'Executive Summary' });"
-      },
-      {
-        "id": "duplicateslide",
-        "name": "duplicateSlide",
-        "signature": "ppt.duplicateSlide(sourceSlideIndex, insertAfterIndex)",
-        "category": "Slides",
-        "description": "Deep-clones an existing slide including all shapes, charts, tables, media, relationships, and layout bindings. Cloned parts receive newly generated unique relationship IDs to guarantee non-corrupted PresentationML structures.",
-        "openXmlImpact": "Clones ppt/slides/slide{N}.xml, duplicates slide{N}.xml.rels, deep-copies linked charts/drawings, updates [Content_Types].xml and presentation.xml.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "sourceSlideIndex",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "1-based slide index to duplicate."
-          },
-          {
-            "name": "insertAfterIndex",
-            "type": "number",
-            "required": false,
-            "default": "sourceSlideIndex",
-            "description": "1-based slide index after which the duplicate will be placed."
-          }
-        ],
-        "returns": {
-          "type": "Promise<{ slideIndex: number, rId: string }>",
-          "description": "Metadata with newly created slide index."
-        },
-        "exampleCode": "// Duplicate slide 2 for each regional sales team\nconst teams = ['EMEA', 'APAC', 'Americas'];\nfor (const team of teams) {\n  const clone = await ppt.duplicateSlide(2);\n  ppt.useSlide(clone.slideIndex)\n     .replaceText({ '{{team_name}}': team });\n}"
-      },
-      {
-        "id": "removeslide",
-        "name": "removeSlide",
-        "signature": "ppt.removeSlide(slideNumber)",
-        "category": "Slides",
-        "description": "Removes a slide from the presentation by 1-based index. Deletes the corresponding  in presentation.xml, removes the relationship in presentation.xml.rels, and cleans up orphaned slide XML and relationship parts.",
-        "openXmlImpact": "Deletes , unlinks relationship in presentation.xml.rels, removes slide{N}.xml and slide{N}.xml.rels.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "slideNumber",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "1-based slide index to delete."
-          }
-        ],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "// Remove temporary instruction slide\nawait ppt.removeSlide(1);"
-      },
-      {
-        "id": "getslides",
-        "name": "getSlides",
-        "signature": "ppt.getSlides()",
-        "category": "Slides",
-        "description": "Returns metadata for all slides currently configured in the presentation deck in their visual presentation order.",
-        "openXmlImpact": "Reads  in ppt/presentation.xml and resolves target slide part names.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [],
-        "returns": {
-          "type": "Array<Object>",
-          "description": "Array of slide descriptors with 1-based slideNumber, rId, and partName."
-        },
-        "exampleCode": "const slides = ppt.getSlides();\nconsole.log(`Presentation has ${slides.length} slides:`, slides);"
-      },
-      {
-        "id": "getslidedimensions",
-        "name": "getSlideDimensions",
-        "signature": "ppt.getSlideDimensions()",
-        "category": "Slides",
-        "description": "Inspects and returns the physical slide dimensions and aspect ratio configured for the presentation in inches, points, pixels, and EMUs.",
-        "openXmlImpact": "Parses  in ppt/presentation.xml.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [],
-        "returns": {
-          "type": "Object",
-          "description": "Dimensions object with width, height, widthEmu, heightEmu, and aspect ratio type (e.g. \"screen16x9\")."
-        },
-        "exampleCode": "const dims = ppt.getSlideDimensions();\nconsole.log(`Slide width: ${dims.width}in, height: ${dims.height}in (type: ${dims.type})`);"
-      },
-      {
-        "id": "getslidelayout",
-        "name": "getSlideLayout",
-        "signature": "ppt.getSlideLayout(slideNumber)",
-        "category": "Slides",
-        "description": "Resolves and returns the layout metadata associated with a targeted slide, including layout name, type, and parent slide master reference.",
-        "openXmlImpact": "Follows relationship in slide{N}.xml.rels to ppt/slideLayouts/slideLayout{M}.xml.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "slideNumber",
-            "type": "number",
-            "required": false,
-            "default": "active slide",
-            "description": "1-based slide index."
-          }
-        ],
-        "returns": {
-          "type": "Object",
-          "description": "Layout metadata object."
-        },
-        "exampleCode": "const layout = ppt.getSlideLayout(1);\nconsole.log(`Slide 1 uses layout: ${layout.name} (master: ${layout.master})`);"
-      },
-      {
-        "id": "importslidefrom",
-        "name": "importSlideFrom",
-        "signature": "ppt.importSlideFrom(sourcePptInstance, sourceSlideNumber)",
-        "category": "Slides",
-        "description": "Imports a complete slide from another independent PPTXTemplater instance. Resolves, clones, and deep-remaps all dependencies (slide layouts, media files, embedded charts, hyperlinks) into the target deck while preventing relationship collisions.",
-        "openXmlImpact": "Transfers external slide XML, re-indexes relationships in slide{N}.xml.rels, syncs [Content_Types].xml, and transfers media parts.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "sourcePptInstance",
-            "type": "PPTXTemplater",
-            "required": true,
-            "default": "—",
-            "description": "Source PPTXTemplater presentation instance."
-          },
-          {
-            "name": "sourceSlideNumber",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "1-based slide index in source presentation to import."
-          }
-        ],
-        "returns": {
-          "type": "Promise<Object>",
-          "description": "Imported slide descriptor with new slideIndex and rId."
-        },
-        "exampleCode": "const sourceDeck = await PPTXTemplater.load('./library/appendix.pptx');\nconst mainDeck = await PPTXTemplater.load('./deck.pptx');\n\n// Import appendix slide 3 into main deck\nawait mainDeck.importSlideFrom(sourceDeck, 3);\nawait mainDeck.saveToFile('./deck-with-appendix.pptx');"
-      },
-      {
-        "id": "exportslides",
-        "name": "exportSlides",
-        "signature": "ppt.exportSlides(...slideNumbers)",
-        "category": "Slides",
-        "description": "Extracts a subset of slides from the current deck and returns a new, fully self-contained PPTXTemplater instance containing only those slides, preserving all required masters, themes, and media.",
-        "openXmlImpact": "Constructs a new PresentationML package containing selected slides and pruned masters/layouts.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "slideNumbers",
-            "type": "...number[]",
-            "required": true,
-            "default": "—",
-            "description": "One or more 1-based slide indices to export."
-          }
-        ],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "New independent PPTXTemplater instance containing extracted slides."
-        },
-        "exampleCode": "// Create mini deck with slides 1, 4, and 7\nconst miniDeck = await ppt.exportSlides(1, 4, 7);\nawait miniDeck.saveToFile('./output/mini-deck.pptx');"
-      },
-      {
-        "id": "deleteslide",
-        "name": "deleteSlide",
-        "signature": "ppt.deleteSlide(slideIndex)",
-        "category": "Slides",
-        "description": "Removes a slide from the presentation by 1-based index and purges its relationships and layout mappings from internal manifests.",
-        "openXmlImpact": "Purges slide ID from ppt/presentation.xml and cleans ppt/slides/slideN.xml and .rels.",
-        "edgeCases": "Throws error if slideIndex is invalid. Adjusts total slideCount and shifts subsequent slide references.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "slideIndex",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "1-based index of slide to remove."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "Chainable instance."
-        },
-        "exampleCode": "ppt.deleteSlide(3); // Deletes the 3rd slide"
-      }
+      "useslide",
+      "useallslides",
+      "addslide",
+      "duplicateslide",
+      "removeslide",
+      "getslides",
+      "getslide",
+      "importslidefrom",
+      "exportslides",
+      "moveslide",
+      "reorderslides",
+      "tagslide",
+      "getslidedimensions",
+      "getslidelayout",
+      "usesection",
+      "addsection",
+      "updatesection",
+      "removesection",
+      "getsection",
+      "hideslide",
+      "unhideslide",
+      "resetslide",
+      "addcomment",
+      "removecomment"
     ],
     "Text & Placeholders": [
       {
@@ -3750,310 +3470,6 @@
       "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\nconst ppt = await PPTXTemplater.load('./template.pptx');\nppt.useSlide(1).replaceText({ '{{title}}': 'Converted Deck' });\n\n// Option 1: Commit Flat OPC XML directly to disk\nawait ppt.toFlatXml('./output/deck.xml');\n\n// Option 2: Get Flat OPC XML string in memory\nconst flatXml = await ppt.toFlatXml();"
     },
     {
-      "id": "useslide",
-      "name": "useSlide",
-      "signature": "ppt.useSlide(slideNumber)",
-      "category": "Slides",
-      "description": "Directs subsequent slide-level operations (replacements, shape mutations, table updates, chart refreshes) to a specific 1-based slide index.",
-      "openXmlImpact": "Sets internal pointer targeting ppt/slides/slide{N}.xml.",
-      "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-      "isStatic": false,
-      "isAsync": false,
-      "parameters": [
-        {
-          "name": "slideNumber",
-          "type": "number",
-          "required": true,
-          "default": "—",
-          "description": "1-based slide index to target."
-        }
-      ],
-      "returns": {
-        "type": "PPTXTemplater",
-        "description": "this (chainable) for fluent method chaining."
-      },
-      "exampleCode": "ppt.useSlide(2)\n   .replaceText({ '{{agenda}}': 'Financial Overview' });"
-    },
-    {
-      "id": "useallslides",
-      "name": "useAllSlides",
-      "signature": "ppt.useAllSlides()",
-      "category": "Slides",
-      "description": "Switches the operation scope to target every slide currently present in the presentation deck. Operations like replaceText will execute across all slides.",
-      "openXmlImpact": "Iterates through all  elements listed in ppt/presentation.xml .",
-      "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-      "isStatic": false,
-      "isAsync": false,
-      "parameters": [],
-      "returns": {
-        "type": "PPTXTemplater",
-        "description": "this (chainable)."
-      },
-      "exampleCode": "// Global replacement across all slides in deck\nppt.useAllSlides()\n   .replaceText({\n     '{{year}}': '2026',\n     '{{company}}': 'Acme Corp',\n     '{{confidential}}': 'CONFIDENTIAL'\n   });"
-    },
-    {
-      "id": "addslide",
-      "name": "addSlide",
-      "signature": "ppt.addSlide(options = {})",
-      "category": "Slides",
-      "description": "Creates and appends a new blank slide to the end of the presentation. Automatically assigns a new relationship ID, links the slide layout part, and updates [Content_Types].xml.",
-      "openXmlImpact": "Generates ppt/slides/slide{N}.xml, ppt/slides/_rels/slide{N}.xml.rels, appends  in presentation.xml, and registers in [Content_Types].xml.",
-      "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "options",
-          "type": "Object",
-          "required": false,
-          "default": "{}",
-          "description": "Slide creation options."
-        },
-        {
-          "name": "options.layoutNumber",
-          "type": "number",
-          "required": false,
-          "default": "1",
-          "description": "Target slide layout index to link as parent."
-        }
-      ],
-      "returns": {
-        "type": "Promise<{ slideIndex: number, rId: string }>",
-        "description": "Object containing 1-based slide index and assigned relationship ID."
-      },
-      "exampleCode": "const newSlide = await ppt.addSlide({ layoutNumber: 1 });\nppt.useSlide(newSlide.slideIndex);\nawait ppt.addShape('rect', { text: 'Title on New Slide' });"
-    },
-    {
-      "id": "insertslide",
-      "name": "insertSlide",
-      "signature": "ppt.insertSlide(slideNumber, options = {})",
-      "category": "Slides",
-      "description": "Inserts a new slide at a specific 1-based position within the presentation sequence, shifting subsequent slide entries accordingly.",
-      "openXmlImpact": "Splices a new  into  in ppt/presentation.xml at the requested position.",
-      "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "slideNumber",
-          "type": "number",
-          "required": true,
-          "default": "—",
-          "description": "1-based index where the new slide should be inserted."
-        },
-        {
-          "name": "options",
-          "type": "Object",
-          "required": false,
-          "default": "{}",
-          "description": "Slide options."
-        }
-      ],
-      "returns": {
-        "type": "Promise<{ slideIndex: number, rId: string }>",
-        "description": "Metadata for inserted slide."
-      },
-      "exampleCode": "// Insert slide at position 2\nawait ppt.insertSlide(2);\nppt.useSlide(2).replaceText({ '{{section}}': 'Executive Summary' });"
-    },
-    {
-      "id": "duplicateslide",
-      "name": "duplicateSlide",
-      "signature": "ppt.duplicateSlide(sourceSlideIndex, insertAfterIndex)",
-      "category": "Slides",
-      "description": "Deep-clones an existing slide including all shapes, charts, tables, media, relationships, and layout bindings. Cloned parts receive newly generated unique relationship IDs to guarantee non-corrupted PresentationML structures.",
-      "openXmlImpact": "Clones ppt/slides/slide{N}.xml, duplicates slide{N}.xml.rels, deep-copies linked charts/drawings, updates [Content_Types].xml and presentation.xml.",
-      "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "sourceSlideIndex",
-          "type": "number",
-          "required": true,
-          "default": "—",
-          "description": "1-based slide index to duplicate."
-        },
-        {
-          "name": "insertAfterIndex",
-          "type": "number",
-          "required": false,
-          "default": "sourceSlideIndex",
-          "description": "1-based slide index after which the duplicate will be placed."
-        }
-      ],
-      "returns": {
-        "type": "Promise<{ slideIndex: number, rId: string }>",
-        "description": "Metadata with newly created slide index."
-      },
-      "exampleCode": "// Duplicate slide 2 for each regional sales team\nconst teams = ['EMEA', 'APAC', 'Americas'];\nfor (const team of teams) {\n  const clone = await ppt.duplicateSlide(2);\n  ppt.useSlide(clone.slideIndex)\n     .replaceText({ '{{team_name}}': team });\n}"
-    },
-    {
-      "id": "removeslide",
-      "name": "removeSlide",
-      "signature": "ppt.removeSlide(slideNumber)",
-      "category": "Slides",
-      "description": "Removes a slide from the presentation by 1-based index. Deletes the corresponding  in presentation.xml, removes the relationship in presentation.xml.rels, and cleans up orphaned slide XML and relationship parts.",
-      "openXmlImpact": "Deletes , unlinks relationship in presentation.xml.rels, removes slide{N}.xml and slide{N}.xml.rels.",
-      "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "slideNumber",
-          "type": "number",
-          "required": true,
-          "default": "—",
-          "description": "1-based slide index to delete."
-        }
-      ],
-      "returns": {
-        "type": "Promise<PPTXTemplater>",
-        "description": "this (chainable)."
-      },
-      "exampleCode": "// Remove temporary instruction slide\nawait ppt.removeSlide(1);"
-    },
-    {
-      "id": "getslides",
-      "name": "getSlides",
-      "signature": "ppt.getSlides()",
-      "category": "Slides",
-      "description": "Returns metadata for all slides currently configured in the presentation deck in their visual presentation order.",
-      "openXmlImpact": "Reads  in ppt/presentation.xml and resolves target slide part names.",
-      "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-      "isStatic": false,
-      "isAsync": false,
-      "parameters": [],
-      "returns": {
-        "type": "Array<Object>",
-        "description": "Array of slide descriptors with 1-based slideNumber, rId, and partName."
-      },
-      "exampleCode": "const slides = ppt.getSlides();\nconsole.log(`Presentation has ${slides.length} slides:`, slides);"
-    },
-    {
-      "id": "getslidedimensions",
-      "name": "getSlideDimensions",
-      "signature": "ppt.getSlideDimensions()",
-      "category": "Slides",
-      "description": "Inspects and returns the physical slide dimensions and aspect ratio configured for the presentation in inches, points, pixels, and EMUs.",
-      "openXmlImpact": "Parses  in ppt/presentation.xml.",
-      "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-      "isStatic": false,
-      "isAsync": false,
-      "parameters": [],
-      "returns": {
-        "type": "Object",
-        "description": "Dimensions object with width, height, widthEmu, heightEmu, and aspect ratio type (e.g. \"screen16x9\")."
-      },
-      "exampleCode": "const dims = ppt.getSlideDimensions();\nconsole.log(`Slide width: ${dims.width}in, height: ${dims.height}in (type: ${dims.type})`);"
-    },
-    {
-      "id": "getslidelayout",
-      "name": "getSlideLayout",
-      "signature": "ppt.getSlideLayout(slideNumber)",
-      "category": "Slides",
-      "description": "Resolves and returns the layout metadata associated with a targeted slide, including layout name, type, and parent slide master reference.",
-      "openXmlImpact": "Follows relationship in slide{N}.xml.rels to ppt/slideLayouts/slideLayout{M}.xml.",
-      "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-      "isStatic": false,
-      "isAsync": false,
-      "parameters": [
-        {
-          "name": "slideNumber",
-          "type": "number",
-          "required": false,
-          "default": "active slide",
-          "description": "1-based slide index."
-        }
-      ],
-      "returns": {
-        "type": "Object",
-        "description": "Layout metadata object."
-      },
-      "exampleCode": "const layout = ppt.getSlideLayout(1);\nconsole.log(`Slide 1 uses layout: ${layout.name} (master: ${layout.master})`);"
-    },
-    {
-      "id": "importslidefrom",
-      "name": "importSlideFrom",
-      "signature": "ppt.importSlideFrom(sourcePptInstance, sourceSlideNumber)",
-      "category": "Slides",
-      "description": "Imports a complete slide from another independent PPTXTemplater instance. Resolves, clones, and deep-remaps all dependencies (slide layouts, media files, embedded charts, hyperlinks) into the target deck while preventing relationship collisions.",
-      "openXmlImpact": "Transfers external slide XML, re-indexes relationships in slide{N}.xml.rels, syncs [Content_Types].xml, and transfers media parts.",
-      "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "sourcePptInstance",
-          "type": "PPTXTemplater",
-          "required": true,
-          "default": "—",
-          "description": "Source PPTXTemplater presentation instance."
-        },
-        {
-          "name": "sourceSlideNumber",
-          "type": "number",
-          "required": true,
-          "default": "—",
-          "description": "1-based slide index in source presentation to import."
-        }
-      ],
-      "returns": {
-        "type": "Promise<Object>",
-        "description": "Imported slide descriptor with new slideIndex and rId."
-      },
-      "exampleCode": "const sourceDeck = await PPTXTemplater.load('./library/appendix.pptx');\nconst mainDeck = await PPTXTemplater.load('./deck.pptx');\n\n// Import appendix slide 3 into main deck\nawait mainDeck.importSlideFrom(sourceDeck, 3);\nawait mainDeck.saveToFile('./deck-with-appendix.pptx');"
-    },
-    {
-      "id": "exportslides",
-      "name": "exportSlides",
-      "signature": "ppt.exportSlides(...slideNumbers)",
-      "category": "Slides",
-      "description": "Extracts a subset of slides from the current deck and returns a new, fully self-contained PPTXTemplater instance containing only those slides, preserving all required masters, themes, and media.",
-      "openXmlImpact": "Constructs a new PresentationML package containing selected slides and pruned masters/layouts.",
-      "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "slideNumbers",
-          "type": "...number[]",
-          "required": true,
-          "default": "—",
-          "description": "One or more 1-based slide indices to export."
-        }
-      ],
-      "returns": {
-        "type": "Promise<PPTXTemplater>",
-        "description": "New independent PPTXTemplater instance containing extracted slides."
-      },
-      "exampleCode": "// Create mini deck with slides 1, 4, and 7\nconst miniDeck = await ppt.exportSlides(1, 4, 7);\nawait miniDeck.saveToFile('./output/mini-deck.pptx');"
-    },
-    {
-      "id": "deleteslide",
-      "name": "deleteSlide",
-      "signature": "ppt.deleteSlide(slideIndex)",
-      "category": "Slides",
-      "description": "Removes a slide from the presentation by 1-based index and purges its relationships and layout mappings from internal manifests.",
-      "openXmlImpact": "Purges slide ID from ppt/presentation.xml and cleans ppt/slides/slideN.xml and .rels.",
-      "edgeCases": "Throws error if slideIndex is invalid. Adjusts total slideCount and shifts subsequent slide references.",
-      "isStatic": false,
-      "isAsync": false,
-      "parameters": [
-        {
-          "name": "slideIndex",
-          "type": "number",
-          "required": true,
-          "default": "—",
-          "description": "1-based index of slide to remove."
-        }
-      ],
-      "returns": {
-        "type": "PPTXTemplater",
-        "description": "Chainable instance."
-      },
-      "exampleCode": "ppt.deleteSlide(3); // Deletes the 3rd slide"
-    },
-    {
       "id": "replacetext",
       "name": "replaceText",
       "signature": "ppt.replaceText(replacements)",
@@ -6242,6 +5658,666 @@
         "description": "this (chainable)."
       },
       "exampleCode": "ppt.enableDebug();"
+    },
+    {
+      "id": "useslide",
+      "name": "useSlide",
+      "signature": "ppt.useSlide(...slideRefs)",
+      "category": "Slides",
+      "description": "Directs subsequent slide-level operations (replacements, shape mutations, table updates, chart refreshes) to one or more slide references (1-based indices, IDs, or custom tags).",
+      "openXmlImpact": "Scopes internal pointer targeting ppt/slides/slide{N}.xml parts.",
+      "edgeCases": "Throws SlideNotFoundError if specified slide index or custom tag is not found.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "...slideRefs",
+          "type": "...(number | string)",
+          "required": true,
+          "default": "—",
+          "description": "1-based slide indices, slide IDs, or custom tags to target."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.useSlide(1)\n   .replaceText({ \"{{TITLE}}\": \"Quarterly Review\" });"
+    },
+    {
+      "id": "useallslides",
+      "name": "useAllSlides",
+      "signature": "ppt.useAllSlides()",
+      "category": "Slides",
+      "description": "Widens subsequent slide operations to target all slides in the presentation deck.",
+      "openXmlImpact": "Clears active slide filtering so subsequent operations broadcast across all ppt/slides/slide{N}.xml parts.",
+      "edgeCases": "Safe to invoke multiple times in chain pipelines.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.useAllSlides()\n   .replaceText({ \"{{COMPANY}}\": \"Acme Global Corp\" });"
+    },
+    {
+      "id": "addslide",
+      "name": "addSlide",
+      "signature": "ppt.addSlide(options = {}, position)",
+      "category": "Slides",
+      "description": "Appends or inserts a new slide with optional title, elements, layout reference, and target position.",
+      "openXmlImpact": "Generates ppt/slides/slide{N}.xml, updates presentation.xml.rels, registers layout relationship, and adds <p:sldId> to presentation.xml.",
+      "edgeCases": "Automatically allocates unique slide IDs (>= 256) and prevents relationship ID collisions.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Slide definition with optional title, layout, and visual elements."
+        },
+        {
+          "name": "position",
+          "type": "number",
+          "required": false,
+          "default": "slideCount + 1",
+          "description": "Optional 1-based target insertion position."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.addSlide({ title: \"Executive Summary\" }, 2);"
+    },
+    {
+      "id": "duplicateslide",
+      "name": "duplicateSlide",
+      "signature": "ppt.duplicateSlide(sourceIndex, atPosition)",
+      "category": "Slides",
+      "description": "Deep-clones an existing slide and inserts the isolated duplicate at the specified position or end of deck.",
+      "openXmlImpact": "Deep-clones slide XML, allocates fresh relationship IDs, duplicates embedded media/charts/workbooks, regenerates <a16:rowId> values, and syncs presentation.xml manifests.",
+      "edgeCases": "Asynchronously clones embedded dependencies without mutable part sharing.",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "sourceIndex",
+          "type": "number",
+          "required": true,
+          "default": "—",
+          "description": "1-based index of the slide to duplicate."
+        },
+        {
+          "name": "atPosition",
+          "type": "number",
+          "required": false,
+          "default": "slideCount + 1",
+          "description": "Optional 1-based target insertion position."
+        }
+      ],
+      "returns": {
+        "type": "Promise<PPTXTemplater>",
+        "description": "Resolves to this (chainable) after cloning completes."
+      },
+      "exampleCode": "await ppt.duplicateSlide(1, 2);"
+    },
+    {
+      "id": "removeslide",
+      "name": "removeSlide",
+      "signature": "ppt.removeSlide(position)",
+      "category": "Slides",
+      "description": "Deletes a slide from the presentation and cleans up all associated XML, relationships, and content type declarations.",
+      "openXmlImpact": "Purges slide part from archive, removes relationship from presentation.xml.rels, unregisters [Content_Types].xml override, and re-indexes sldIdLst.",
+      "edgeCases": "Throws SlideNotFoundError if target slide position is out of bounds [1, slideCount].",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "position",
+          "type": "number",
+          "required": true,
+          "default": "—",
+          "description": "1-based index of the slide to remove."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.removeSlide(3);"
+    },
+    {
+      "id": "getslides",
+      "name": "getSlides",
+      "category": "Slides",
+      "signature": "ppt.getSlides()",
+      "description": "Returns an array of all slides in the presentation with normalized structural metadata.",
+      "openXmlImpact": "Reads parsed slide registry and presentation manifest without mutating files.",
+      "edgeCases": "Returns empty array if presentation contains no slides.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [],
+      "returns": {
+        "type": "Array<{ index: number, slideId: string, relationshipId: string, zipPath: string, title: string, layout: string }>",
+        "description": "List of slide metadata descriptors."
+      },
+      "exampleCode": "const slides = ppt.getSlides();\nconsole.log(`Found ${slides.length} slides`);"
+    },
+    {
+      "id": "getslide",
+      "name": "getSlide",
+      "category": "Slides",
+      "signature": "ppt.getSlide(index)",
+      "description": "Retrieves normalized metadata for a specific slide by 1-based index or custom tag.",
+      "openXmlImpact": "Inspects targeted slide XML, relationship mappings, and root visibility attributes.",
+      "edgeCases": "Throws SlideNotFoundError if slide index or tag does not exist.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "index",
+          "type": "number | string",
+          "required": true,
+          "default": "—",
+          "description": "1-based slide index or custom tag identifier."
+        }
+      ],
+      "returns": {
+        "type": "{ index: number, slideId: string, relationshipId: string, zipPath: string, title: string, layout: string, tags: string[], hidden: boolean }",
+        "description": "Slide metadata object."
+      },
+      "exampleCode": "const slide = ppt.getSlide(1);\nconsole.log(`Slide ${slide.index} is hidden: ${slide.hidden}`);"
+    },
+    {
+      "id": "importslidefrom",
+      "name": "importSlideFrom",
+      "category": "Slides",
+      "signature": "ppt.importSlideFrom(sourcePpt, sourceIndex, atPosition)",
+      "description": "Imports a slide from another PPTXTemplater instance into this deck, preserving layouts, charts, relationships, and embedded media.",
+      "openXmlImpact": "Copies slide parts, re-maps relationship IDs, registers new content types, and appends to presentation.xml.",
+      "edgeCases": "Throws SlideNotFoundError if source slide index is invalid.",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "sourcePpt",
+          "type": "PPTXTemplater",
+          "required": true,
+          "default": "—",
+          "description": "Source PPTXTemplater instance."
+        },
+        {
+          "name": "sourceIndex",
+          "type": "number | string",
+          "required": true,
+          "default": "—",
+          "description": "1-based slide index or custom tag from source presentation."
+        },
+        {
+          "name": "atPosition",
+          "type": "number",
+          "required": false,
+          "default": "slideCount + 1",
+          "description": "Optional 1-based target insertion position."
+        }
+      ],
+      "returns": {
+        "type": "Promise<PPTXTemplater>",
+        "description": "Resolves to this (chainable)."
+      },
+      "exampleCode": "await ppt.importSlideFrom(sourceDeck, 1);"
+    },
+    {
+      "id": "exportslides",
+      "name": "exportSlides",
+      "category": "Slides",
+      "signature": "ppt.exportSlides(...slideIndices)",
+      "description": "Exports selected slides into a new standalone PPTXTemplater instance.",
+      "openXmlImpact": "Constructs a clean presentation package populated only with the requested slides and their dependent parts.",
+      "edgeCases": "Throws SlideNotFoundError if any slide index is out of bounds.",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "...slideIndices",
+          "type": "...number",
+          "required": true,
+          "default": "—",
+          "description": "1-based slide indices to export."
+        }
+      ],
+      "returns": {
+        "type": "Promise<PPTXTemplater>",
+        "description": "Resolves to newly created PPTXTemplater instance containing only the selected slides."
+      },
+      "exampleCode": "const subset = await ppt.exportSlides(1, 3);"
+    },
+    {
+      "id": "moveslide",
+      "name": "moveSlide",
+      "category": "Slides",
+      "signature": "ppt.moveSlide(fromIndex, toIndex)",
+      "description": "Moves a slide from one position to another within the presentation deck.",
+      "openXmlImpact": "Re-orders <p:sldId> nodes in presentation.xml and updates section slide lists.",
+      "edgeCases": "Throws PPTXError if either fromIndex or toIndex is out of bounds.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "fromIndex",
+          "type": "number",
+          "required": true,
+          "default": "—",
+          "description": "1-based source slide index."
+        },
+        {
+          "name": "toIndex",
+          "type": "number",
+          "required": true,
+          "default": "—",
+          "description": "1-based destination slide index."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.moveSlide(4, 1); // Move slide 4 to position 1"
+    },
+    {
+      "id": "reorderslides",
+      "name": "reorderSlides",
+      "category": "Slides",
+      "signature": "ppt.reorderSlides(order)",
+      "description": "Reorders slides across the entire presentation to match a provided 1-based index sequence.",
+      "openXmlImpact": "Synchronizes <p:sldIdLst> order in presentation.xml and updates section groupings.",
+      "edgeCases": "Throws error if order array length does not match presentation slideCount.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "order",
+          "type": "number[]",
+          "required": true,
+          "default": "—",
+          "description": "Array of 1-based slide numbers in desired sequence."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.reorderSlides([3, 1, 2]);"
+    },
+    {
+      "id": "tagslide",
+      "name": "tagSlide",
+      "category": "Slides",
+      "signature": "ppt.tagSlide(slideIndex, tag)",
+      "description": "Associates a semantic tag with a slide for subsequent selection via useSlide(tag).",
+      "openXmlImpact": "Stores custom tag mapping in in-memory slide registry.",
+      "edgeCases": "Multiple slides can share the same tag for bulk operations.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "slideIndex",
+          "type": "number",
+          "required": true,
+          "default": "—",
+          "description": "1-based slide index."
+        },
+        {
+          "name": "tag",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Custom semantic string identifier."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.tagSlide(1, \"financials\");\nppt.useSlide(\"financials\").replaceText({ \"{{STATUS}}\": \"APPROVED\" });"
+    },
+    {
+      "id": "getslidedimensions",
+      "name": "getSlideDimensions",
+      "category": "Slides",
+      "signature": "ppt.getSlideDimensions()",
+      "description": "Retrieves current slide dimensions in English Metric Units (EMUs).",
+      "openXmlImpact": "Parses <p:sldSz> attributes @_cx and @_cy in ppt/presentation.xml.",
+      "edgeCases": "Defaults to 16:9 widescreen dimensions (12,192,000 x 6,858,000 EMUs) if <p:sldSz> is omitted.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [],
+      "returns": {
+        "type": "{ width: number, height: number }",
+        "description": "Slide dimensions in EMUs."
+      },
+      "exampleCode": "const dims = ppt.getSlideDimensions();\nconsole.log(`Slide width: ${dims.width} EMUs`);"
+    },
+    {
+      "id": "getslidelayout",
+      "name": "getSlideLayout",
+      "category": "Slides",
+      "signature": "ppt.getSlideLayout(slideIndex)",
+      "description": "Retrieves the slide layout target path for a slide.",
+      "openXmlImpact": "Finds relationship of type slideLayout in slide .rels manifest.",
+      "edgeCases": "Returns null if slide has no layout relationship.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "slideIndex",
+          "type": "number",
+          "required": false,
+          "default": "activeSlideIndex",
+          "description": "1-based slide index."
+        }
+      ],
+      "returns": {
+        "type": "string | null",
+        "description": "Layout relative target path or null."
+      },
+      "exampleCode": "const layoutPath = ppt.getSlideLayout(1);"
+    },
+    {
+      "id": "usesection",
+      "name": "useSection",
+      "category": "Slides",
+      "signature": "ppt.useSection(sectionRef)",
+      "description": "Selects all slides belonging to a section for subsequent operations.",
+      "openXmlImpact": "Resolves section in <p14:sectionLst> and targets member slide indices.",
+      "edgeCases": "Throws PPTXError if section is not found.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "sectionRef",
+          "type": "string | number",
+          "required": true,
+          "default": "—",
+          "description": "Section name, GUID, or 1-based section index."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.useSection(\"Financials\").replaceText({ \"{{STATUS}}\": \"FINAL\" });"
+    },
+    {
+      "id": "addsection",
+      "name": "addSection",
+      "category": "Slides",
+      "signature": "ppt.addSection(name, startSlideIndex)",
+      "description": "Creates a new PowerPoint section in presentation.xml with a unique GUID.",
+      "openXmlImpact": "Adds <p14:section> inside presentation extension list and allocates member <p14:sldIdLst>.",
+      "edgeCases": "Throws PPTXError if name is empty or startSlideIndex is out of bounds.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Section title."
+        },
+        {
+          "name": "startSlideIndex",
+          "type": "number",
+          "required": false,
+          "default": "1",
+          "description": "1-based starting slide index."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.addSection(\"Q3 Review\", 1);"
+    },
+    {
+      "id": "updatesection",
+      "name": "updateSection",
+      "category": "Slides",
+      "signature": "ppt.updateSection(sectionIdentifier, options)",
+      "description": "Updates an existing section name or metadata.",
+      "openXmlImpact": "Mutates <p14:section> attribute in presentation extension list.",
+      "edgeCases": "Throws PPTXError if section identifier is not found.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "sectionIdentifier",
+          "type": "string | number",
+          "required": true,
+          "default": "—",
+          "description": "Section name, GUID, or 1-based index."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": true,
+          "default": "—",
+          "description": "Update options with optional new section name."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.updateSection(\"Q3 Review\", { name: \"Q3 Executive Review\" });"
+    },
+    {
+      "id": "removesection",
+      "name": "removeSection",
+      "category": "Slides",
+      "signature": "ppt.removeSection(sectionIdentifier, removeSlides = false)",
+      "description": "Removes a section grouping, optionally deleting all member slides.",
+      "openXmlImpact": "Deletes <p14:section> element and optionally purges member slide parts.",
+      "edgeCases": "Throws PPTXError if section is not found.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "sectionIdentifier",
+          "type": "string | number",
+          "required": true,
+          "default": "—",
+          "description": "Section name, GUID, or 1-based index."
+        },
+        {
+          "name": "removeSlides",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "Whether to delete all member slides in the section."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.removeSection(\"Appendix\", false);"
+    },
+    {
+      "id": "getsection",
+      "name": "getSection",
+      "category": "Slides",
+      "signature": "ppt.getSection(sectionRef)",
+      "description": "Retrieves section metadata by name, GUID, or 1-based section index.",
+      "openXmlImpact": "Inspects <p14:sectionLst> inside presentation extension list.",
+      "edgeCases": "Returns null if section does not exist.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "sectionRef",
+          "type": "string | number",
+          "required": true,
+          "default": "—",
+          "description": "Section name, GUID, or 1-based index."
+        }
+      ],
+      "returns": {
+        "type": "Object | null",
+        "description": "Section metadata object or null."
+      },
+      "exampleCode": "const section = ppt.getSection(\"Executive Review\");"
+    },
+    {
+      "id": "hideslide",
+      "name": "hideSlide",
+      "category": "Slides",
+      "signature": "ppt.hideSlide(...slideRefs)",
+      "description": "Hides one or more slides so they are skipped during slide show presentation.",
+      "openXmlImpact": "Sets show=\"0\" attribute directly on root <p:sld> element.",
+      "edgeCases": "Does not alter DrawingML elements or relationships.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "...slideRefs",
+          "type": "...(number | string)",
+          "required": true,
+          "default": "—",
+          "description": "1-based slide indices, IDs, or custom tags."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.hideSlide(2, 3);"
+    },
+    {
+      "id": "unhideslide",
+      "name": "unhideSlide",
+      "category": "Slides",
+      "signature": "ppt.unhideSlide(...slideRefs)",
+      "description": "Unhides one or more previously hidden slides.",
+      "openXmlImpact": "Removes show=\"0\" attribute from root <p:sld> element.",
+      "edgeCases": "Safe to invoke on visible slides.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "...slideRefs",
+          "type": "...(number | string)",
+          "required": true,
+          "default": "—",
+          "description": "1-based slide indices, IDs, or custom tags."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.unhideSlide(2);"
+    },
+    {
+      "id": "resetslide",
+      "name": "resetSlide",
+      "category": "Slides",
+      "signature": "ppt.resetSlide(slideRef, options = { preservePlaceholders: true })",
+      "description": "Resets slide canvas by removing user shapes while preserving non-visual group properties and layout placeholders.",
+      "openXmlImpact": "Purges user shape nodes from <p:spTree> while preserving <p:nvGrpSpPr>, <p:grpSpPr>, and placeholder shapes containing <p:ph>.",
+      "edgeCases": "When preservePlaceholders is false, removes all shapes from <p:spTree>.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "slideRef",
+          "type": "number | string",
+          "required": false,
+          "default": "activeSlideIndex",
+          "description": "1-based slide index or custom tag."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{ preservePlaceholders: true }",
+          "description": "Reset options."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable) for fluent method chaining."
+      },
+      "exampleCode": "ppt.resetSlide(1, { preservePlaceholders: true });"
+    },
+    {
+      "id": "addcomment",
+      "name": "addComment",
+      "category": "Slides",
+      "signature": "ppt.addComment(text, options = {})",
+      "description": "Adds a collaborative review comment to slide(s) with author and coordinate positioning.",
+      "openXmlImpact": "Generates or updates ppt/commentAuthors.xml, ppt/comments/commentN.xml, slide relationship mappings, and [Content_Types].xml overrides.",
+      "edgeCases": "Automatically registers commentAuthors relationship in presentation.xml.rels if absent.",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Comment text content."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Author details (author, initials), coordinates (x, y), and timestamp."
+        }
+      ],
+      "returns": {
+        "type": "Promise<PPTXTemplater>",
+        "description": "Resolves to this (chainable)."
+      },
+      "exampleCode": "await ppt.useSlide(1).addComment(\"Review Q3 numbers\", { author: \"Sarah\" });"
+    },
+    {
+      "id": "removecomment",
+      "name": "removeComment",
+      "category": "Slides",
+      "signature": "ppt.removeComment(commentIdentifier, options = {})",
+      "description": "Removes a comment by 1-based index, text match, or author filter from slide(s).",
+      "openXmlImpact": "Mutates ppt/comments/commentN.xml and cleans up removed comment nodes.",
+      "edgeCases": "Safe to invoke if slide has no comments.",
+      "isStatic": false,
+      "isAsync": true,
+      "parameters": [
+        {
+          "name": "commentIdentifier",
+          "type": "number | string",
+          "required": true,
+          "default": "—",
+          "description": "1-based comment position index or text search query."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Optional filters such as author name."
+        }
+      ],
+      "returns": {
+        "type": "Promise<PPTXTemplater>",
+        "description": "Resolves to this (chainable)."
+      },
+      "exampleCode": "await ppt.useSlide(1).removeComment(1);"
     }
   ]
 }
