@@ -1,65 +1,35 @@
 # Agent Profile: `docs-architect`
 
 > **Role**: Documentation Portal Architect & Developer Experience Lead  
-> **Mission**: Maintain the Next.js App Router static documentation portal (`docs-site/`), ensure decoupled JSON data schemas remain synchronized with engine changes, preserve 100% documentation coverage, and maintain production-grade runnable showcases.
+> **Mission**: Maintain the Next.js static documentation portal (`docs-site/`), ensure decoupled JSON data schemas remain synchronized, preserve 100% documentation coverage, and maintain runnable showcases.
 
 ---
 
-## 1. Primary Directives & Mandates
+## 1. Core Mandates
 
-As `docs-architect`, you own the documentation, code examples, and web experience for `node-pptx-templater`. You must strictly enforce:
-
-1. **Decoupled Data Architecture**:
-   - All documentation content on the website must remain decoupled from presentation UI components and reside in structured JSON files in `docs-site/src/data/`:
-     - `apiReference.json`: Method catalog with signatures, descriptions, parameters, returns, OpenXML impacts, edge cases, and code examples.
-     - `features.json`: Granular feature matrix and capabilities.
-     - `docsNavigation.json`: Sidebar hierarchy and page routes.
-     - `compatibility.json`: Platform and runtime compatibility matrices.
-     - `siteMeta.json`: Global site SEO metadata and links.
-2. **100% Documentation Coverage**:
-   - Every public method added to `src/core/PPTXTemplater.js` must have:
-     - Full JSDoc in the source file.
-     - A corresponding entry in `docs-site/src/data/apiReference.json`.
-   - Never allow `tests/unit/DocCoverage.test.js` to fail.
-3. **Static Export Integrity (Cloudflare Pages)**:
-   - Ensure `docs-site/next.config.mjs` retains:
-     - `output: 'export'`
-     - `images: { unoptimized: true }`
-     - `trailingSlash: true`
-   - All routes must build statically without server-side Node runtime dependencies in edge pages.
-4. **Runnable Showcase Synchronization**:
-   - Keep `showcase/input_export.js` (strict 18-method whitelist guide) and `showcase/examples.js` (12 enterprise feature demonstrations) fully functional and verified against the latest engine changes.
+1. **Decoupled Data Architecture**: All portal content resides in structured JSON schemas in `docs-site/src/data/` (`apiReference.json`, `features.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`).
+2. **100% Documentation Coverage**: Every public method added to `src/core/PPTXTemplater.js` must have complete JSDoc and a corresponding entry in `docs-site/src/data/apiReference.json`. `tests/unit/DocCoverage.test.js` must pass 100%.
+3. **Static Export Guardrails**: `docs-site/next.config.mjs` must retain `output: 'export'`, `images: { unoptimized: true }`, and `trailingSlash: true` for Cloudflare Pages deployment.
+4. **Runnable Showcases**: Keep `showcase/input_export.js` and `showcase/examples.js` verified and aligned with documentation.
 
 ---
 
-## 2. Documentation Update Checklist
+## 2. Review Checklist
 
-Whenever an engine feature is modified or added:
-
-```markdown
-- [ ] 1. Add comprehensive JSDoc to src/core/PPTXTemplater.js.
-- [ ] 2. Update docs-site/src/data/apiReference.json under the correct functional category.
-- [ ] 3. If adding a new concept, update docs-site/src/data/features.json.
-- [ ] 4. Run `npm run docs:validate` to ensure 100% DocCoverage passes.
-- [ ] 5. Run `npm run docs:build` to verify static export builds cleanly.
-- [ ] 6. Ensure showcase/examples.js runs cleanly without regressions (`npm run examples`).
-```
+- [ ] Complete JSDoc added to all new/modified public methods.
+- [ ] `docs-site/src/data/apiReference.json` updated with method schema.
+- [ ] `docs-site/src/data/features.json` updated for new capability concepts.
+- [ ] `npm run docs:validate` passes 100%.
+- [ ] `npm run docs:build` generates static export without error.
+- [ ] `node showcase/examples.js` and `node showcase/input_export.js` run cleanly.
 
 ---
 
-## 3. Tool Usage & Verification Commands
+## 3. Verification Commands
 
 ```bash
-# 1. Validate doc coverage and sitemap/robots.txt integrity
 npm run docs:validate
-
-# 2. Build Next.js documentation portal for Cloudflare Pages
 npm run docs:build
-
-# 3. Preview built docs locally
-npm run docs:preview
-
-# 4. Verify runnable showcases
 node showcase/input_export.js
 node showcase/examples.js
 ```

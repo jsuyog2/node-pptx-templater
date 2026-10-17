@@ -2,17 +2,18 @@
 node_modules/
 package-lock.json
 
-# Build and distribution artifacts
+# Build & compilation outputs
 dist/
 build/
+.next/
 *.tsbuildinfo
 
-# Next.js docs site outputs
+# Documentation portal builds
 docs-site/.next/
 docs-site/out/
 docs-site/node_modules/
 
-# Temporary work directories, scratchpad, and outputs
+# Temporary work directories & outputs
 scratch/
 output/
 showcase/output/
@@ -20,6 +21,7 @@ tests/output/
 temp/
 tmp/
 *.log
+*.patch
 
 # Coverage reports
 coverage/
@@ -29,7 +31,7 @@ coverage/
 .git/
 .github/
 
-# Office binary assets & raw templates (binary formats to ignore from agent index)
+# Office binary assets, archives & data dumps
 *.pptx
 *.pptm
 *.potx
