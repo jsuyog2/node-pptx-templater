@@ -1614,7 +1614,10 @@ class SlideManager {
       const sectionLst = ext['p14:sectionLst']
       if (!sectionLst?.['p14:section']) continue
 
-      const sections = sectionLst['p14:section']
+      const sections = Array.isArray(sectionLst['p14:section'])
+        ? sectionLst['p14:section']
+        : [sectionLst['p14:section']]
+      sectionLst['p14:section'] = sections
       const targetIdStr = String(slideId)
       const sourceIdStr = sourceSlideId ? String(sourceSlideId) : null
 
@@ -1623,7 +1626,10 @@ class SlideManager {
           const sldIdLst = section['p14:sldIdLst']
           if (!sldIdLst?.['p14:sldId']) continue
 
-          const sldIds = sldIdLst['p14:sldId']
+          const sldIds = Array.isArray(sldIdLst['p14:sldId'])
+            ? sldIdLst['p14:sldId']
+            : [sldIdLst['p14:sldId']]
+          sldIdLst['p14:sldId'] = sldIds
           const idx = sldIds.findIndex(s => String(s['@_id']) === sourceIdStr)
           if (idx !== -1) {
             logger.debug(
@@ -1642,6 +1648,8 @@ class SlideManager {
         }
         if (!lastSection['p14:sldIdLst']['p14:sldId']) {
           lastSection['p14:sldIdLst']['p14:sldId'] = []
+        } else if (!Array.isArray(lastSection['p14:sldIdLst']['p14:sldId'])) {
+          lastSection['p14:sldIdLst']['p14:sldId'] = [lastSection['p14:sldIdLst']['p14:sldId']]
         }
         const sldIds = lastSection['p14:sldIdLst']['p14:sldId']
         logger.debug(`Appending slide ${targetIdStr} to last section "${lastSection['@_name']}"`)
@@ -1708,20 +1716,33 @@ class SlideManager {
       const sectionLst = ext['p14:sectionLst']
       if (!sectionLst?.['p14:section']) continue
 
-      const sections = sectionLst['p14:section'] // Guaranteed to be array by XMLParser config
+      const sections = Array.isArray(sectionLst['p14:section'])
+        ? sectionLst['p14:section']
+        : [sectionLst['p14:section']]
+      sectionLst['p14:section'] = sections
 
-      for (const section of sections) {
+      for (let sIdx = sections.length - 1; sIdx >= 0; sIdx--) {
+        const section = sections[sIdx]
         const sldIdLst = section['p14:sldIdLst']
         if (!sldIdLst?.['p14:sldId']) continue
 
-        const sldIds = sldIdLst['p14:sldId'] // Guaranteed to be array by XMLParser config
+        const sldIds = Array.isArray(sldIdLst['p14:sldId'])
+          ? sldIdLst['p14:sldId']
+          : [sldIdLst['p14:sldId']]
         const targetIdStr = String(slideId)
         const filtered = sldIds.filter(s => String(s['@_id']) !== targetIdStr)
 
         if (filtered.length !== sldIds.length) {
           logger.debug(`Removing slide ${targetIdStr} from section "${section['@_name']}"`)
           section['p14:sldIdLst']['p14:sldId'] = filtered
+          if (filtered.length === 0) {
+            sections.splice(sIdx, 1)
+          }
         }
+      }
+
+      if (sections.length === 0) {
+        delete ext['p14:sectionLst']
       }
     }
   }
@@ -1846,6 +1867,12 @@ class SlideManager {
    */
   #flushPresentation() {
     if (!this.#presentationObj || !this.#zipManager) return
+    const pres = this.#presentationObj['p:presentation']
+    if (pres && pres['p:extLst']) {
+      const extLst = pres['p:extLst']
+      delete pres['p:extLst']
+      pres['p:extLst'] = extLst
+    }
     const declaration = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
     const xml = this.#xmlParser.build(this.#presentationObj, declaration)
     this.#zipManager.writeFile('ppt/presentation.xml', xml)
@@ -2412,8 +2439,8 @@ class SlideManager {
    * Adds a new section to presentation.xml.
    *
    * @param {string} name - Section title.
-   * @param {number} [startSlideIndex] - 1-based start slide index. Defaults to 1 (or next unassigned).
-   * @returns {{ id: string, name: string, slideIds: string[], slideIndices: number[] }} Created section info.
+   * @param {number} [startSlideIndex] - 1-based start slide index. Defaults to 1 (or next sequential index).
+   * @returns {this} Chainable reference.
    */
   addSection(name, startSlideIndex) {
     if (!name || typeof name !== 'string') {
@@ -2423,6 +2450,9 @@ class SlideManager {
     if (!this.#presentationObj) {
       throw new PPTXError('Presentation XML not loaded')
     }
+
+    // Official MS-PPTX PresentationML 2010 Section List extension URI
+    const SECTION_URI = '{521415D9-36F7-43E2-AB2F-B90AF26B5E84}'
 
     // Ensure presentation root has xmlns:p14 namespace
     let pres = this.#presentationObj['p:presentation']
@@ -2434,6 +2464,18 @@ class SlideManager {
       pres['@_xmlns:p14'] = 'http://schemas.microsoft.com/office/powerpoint/2010/main'
     }
 
+    // Extract all slide IDs in order from <p:sldIdLst>
+    let slideIds = []
+    const sldIdLst = this.#xmlParser.getNode(this.#presentationObj, 'p:presentation.p:sldIdLst')
+    if (sldIdLst?.['p:sldId']) {
+      const arr = Array.isArray(sldIdLst['p:sldId']) ? sldIdLst['p:sldId'] : [sldIdLst['p:sldId']]
+      slideIds = arr.map(s => String(s['@_id'])).filter(Boolean)
+    } else {
+      slideIds = this.getAllSlideIndices()
+        .map(i => String(this.#slides.get(i)?.slideId))
+        .filter(Boolean)
+    }
+
     // Ensure presentation.xml extension list exists
     if (!pres['p:extLst']) {
       pres['p:extLst'] = { 'p:ext': [] }
@@ -2442,28 +2484,34 @@ class SlideManager {
     }
 
     let ext = pres['p:extLst']['p:ext'].find(
-      e => e['@_uri'] === '{521415E9-D7F1-4817-A0E5-A8B5D396264A}'
+      e =>
+        e['p14:sectionLst'] ||
+        e['@_uri']?.toUpperCase() === SECTION_URI ||
+        e['@_uri']?.toUpperCase() === '{521415E9-D7F1-4817-A0E5-A8B5D396264A}' ||
+        e['@_uri']?.toUpperCase() === '{521415E9-21F7-4876-8800-410E7D737B1B}' ||
+        e['@_uri']?.toUpperCase() === '{521415D9-36F7-43E2-AB2F-EE99092638D7}'
     )
 
     if (!ext) {
       ext = {
-        '@_uri': '{521415E9-D7F1-4817-A0E5-A8B5D396264A}',
+        '@_uri': SECTION_URI,
         'p14:sectionLst': {
           '@_xmlns:p14': 'http://schemas.microsoft.com/office/powerpoint/2010/main',
           'p14:section': [],
         },
       }
       pres['p:extLst']['p:ext'].push(ext)
-    }
-
-    if (!ext['p14:sectionLst']) {
-      ext['p14:sectionLst'] = {
-        '@_xmlns:p14': 'http://schemas.microsoft.com/office/powerpoint/2010/main',
-        'p14:section': [],
+    } else {
+      ext['@_uri'] = SECTION_URI
+      if (!ext['p14:sectionLst']) {
+        ext['p14:sectionLst'] = {
+          '@_xmlns:p14': 'http://schemas.microsoft.com/office/powerpoint/2010/main',
+          'p14:section': [],
+        }
+      } else if (!ext['p14:sectionLst']['@_xmlns:p14']) {
+        ext['p14:sectionLst']['@_xmlns:p14'] =
+          'http://schemas.microsoft.com/office/powerpoint/2010/main'
       }
-    } else if (!ext['p14:sectionLst']['@_xmlns:p14']) {
-      ext['p14:sectionLst']['@_xmlns:p14'] =
-        'http://schemas.microsoft.com/office/powerpoint/2010/main'
     }
 
     if (!ext['p14:sectionLst']['p14:section']) {
@@ -2472,112 +2520,102 @@ class SlideManager {
       ext['p14:sectionLst']['p14:section'] = [ext['p14:sectionLst']['p14:section']]
     }
 
-    const sections = ext['p14:sectionLst']['p14:section']
-    const guid = generateGuid()
+    const existingXmlSections = ext['p14:sectionLst']['p14:section']
 
-    // Determine slides to assign to this section
-    const allIndices = this.getAllSlideIndices()
-    const slideCount = allIndices.length
-
+    // Clamp startSlideIndex between 1 and slideIds.length (or 1 if no slides)
     let clampedStart = 1
-    if (slideCount > 0) {
+    if (slideIds.length > 0) {
       if (startSlideIndex !== undefined) {
         const num = Number(startSlideIndex)
-        clampedStart = Math.max(1, Math.min(isNaN(num) ? 1 : Math.floor(num), slideCount))
+        const rawIndex = isNaN(num) ? 1 : Math.floor(num)
+        clampedStart = Math.max(1, Math.min(rawIndex, slideIds.length))
       } else {
-        // If omitted, find first slide not in any existing section
-        const assignedIds = new Set()
-        for (const sec of sections) {
-          const slds = sec['p14:sldIdLst']?.['p14:sldId']
-          if (slds) {
-            const arr = Array.isArray(slds) ? slds : [slds]
-            arr.forEach(s => {
-              if (s?.['@_id']) assignedIds.add(String(s['@_id']))
-            })
-          }
-        }
-        const unassignedIdx = allIndices.find(idx => {
-          const sid = this.#slides.get(idx)?.slideId
-          return sid && !assignedIds.has(String(sid))
-        })
         clampedStart =
-          unassignedIdx !== undefined ? unassignedIdx : sections.length === 0 ? 1 : slideCount
+          existingXmlSections.length === 0
+            ? 1
+            : Math.max(1, Math.min(existingXmlSections.length + 1, slideIds.length))
       }
     }
 
-    // Determine start of the next section (if any) starting strictly after clampedStart
-    const sectionStarts = []
-    for (const sec of sections) {
-      const slds = sec['p14:sldIdLst']?.['p14:sldId']
-      if (slds) {
-        const arr = Array.isArray(slds) ? slds : [slds]
-        const indices = arr
-          .map(s => {
-            for (const [idx, info] of this.#slides) {
-              if (String(info.slideId) === String(s['@_id'])) return idx
-            }
-            return null
-          })
-          .filter(i => i !== null)
-        if (indices.length > 0) {
-          sectionStarts.push(Math.min(...indices))
-        }
-      }
-    }
+    // Extract existing section anchors (start slide index for each section)
+    const sectionList = []
+    for (const sec of existingXmlSections) {
+      const sldIdObjs = sec['p14:sldIdLst']?.['p14:sldId']
+      const sldIds = sldIdObjs ? (Array.isArray(sldIdObjs) ? sldIdObjs : [sldIdObjs]) : []
+      const ids = sldIds.map(x => String(x?.['@_id'])).filter(Boolean)
 
-    const laterStarts = sectionStarts.filter(s => s > clampedStart)
-    const endSlideIndex = laterStarts.length > 0 ? Math.min(...laterStarts) - 1 : slideCount
-
-    const assignedSlideIds = []
-    if (slideCount > 0 && clampedStart <= endSlideIndex) {
-      for (let i = clampedStart; i <= endSlideIndex; i++) {
-        const info = this.#slides.get(i)
-        if (info && info.slideId) {
-          assignedSlideIds.push(String(info.slideId))
-        }
-      }
-    }
-
-    // Remove newly assigned slides from any earlier sections
-    const assignedSet = new Set(assignedSlideIds)
-    for (const sec of sections) {
-      if (sec['p14:sldIdLst']?.['p14:sldId']) {
-        const slds = Array.isArray(sec['p14:sldIdLst']['p14:sldId'])
-          ? sec['p14:sldIdLst']['p14:sldId']
-          : [sec['p14:sldIdLst']['p14:sldId']]
-        sec['p14:sldIdLst']['p14:sldId'] = slds.filter(s => !assignedSet.has(String(s['@_id'])))
-      }
-    }
-
-    const newSection = {
-      '@_name': name,
-      '@_id': guid,
-      'p14:sldIdLst': {
-        'p14:sldId': assignedSlideIds.map(sid => ({ '@_id': sid })),
-      },
-    }
-
-    // Insert section in chronological slide order
-    let insertIndex = sections.length
-    for (let i = 0; i < sections.length; i++) {
-      const slds = sections[i]['p14:sldIdLst']?.['p14:sldId']
-      if (slds) {
-        const arr = Array.isArray(slds) ? slds : [slds]
-        const firstId = arr[0]?.['@_id']
-        let secStart = slideCount + 1
-        for (const [idx, info] of this.#slides) {
-          if (String(info.slideId) === String(firstId)) {
-            secStart = idx
-            break
-          }
-        }
-        if (clampedStart < secStart) {
-          insertIndex = i
+      let startIndex = -1
+      for (const id of ids) {
+        const idx = slideIds.indexOf(id)
+        if (idx !== -1) {
+          startIndex = idx + 1
           break
         }
       }
+
+      if (startIndex !== -1) {
+        sectionList.push({
+          id: sec['@_id'] || generateGuid(),
+          name: sec['@_name'] || 'Untitled Section',
+          startIndex,
+          isDefault: (sec['@_name'] || '').trim().toLowerCase() === 'default section',
+        })
+      }
     }
-    sections.splice(insertIndex, 0, newSection)
+
+    // Contiguous partitioning across ALL slides:
+    // If no section starts at slide 1 and clampedStart > 1, create leading "Default Section"
+    if (clampedStart > 1 && !sectionList.some(s => s.startIndex === 1)) {
+      sectionList.push({
+        id: generateGuid(),
+        name: 'Default Section',
+        startIndex: 1,
+        isDefault: true,
+      })
+    }
+
+    // Add or replace at clampedStart
+    const existingAtStartIdx = sectionList.findIndex(s => s.startIndex === clampedStart)
+    if (existingAtStartIdx !== -1) {
+      sectionList[existingAtStartIdx] = {
+        id: generateGuid(),
+        name,
+        startIndex: clampedStart,
+        isDefault: false,
+      }
+    } else {
+      sectionList.push({
+        id: generateGuid(),
+        name,
+        startIndex: clampedStart,
+        isDefault: false,
+      })
+    }
+
+    // Sort sections strictly by start slide index ascending
+    sectionList.sort((a, b) => a.startIndex - b.startIndex)
+
+    // Build finalized section objects with contiguous slide ID slices
+    const finalizedSections = []
+    for (let i = 0; i < sectionList.length; i++) {
+      const start = sectionList[i].startIndex - 1
+      const nextStart =
+        i + 1 < sectionList.length ? sectionList[i + 1].startIndex - 1 : slideIds.length
+      const assignedIds = slideIds.slice(start, nextStart)
+
+      // Include sections with assigned slides, or empty if deck has 0 slides
+      if (assignedIds.length > 0 || slideIds.length === 0) {
+        finalizedSections.push({
+          '@_name': sectionList[i].name,
+          '@_id': sectionList[i].id,
+          'p14:sldIdLst': {
+            'p14:sldId': assignedIds.map(sid => ({ '@_id': sid })),
+          },
+        })
+      }
+    }
+
+    ext['p14:sectionLst']['p14:section'] = finalizedSections
     this.#flushPresentation()
 
     return this
@@ -2670,11 +2708,19 @@ class SlideManager {
           : [sectionLst['p14:section']]
 
         sections = sections.filter(s => s['@_id'] !== sec.id)
-        sectionLst['p14:section'] = sections
+        if (sections.length === 0) {
+          delete ext['p14:sectionLst']
+        } else {
+          sectionLst['p14:section'] = sections
+        }
       }
     }
 
-    this.#flushPresentation()
+    if (!removeSlides) {
+      this.rebuildPresentationSlideOrder()
+    } else {
+      this.#flushPresentation()
+    }
   }
 
   /**

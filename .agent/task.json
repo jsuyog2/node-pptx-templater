@@ -1,72 +1,17 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.3.0",
-    "category": "Engine Fixes & Coordinate Subsystem Overhaul",
+    "version": "3.5.0",
+    "category": "Slide Section Subsystem Fix",
     "tasks": [
         {
-            "id": "TASK-SLIDES-001",
-            "title": "Bypass Mandatory validatePresentation for In-Memory Lifecycles & Slide Imports",
+            "id": "TASK-SECTION-001",
+            "title": "Diagnose & Fix PowerPoint Discarding addSection XML",
             "status": "completed",
-            "description": "Remove blocking validatePresentation invocations from createBlank(), load(), shape mutations (addShape), and importSlideFrom(). Allow agile in-memory operations and lazy/manual validation via ppt.validatePresentation() without runtime execution halts.",
+            "description": "Resolve the root causes preventing sections created via addSection(name, startSlideIndex) from rendering in PowerPoint: (1) Ensure contiguous partitioning across all slides in ppt/presentation.xml (creating a 'Default Section' if startSlideIndex > 1), (2) Map numerical slide IDs (<p14:sldId id='...'/>) extracted from <p:sldIdLst> rather than 1-based indices or relationship IDs, (3) Register uppercase GUIDs wrapped in braces (id='{...}'), (4) Wrap in <p:extLst> with URI '{521415D9-36F7-43E2-AB2F-B90AF26B5E84}' and xmlns:p14 namespace, and (5) Ensure <p:extLst> is written as the final child before </p:presentation>.",
             "deliverables": [
-                "src/core/PPTXTemplater.js",
-                "src/managers/SlideManager.js",
-                "tests/integration/workflowBypassValidation.test.js"
-            ]
-        },
-        {
-            "id": "TASK-SLIDES-002",
-            "title": "Fix Positional Insertion in importSlideFrom",
-            "status": "completed",
-            "description": "Fix importSlideFrom(sourcePpt, sourceIndex, atPosition) so it accurately inserts cloned slides at the specified 1-based atPosition index. Adjust <p:sldIdLst> ordering in ppt/presentation.xml, normalize clamped boundaries ([1, slideCount + 1]), shift subsequent slide references forward, and ensure relationship IDs map without collisions.",
-            "deliverables": [
-                "src/managers/SlideManager.js (importSlideFrom position targeting and slide list splicing)",
-                "tests/integration/slideImportPosition.test.js"
-            ]
-        },
-        {
-            "id": "TASK-SLIDES-003",
-            "title": "Fix and Wire addSection Engine (<p14:sectionLst>)",
-            "status": "completed",
-            "description": "Fix ppt.addSection(name, startSlideIndex). Ensure presentation extension lists correctly initialize or append to <p14:sectionLst xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\"> in ppt/presentation.xml, generate valid UUIDs (id=\"{...}\"), map child slide IDs (<p14:sldIdLst>), and register required XML namespaces.",
-            "deliverables": [
-                "src/managers/SlideManager.js (addSection implementation & section serializer)",
+                "src/managers/SlideManager.js (complete addSection overhaul)",
                 "src/core/PPTXTemplater.js (fluent delegation wrapper)",
-                "tests/integration/sectionAdd.test.js"
-            ]
-        },
-        {
-            "id": "TASK-SLIDES-004",
-            "title": "Implement Global Percentage-Based Slide Coordinate System",
-            "status": "completed",
-            "description": "Implement percentage coordinates across all shape, table, text, chart, and media positioning APIs. Support string percentages ('0%', '100%') and normalized numeric percentages (0 to 100), mapped against slide canvas dimensions (from <p:sldSz>): (0, 0) = Top-Left, (100, 0) = Bottom-Left, (0, 100) = Top-Right, (100, 100) = Bottom-Right, converting seamlessly to English Metric Units (EMUs).",
-            "deliverables": [
-                "src/utils/coordinateUtils.js (or src/managers/ShapeManager.js coordinate resolver)",
-                "src/managers/TableManager.js",
-                "src/managers/ChartManager.js",
-                "tests/integration/percentageCoordinates.test.js"
-            ]
-        },
-        {
-            "id": "TASK-SLIDES-005",
-            "title": "Comprehensive Metadata & Coordinate Extraction in getSlides & getSlide",
-            "status": "completed",
-            "description": "Upgrade getSlides() and getSlide(index) to parse DrawingML/PresentationML and extract comprehensive metadata for all slide elements: placeholders, titles, text runs, media/images, tables, charts, animations, transitions, notes, dimensions, layout properties, and explicit (x, y, width, height) positions in pixels and EMUs.",
-            "deliverables": [
-                "src/managers/SlideManager.js (getSlide & getSlides element inspectors)",
-                "tests/integration/slideMetadataExtraction.test.js"
-            ]
-        },
-        {
-            "id": "TASK-SLIDES-006",
-            "title": "Update Documentation, Showcase & .agent Workspace Memory",
-            "status": "completed",
-            "description": "Update docs-site/src/data/apiReference.json, features.json, README.md, showcase scripts, and .agent files (.agent/rules/features.md, .agent/project_summary.md) reflecting non-blocking validation, percentage coordinates, fixed section additions, and metadata extraction schemas.",
-            "deliverables": [
-                "docs-site/src/data/apiReference.json",
-                "README.md",
-                ".agent/project_summary.md",
-                ".agent/rules/features.md"
+                "tests/integration/sectionAddValidation.test.js"
             ]
         }
     ]

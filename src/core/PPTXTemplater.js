@@ -1685,13 +1685,13 @@ class PPTXTemplater {
    * Adds a new section to the presentation.
    *
    * @param {string} name - Section title.
-   * @param {number} [startSlideIndex] - 1-based start slide index. Defaults to 1 (or next unassigned).
+   * @param {number} [startSlideIndex=1] - 1-based start slide index. Defaults to 1.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
    * ppt.addSection('Executive Summary', 1);
    */
-  addSection(name, startSlideIndex) {
+  addSection(name, startSlideIndex = 1) {
     this.#assertLoaded()
     this.#slideManager.addSection(name, startSlideIndex)
     return this

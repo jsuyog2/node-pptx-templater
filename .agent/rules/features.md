@@ -134,7 +134,7 @@ To ensure presentations created from scratch open cleanly in PowerPoint, the gen
 - All slide indexing is **1-based** (`1` to `slideCount`).
 
 ### 6.2 PowerPoint Sections Protocol (`<p14:sectionLst>`)
-- Sections are structured inside `<p:presentation>` -> `<p:extLst>` -> `<p:ext uri="{521415D9-36F7-43E2-AB2F-EE99092638D7}">` -> `<p14:sectionLst>` using the `http://schemas.microsoft.com/office/powerpoint/2010/main` namespace.
+- Sections are structured inside `<p:presentation>` -> `<p:extLst>` -> `<p:ext uri="{521415D9-36F7-43E2-AB2F-B90AF26B5E84}">` -> `<p14:sectionLst>` using the `http://schemas.microsoft.com/office/powerpoint/2010/main` namespace.
 - Each section `<p14:section>` must have a valid GUID `id` (e.g., `{UUID}`), a `name`, and a child `<p14:sldIdLst>` listing member slide IDs (`<p14:sldId id="..."/>`).
 - When removing a section with `removeSlides: true`, member slides must be cleanly unlinked and purged from `ppt/presentation.xml`, `[Content_Types].xml`, and physical slide parts.
 
