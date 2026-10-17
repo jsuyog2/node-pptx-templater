@@ -1562,6 +1562,45 @@
         "exampleCode": "ppt.useSlide(1).addLists([\n  \"Executive summary of operational performance\",\n  \"Quarterly milestone verification\",\n  \"Statutory compliance certifications\"\n], {\n  tag: \"DeliverablesList\",\n  x: 100, y: 150, width: 600, height: 200,\n  bulletChar: \"•\",\n  bulletColor: \"#2563EB\",\n  fontSize: 14\n});"
       },
       {
+        "id": "replacelist",
+        "name": "replaceList",
+        "signature": "ppt.replaceList(tag, newItems, options = {})",
+        "category": "Text & Placeholders",
+        "description": "Replaces existing list items in a shape with a new set of bulleted or numbered items, preserving or updating bullet styling.",
+        "openXmlImpact": "Replaces <a:p> elements in <p:txBody> with new styled paragraphs while maintaining shape geometry and container properties.",
+        "edgeCases": "Supports hierarchical indentation and bullet override options.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target list shape name or semantic tag."
+          },
+          {
+            "name": "newItems",
+            "type": "Array.<string | Object>",
+            "required": true,
+            "default": "—",
+            "description": "New list items to populate."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Bullet styling options (bulletChar, bulletColor, fontSize, etc.)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).replaceList(\"KeyObjectivesList\", [\n  \"Achieve ISO-27001 certification\",\n  \"Complete quarterly security audit\",\n  \"Deploy zero-trust network policy\"\n], { bulletChar: \"✓\", bulletColor: \"#10B981\" });"
+      },
+      {
         "id": "getlists",
         "name": "getLists",
         "signature": "ppt.getLists()",
@@ -1677,45 +1716,6 @@
           "description": "this (chainable)."
         },
         "exampleCode": "ppt.useSlide(1).clearList(\"ExecutiveActionItems\");"
-      },
-      {
-        "id": "replacelist",
-        "name": "replaceList",
-        "signature": "ppt.replaceList(tag, newItems, options = {})",
-        "category": "Text & Placeholders",
-        "description": "Replaces existing list items in a shape with a new set of bulleted or numbered items, preserving or updating bullet styling.",
-        "openXmlImpact": "Replaces <a:p> elements in <p:txBody> with new styled paragraphs while maintaining shape geometry and container properties.",
-        "edgeCases": "Supports hierarchical indentation and bullet override options.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "tag",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Target list shape name or semantic tag."
-          },
-          {
-            "name": "newItems",
-            "type": "Array.<string | Object>",
-            "required": true,
-            "default": "—",
-            "description": "New list items to populate."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Bullet styling options (bulletChar, bulletColor, fontSize, etc.)."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(1).replaceList(\"KeyObjectivesList\", [\n  \"Achieve ISO-27001 certification\",\n  \"Complete quarterly security audit\",\n  \"Deploy zero-trust network policy\"\n], { bulletChar: \"✓\", bulletColor: \"#10B981\" });"
       },
       {
         "id": "addstyle",

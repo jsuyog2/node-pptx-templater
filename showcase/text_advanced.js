@@ -43,7 +43,7 @@ async function runTextAdvancedShowcase() {
 
   // Initialize a PPTXTemplater instance with a sample presentation
   console.log('→ Step 0: Initializing PPTXTemplater with sample.pptx...')
-  const templatePath = path.join(__dirname, 'templates/sample.pptx')
+  const templatePath = path.join(__dirname, 'templates/TextPowerPointSample.pptx')
   const ppt = await PPTXTemplater.load(templatePath)
   ppt.useSlide(1)
 
@@ -53,7 +53,7 @@ async function runTextAdvancedShowcase() {
   console.log('→ Step 1 [addText & replaceText]: Adding slide header with placeholders...')
   ppt.addText('Executive Quarterly Brief: {{QUARTER}} {{YEAR}}', {
     id: 'HeaderTitle',
-    x: '5%',
+    x: '50%',
     y: '5%',
     width: '90%',
     height: 80,
@@ -65,23 +65,57 @@ async function runTextAdvancedShowcase() {
   })
 
   ppt.replaceText({
-    '{{title}}': 'Heading',
+    'placeholders': 'Heading',
+    '{{across}}': 'text',
+    '{{template}}': 'textbox',
   })
   console.log('  ✓ Header text added and replaced via replaceText()')
 
   // --------------------------------------------------------------------------
   // Method 3: replaceTextByTag
   // --------------------------------------------------------------------------
-  ppt.useSlide(2)
   console.log('→ Step 2 [replaceTextByTag]: Adding subtitle with tagged replacement...')
-  ppt.replaceTextByTag('Title', 'Acme Strategic Holdings Ltd.')
+  ppt.replaceTextByTag('replaceText', 'This change using replaceTextByTag')
   console.log('  ✓ Subtitle replaced via replaceTextByTag()')
 
   // --------------------------------------------------------------------------
-  // Method 4 & 5: addLists & getList
+  // Method 18: getTextElements
   // --------------------------------------------------------------------------
-  ppt.useSlide(5)
-  console.log('→ Step 3 [addLists & getList]: Ingesting multi-level nested list with custom bullets...')
+  console.log('→ Step 3 [getTextElements]: Extracting structured text catalog...')
+  ppt.useAllSlides()
+  const allElements = ppt.getTextElements()
+  console.log(`  ✓ getTextElements() gathered ${allElements.length} text paragraph(s) across all slide shapes`)
+
+
+  // --------------------------------------------------------------------------
+  // Method 6 & 10: findText & getText
+  // --------------------------------------------------------------------------
+  console.log('→ Step 4 [findText & getText]: Inspecting text elements with AST run healing...')
+  ppt.useSlide(2)
+  const searchResults = ppt.findText('OpenXML')
+  console.log(`  ✓ findText("OpenXML") matched ${searchResults.length} instance(s) in shape "${searchResults[0]?.shapeName}"`)
+
+
+  const headerContent = ppt.getText('Big Content Text')
+  console.log(`  ✓ getText("Big Content Text"): "${headerContent}"`)
+
+
+  // --------------------------------------------------------------------------
+  // Method 13 & 14: removeText & clearText
+  // --------------------------------------------------------------------------
+  console.log('→ Step 5 [removeText]: Adding and purging transient elements...')
+  ppt.useSlide(3)
+  ppt.removeText('Remove Text')
+
+  console.log('→ Step 6 [clearText]: Retaining shape geometry while purging contents...')
+  ppt.clearText('Clear Text')
+
+
+  // --------------------------------------------------------------------------
+  // Method 4 & 5: addLists
+  // --------------------------------------------------------------------------
+  ppt.useSlide(4)
+  console.log('→ Step 7 [addLists]: Ingesting multi-level nested list with custom bullets...')
   ppt.addLists(
     [
       'Cloud Architecture & Microservices',
@@ -99,7 +133,7 @@ async function runTextAdvancedShowcase() {
     ],
     {
       id: 'KeyObjectivesList',
-      x: '60%',
+      x: '50%',
       y: 160,
       width: '42%',
       height: 250,
@@ -112,14 +146,11 @@ async function runTextAdvancedShowcase() {
     }
   )
 
-  const retrievedList = ppt.getList('List')
-  console.log(`  ✓ Retrieved list structure via getList(): ${retrievedList.length} root items, 2 sub-levels`)
-
   // --------------------------------------------------------------------------
   // Method 17: replaceList
   // --------------------------------------------------------------------------
-  console.log('→ Step 4 [replaceList]: Dynamically replacing list items inside shape...')
-  ppt.replaceList('List', [
+  console.log('→ Step 8 [replaceList]: Dynamically replacing list items inside shape...')
+  ppt.replaceList('Replace List', [
     'Q4 Final Settlement Confirmed',
     'IFRS / GAAP Statutory Sign-Off',
     'Independent Auditor Certificate Issued',
@@ -127,22 +158,41 @@ async function runTextAdvancedShowcase() {
   console.log('  ✓ Replaced list items in "ComplianceList" via replaceList()')
 
   // --------------------------------------------------------------------------
-  // Method 6 & 10: findText & getText
+  // Method 5: getList
   // --------------------------------------------------------------------------
-  console.log('→ Step 4 [findText & getText]: Inspecting text elements with AST run healing...')
-  const searchResults = ppt.findText('Security')
-  console.log(`  ✓ findText("Security") matched ${searchResults.length} instance(s) in shape "${searchResults[0]?.shapeName}"`)
+  console.log('→ Step 9 [getList]: Dynamically replacing list items inside shape...')
+  ppt.useSlide(5)
+  const retrievedList = ppt.getList('Big Content List')
+  console.log(`  ✓ Retrieved list structure via getList(): ${retrievedList.length} root items, 2 sub-levels`)
 
-  ppt.useSlide(2)
-  const headerContent = ppt.getText('Title')
-  console.log(`  ✓ getText("Title"): "${headerContent}"`)
+  // --------------------------------------------------------------------------
+  // Method 11 & 12: getLists & findLists
+  // --------------------------------------------------------------------------
+  console.log('→ Step 6 [getLists & findLists]: Discovering presentation lists across shapes...')
+  const allLists = ppt.getLists()
+  console.log(`  ✓ getLists() discovered ${allLists.length} total active list shape(s)`)
+
+  const complianceMatches = ppt.findLists('Big Content List')
+  console.log(`  ✓ findLists("Big Content List") matched list shape: "${complianceMatches[0]?.shapeName}"`)
+
+  // --------------------------------------------------------------------------
+  // Method 15 & 16: removeList & clearList
+  // --------------------------------------------------------------------------
+
+  ppt.useSlide(6)
+  ppt.removeList('Remove List')
+  console.log('  ✓ Successfully added and removed transient text and list shapes')
+
+  ppt.clearList('Clear List')
+  console.log('  ✓ Containers cleared while retaining spatial layout and preset geometries')
 
   // --------------------------------------------------------------------------
   // Method 7, 8 & 9: addStyle, updateStyle, removeStyle (31-Property Style Engine)
   // --------------------------------------------------------------------------
-  console.log('→ Step 5 [addStyle, updateStyle, removeStyle]: Exercising 31-property style engine...')
+  console.log('→ Step 10 [addStyle, updateStyle, removeStyle]: Exercising 31-property style engine...')
+  ppt.useSlide(7)
   // Mutate with addStyle
-  ppt.addStyle('Title', {
+  ppt.addStyle('Add Style', {
     x: '52%',
     y: 160,
     width: '43%',
@@ -163,56 +213,15 @@ async function runTextAdvancedShowcase() {
   console.log('  ✓ Applied uppercase transform and updated color via addStyle()')
 
   // Update with updateStyle
-  ppt.updateStyle('Title', {
-    fontSize: 25,
+  ppt.updateStyle('Update Style', {
+    fontSize: 10,
     alignment: 'center',
   })
   console.log('  ✓ Updated fontSize and alignment via updateStyle()')
 
   // Revert selected styles with removeStyle
-  ppt.removeStyle('Title', ['highlight', 'underline'])
+  ppt.removeStyle('Remove Style', ['highlight', 'underline', 'strike'])
   console.log('  ✓ Removed highlight and underline via removeStyle()')
-
-  // --------------------------------------------------------------------------
-  // Method 11 & 12: getLists & findLists
-  // --------------------------------------------------------------------------
-  console.log('→ Step 6 [getLists & findLists]: Discovering presentation lists across shapes...')
-  ppt.useSlide(5)
-  const allLists = ppt.getLists()
-  console.log(`  ✓ getLists() discovered ${allLists.length} total active list shape(s)`)
-
-  const complianceMatches = ppt.findLists('List')
-  console.log(`  ✓ findLists("Compliance") matched list shape: "${complianceMatches[0]?.shapeName}"`)
-
-  // --------------------------------------------------------------------------
-  // Method 13 & 14: removeText & removeList
-  // --------------------------------------------------------------------------
-  console.log('→ Step 7 [removeText & removeList]: Adding and purging transient elements...')
-  ppt.useSlide(3)
-  ppt.removeText('TextBox 2')
-
-  ppt.useSlide(5)
-  ppt.removeList('List')
-  console.log('  ✓ Successfully added and removed transient text and list shapes')
-
-  // --------------------------------------------------------------------------
-  // Method 15 & 16: clearText & clearList
-  // --------------------------------------------------------------------------
-  ppt.useSlide(1)
-  console.log('→ Step 8 [clearText & clearList]: Retaining shape geometry while purging contents...')
-  ppt.clearText('Title')
-
-  ppt.useSlide(5)
-  ppt.clearList('KeyObjectivesList')
-  console.log('  ✓ Containers cleared while retaining spatial layout and preset geometries')
-
-  // --------------------------------------------------------------------------
-  // Method 18: getTextElements
-  // --------------------------------------------------------------------------
-  console.log('→ Step 10 [getTextElements]: Extracting structured text catalog...')
-  ppt.useAllSlides()
-  const allElements = ppt.getTextElements()
-  console.log(`  ✓ getTextElements() gathered ${allElements.length} text paragraph(s) across all slide shapes`)
 
   // --------------------------------------------------------------------------
   // Presentation Serialization & Verification
