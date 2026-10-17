@@ -63,9 +63,9 @@ describe('PPTXTemplater - Slide Import & Slide Navigation Hyperlinks', () => {
     // Add navigation action links to slide 1
     // Let's first inspect slide 1 text to see what runs we can link.
     // Standard template has hello text or we can just link to slide number / first available run
-    sourceEngine.addTextNavigationLink({
+    sourceEngine.addShapeNavigationLink({
       slide: 1,
-      element: 'Hello {{title}}',
+      shapeId: 'Shape',
       action: 'next',
     })
 

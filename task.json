@@ -1,0 +1,39 @@
+{
+    "project": "node-pptx-templater",
+    "category": "Text & Placeholders",
+    "task": "Modify replaceTextByTag Methodology to Target Text Box ID and Replace Full Box Text",
+    "tasks": [
+        {
+            "id": "TASK-REPLACE-TAG-001",
+            "title": "Update replaceTextByTag Methodology in TextManager & Core Orchestrator",
+            "status": "completed",
+            "description": "Modify replaceTextByTag(tagOrId, newText, options = {}). Update target resolution to locate the shape/text box directly by its shape ID, shape name, or non-visual property id/name (<p:cNvPr id=\"...\" name=\"...\">). Once resolved, clear the existing text content across all runs inside <p:txBody> and replace the entire text box text with newText, while preserving root text frame properties (<a:bodyPr>), paragraph properties (<a:pPr>), and base typography (<a:rPr>) from the primary run. Maintain fluent chaining returning this.",
+            "deliverables": [
+                "src/managers/TextManager.js",
+                "src/core/PPTXTemplater.js"
+            ]
+        },
+        {
+            "id": "TASK-REPLACE-TAG-002",
+            "title": "Add Unit and Integration Tests for Box ID Full-Text Replacement",
+            "status": "completed",
+            "description": "Create integration tests in tests/integration/replaceTextByTag.test.js verifying that passing a text box ID or shape name completely replaces the entire text frame content regardless of existing run fragmentation or multiple paragraphs, verifies boundary handling if an ID is not found, and confirms proper XML serialization without PowerPoint repair warnings.",
+            "deliverables": [
+                "tests/integration/replaceTextByTag.test.js"
+            ]
+        },
+        {
+            "id": "TASK-REPLACE-TAG-003",
+            "title": "Update Documentation, Showcase & Workspace Knowledge Base",
+            "status": "completed",
+            "description": "Update docs-site/src/data/apiReference.json, README.md, index.d.ts, and .agent memory files (.agent/rules/features.md, .agent/project_summary.md) to reflect the updated signature, parameter semantics (tagOrId: string), behavior (full text box text replacement), and usage examples.",
+            "deliverables": [
+                "docs-site/src/data/apiReference.json",
+                "README.md",
+                "index.d.ts",
+                ".agent/rules/features.md",
+                ".agent/project_summary.md"
+            ]
+        }
+    ]
+}

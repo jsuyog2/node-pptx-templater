@@ -1,15 +1,18 @@
 /**
- * @fileoverview TextManager - Handles slide text search, retrieval, and replacement.
+ * @fileoverview TextManager - Handles slide text manipulation, search, lists, and DrawingML styling.
+ * Strictly adheres to the 18 approved methods under the Text & Placeholders category.
  */
 
+'use strict'
+
 const { createLogger } = require('../utils/logger.js')
+const { PPTXError } = require('../utils/errors.js')
+const { toEmu } = require('../spatial/units.js')
+const { StyleBuilder, applyTextCasing } = require('../parser/StyleBuilder.js')
+const { ValidationEngine } = require('../core/ValidationEngine.js')
 
 const logger = createLogger('TextManager')
 
-/**
- * @class TextManager
- * @description Manages text elements, replacements, and search inside slide XML.
- */
 class TextManager {
   /** @private @type {XMLParser} */
   #xmlParser
@@ -21,236 +24,864 @@ class TextManager {
     this.#xmlParser = xmlParser
   }
 
+  // ==========================================================================
+  // 1. replaceText(slideIndex, replacements, slideManager, templateEngine)
+  // ==========================================================================
   /**
-   * Replaces a specific tag/placeholder with a value.
+   * Replaces placeholders across text runs in a slide XML with AST run healing.
    *
    * @param {number} slideIndex
-   * @param {string} tag - E.g. '{{name}}' or 'name' (auto-wraps if simple).
-   * @param {string} value
-   * @param {Object} options
+   * @param {Object.<string, string|number>} replacements
    * @param {SlideManager} slideManager
    * @param {TemplateEngine} templateEngine
    */
-  replaceTextByTag(slideIndex, tag, value, _options = {}, slideManager, templateEngine) {
+  replaceText(slideIndex, replacements, slideManager, templateEngine) {
+    if (!replacements || typeof replacements !== 'object') return
     const slideXml = slideManager.getSlideXml(slideIndex)
 
-    // Auto-wrap tag in {{}} if not already present
-    const normalizedTag = tag.startsWith('{{') && tag.endsWith('}}') ? tag : `{{${tag}}}`
-
-    const replacements = { [normalizedTag]: value }
-    const updatedXml = templateEngine.replaceTextInXml(slideXml, replacements)
-
-    slideManager.setSlideXml(slideIndex, updatedXml)
-    logger.debug(`Replaced text tag "${normalizedTag}" with value on slide ${slideIndex}`)
-  }
-
-  /**
-   * Performs multiple text replacements at once.
-   *
-   * @param {number} slideIndex
-   * @param {Object.<string, string>} replacements - Map of key -> value.
-   * @param {Object} options
-   * @param {SlideManager} slideManager
-   * @param {TemplateEngine} templateEngine
-   */
-  replaceMultiple(slideIndex, replacements, _options = {}, slideManager, templateEngine) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-
-    // Normalize keys in the replacements map to ensure they are wrapped in placeholders
+    // Normalize keys: ensure both 'key' and '{{key}}' are matched
     const normalized = {}
     for (const [key, val] of Object.entries(replacements)) {
-      const normalizedKey = key.startsWith('{{') && key.endsWith('}}') ? key : `{{${key}}}`
-      normalized[normalizedKey] = val
+      normalized[key] = String(val)
+      if (!key.startsWith('{{') || !key.endsWith('}}')) {
+        normalized[`{{${key.replace(/^\{\{|\}\}$/g, '')}}}`] = String(val)
+      }
     }
 
     const updatedXml = templateEngine.replaceTextInXml(slideXml, normalized)
     slideManager.setSlideXml(slideIndex, updatedXml)
-    logger.debug(`Replaced multiple tags on slide ${slideIndex}`)
+    logger.debug(`replaceText: Replaced placeholders in slide ${slideIndex}`)
   }
 
+  // ==========================================================================
+  // 2. addText(slideIndex, textContent, options, slideManager)
+  // ==========================================================================
   /**
-   * Searches for a text string inside all text runs on a slide.
+   * Adds a new formatted text box shape to a slide or adds text to an existing shape.
    *
    * @param {number} slideIndex
-   * @param {string} searchText
+   * @param {string} textContent
+   * @param {Object} [options]
    * @param {SlideManager} slideManager
-   * @returns {Array<Object>} List of match details.
+   * @returns {Object} Shape descriptor
    */
-  findText(slideIndex, searchText, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const results = []
+  addText(slideIndex, textContent, options = {}, slideManager) {
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
 
-    // Find in shapes (p:sp)
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
-    if (!spTree) return results
+    if (!spTree) {
+      throw new PPTXError(`Cannot locate spTree in slide ${slideIndex}`)
+    }
 
-    this.#searchShapesForText(spTree, searchText, results)
-    return results
-  }
-
-  /**
-   * Extracts and returns all text elements on a slide.
-   *
-   * @param {number} slideIndex
-   * @param {SlideManager} slideManager
-   * @returns {Array<Object>} Elements with text contents.
-   */
-  getTextElements(slideIndex, slideManager) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const results = []
-
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
-    if (!spTree) return results
-
-    this.#collectTextElements(spTree, results)
-    return results
-  }
-
-  #searchShapesForText(container, searchText, results) {
-    if (!container) return
-
-    let shapes = container['p:sp'] || []
-    if (!Array.isArray(shapes)) shapes = [shapes]
-
-    for (const shape of shapes) {
-      const cNvPr = shape?.['p:nvSpPr']?.['p:cNvPr']
-      const shapeName = cNvPr ? cNvPr['@_name'] : 'unnamed'
-      const shapeId = cNvPr ? String(cNvPr['@_id']) : 'unknown'
-
-      const txBody = shape['p:txBody']
-      if (txBody && txBody['a:p']) {
-        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-        paras.forEach((p, pIdx) => {
-          let pText = ''
-          if (p['a:r']) {
-            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-            runs.forEach(r => {
-              if (r['a:t']) pText += String(r['a:t'])
-            })
-          }
-
-          if (pText.toLowerCase().includes(searchText.toLowerCase())) {
-            results.push({
-              shapeId,
-              shapeName,
-              paragraphIndex: pIdx,
-              text: pText,
-              match: searchText,
-            })
-          }
-        })
+    // Determine target shape if target/shapeId specified
+    const targetId = options.target || options.shapeId || options.id
+    if (targetId && !options.x && !options.y) {
+      const found = this.findShapeRecursive(spTree, targetId)
+      if (found && found.shape) {
+        this.#setTextBody(found.shape, textContent, options)
+        slideManager.markSlideObjDirty(slideIndex)
+        return { shapeId: targetId, type: 'text' }
       }
     }
 
-    let groups = container['p:grpSp'] || []
-    if (!Array.isArray(groups)) groups = [groups]
-    for (const g of groups) {
-      this.#searchShapesForText(g, searchText, results)
+    // Generate unique shape ID and name
+    const existingIds = this.#collectShapeIds(spTree)
+    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 1000
+    const newId = maxId + 1
+    const shapeName = options.name || options.id || `TextBox_${newId}`
+
+    // Coordinate resolution: supports numbers, percentages ('10%'), pixels ('100px'), and EMUs
+    // Standard slide dimensions: 12192000 x 6858000
+    const SLIDE_WIDTH = 12192000
+    const SLIDE_HEIGHT = 6858000
+    const x = toEmu(options.x !== undefined ? options.x : 100, SLIDE_WIDTH)
+    const y = toEmu(options.y !== undefined ? options.y : 100, SLIDE_HEIGHT)
+    const width = toEmu(options.width !== undefined ? options.width : 300, SLIDE_WIDTH)
+    const height = toEmu(options.height !== undefined ? options.height : 60, SLIDE_HEIGHT)
+
+    // Build style and casing
+    const style = options.style || options
+    const styledText = applyTextCasing(textContent, style)
+
+    const rPr = StyleBuilder.buildRunProperties({ '@_lang': 'en-US' }, style)
+    const pPr = StyleBuilder.buildParagraphProperties({}, style)
+    const bodyPr = StyleBuilder.buildBodyProperties({ '@_wrap': 'square', '@_rtlCol': '0' }, style)
+
+    const shapeNode = {
+      'p:nvSpPr': {
+        'p:cNvPr': {
+          '@_id': String(newId),
+          '@_name': shapeName,
+        },
+        'p:cNvSpPr': {
+          '@_txBox': '1',
+        },
+        'p:nvPr': {},
+      },
+      'p:spPr': {
+        'a:xfrm': {
+          'a:off': { '@_x': String(x), '@_y': String(y) },
+          'a:ext': { '@_cx': String(width), '@_cy': String(height) },
+        },
+        'a:prstGeom': {
+          '@_prst': 'rect',
+          'a:avLst': {},
+        },
+        'a:noFill': {},
+      },
+      'p:txBody': {
+        'a:bodyPr': bodyPr,
+        'a:lstStyle': {},
+        'a:p': [
+          {
+            'a:pPr': pPr,
+            'a:r': [
+              {
+                'a:rPr': rPr,
+                'a:t': styledText,
+              },
+            ],
+          },
+        ],
+      },
     }
+
+    if (!spTree['p:sp']) {
+      spTree['p:sp'] = []
+    } else if (!Array.isArray(spTree['p:sp'])) {
+      spTree['p:sp'] = [spTree['p:sp']]
+    }
+    spTree['p:sp'].push(shapeNode)
+
+    slideManager.markSlideObjDirty(slideIndex)
+    logger.debug(`addText: Added text box "${shapeName}" (ID ${newId}) on slide ${slideIndex}`)
+    return { shapeId: String(newId), shapeName }
   }
 
-  #collectTextElements(container, results) {
-    if (!container) return
-
-    let shapes = container['p:sp'] || []
-    if (!Array.isArray(shapes)) shapes = [shapes]
-
-    for (const shape of shapes) {
-      const cNvPr = shape?.['p:nvSpPr']?.['p:cNvPr']
-      const shapeName = cNvPr ? cNvPr['@_name'] : 'unnamed'
-      const shapeId = cNvPr ? String(cNvPr['@_id']) : 'unknown'
-
-      const txBody = shape['p:txBody']
-      if (txBody && txBody['a:p']) {
-        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-        paras.forEach((p, pIdx) => {
-          let pText = ''
-          if (p['a:r']) {
-            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-            runs.forEach(r => {
-              if (r['a:t']) pText += String(r['a:t'])
-            })
-          }
-
-          if (pText.trim()) {
-            results.push({
-              shapeId,
-              shapeName,
-              paragraphIndex: pIdx,
-              text: pText,
-            })
-          }
-        })
-      }
-    }
-
-    let groups = container['p:grpSp'] || []
-    if (!Array.isArray(groups)) groups = [groups]
-    for (const g of groups) {
-      this.#collectTextElements(g, results)
-    }
-  }
-
+  // ==========================================================================
+  // 3. replaceTextByTag(slideIndex, tag, replacement, options, slideManager, templateEngine)
+  // ==========================================================================
   /**
-   * Updates shape text or list content by placeholder tag or shape name/ID.
+   * Replaces the entire text content of a text box or shape identified by ID, name, or tag.
+   * Clears out all existing text runs across all paragraphs within <p:txBody> while
+   * preserving root paragraph properties (<a:pPr>) and base run formatting (<a:rPr>).
+   * Supports multi-line replacements (split on \n) and optional style overrides.
    *
-   * @param {number} slideIndex
-   * @param {string} tag - Placeholder tag (e.g. '{{name}}') or shape name/ID.
-   * @param {string|Object} data - String value or list configuration object.
-   * @param {SlideManager} slideManager
-   * @param {TemplateEngine} templateEngine
+   * @param {number} slideIndex - 1-based slide index.
+   * @param {string|number} tagOrId - Shape ID, shape name, or semantic tag.
+   * @param {string|number} newText - New replacement text.
+   * @param {Object} [options={}] - Optional formatting options or overrides.
+   * @param {SlideManager} slideManager - Slide manager instance.
+   * @param {TemplateEngine} [_templateEngine] - Optional template engine reference for backward compatibility.
    */
-  updateText(slideIndex, tag, data, slideManager, templateEngine) {
-    const slideXml = slideManager.getSlideXml(slideIndex)
-    const normalizedTag = tag.startsWith('{{') && tag.endsWith('}}') ? tag : `{{${tag}}}`
-
-    // Option A: Tag exists as a placeholder in the slide XML
-    if (slideXml.includes(normalizedTag)) {
-      const replacements = { [normalizedTag]: data }
-      const updatedXml = templateEngine.replaceTextInXml(slideXml, replacements)
-      slideManager.setSlideXml(slideIndex, updatedXml)
-      logger.debug(`Updated text tag "${normalizedTag}" on slide ${slideIndex}`)
+  replaceTextByTag(slideIndex, tagOrId, newText, options = {}, slideManager, _templateEngine) {
+    if (tagOrId === undefined || tagOrId === null) {
+      logger.warn(`replaceTextByTag: Invalid tagOrId provided on slide ${slideIndex}`)
       return
     }
 
-    // Option B: Search for a shape whose name or ID matches the tag
-    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
-    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
-    const res = this.findShapeRecursive(spTree, tag)
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
 
-    if (!res) {
-      const { PPTXError } = require('../utils/errors.js')
-      throw new PPTXError(`Text placeholder or shape "${tag}" not found in slide ${slideIndex}`)
+    if (!spTree) {
+      logger.warn(`replaceTextByTag: Cannot locate spTree on slide ${slideIndex}`)
+      return
     }
 
-    // Replace the text body of the shape
-    const shape = res.shape
-    const listConfig =
-      typeof data === 'object' && data !== null
-        ? data.list !== undefined
-          ? data
-          : { list: [data] }
-        : { list: [String(data)] }
-
-    const { ValidationEngine } = require('../core/ValidationEngine.js')
-    const validation = ValidationEngine.validateList(listConfig)
-    if (!validation.valid) {
-      throw new Error(`List validation failed: ${validation.errors.join(', ')}`)
+    const targetKey = String(tagOrId).trim()
+    let found = this.findShapeRecursive(spTree, targetKey)
+    if (!found) {
+      // Try semantic placeholder match
+      const normalizedTag =
+        targetKey.startsWith('{{') && targetKey.endsWith('}}') ? targetKey : `{{${targetKey}}}`
+      found =
+        this.#collectMatchingShapeOrCell(spTree, targetKey) ||
+        this.#collectMatchingShapeOrCell(spTree, normalizedTag)
     }
 
-    if (!shape['p:txBody']) {
-      shape['p:txBody'] = {
-        'a:bodyPr': {},
+    if (!found || !found.shape) {
+      logger.warn(
+        `replaceTextByTag: Text box/shape with ID or tag "${tagOrId}" not found on slide ${slideIndex}`
+      )
+      return
+    }
+
+    const shape = found.shape
+    let txBody = shape['p:txBody'] || shape['a:txBody']
+    if (!txBody) {
+      txBody = {
+        'a:bodyPr': { '@_wrap': 'square', '@_rtlCol': '0' },
         'a:lstStyle': {},
         'a:p': [],
       }
+      if (found.type === 'cell') {
+        shape['a:txBody'] = txBody
+      } else {
+        shape['p:txBody'] = txBody
+      }
     }
 
-    const txBody = shape['p:txBody']
+    // Preserve root paragraph properties and base run typography
+    const existingParas = Array.isArray(txBody['a:p'])
+      ? txBody['a:p']
+      : txBody['a:p']
+        ? [txBody['a:p']]
+        : []
+
+    let basePPr = {}
+    if (existingParas.length > 0 && existingParas[0]?.['a:pPr']) {
+      basePPr = this.#xmlParser.deepClone(existingParas[0]['a:pPr'])
+    }
+
+    let baseRPr = { '@_lang': 'en-US' }
+    let foundRPr = false
+    for (const p of existingParas) {
+      if (p && p['a:r']) {
+        const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+        for (const r of runs) {
+          if (r && r['a:rPr']) {
+            baseRPr = this.#xmlParser.deepClone(r['a:rPr'])
+            foundRPr = true
+            break
+          }
+        }
+        if (foundRPr) break
+      }
+    }
+
+    if (!foundRPr && existingParas[0]?.['a:endParaRPr']) {
+      baseRPr = this.#xmlParser.deepClone(existingParas[0]['a:endParaRPr'])
+    }
+
+    // Apply optional style overrides from options / options.style
+    const style = options.style || options
+    if (style && typeof style === 'object') {
+      basePPr = StyleBuilder.buildParagraphProperties(basePPr, style)
+      baseRPr = StyleBuilder.buildRunProperties(baseRPr, style)
+      if (txBody['a:bodyPr']) {
+        txBody['a:bodyPr'] = StyleBuilder.buildBodyProperties(txBody['a:bodyPr'], style)
+      }
+    }
+
+    // Text casing and multi-line handling (splitting on \n)
+    const rawText = newText !== undefined && newText !== null ? String(newText) : ''
+    const styledText = applyTextCasing(rawText, style)
+    const lines = styledText.split(/\r?\n/)
+
+    const newParas = lines.map(line => ({
+      'a:pPr': this.#xmlParser.deepClone(basePPr),
+      'a:r': [
+        {
+          'a:rPr': this.#xmlParser.deepClone(baseRPr),
+          'a:t': line,
+        },
+      ],
+    }))
+
+    txBody['a:p'] = newParas
+    slideManager.markSlideObjDirty(slideIndex)
+    logger.debug(
+      `replaceTextByTag: Replaced full text in shape "${tagOrId}" on slide ${slideIndex}`
+    )
+  }
+
+  // ==========================================================================
+  // 4. addLists(slideIndex, items, options, slideManager)
+  // ==========================================================================
+  /**
+   * Adds a new bulleted or numbered list shape to a slide.
+   *
+   * @param {number} slideIndex
+   * @param {Array<string|Object>} items
+   * @param {Object} [options]
+   * @param {SlideManager} slideManager
+   * @returns {Object} Shape descriptor
+   */
+  addLists(slideIndex, items, options = {}, slideManager) {
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+
+    if (!spTree) {
+      throw new PPTXError(`Cannot locate spTree in slide ${slideIndex}`)
+    }
+
+    const existingIds = this.#collectShapeIds(spTree)
+    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 1000
+    const newId = maxId + 1
+    const shapeName = options.name || options.id || `ListBox_${newId}`
+
+    const SLIDE_WIDTH = 12192000
+    const SLIDE_HEIGHT = 6858000
+    const x = toEmu(options.x !== undefined ? options.x : 100, SLIDE_WIDTH)
+    const y = toEmu(options.y !== undefined ? options.y : 100, SLIDE_HEIGHT)
+    const width = toEmu(options.width !== undefined ? options.width : 400, SLIDE_WIDTH)
+    const height = toEmu(options.height !== undefined ? options.height : 200, SLIDE_HEIGHT)
+
+    const paras = this.#buildListParagraphs(items, options)
+    const bodyPr = StyleBuilder.buildBodyProperties(
+      { '@_wrap': 'square', '@_rtlCol': '0' },
+      options.style || options
+    )
+
+    const shapeNode = {
+      'p:nvSpPr': {
+        'p:cNvPr': {
+          '@_id': String(newId),
+          '@_name': shapeName,
+        },
+        'p:cNvSpPr': {
+          '@_txBox': '1',
+        },
+        'p:nvPr': {},
+      },
+      'p:spPr': {
+        'a:xfrm': {
+          'a:off': { '@_x': String(x), '@_y': String(y) },
+          'a:ext': { '@_cx': String(width), '@_cy': String(height) },
+        },
+        'a:prstGeom': {
+          '@_prst': 'rect',
+          'a:avLst': {},
+        },
+        'a:noFill': {},
+      },
+      'p:txBody': {
+        'a:bodyPr': bodyPr,
+        'a:lstStyle': {},
+        'a:p': paras,
+      },
+    }
+
+    if (!spTree['p:sp']) {
+      spTree['p:sp'] = []
+    } else if (!Array.isArray(spTree['p:sp'])) {
+      spTree['p:sp'] = [spTree['p:sp']]
+    }
+    spTree['p:sp'].push(shapeNode)
+
+    slideManager.markSlideObjDirty(slideIndex)
+    logger.debug(`addLists: Created list box "${shapeName}" (ID ${newId}) on slide ${slideIndex}`)
+    return { shapeId: String(newId), shapeName }
+  }
+
+  // ==========================================================================
+  // 5. getList(slideIndex, tag, slideManager)
+  // ==========================================================================
+  /**
+   * Retrieves list items from a shape or table cell by tag or shape name/ID.
+   *
+   * @param {number} slideIndex
+   * @param {string} tag
+   * @param {SlideManager} slideManager
+   * @returns {Array<string|Object>}
+   */
+  getList(slideIndex, tag, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+
+    let res = this.findShapeRecursive(spTree, tag)
+    if (!res) {
+      res = this.#collectMatchingShapeOrCell(spTree, tag)
+    }
+
+    if (!res || !res.shape) return []
+
+    const txBody = res.shape['p:txBody'] || res.shape['a:txBody']
+    if (!txBody) return []
+
+    const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+    const flatItems = []
+
+    for (const p of paras) {
+      if (!p) continue
+      let lvl = 0
+      if (p['a:pPr'] && p['a:pPr']['@_lvl'] !== undefined) {
+        lvl = parseInt(p['a:pPr']['@_lvl'], 10) || 0
+      }
+
+      let text = ''
+      if (p['a:r']) {
+        const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+        const textParts = []
+        for (const r of runs) {
+          if (r && r['a:t'] !== undefined) textParts.push(String(r['a:t']))
+        }
+        text = textParts.join('')
+      }
+
+      if (text.trim() !== '') {
+        flatItems.push({ text: text.trim(), lvl })
+      }
+    }
+
+    if (flatItems.length === 0) return []
+
+    // Construct hierarchy based on lvl
+    const result = []
+    const stack = []
+
+    for (const item of flatItems) {
+      const node = { text: item.text, children: [] }
+      while (stack.length > 0 && stack[stack.length - 1].lvl >= item.lvl) {
+        stack.pop()
+      }
+      if (stack.length === 0) {
+        result.push(node)
+      } else {
+        const parent = stack[stack.length - 1].node
+        parent.children.push(node)
+      }
+      stack.push({ lvl: item.lvl, node })
+    }
+
+    const cleanNode = n => {
+      if (n.children.length === 0) return n.text
+      return { text: n.text, children: n.children.map(cleanNode) }
+    }
+
+    return result.map(cleanNode)
+  }
+
+  // ==========================================================================
+  // 6. findText(slideIndex, query, slideManager)
+  // ==========================================================================
+  /**
+   * Searches for a text string inside all text runs across a slide.
+   * Performs AST run healing to detect matches split across separate <a:r>/<a:t> nodes.
+   *
+   * @param {number} slideIndex
+   * @param {string} query
+   * @param {SlideManager} slideManager
+   * @param {Object} [options]
+   * @returns {Array<Object>}
+   */
+  findText(slideIndex, query, slideManager, options = {}) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const results = []
+
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    if (!spTree) return results
+
+    const caseSensitive = options.caseSensitive === true
+    const searchTarget = caseSensitive ? String(query) : String(query).toLowerCase()
+
+    this.#searchShapesForText(spTree, query, searchTarget, caseSensitive, results, slideIndex)
+    return results
+  }
+
+  // ==========================================================================
+  // 7. addStyle(slideIndex, target, style, slideManager)
+  // ==========================================================================
+  /**
+   * Merges style properties into an existing shape or text element.
+   *
+   * @param {number} slideIndex
+   * @param {string} target
+   * @param {Object} style
+   * @param {SlideManager} slideManager
+   */
+  addStyle(slideIndex, target, style, slideManager) {
+    this.updateStyle(slideIndex, target, style, slideManager)
+  }
+
+  // ==========================================================================
+  // 8. removeStyle(slideIndex, target, styleProperties, slideManager)
+  // ==========================================================================
+  /**
+   * Removes specific style properties from a target shape or text element.
+   *
+   * @param {number} slideIndex
+   * @param {string} target
+   * @param {Array<string>|Object} styleProperties
+   * @param {SlideManager} slideManager
+   */
+  removeStyle(slideIndex, target, styleProperties, slideManager) {
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+
+    const found =
+      this.findShapeRecursive(spTree, target) || this.#collectMatchingShapeOrCell(spTree, target)
+    if (!found || !found.shape) {
+      logger.warn(`removeStyle: Target "${target}" not found on slide ${slideIndex}`)
+      return
+    }
+
+    const txBody = found.shape['p:txBody'] || found.shape['a:txBody']
+    if (!txBody) return
+
+    const bodyPr = txBody['a:bodyPr']
+    const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+
+    for (const p of paras) {
+      if (!p) continue
+      const pPr = p['a:pPr']
+      const runs = p['a:r'] ? (Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]) : []
+      for (const r of runs) {
+        if (r && r['a:rPr']) {
+          StyleBuilder.removeStyleProperties(r['a:rPr'], pPr, bodyPr, styleProperties)
+        }
+      }
+      if (pPr) {
+        StyleBuilder.removeStyleProperties(null, pPr, bodyPr, styleProperties)
+      }
+    }
+
+    if (bodyPr) {
+      StyleBuilder.removeStyleProperties(null, null, bodyPr, styleProperties)
+    }
+
+    slideManager.markSlideObjDirty(slideIndex)
+    logger.debug(`removeStyle: Removed styles from "${target}" on slide ${slideIndex}`)
+  }
+
+  // ==========================================================================
+  // 9. updateStyle(slideIndex, target, style, slideManager)
+  // ==========================================================================
+  /**
+   * Updates/merges style properties on a target shape or text element.
+   *
+   * @param {number} slideIndex
+   * @param {string} target
+   * @param {Object} style
+   * @param {SlideManager} slideManager
+   */
+  updateStyle(slideIndex, target, style, slideManager) {
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+
+    const found =
+      this.findShapeRecursive(spTree, target) || this.#collectMatchingShapeOrCell(spTree, target)
+    if (!found || !found.shape) {
+      logger.warn(`updateStyle: Target "${target}" not found on slide ${slideIndex}`)
+      return
+    }
+
+    const txBody = found.shape['p:txBody'] || found.shape['a:txBody']
+    if (!txBody) return
+
+    if (!txBody['a:bodyPr']) txBody['a:bodyPr'] = {}
+    txBody['a:bodyPr'] = StyleBuilder.buildBodyProperties(txBody['a:bodyPr'], style)
+
+    const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+    for (const p of paras) {
+      if (!p) continue
+      if (!p['a:pPr']) p['a:pPr'] = {}
+      p['a:pPr'] = StyleBuilder.buildParagraphProperties(p['a:pPr'], style)
+
+      const runs = p['a:r'] ? (Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]) : []
+      for (const r of runs) {
+        if (!r) continue
+        if (!r['a:rPr']) r['a:rPr'] = {}
+        r['a:rPr'] = StyleBuilder.buildRunProperties(r['a:rPr'], style)
+
+        if (r['a:t'] !== undefined) {
+          r['a:t'] = applyTextCasing(String(r['a:t']), style)
+        }
+      }
+    }
+
+    slideManager.markSlideObjDirty(slideIndex)
+    logger.debug(`updateStyle: Applied styles to "${target}" on slide ${slideIndex}`)
+  }
+
+  // ==========================================================================
+  // 10. getText(slideIndex, tag, slideManager)
+  // ==========================================================================
+  /**
+   * Retrieves full concatenated plain text from a shape or tag.
+   *
+   * @param {number} slideIndex
+   * @param {string} tag
+   * @param {SlideManager} slideManager
+   * @returns {string}
+   */
+  getText(slideIndex, tag, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+
+    const found =
+      this.findShapeRecursive(spTree, tag) || this.#collectMatchingShapeOrCell(spTree, tag)
+    if (!found || !found.shape) return ''
+
+    const txBody = found.shape['p:txBody'] || found.shape['a:txBody']
+    if (!txBody) return ''
+
+    const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+    const parts = []
+
+    for (const p of paras) {
+      if (!p) continue
+      const runs = p['a:r'] ? (Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]) : []
+      for (const r of runs) {
+        if (r && r['a:t'] !== undefined) {
+          parts.push(String(r['a:t']))
+        }
+      }
+    }
+    return parts.join('')
+  }
+
+  // ==========================================================================
+  // 11. getLists(slideIndex, slideManager)
+  // ==========================================================================
+  /**
+   * Retrieves all list structures found across shapes on a slide.
+   *
+   * @param {number} slideIndex
+   * @param {SlideManager} slideManager
+   * @returns {Array<{shapeId: string, shapeName: string, items: Array}>}
+   */
+  getLists(slideIndex, slideManager) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    const lists = []
+
+    if (!spTree) return lists
+
+    const shapes = this.#collectAllShapes(spTree)
+    for (const shape of shapes) {
+      const cNvPr = shape?.['p:nvSpPr']?.['p:cNvPr']
+      const shapeName = cNvPr ? cNvPr['@_name'] : 'unnamed'
+      const shapeId = cNvPr ? String(cNvPr['@_id']) : 'unknown'
+
+      const txBody = shape['p:txBody']
+      if (!txBody || !txBody['a:p']) continue
+
+      const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+      const hasBullet = paras.some(
+        p =>
+          p['a:pPr'] && (p['a:pPr']['a:buChar'] || p['a:pPr']['a:buAutoNum'] || p['a:pPr']['@_lvl'])
+      )
+
+      if (hasBullet) {
+        const items = this.getList(slideIndex, shapeName, slideManager)
+        if (items && items.length > 0) {
+          lists.push({ shapeId, shapeName, items })
+        }
+      }
+    }
+
+    return lists
+  }
+
+  // ==========================================================================
+  // 12. findLists(slideIndex, query, slideManager)
+  // ==========================================================================
+  /**
+   * Finds lists on a slide matching a query (by shape name, ID, or item contents).
+   *
+   * @param {number} slideIndex
+   * @param {string} query
+   * @param {SlideManager} slideManager
+   * @returns {Array<Object>}
+   */
+  findLists(slideIndex, query, slideManager) {
+    const all = this.getLists(slideIndex, slideManager)
+    const q = String(query).toLowerCase()
+
+    return all.filter(entry => {
+      if (entry.shapeName.toLowerCase().includes(q)) return true
+      if (entry.shapeId.includes(q)) return true
+      const hasMatch = items => {
+        return items.some(item => {
+          if (typeof item === 'string') return item.toLowerCase().includes(q)
+          if (item && item.text) {
+            if (item.text.toLowerCase().includes(q)) return true
+            if (Array.isArray(item.children)) return hasMatch(item.children)
+          }
+          return false
+        })
+      }
+      return hasMatch(entry.items)
+    })
+  }
+
+  // ==========================================================================
+  // 13. removeText(slideIndex, tag, slideManager)
+  // ==========================================================================
+  /**
+   * Removes a text shape or text body matching the tag.
+   *
+   * @param {number} slideIndex
+   * @param {string} tag
+   * @param {SlideManager} slideManager
+   */
+  removeText(slideIndex, tag, slideManager) {
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+
+    const found =
+      this.findShapeRecursive(spTree, tag) || this.#collectMatchingShapeOrCell(spTree, tag)
+    if (!found || !found.shape || !found.parent) {
+      logger.warn(`removeText: Shape "${tag}" not found on slide ${slideIndex}`)
+      return
+    }
+
+    if (found.parent['p:sp']) {
+      const shapes = Array.isArray(found.parent['p:sp'])
+        ? found.parent['p:sp']
+        : [found.parent['p:sp']]
+      found.parent['p:sp'] = shapes.filter(s => s !== found.shape)
+      slideManager.markSlideObjDirty(slideIndex)
+      logger.debug(`removeText: Removed shape "${tag}" on slide ${slideIndex}`)
+    }
+  }
+
+  // ==========================================================================
+  // 14. removeList(slideIndex, tag, slideManager)
+  // ==========================================================================
+  /**
+   * Removes a list shape matching tag from the slide.
+   *
+   * @param {number} slideIndex
+   * @param {string} tag
+   * @param {SlideManager} slideManager
+   */
+  removeList(slideIndex, tag, slideManager) {
+    this.removeText(slideIndex, tag, slideManager)
+  }
+
+  // ==========================================================================
+  // 15. clearText(slideIndex, tag, slideManager)
+  // ==========================================================================
+  /**
+   * Clears text content inside a shape while preserving container geometry and position.
+   *
+   * @param {number} slideIndex
+   * @param {string} tag
+   * @param {SlideManager} slideManager
+   */
+  clearText(slideIndex, tag, slideManager) {
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+
+    const found =
+      this.findShapeRecursive(spTree, tag) || this.#collectMatchingShapeOrCell(spTree, tag)
+    if (!found || !found.shape) {
+      logger.warn(`clearText: Shape "${tag}" not found on slide ${slideIndex}`)
+      return
+    }
+
+    const txBody = found.shape['p:txBody'] || found.shape['a:txBody']
+    if (txBody) {
+      // Empty paragraph preserving paragraph container
+      txBody['a:p'] = [{ 'a:pPr': {}, 'a:r': [] }]
+      slideManager.markSlideObjDirty(slideIndex)
+      logger.debug(`clearText: Cleared text in shape "${tag}" on slide ${slideIndex}`)
+    }
+  }
+
+  // ==========================================================================
+  // 16. clearList(slideIndex, tag, slideManager)
+  // ==========================================================================
+  /**
+   * Clears list items from a shape while retaining shape position and bullet properties.
+   *
+   * @param {number} slideIndex
+   * @param {string} tag
+   * @param {SlideManager} slideManager
+   */
+  clearList(slideIndex, tag, slideManager) {
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+
+    const found =
+      this.findShapeRecursive(spTree, tag) || this.#collectMatchingShapeOrCell(spTree, tag)
+    if (!found || !found.shape) return
+
+    const txBody = found.shape['p:txBody'] || found.shape['a:txBody']
+    if (txBody) {
+      const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+      const firstPPr = paras.length > 0 && paras[0]['a:pPr'] ? paras[0]['a:pPr'] : {}
+      txBody['a:p'] = [{ 'a:pPr': firstPPr, 'a:r': [] }]
+      slideManager.markSlideObjDirty(slideIndex)
+      logger.debug(`clearList: Cleared list in shape "${tag}" on slide ${slideIndex}`)
+    }
+  }
+
+  // ==========================================================================
+  // 17. replaceList(slideIndex, tag, newItems, options, slideManager, templateEngine)
+  // ==========================================================================
+  /**
+   * Replaces list items inside a shape or table cell matching tag.
+   *
+   * @param {number} slideIndex
+   * @param {string} tag
+   * @param {Array<string|Object>|Object} newItems
+   * @param {Object} [options]
+   * @param {SlideManager} slideManager
+   * @param {TemplateEngine} templateEngine
+   */
+  replaceList(slideIndex, tag, newItems, options = {}, slideManager, templateEngine) {
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const normalizedTag = tag.startsWith('{{') && tag.endsWith('}}') ? tag : `{{${tag}}}`
+
+    // Option A: Tag exists as a placeholder in slide XML
+    const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+
+    let res = this.findShapeRecursive(spTree, tag)
+    if (!res) {
+      res =
+        this.#collectMatchingShapeOrCell(spTree, normalizedTag) ||
+        this.#collectMatchingShapeOrCell(spTree, tag)
+    }
+
+    if (!res || !res.shape) {
+      throw new PPTXError(`Text placeholder or shape "${tag}" not found in slide ${slideIndex}`)
+    }
+
+    const shape = res.shape
+    const listConfig = Array.isArray(newItems)
+      ? { list: newItems, ...options }
+      : typeof newItems === 'object' && newItems !== null
+        ? newItems.list !== undefined || newItems.items !== undefined
+          ? { ...newItems, ...options }
+          : { list: [newItems], ...options }
+        : { list: [String(newItems)], ...options }
+
+    const validation = ValidationEngine.validateList(listConfig)
+    if (!validation.valid) {
+      throw new PPTXError(`List validation failed: ${validation.errors.join(', ')}`)
+    }
+
+    const txBody = shape['p:txBody'] || shape['a:txBody'] || {}
+    if (!shape['p:txBody'] && !shape['a:txBody']) {
+      shape['p:txBody'] = txBody
+      txBody['a:bodyPr'] = { '@_wrap': 'square', '@_rtlCol': '0' }
+      txBody['a:lstStyle'] = {}
+    }
+
     const originalParas = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-    const templatePara = originalParas.length > 0 ? originalParas[0] : {}
+    const templatePara = originalParas.length > 0 && originalParas[0] ? originalParas[0] : {}
     const templateRuns = templatePara['a:r']
       ? Array.isArray(templatePara['a:r'])
         ? templatePara['a:r']
@@ -266,7 +897,6 @@ class TextManager {
       listConfig
     )
 
-    // Parse the generated XML paragraphs back to objects
     const wrappedXml = `<root xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">${generatedXml}</root>`
     const parsedObj = this.#xmlParser.parse(wrappedXml)
     let newParas = parsedObj?.root?.['a:p'] || []
@@ -278,168 +908,131 @@ class TextManager {
 
     const decl = this.#xmlParser.extractDeclaration(slideXml)
     slideManager.setSlideXml(slideIndex, this.#xmlParser.build(slideObj, decl))
-    logger.debug(`Updated text content for shape "${tag}" on slide ${slideIndex}`)
+    logger.debug(`replaceList: Replaced list items for "${tag}" on slide ${slideIndex}`)
   }
 
+  // ==========================================================================
+  // 18. getTextElements(slideIndex, slideManager)
+  // ==========================================================================
   /**
-   * Retrieves list items from a shape or text box by name or placeholder tag.
+   * Extracts and returns all text elements on a slide.
    *
    * @param {number} slideIndex
-   * @param {string} tag - Shape name/ID or placeholder tag.
    * @param {SlideManager} slideManager
-   * @returns {Array} Nested list structure of items.
+   * @returns {Array<{shapeId: string, shapeName: string, paragraphIndex: number, text: string}>}
    */
-  getList(slideIndex, tag, slideManager) {
+  getTextElements(slideIndex, slideManager) {
     const slideXml = slideManager.getSlideXml(slideIndex)
     const slideObj = this.#xmlParser.parse(slideXml, `slide${slideIndex}.xml`)
+    const results = []
+
     const spTree = slideObj?.['p:sld']?.['p:cSld']?.['p:spTree']
+    if (!spTree) return results
 
-    // Step 1: Find shape by name or ID matching tag
-    let res = this.findShapeRecursive(spTree, tag)
+    this.#collectTextElements(spTree, results, slideIndex)
+    return results
+  }
 
-    // Step 2: If not found, look for any shape containing the placeholder string
-    if (!res) {
-      const collectMatchingShape = container => {
-        if (!container) return null
+  // ==========================================================================
+  // Internal Helpers
+  // ==========================================================================
 
-        let shapes = container['p:sp'] || []
-        if (!Array.isArray(shapes)) shapes = [shapes]
+  #setTextBody(shape, textContent, options = {}) {
+    if (!shape['p:txBody']) {
+      shape['p:txBody'] = {
+        'a:bodyPr': { '@_wrap': 'square', '@_rtlCol': '0' },
+        'a:lstStyle': {},
+        'a:p': [],
+      }
+    }
+    const txBody = shape['p:txBody']
+    const style = options.style || options
+    const styledText = applyTextCasing(textContent, style)
 
-        for (const shape of shapes) {
-          const txBody = shape['p:txBody']
-          if (txBody && txBody['a:p']) {
-            const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-            for (const p of paras) {
-              let pText = ''
-              if (p['a:r']) {
-                const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-                for (const r of runs) {
-                  if (r['a:t']) pText += String(r['a:t'])
-                }
-              }
-              if (pText.includes(tag)) {
-                return { shape, parent: container, type: 'sp' }
-              }
-            }
+    const rPr = StyleBuilder.buildRunProperties({ '@_lang': 'en-US' }, style)
+    const pPr = StyleBuilder.buildParagraphProperties({}, style)
+    txBody['a:bodyPr'] = StyleBuilder.buildBodyProperties(txBody['a:bodyPr'] || {}, style)
+
+    txBody['a:p'] = [
+      {
+        'a:pPr': pPr,
+        'a:r': [
+          {
+            'a:rPr': rPr,
+            'a:t': styledText,
+          },
+        ],
+      },
+    ]
+  }
+
+  #buildListParagraphs(items, options = {}) {
+    const paragraphs = []
+    const baseStyle = options.style || options
+
+    const processItems = (itemList, level = 0) => {
+      for (const item of itemList) {
+        if (typeof item === 'string') {
+          const itemStyle = { ...baseStyle, indentLevel: level }
+          if (options.ordered) {
+            itemStyle.bulletStyle = 'ordered'
+          } else if (!itemStyle.bulletChar && !itemStyle.bulletStyle) {
+            itemStyle.bulletChar = '•'
+          }
+          const pPr = StyleBuilder.buildParagraphProperties({}, itemStyle)
+          const rPr = StyleBuilder.buildRunProperties({ '@_lang': 'en-US' }, itemStyle)
+          paragraphs.push({
+            'a:pPr': pPr,
+            'a:r': [{ 'a:rPr': rPr, 'a:t': applyTextCasing(item, itemStyle) }],
+          })
+        } else if (item && typeof item === 'object') {
+          const text = item.text || item.title || ''
+          const itemStyle = {
+            ...baseStyle,
+            ...(item.style || {}),
+            indentLevel: item.level !== undefined ? item.level : level,
+          }
+          if (options.ordered || item.ordered) {
+            itemStyle.bulletStyle = 'ordered'
+          } else if (!itemStyle.bulletChar && !itemStyle.bulletStyle) {
+            itemStyle.bulletChar = '•'
+          }
+          const pPr = StyleBuilder.buildParagraphProperties({}, itemStyle)
+          const rPr = StyleBuilder.buildRunProperties({ '@_lang': 'en-US' }, itemStyle)
+          paragraphs.push({
+            'a:pPr': pPr,
+            'a:r': [{ 'a:rPr': rPr, 'a:t': applyTextCasing(text, itemStyle) }],
+          })
+          if (Array.isArray(item.children) && item.children.length > 0) {
+            processItems(item.children, level + 1)
           }
         }
-
-        // Search in tables inside graphicFrames
-        let frames = container['p:graphicFrame'] || []
-        if (!Array.isArray(frames)) frames = [frames]
-
-        for (const frame of frames) {
-          const tbl = frame?.['a:graphic']?.['a:graphicData']?.['a:tbl']
-          if (tbl && tbl['a:tr']) {
-            const rows = Array.isArray(tbl['a:tr']) ? tbl['a:tr'] : [tbl['a:tr']]
-            for (const row of rows) {
-              const cells = Array.isArray(row['a:tc']) ? row['a:tc'] : [row['a:tc']]
-              for (const cell of cells) {
-                const txBody = cell['a:txBody']
-                if (txBody && txBody['a:p']) {
-                  const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-                  for (const p of paras) {
-                    let pText = ''
-                    if (p['a:r']) {
-                      const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-                      for (const r of runs) {
-                        if (r['a:t']) pText += String(r['a:t'])
-                      }
-                    }
-                    if (pText.includes(tag)) {
-                      return { shape: cell, parent: row, type: 'cell' }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        let groups = container['p:grpSp'] || []
-        if (!Array.isArray(groups)) groups = [groups]
-
-        for (const group of groups) {
-          const matched = collectMatchingShape(group)
-          if (matched) return matched
-        }
-
-        return null
-      }
-      res = collectMatchingShape(spTree)
-    }
-
-    if (!res || !res.shape || !(res.shape['p:txBody'] || res.shape['a:txBody'])) {
-      return []
-    }
-
-    const txBody = res.shape['p:txBody'] || res.shape['a:txBody']
-    const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-
-    const flatItems = []
-    for (const p of paras) {
-      let lvl = 0
-      if (p['a:pPr'] && p['a:pPr']['@_lvl'] !== undefined) {
-        lvl = parseInt(p['a:pPr']['@_lvl'], 10) || 0
-      }
-
-      let text = ''
-      if (p['a:r']) {
-        const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-        const textParts = []
-        for (const r of runs) {
-          if (r['a:t']) textParts.push(String(r['a:t']))
-        }
-        text = textParts.join('')
-      }
-
-      if (text.trim() !== '') {
-        flatItems.push({ text: text.trim(), lvl })
       }
     }
 
-    if (flatItems.length === 0) {
-      return []
-    }
+    const initialLevel =
+      options.indentLevel !== undefined
+        ? options.indentLevel
+        : options.bulletLevel !== undefined
+          ? options.bulletLevel
+          : options.style?.indentLevel !== undefined
+            ? options.style.indentLevel
+            : options.style?.bulletLevel !== undefined
+              ? options.style.bulletLevel
+              : 0
 
-    const result = []
-    const stack = []
-
-    for (const item of flatItems) {
-      const node = { text: item.text, children: [] }
-
-      while (stack.length > 0 && stack[stack.length - 1].lvl >= item.lvl) {
-        stack.pop()
-      }
-
-      if (stack.length === 0) {
-        result.push(node)
-      } else {
-        const parent = stack[stack.length - 1].node
-        parent.children.push(node)
-      }
-
-      stack.push({ lvl: item.lvl, node })
-    }
-
-    const cleanNode = n => {
-      if (n.children.length === 0) {
-        return n.text
-      }
-      return {
-        text: n.text,
-        children: n.children.map(cleanNode),
-      }
-    }
-
-    return result.map(cleanNode)
+    processItems(items, initialLevel)
+    return paragraphs
   }
 
   /**
-   * Helper to recursively scan a container for shapes.
+   * Helper to recursively scan a container for shapes matching shapeId or shapeName.
    */
   findShapeRecursive(container, shapeId) {
     if (!container) return null
+
+    const targetStr = String(shapeId).trim()
+    const targetLower = targetStr.toLowerCase()
 
     let shapes = container['p:sp'] || []
     if (!Array.isArray(shapes)) shapes = [shapes]
@@ -447,8 +1040,47 @@ class TextManager {
     for (const shape of shapes) {
       const cNvPr = shape?.['p:nvSpPr']?.['p:cNvPr']
       if (cNvPr) {
-        if (cNvPr['@_name'] === shapeId || String(cNvPr['@_id']) === shapeId) {
+        const id = String(cNvPr['@_id'] || '').trim()
+        const name = String(cNvPr['@_name'] || '').trim()
+        const tag = String(cNvPr['@_tag'] || '').trim()
+        const descr = String(cNvPr['@_descr'] || '').trim()
+
+        if (
+          id === targetStr ||
+          name === targetStr ||
+          name.toLowerCase() === targetLower ||
+          tag === targetStr ||
+          tag.toLowerCase() === targetLower ||
+          descr === targetStr ||
+          descr.toLowerCase() === targetLower
+        ) {
           return { shape, parent: container, type: 'sp' }
+        }
+      }
+
+      // Check placeholder type (e.g. title, subTitle, body, ctrTitle)
+      const ph = shape?.['p:nvSpPr']?.['p:nvPr']?.['p:ph']
+      if (ph) {
+        const phType = String(ph['@_type'] || '')
+          .trim()
+          .toLowerCase()
+        const phIdx = String(ph['@_idx'] || '').trim()
+        if ((phType && phType === targetLower) || (phIdx && phIdx === targetStr)) {
+          return { shape, parent: container, type: 'sp' }
+        }
+      }
+    }
+
+    let frames = container['p:graphicFrame'] || []
+    if (!Array.isArray(frames)) frames = [frames]
+
+    for (const frame of frames) {
+      const cNvPr = frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
+      if (cNvPr) {
+        const id = String(cNvPr['@_id'] || '').trim()
+        const name = String(cNvPr['@_name'] || '').trim()
+        if (id === targetStr || name === targetStr || name.toLowerCase() === targetLower) {
+          return { shape: frame, parent: container, type: 'graphicFrame' }
         }
       }
     }
@@ -464,152 +1096,200 @@ class TextManager {
     return null
   }
 
-  /**
-   * Appends a new formatted text run to an existing shape or textbox.
-   *
-   * @param {number} slideIndex - 1-based slide index.
-   * @param {string} shapeId - Target shape name or ID.
-   * @param {string} text - Text to append.
-   * @param {Object} [options] - Options `{ style, paragraphIndex, inheritStyle }`.
-   * @param {SlideManager} slideManager
-   * @returns {void}
-   */
-  appendTextRun(slideIndex, shapeId, text, options = {}, slideManager) {
-    this.#insertTextRun(slideIndex, shapeId, text, options, 'append', slideManager)
-  }
+  #collectMatchingShapeOrCell(container, tag) {
+    if (!container) return null
 
-  /**
-   * Prepends a new formatted text run to an existing shape or textbox.
-   *
-   * @param {number} slideIndex - 1-based slide index.
-   * @param {string} shapeId - Target shape name or ID.
-   * @param {string} text - Text to prepend.
-   * @param {Object} [options] - Options `{ style, paragraphIndex, inheritStyle }`.
-   * @param {SlideManager} slideManager
-   * @returns {void}
-   */
-  prependTextRun(slideIndex, shapeId, text, options = {}, slideManager) {
-    this.#insertTextRun(slideIndex, shapeId, text, options, 'prepend', slideManager)
-  }
+    let shapes = container['p:sp'] || []
+    if (!Array.isArray(shapes)) shapes = [shapes]
 
-  #insertTextRun(slideIndex, shapeId, text, options, mode, slideManager) {
-    let shape = null
-    const res = slideManager.getSlideShape(slideIndex, shapeId)
-    if (res) {
-      shape = res.shape
-    } else {
-      const slideObj = slideManager.getSlideObj(slideIndex)
-      const spTree =
-        slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
-        slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
-        slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
-      const found = this.findShapeRecursive(spTree, shapeId)
-      if (found) shape = found.shape
-    }
-
-    if (!shape) {
-      throw new Error(`Shape "${shapeId}" not found on slide ${slideIndex}`)
-    }
-
-    if (!shape['p:txBody']) {
-      shape['p:txBody'] = {
-        'a:bodyPr': { '@_wrap': 'square', '@_rtlCol': '0' },
-        'a:lstStyle': {},
-        'a:p': [],
+    for (const shape of shapes) {
+      const txBody = shape['p:txBody']
+      if (txBody && txBody['a:p']) {
+        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+        for (const p of paras) {
+          let pText = ''
+          if (p['a:r']) {
+            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+            for (const r of runs) {
+              if (r['a:t'] !== undefined) pText += String(r['a:t'])
+            }
+          }
+          if (pText.includes(tag)) {
+            return { shape, parent: container, type: 'sp' }
+          }
+        }
       }
     }
 
-    const txBody = shape['p:txBody']
-    let paras = txBody['a:p'] || []
-    if (!Array.isArray(paras)) {
-      paras = [paras]
-      txBody['a:p'] = paras
+    let frames = container['p:graphicFrame'] || []
+    if (!Array.isArray(frames)) frames = [frames]
+
+    for (const frame of frames) {
+      const tbl = frame?.['a:graphic']?.['a:graphicData']?.['a:tbl']
+      if (tbl && tbl['a:tr']) {
+        const rows = Array.isArray(tbl['a:tr']) ? tbl['a:tr'] : [tbl['a:tr']]
+        for (const row of rows) {
+          const cells = Array.isArray(row['a:tc']) ? row['a:tc'] : [row['a:tc']]
+          for (const cell of cells) {
+            const txBody = cell['a:txBody']
+            if (txBody && txBody['a:p']) {
+              const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+              for (const p of paras) {
+                let pText = ''
+                if (p['a:r']) {
+                  const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+                  for (const r of runs) {
+                    if (r['a:t'] !== undefined) pText += String(r['a:t'])
+                  }
+                }
+                if (pText.includes(tag)) {
+                  return { shape: cell, parent: row, type: 'cell' }
+                }
+              }
+            }
+          }
+        }
+      }
     }
 
-    if (paras.length === 0) {
-      const pObj = { 'a:r': [] }
-      paras.push(pObj)
+    let groups = container['p:grpSp'] || []
+    if (!Array.isArray(groups)) groups = [groups]
+
+    for (const group of groups) {
+      const matched = this.#collectMatchingShapeOrCell(group, tag)
+      if (matched) return matched
     }
 
-    const pIdx =
-      options.paragraphIndex !== undefined
-        ? options.paragraphIndex
-        : mode === 'append'
-          ? paras.length - 1
-          : 0
-    const targetPara = paras[pIdx] || paras[0]
+    return null
+  }
 
-    let runs = targetPara['a:r'] || []
-    if (!Array.isArray(runs)) {
-      runs = [runs]
-      targetPara['a:r'] = runs
-    }
+  #collectShapeIds(container) {
+    const ids = []
+    if (!container) return ids
 
-    // Determine base rPr to inherit
-    const inherit = options.inheritStyle !== false
-    const neighborRun =
-      inherit && runs.length > 0 ? (mode === 'append' ? runs[runs.length - 1] : runs[0]) : null
-    const baseRPr = neighborRun?.['a:rPr']
-      ? this.#xmlParser.deepClone(neighborRun['a:rPr'])
-      : { '@_lang': 'en-US' }
+    let shapes = container['p:sp'] || []
+    if (!Array.isArray(shapes)) shapes = [shapes]
 
-    // Apply style overrides
-    const style = options.style || {}
-    if (style.fontSize) {
-      baseRPr['@_sz'] = String(Math.round(style.fontSize * 100))
-    }
-    if (style.bold !== undefined) {
-      baseRPr['@_b'] = style.bold ? '1' : '0'
-    }
-    if (style.italic !== undefined) {
-      baseRPr['@_i'] = style.italic ? '1' : '0'
-    }
-    if (style.underline) {
-      baseRPr['@_u'] = typeof style.underline === 'string' ? style.underline : 'sng'
-    } else if (style.underline === false) {
-      delete baseRPr['@_u']
-    }
-    if (style.strike) {
-      baseRPr['@_strike'] = style.strike === 'double' ? 'dblStrike' : 'sngStrike'
-    } else if (style.strike === false) {
-      delete baseRPr['@_strike']
-    }
-    if (style.superscript) {
-      baseRPr['@_baseline'] = '30000'
-    } else if (style.subscript) {
-      baseRPr['@_baseline'] = '-25000'
-    } else if (style.baseline !== undefined) {
-      baseRPr['@_baseline'] = String(Math.round(style.baseline))
-    }
-    if (style.characterSpacing !== undefined || style.tracking !== undefined) {
-      const spc = style.characterSpacing !== undefined ? style.characterSpacing : style.tracking
-      baseRPr['@_spc'] = String(Math.round(spc * 100))
-    }
-    if (style.color) {
-      const hex = style.color.replace('#', '').toUpperCase()
-      baseRPr['a:solidFill'] = { 'a:srgbClr': { '@_val': hex } }
-    }
-    if (style.fontFamily) {
-      baseRPr['a:latin'] = { '@_typeface': style.fontFamily }
-      baseRPr['a:ea'] = { '@_typeface': style.fontFamily }
-      baseRPr['a:cs'] = { '@_typeface': style.fontFamily }
+    for (const shape of shapes) {
+      const id = shape?.['p:nvSpPr']?.['p:cNvPr']?.['@_id']
+      if (id !== undefined) {
+        const parsed = parseInt(id, 10)
+        if (!isNaN(parsed)) ids.push(parsed)
+      }
     }
 
-    const newRun = {
-      'a:rPr': baseRPr,
-      'a:t': text,
+    let groups = container['p:grpSp'] || []
+    if (!Array.isArray(groups)) groups = [groups]
+    for (const g of groups) {
+      ids.push(...this.#collectShapeIds(g))
     }
 
-    if (mode === 'append') {
-      runs.push(newRun)
-    } else {
-      runs.unshift(newRun)
+    return ids
+  }
+
+  #collectAllShapes(container) {
+    const shapes = []
+    if (!container) return shapes
+
+    let directShapes = container['p:sp'] || []
+    if (!Array.isArray(directShapes)) directShapes = [directShapes]
+    shapes.push(...directShapes)
+
+    let groups = container['p:grpSp'] || []
+    if (!Array.isArray(groups)) groups = [groups]
+    for (const g of groups) {
+      shapes.push(...this.#collectAllShapes(g))
     }
 
-    slideManager.markSlideObjDirty(slideIndex)
-    logger.debug(
-      `${mode === 'append' ? 'Appended' : 'Prepended'} text run to shape "${shapeId}" on slide ${slideIndex}`
-    )
+    return shapes
+  }
+
+  #searchShapesForText(container, rawSearchText, searchTarget, caseSensitive, results, slideIndex) {
+    if (!container) return
+
+    let shapes = container['p:sp'] || []
+    if (!Array.isArray(shapes)) shapes = [shapes]
+
+    for (const shape of shapes) {
+      const cNvPr = shape?.['p:nvSpPr']?.['p:cNvPr']
+      const shapeName = cNvPr ? cNvPr['@_name'] : 'unnamed'
+      const shapeId = cNvPr ? String(cNvPr['@_id']) : 'unknown'
+
+      const txBody = shape['p:txBody']
+      if (txBody && txBody['a:p']) {
+        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+        paras.forEach((p, pIdx) => {
+          let pText = ''
+          if (p['a:r']) {
+            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+            runs.forEach(r => {
+              if (r && r['a:t'] !== undefined) pText += String(r['a:t'])
+            })
+          }
+
+          const haystack = caseSensitive ? pText : pText.toLowerCase()
+          if (haystack.includes(searchTarget)) {
+            results.push({
+              slideIndex,
+              shapeId,
+              shapeName,
+              paragraphIndex: pIdx,
+              text: pText,
+              match: rawSearchText,
+            })
+          }
+        })
+      }
+    }
+
+    let groups = container['p:grpSp'] || []
+    if (!Array.isArray(groups)) groups = [groups]
+    for (const g of groups) {
+      this.#searchShapesForText(g, rawSearchText, searchTarget, caseSensitive, results, slideIndex)
+    }
+  }
+
+  #collectTextElements(container, results, slideIndex) {
+    if (!container) return
+
+    let shapes = container['p:sp'] || []
+    if (!Array.isArray(shapes)) shapes = [shapes]
+
+    for (const shape of shapes) {
+      const cNvPr = shape?.['p:nvSpPr']?.['p:cNvPr']
+      const shapeName = cNvPr ? cNvPr['@_name'] : 'unnamed'
+      const shapeId = cNvPr ? String(cNvPr['@_id']) : 'unknown'
+
+      const txBody = shape['p:txBody']
+      if (txBody && txBody['a:p']) {
+        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
+        paras.forEach((p, pIdx) => {
+          let pText = ''
+          if (p['a:r']) {
+            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+            runs.forEach(r => {
+              if (r && r['a:t'] !== undefined) pText += String(r['a:t'])
+            })
+          }
+
+          if (pText.trim()) {
+            results.push({
+              slideIndex,
+              shapeId,
+              shapeName,
+              paragraphIndex: pIdx,
+              text: pText,
+            })
+          }
+        })
+      }
+    }
+
+    let groups = container['p:grpSp'] || []
+    if (!Array.isArray(groups)) groups = [groups]
+    for (const g of groups) {
+      this.#collectTextElements(g, results, slideIndex)
+    }
   }
 }
 

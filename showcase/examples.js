@@ -151,8 +151,8 @@ async function demo01_BasicTextReplacement() {
     '{{confidentiality}}': SAMPLE_DATA.metadata.confidentiality,
   }
 
-  ppt.replaceMultiple(replacements)
-  console.log(`✓ Replaced multiple placeholder tags across all slides.`)
+  ppt.replaceText(replacements)
+  console.log(`✓ Replaced placeholder tags across all slides.`)
 
   const outPath = path.join(OUTPUT_DIR, '01-basic-report.pptx')
   await ppt.saveToFile(outPath)
@@ -475,15 +475,16 @@ async function demo09_HyperlinksAndNavigation() {
   const ppt = await PPTXTemplater.load(TEMPLATE_SAMPLE, { logLevel: 'warn' })
   ppt.useSlide(1)
 
-  // 1. Add external hyperlink on Slide 1
+  // 1. Add shape hyperlink on Slide 1
   try {
-    ppt.addHyperlink({
-      text: 'Acme Developer Portal',
-      url: 'https://github.com/jsuyog2/node-pptx-templater',
+    ppt.addShapeLink({
+      slide: 1,
+      shapeId: 'Title',
+      targetSlide: 2,
     })
-    console.log('✓ Added external web hyperlink.')
+    console.log('✓ Added shape slide hyperlink.')
   } catch (err) {
-    console.log(`  (addHyperlink: ${err.message})`)
+    console.log(`  (addShapeLink: ${err.message})`)
   }
 
   // 2. Add slide link
@@ -535,16 +536,6 @@ async function demo10_TypographyAndTextRuns() {
   })
   console.log('✓ Added container shape with styled typography.')
 
-  // 2. Append text run with distinct styling
-  ppt.appendTextRun('TypographyBox', ' [99.995% Uptime]', {
-    style: {
-      bold: true,
-      color: '#2563EB',
-      italic: true,
-    },
-  })
-  console.log('✓ Appended distinct text run to shape.')
-
   const outPath = path.join(OUTPUT_DIR, '10-typography-text-runs.pptx')
   await ppt.saveToFile(outPath)
   console.log(`✓ Saved: ${outPath}`)
@@ -567,7 +558,7 @@ async function demo11_XmlFolderWorkflow() {
   // 2. Load directly from folder
   const ppt = await PPTXTemplater.load(workFolder, { logLevel: 'warn' })
   ppt.useAllSlides()
-  ppt.replaceTextByTag('{{company}}', 'Acme OpenXML Unpacked Systems')
+  ppt.replaceTextByTag('Title', 'Acme OpenXML Unpacked Systems')
   console.log('✓ Loaded directly from extracted XML folder and replaced placeholders.')
 
   // 3. Save modified XML in-place
@@ -593,7 +584,7 @@ async function demo12_BufferExport() {
   console.log('\n--- [Demo 12] In-Memory Buffer Export (AWS Lambda / Serverless / Streaming) ---')
   const ppt = await PPTXTemplater.load(TEMPLATE_SAMPLE, { logLevel: 'warn' })
   ppt.useSlide(1)
-  ppt.replaceTextByTag('{{title}}', 'Serverless Generated Report')
+  ppt.replaceTextByTag('Title', 'Serverless Generated Report')
 
   // Export directly to Buffer in memory without disk I/O
   const buffer = await ppt.toBuffer()

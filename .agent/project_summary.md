@@ -212,6 +212,51 @@ All non-standard aliases (such as `cloneSlide`, `deleteSlide`, `insertSlide`, `i
 5. **Non-Blocking In-Memory Lifecycles**:
    - Validation is fully decoupled from core mutation flows (`createBlank`, `load`, `addShape`, `importSlideFrom`, exports) and accessible on-demand via `ppt.validatePresentation()`.
 
+### 4.3 Strict 18-Method Text & List API Boundary & 31-Property Style Engine
+The library enforces an exact 18-method whitelist under Text & Placeholders, purging all deprecated or redundant aliases:
+
+```text
+TEXT REPLACEMENT & ADDITION (3)
+├── ppt.replaceText(replacements)
+├── ppt.addText(textContent, options)
+└── ppt.replaceTextByTag(tagOrId, newText, options)
+
+LIST MANIPULATION & DISCOVERY (7)
+├── ppt.addLists(items, options)
+├── ppt.getList(tag)
+├── ppt.getLists()
+├── ppt.findLists(query)
+├── ppt.replaceList(tag, newItems, options)
+├── ppt.clearList(tag)
+└── ppt.removeList(tag)
+
+SEARCH & INSPECTION (3)
+├── ppt.findText(query)
+├── ppt.getText(tag)
+└── ppt.getTextElements()
+
+STYLE ENGINE MODIFIERS (3)
+├── ppt.addStyle(target, style)
+├── ppt.updateStyle(target, style)
+└── ppt.removeStyle(target, styleProperties)
+
+CLEAR & REMOVE (2)
+├── ppt.clearText(tag)
+└── ppt.removeText(tag)
+```
+
+**Full Text Box Replacement (`replaceTextByTag`)**:
+Targets text boxes or shapes by ID (`<p:cNvPr id="...">`), shape name (`<p:cNvPr name="...">`), or semantic tag. Replaces the entire content across all runs inside `<p:txBody>` while preserving root paragraph layout `<a:pPr>` and base run typography `<a:rPr>`. Multi-line strings (`\n`) are automatically partitioned into separate paragraph nodes.
+
+**31-Property DrawingML Style Engine**:
+- **Typography**: `fontSize`, `color`, `highlight`, `underline`, `bold`, `italic`, `superscript`, `subscript`, `strikethrough`.
+- **Casing & Spacing**: `uppercase`, `lowercase`, `capitalize`, `smallCaps`, `charSpacing`, `lineSpacing`.
+- **Alignment & Direction**: `textAlignment` / `alignment`, `verticalAlignment`, `textDirection`, `indentLevel`.
+- **Bullets**: `bulletChar`, `bulletColor`, `bulletFontSize`, `bulletStyle`, `bulletLevel`.
+- **Shadows & Effects**: `shadowColor`, `textShadow`, `blur`, `shadowRadius`, `shadowOffsetX`, `shadowOffsetY`.
+
+All prohibited methods (`updateText`, `replaceMultiple`, `extractPlaceholders`, `addHyperlink`, `addTextNavigationLink`, `appendTextRun`, `prependTextRun`, and `textManager` getter) have been completely removed from runtime entrypoints, TypeScript definitions, tests, and documentation.
+
 ---
 
 ## 5. Command-Line Interface (CLI)

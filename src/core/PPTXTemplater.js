@@ -705,14 +705,15 @@ class PPTXTemplater {
     const targetIndices = this.#getTargetSlideIndices()
 
     for (const slideIndex of targetIndices) {
-      const slideXml = this.#slideManager.getSlideXml(slideIndex)
-      const updated = this.#templateEngine.replaceTextInXml(slideXml, replacements)
-      this.#slideManager.setSlideXml(slideIndex, updated)
+      this.#textManager.replaceText(
+        slideIndex,
+        replacements,
+        this.#slideManager,
+        this.#templateEngine
+      )
     }
 
-    logger.debug(
-      `Replaced ${Object.keys(replacements).length} placeholder(s) in ${targetIndices.length} slide(s)`
-    )
+    logger.debug(`Replaced placeholder(s) in ${targetIndices.length} slide(s)`)
     return this
   }
 
@@ -860,34 +861,6 @@ class PPTXTemplater {
   }
 
   /**
-   * Adds or replaces a hyperlink on a text run or shape.
-   *
-   * @param {HyperlinkOptions} options - Hyperlink configuration.
-   * @param {string} options.text - Text to find and make clickable.
-   * @param {string} options.url - Target URL.
-   * @param {string} [options.tooltip] - Optional tooltip.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.addHyperlink({ text: 'Open Website', url: 'https://example.com' });
-   */
-  addHyperlink(options) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-
-    for (const slideIndex of targetIndices) {
-      this.#hyperlinkManager.addExternalHyperlink(
-        slideIndex,
-        options,
-        this.#slideManager,
-        this.#relationshipManager
-      )
-    }
-
-    return this
-  }
-
-  /**
    * Adds an inter-slide hyperlink to a specific text element.
    *
    * @param {Object} options - Link configuration.
@@ -960,22 +933,6 @@ class PPTXTemplater {
       this.#slideManager,
       this.#relationshipManager
     )
-    return this
-  }
-
-  /**
-   * Adds a special navigation link (next, previous, first, last slide) to a text element.
-   *
-   * @param {Object} options
-   * @param {number} options.slide - Source slide number (1-based).
-   * @param {string} options.element - Text element to make clickable.
-   * @param {'next'|'previous'|'first'|'last'} options.action - Navigation action type.
-   * @returns {PPTXTemplater} this (chainable)
-   */
-  addTextNavigationLink(options) {
-    this.#assertLoaded()
-    const { slide, element, action } = options
-    this.#hyperlinkManager.addTextNavigationLink(slide, element, action, this.#slideManager)
     return this
   }
 
@@ -3353,26 +3310,73 @@ class PPTXTemplater {
    * @param {string|Object} data - String value or list configuration object.
    * @returns {PPTXTemplater} this (chainable)
    */
+  // === Text & Placeholders Features (Strict 18-Method Whitelist) ===
+
   /**
-   * Updates text content or list items in a named shape or text box.
-   * Supports plain strings, bullet lists, numbered lists, and nested lists.
+   * Adds a new formatted text box shape to targeted slides or adds text to an existing shape.
+   * Supports pixel, EMU, or percentage string coordinates, plus the 31-property style engine.
    *
-   * @param {string} tag - Shape name/ID or placeholder tag.
-   * @param {string|Object} data - Text string, or list configuration object.
-   * @returns {PPTXTemplater} this (chainable)
+   * @param {string} textContent - The text string to insert.
+   * @param {Object} [options={}] - Coordinate and style formatting options.
+   * @returns {this} The chainable presentation engine instance.
    *
    * @example
-   * // Plain text
-   * ppt.updateText('SubtitleBox', 'Updated subtitle');
-   *
-   * // Bullet list
-   * ppt.updateText('BulletBox', { items: ['Item A', 'Item B', 'Item C'] });
+   * ppt.addText('Executive Summary', { x: '10%', y: 150, fontSize: 24, bold: true, color: '#1A73E8' });
    */
-  updateText(tag, data) {
+  addText(textContent, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
-      this.#textManager.updateText(idx, tag, data, this.#slideManager, this.#templateEngine)
+      this.#textManager.addText(idx, textContent, options, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Replaces the entire text content of a text box or shape identified by ID, name, or tag.
+   * Clears existing text runs while preserving paragraph layout and character styling.
+   *
+   * @param {string|number} tagOrId - Text box ID (e.g. '2'), shape name (e.g. 'Title 1'), or semantic tag.
+   * @param {string|number} newText - New text content to replace the full text box.
+   * @param {Object} [options={}] - Optional formatting options or slide override ({ slide: 1 }).
+   * @returns {this} The chainable presentation engine instance.
+   *
+   * @example
+   * ppt.replaceTextByTag('2', 'New Executive Summary');
+   * ppt.replaceTextByTag('TitleBox', 'First Line\nSecond Line', { bold: true });
+   */
+  replaceTextByTag(tagOrId, newText, options = {}) {
+    this.#assertLoaded()
+    const targetIndices =
+      options.slide !== undefined ? [Number(options.slide)] : this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.replaceTextByTag(
+        idx,
+        tagOrId,
+        newText,
+        options,
+        this.#slideManager,
+        this.#templateEngine
+      )
+    }
+    return this
+  }
+
+  /**
+   * Adds a new bulleted or numbered list shape to targeted slides.
+   *
+   * @param {Array<string|Object>} items - List items or nested hierarchy.
+   * @param {Object} [options={}] - Coordinates, styling, and bullet formatting.
+   * @returns {this} The chainable presentation engine instance.
+   *
+   * @example
+   * ppt.addLists(['Point 1', 'Point 2'], { x: 50, y: 100, ordered: true });
+   */
+  addLists(items, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.addLists(idx, items, options, this.#slideManager)
     }
     return this
   }
@@ -3381,17 +3385,10 @@ class PPTXTemplater {
    * Retrieves list items from a shape or text box by name or placeholder tag.
    *
    * @param {string} tag - Shape name/ID or placeholder tag.
-   * @returns {Array} Nested list structure of items.
-   */
-  /**
-   * Retrieves list items from a shape or text box.
-   *
-   * @param {string} tag - Shape name/ID or placeholder tag.
-   * @returns {Array} Nested list structure of items.
+   * @returns {Array<string|Object>} Nested list structure of items.
    *
    * @example
    * const items = ppt.getList('BulletBox');
-   * console.log(items); // ['Item A', ['Nested', 'Sub-item'], 'Item B']
    */
   getList(tag) {
     this.#assertLoaded()
@@ -3401,128 +3398,241 @@ class PPTXTemplater {
   }
 
   /**
-   * Validates a list structure and values.
+   * Searches for all occurrences of a text query across targeted slides with AST run healing.
    *
-   * @param {Object|Array} data - List config object or array of items.
-   * @returns {Object} Report containing validation result.
-   */
-  validateList(data) {
-    return ValidationEngine.validateList(data)
-  }
-
-  // === Text Features ===
-  /**
-   * Replaces a text placeholder tag across all targeted shapes on selected slides.
-   * Finds shapes containing `{{tag}}` or `tag` and replaces the placeholder value.
-   *
-   * @param {string} tag - Placeholder tag name (e.g. `'{{name}}'` or `'name'`).
-   * @param {string} value - Replacement value.
-   * @param {Object} [options] - Options.
-   * @param {number} [options.slide] - Target a specific slide index (overrides `useSlide`).
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.replaceTextByTag('{{company}}', 'Acme Corp');
-   * ppt.replaceTextByTag('{{date}}', '2026-06-12');
-   */
-  replaceTextByTag(tag, value, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#textManager.replaceTextByTag(
-        idx,
-        tag,
-        value,
-        options,
-        this.#slideManager,
-        this.#templateEngine
-      )
-    }
-    return this
-  }
-
-  /**
-   * Replaces multiple text placeholder tags in a single pass.
-   * More efficient than calling `replaceTextByTag()` repeatedly.
-   *
-   * @param {Object<string, string>} replacements - Map of `{ tag: value }` pairs.
-   * @param {Object} [options] - Options (same as `replaceTextByTag`).
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.replaceMultiple({
-   *   '{{title}}': 'Q2 Report',
-   *   '{{date}}': 'June 2026',
-   *   '{{company}}': 'Acme Corp'
-   * });
-   */
-  replaceMultiple(replacements, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#textManager.replaceMultiple(
-        idx,
-        replacements,
-        options,
-        this.#slideManager,
-        this.#templateEngine
-      )
-    }
-    return this
-  }
-
-  /**
-   * Searches for all occurrences of a text string across the targeted slides.
-   *
-   * @param {string} text - Text to search for.
-   * @returns {Array<{slideIndex: number, shapeName: string, text: string}>} Array of matches.
+   * @param {string} query - Text to search for.
+   * @param {Object} [options={}] - Search options.
+   * @returns {Array<{slideIndex: number, shapeId: string, shapeName: string, text: string, match: string}>} Array of matches.
    *
    * @example
    * const matches = ppt.findText('Revenue');
-   * matches.forEach(m => console.log(`Found on slide ${m.slideIndex} in "${m.shapeName}"`));
    */
-  findText(text) {
+  findText(query, options = {}) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
     const matches = []
     for (const idx of targetIndices) {
-      matches.push(...this.#textManager.findText(idx, text, this.#slideManager))
+      matches.push(...this.#textManager.findText(idx, query, this.#slideManager, options))
     }
     return matches
   }
 
   /**
-   * Extracts all unique placeholders (e.g., {{placeholder}}) across targeted slides.
+   * Adds or merges style properties into a target shape, text box, or placeholder.
    *
-   * @param {RegExp} [pattern] - Optional custom RegExp pattern. Defaults to `/\{\{([^{}]+)\}\}/g`.
-   * @returns {string[]} Array of unique placeholder token strings.
+   * @param {string} target - Target shape name/ID or placeholder tag.
+   * @param {Object} style - Style properties to apply.
+   * @returns {this} The chainable presentation engine instance.
    *
    * @example
-   * const placeholders = ppt.extractPlaceholders();
-   * console.log('Placeholders found:', placeholders); // ['{{title}}', '{{company}}']
+   * ppt.addStyle('Title', { bold: true, color: '#FF0000', fontSize: 24 });
    */
-  extractPlaceholders(pattern) {
+  addStyle(target, style) {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
-    const placeholders = new Set()
     for (const idx of targetIndices) {
-      const slideXml = this.#slideManager.getSlideXml(idx)
-      const matches = this.#templateEngine.extractPlaceholders(slideXml, pattern)
-      for (const m of matches) {
-        placeholders.add(m)
-      }
+      this.#textManager.addStyle(idx, target, style, this.#slideManager)
     }
-    return Array.from(placeholders)
+    return this
   }
 
   /**
-   * Returns all text elements (paragraphs) across the targeted slides.
+   * Removes specified style properties from a target shape, text box, or placeholder.
    *
-   * @returns {Array<{slideIndex: number, shapeName: string, text: string}>}
+   * @param {string} target - Target shape name/ID or placeholder tag.
+   * @param {Array<string>|Object} styleProperties - Properties to remove.
+   * @returns {this} The chainable presentation engine instance.
+   *
+   * @example
+   * ppt.removeStyle('Title', ['bold', 'italic', 'color']);
+   */
+  removeStyle(target, styleProperties) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.removeStyle(idx, target, styleProperties, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Updates style properties on a target shape, text box, or placeholder.
+   *
+   * @param {string} target - Target shape name/ID or placeholder tag.
+   * @param {Object} style - Updated style properties.
+   * @returns {this} The chainable presentation engine instance.
+   *
+   * @example
+   * ppt.updateStyle('Title', { fontSize: 32, alignment: 'center' });
+   */
+  updateStyle(target, style) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.updateStyle(idx, target, style, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Retrieves full concatenated plain text content from a target shape or placeholder.
+   *
+   * @param {string} tag - Target shape name/ID or placeholder tag.
+   * @returns {string} Plain text content.
+   *
+   * @example
+   * const text = ppt.getText('Title');
+   */
+  getText(tag) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const idx = targetIndices.length > 0 ? targetIndices[0] : 1
+    return this.#textManager.getText(idx, tag, this.#slideManager)
+  }
+
+  /**
+   * Retrieves all list structures found across shapes on targeted slides.
+   *
+   * @returns {Array<{shapeId: string, shapeName: string, items: Array}>} Array of discovered lists.
+   *
+   * @example
+   * const lists = ppt.getLists();
+   */
+  getLists() {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const allLists = []
+    for (const idx of targetIndices) {
+      allLists.push(...this.#textManager.getLists(idx, this.#slideManager))
+    }
+    return allLists
+  }
+
+  /**
+   * Finds lists across targeted slides matching a query (by shape name, ID, or item contents).
+   *
+   * @param {string} query - Query string to match.
+   * @returns {Array<{shapeId: string, shapeName: string, items: Array}>} Array of matching lists.
+   *
+   * @example
+   * const results = ppt.findLists('Action Items');
+   */
+  findLists(query) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const matches = []
+    for (const idx of targetIndices) {
+      matches.push(...this.#textManager.findLists(idx, query, this.#slideManager))
+    }
+    return matches
+  }
+
+  /**
+   * Removes a text shape or text container matching the specified tag.
+   *
+   * @param {string} tag - Shape name/ID or placeholder tag.
+   * @returns {this} The chainable presentation engine instance.
+   *
+   * @example
+   * ppt.removeText('OldTitle');
+   */
+  removeText(tag) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.removeText(idx, tag, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Removes a list shape matching the specified tag from targeted slides.
+   *
+   * @param {string} tag - Shape name/ID or placeholder tag.
+   * @returns {this} The chainable presentation engine instance.
+   *
+   * @example
+   * ppt.removeList('DeprecatedList');
+   */
+  removeList(tag) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.removeList(idx, tag, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Clears text content inside a shape while keeping the shape container, geometry, and coordinates intact.
+   *
+   * @param {string} tag - Shape name/ID or placeholder tag.
+   * @returns {this} The chainable presentation engine instance.
+   *
+   * @example
+   * ppt.clearText('PlaceholderBox');
+   */
+  clearText(tag) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.clearText(idx, tag, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Clears list items from a shape while retaining shape position, dimensions, and bullet properties.
+   *
+   * @param {string} tag - Shape name/ID or placeholder tag.
+   * @returns {this} The chainable presentation engine instance.
+   *
+   * @example
+   * ppt.clearList('ActionList');
+   */
+  clearList(tag) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.clearList(idx, tag, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Replaces list items inside a shape or table cell matching tag.
+   *
+   * @param {string} tag - Shape name/ID or placeholder tag.
+   * @param {Array<string|Object>|Object} newItems - New list items or configuration.
+   * @param {Object} [options={}] - Additional list options.
+   * @returns {this} The chainable presentation engine instance.
+   *
+   * @example
+   * ppt.replaceList('Title', ['Item 1', 'Item 2'], { ordered: true });
+   */
+  replaceList(tag, newItems, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.replaceList(
+        idx,
+        tag,
+        newItems,
+        options,
+        this.#slideManager,
+        this.#templateEngine
+      )
+    }
+    return this
+  }
+
+  /**
+   * Returns all text elements (paragraphs) across targeted slides.
+   *
+   * @returns {Array<{slideIndex: number, shapeId: string, shapeName: string, paragraphIndex: number, text: string}>}
    *
    * @example
    * const elements = ppt.getTextElements();
-   * elements.forEach(el => console.log(`Slide ${el.slideIndex}: ${el.text}`))
    */
   getTextElements() {
     this.#assertLoaded()
@@ -3532,46 +3642,6 @@ class PPTXTemplater {
       elements.push(...this.#textManager.getTextElements(idx, this.#slideManager))
     }
     return elements
-  }
-
-  /**
-   * Appends a formatted text run to a shape or text box on targeted slides.
-   *
-   * @param {string} shapeId - Shape name or ID.
-   * @param {string} text - Text to append.
-   * @param {Object} [options] - Formatting options `{ style, paragraphIndex, inheritStyle }`.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.appendTextRun('titleShape', ' (Updated)', { style: { bold: true, color: '#FF0000' } });
-   */
-  appendTextRun(shapeId, text, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#textManager.appendTextRun(idx, shapeId, text, options, this.#slideManager)
-    }
-    return this
-  }
-
-  /**
-   * Prepends a formatted text run to a shape or text box on targeted slides.
-   *
-   * @param {string} shapeId - Shape name or ID.
-   * @param {string} text - Text to prepend.
-   * @param {Object} [options] - Formatting options `{ style, paragraphIndex, inheritStyle }`.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.prependTextRun('titleShape', 'Draft: ', { style: { italic: true } });
-   */
-  prependTextRun(shapeId, text, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#textManager.prependTextRun(idx, shapeId, text, options, this.#slideManager)
-    }
-    return this
   }
 
   // === Shape Features ===
@@ -4421,9 +4491,7 @@ class PPTXTemplater {
   get imageManager() {
     return this.#imageManager
   }
-  get textManager() {
-    return this.#textManager
-  }
+
   get hyperlinkManager() {
     return this.#hyperlinkManager
   }

@@ -31,7 +31,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // Clean up test output files
-  await fsExtra.remove(OUTPUT_DIR)
+  try {
+    await fsExtra.remove(OUTPUT_DIR)
+  } catch (_) {}
 })
 
 describe('PPTXTemplater - Module Exports', () => {

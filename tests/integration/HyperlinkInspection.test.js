@@ -15,7 +15,7 @@ describe('Hyperlink Inspection and Management Integration Tests', () => {
     return
   }
 
-  it('1. should inspect external hyperlinks added to text runs', async () => {
+  it('1. should inspect slide hyperlinks added to shapes', async () => {
     const ppt = await PPTXTemplater.load(FIXTURE_FILE)
     ppt.useSlide(1)
 
@@ -23,28 +23,27 @@ describe('Hyperlink Inspection and Management Integration Tests', () => {
     await ppt.addShape({
       id: 'TextShape1',
       type: 'rect',
-      text: 'Visit OpenAI for AI research',
+      text: 'Visit Slide 2',
       x: 50,
       y: 50,
       width: 250,
       height: 60,
     })
 
-    // Add external hyperlink to 'OpenAI'
-    ppt.addHyperlink({
-      text: 'OpenAI',
-      url: 'https://openai.com',
-      tooltip: 'OpenAI Homepage',
+    // Add slide hyperlink to shape
+    ppt.addShapeLink({
+      slide: 1,
+      shapeId: 'TextShape1',
+      targetSlide: 2,
     })
 
     const links = ppt.getHyperlinks(1)
     expect(links.length).toBeGreaterThan(0)
 
-    const openAiLink = links.find(l => l.url === 'https://openai.com')
-    expect(openAiLink).toBeDefined()
-    expect(openAiLink.type).toBe('external')
-    expect(openAiLink.tooltip).toBe('OpenAI Homepage')
-    expect(openAiLink.text).toBe('OpenAI')
+    const slideLink = links.find(l => l.targetSlide === 2)
+    expect(slideLink).toBeDefined()
+    expect(slideLink.type).toBe('slide')
+    expect(slideLink.shapeName).toBe('TextShape1')
 
     const buffer = await ppt.toBuffer()
     expect(buffer).toBeDefined()
@@ -123,19 +122,20 @@ describe('Hyperlink Inspection and Management Integration Tests', () => {
       width: 220,
       height: 50,
     })
-    ppt.addHyperlink({
-      text: 'Github',
-      url: 'https://github.com',
+    ppt.addShapeLink({
+      slide: 1,
+      shapeId: 'GithubShape',
+      targetSlide: 2,
     })
 
     let links = ppt.getHyperlinks(1)
-    expect(links.some(l => l.url === 'https://github.com')).toBe(true)
+    expect(links.some(l => l.shapeName === 'GithubShape')).toBe(true)
 
     // Remove the hyperlink
-    ppt.removeHyperlink('Github')
+    ppt.removeHyperlink({ shapeName: 'GithubShape' })
 
     links = ppt.getHyperlinks(1)
-    expect(links.some(l => l.url === 'https://github.com')).toBe(false)
+    expect(links.some(l => l.shapeName === 'GithubShape')).toBe(false)
 
     const buffer = await ppt.toBuffer()
     expect(buffer.length).toBeGreaterThan(0)

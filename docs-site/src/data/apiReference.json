@@ -1,6 +1,6 @@
 {
   "version": "3.0.0-alpha.0",
-  "totalMethods": 115,
+  "totalMethods": 121,
   "categories": [
     "Lifecycle & I/O",
     "Slides",
@@ -1321,8 +1321,8 @@
         "name": "replaceText",
         "signature": "ppt.replaceText(replacements)",
         "category": "Text & Placeholders",
-        "description": "Replaces template placeholders across targeted slides. Analyzes DrawingML AST paragraphs (&lt;a:p&gt;) and unifies fragmented text runs (&lt;a:r&gt; / &lt;a:t&gt;) split across spellchecks or editing sessions before substituting values.",
-        "openXmlImpact": "Parses &lt;a:p&gt; and &lt;a:r&gt;, joins adjacent &lt;a:t&gt; text nodes, preserves original &lt;a:rPr&gt; formatting, and updates slide XML.",
+        "description": "Replaces template placeholders across targeted slides. Analyzes DrawingML AST paragraphs (<a:p>) and unifies fragmented text runs (<a:r> / <a:t>) split across spellchecks or editing sessions before substituting values.",
+        "openXmlImpact": "Parses <a:p> and <a:r>, joins adjacent <a:t> text nodes, preserves original <a:rPr> formatting, and updates slide XML.",
         "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
         "isStatic": false,
         "isAsync": false,
@@ -1332,254 +1332,260 @@
             "type": "Object.<string, string | number>",
             "required": true,
             "default": "—",
-            "description": "Key-value map of placeholders (e.g. <code>{'{{title}}': 'Q3 Report'}</code>)."
+            "description": "Key-value map of placeholders (e.g. {\"{{title}}\": \"Q3 Report\"})."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(1).replaceText({\n  '{{title}}': 'Executive Quarterly Business Review',\n  '{{date}}': 'October 11, 2026',\n  '{{arr}}': '$124.8M',\n  '{{author}}': 'Engineering & Operations Team'\n});"
+        "exampleCode": "ppt.useSlide(1).replaceText({\n  \"{{title}}\": \"Executive Quarterly Business Review\",\n  \"{{date}}\": \"October 11, 2026\"\n});"
       },
       {
-        "id": "replacemultiple",
-        "name": "replaceMultiple",
-        "signature": "ppt.replaceMultiple(replacements, options = {})",
+        "id": "addtext",
+        "name": "addText",
+        "signature": "ppt.addText(textContent, options = {})",
         "category": "Text & Placeholders",
-        "description": "Batch-replaces multiple placeholders across all targeted slides in a single optimized pass. Automatically wraps raw keys in {{...}} if delimiters are omitted.",
-        "openXmlImpact": "Traverses slide AST, normalizes placeholder tokens, and mutates &lt;a:t&gt; elements.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Appends a new text paragraph or creates a new positioned text box shape with specified geometry and typography styling.",
+        "openXmlImpact": "Generates <p:sp> with <p:nvSpPr>, <p:spPr> (<a:xfrm>, <a:prstGeom>), and <p:txBody> containing <a:p> and <a:r> styled via <a:rPr> and <a:pPr>.",
+        "edgeCases": "Coordinates support EMUs, points, pixels, inches, or percentage strings.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "replacements",
-            "type": "Object.<string, any>",
+            "name": "textContent",
+            "type": "string",
             "required": true,
             "default": "—",
-            "description": "Map of keys to replacement strings or numbers."
+            "description": "Text content to add."
           },
           {
             "name": "options",
             "type": "Object",
             "required": false,
             "default": "{}",
-            "description": "Replacement options."
+            "description": "Positioning, sizing, tag, and style options (e.g. x, y, width, height, color, fontSize, bold)."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useAllSlides().replaceMultiple({\n  company: 'Acme Technologies Global Inc.',\n  quarter: 'Q3 2026',\n  confidentiality: 'CONFIDENTIAL'\n});"
+        "exampleCode": "ppt.useSlide(1).addText(\"Confidential Report\", {\n  tag: \"ConfidentialBadge\",\n  x: 50, y: 50, width: 300, height: 40,\n  fontSize: 14, color: \"#DC2626\", bold: true\n});"
       },
       {
         "id": "replacetextbytag",
         "name": "replaceTextByTag",
-        "signature": "ppt.replaceTextByTag(tag, value, options = {})",
+        "signature": "ppt.replaceTextByTag(tagOrId, newText, options = {})",
         "category": "Text & Placeholders",
-        "description": "Replaces a single placeholder tag across targeted slides while rigorously preserving original run formatting properties (font typeface, size, color, bold, italics).",
-        "openXmlImpact": "Modifies targeted &lt;a:t&gt; run nodes under &lt;a:p&gt; without altering adjacent &lt;a:rPr&gt; tags.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Replaces the entire text content of a text box or shape identified by shape ID, shape name, or semantic tag. Clears all existing text runs across paragraphs in <p:txBody> and replaces the entire box content with newText while preserving root paragraph layout (<a:pPr>) and base character formatting (<a:rPr>). Supports multi-line strings (split on \\n) and optional style overrides.",
+        "openXmlImpact": "Resolves target <p:sp> by <p:cNvPr id=\"...\">, <p:cNvPr name=\"...\">, or semantic tag. Retains <p:nvSpPr>, <p:spPr>, <a:xfrm>, and <p:txBody>/<a:bodyPr>. Clones base <a:pPr> and <a:rPr>, splits newText on newlines into separate <a:p> elements, and updates slide XML.",
+        "edgeCases": "If tagOrId is not found, logs a warning and skips gracefully without throwing. Supports options.slide to override slide targeting.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "tag",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Placeholder tag name (e.g. <code>'{{name}}'</code> or <code>'name'</code>)."
-          },
-          {
-            "name": "value",
+            "name": "tagOrId",
             "type": "string | number",
             "required": true,
             "default": "—",
-            "description": "Replacement string or numeric value."
+            "description": "Target text box ID (e.g. \"2\"), shape name (e.g. \"Title 1\"), or semantic tag."
+          },
+          {
+            "name": "newText",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Full replacement text for the text box. Supports newlines (\\n) for multi-line paragraphs."
           },
           {
             "name": "options",
             "type": "Object",
             "required": false,
             "default": "{}",
-            "description": "Options."
+            "description": "Optional style overrides (fontSize, bold, color, etc.) or slide override ({ slide: 1 })."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(1).replaceTextByTag('revenue', '$142.5M');"
+        "exampleCode": "// Replace text box content by shape ID or name\\nppt.useSlide(1)\\n   .replaceTextByTag(\"TitleBox\", \"Q4 Executive Summary\\nStrategic Highlights & Goals\", {\\n     bold: true,\\n     color: \"#1E3A8A\"\\n   });\\n\\n// Target by numeric ID string with slide override\\nppt.replaceTextByTag(\"2\", \"Board Approved Financial Guidance\", { slide: 2 });"
       },
       {
-        "id": "updatetext",
-        "name": "updateText",
-        "signature": "ppt.updateText(tag, valueOrListConfig)",
+        "id": "gettextelements",
+        "name": "getTextElements",
+        "signature": "ppt.getTextElements()",
         "category": "Text & Placeholders",
-        "description": "Updates text content or synthesizes hierarchical bullet/numbered lists inside a shape or text frame by shape name, shape ID, or placeholder tag.",
-        "openXmlImpact": "Replaces paragraph text or synthesizes &lt;a:pPr&gt; bullet properties (&lt;a:buChar&gt;, &lt;a:buAutoNum&gt;, @_lvl, @_marL).",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Extracts a structured catalog of all text elements and paragraphs across all shapes on the active slide.",
+        "openXmlImpact": "Iterates through <p:spTree> and extracts text, run properties, styling metadata, and bounding coordinates.",
+        "edgeCases": "Returns empty array if no text shapes exist on the active slide.",
         "isStatic": false,
         "isAsync": false,
-        "parameters": [
-          {
-            "name": "tag",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Shape name, shape ID, or placeholder tag."
-          },
-          {
-            "name": "valueOrListConfig",
-            "type": "string | Object | Array",
-            "required": true,
-            "default": "—",
-            "description": "Plain text string or structured list configuration object."
-          }
-        ],
+        "parameters": [],
         "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
+          "type": "Array.<Object>",
+          "description": "Array of structured text paragraph descriptors with shapeName, text, and styling information."
         },
-        "exampleCode": "// Generate formatted multi-level bulleted list\nppt.useSlide(2).updateText('key_takeaways', {\n  list: [\n    'Net Revenue Retention expanded to 118.4%',\n    { text: 'Gross margin improved 3.4% YoY', children: ['Cloud optimization initiatives', 'Vendor renegotiations'] },\n    'Zero critical infrastructure incidents in Q3'\n  ],\n  style: { bulletChar: '•', color: '1E293B', fontSize: 14 }\n});"
+        "exampleCode": "const elements = ppt.useSlide(1).getTextElements();\nelements.forEach(el => console.log(el.shapeName, el.text));"
       },
       {
         "id": "findtext",
         "name": "findText",
-        "signature": "ppt.findText(text)",
+        "signature": "ppt.findText(query)",
         "category": "Text & Placeholders",
-        "description": "Searches for text occurrences across targeted slides. Scans all shapes, text boxes, and tables, returning match locations with slide index and shape identifiers.",
-        "openXmlImpact": "Recursively inspects &lt;p:spTree&gt;, &lt;p:sp&gt;, &lt;p:graphicFrame&gt;, and &lt;a:t&gt; nodes.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Locates occurrences of text across shapes on the active slide, normalizing fragmented AST text runs before querying.",
+        "openXmlImpact": "Traverses <p:spTree> shapes and unified text runs, returning match positions, shape identifiers, and paragraph indices.",
+        "edgeCases": "Supports exact string or RegExp matching; heals runs split across <a:r> nodes.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "text",
-            "type": "string",
+            "name": "query",
+            "type": "string | RegExp",
             "required": true,
             "default": "—",
-            "description": "Substring to search for."
+            "description": "Search query string or regular expression."
           }
         ],
         "returns": {
-          "type": "Array<Object>",
-          "description": "List of matches with slide numbers and shape names."
+          "type": "Array.<Object>",
+          "description": "Array of match descriptor objects with shapeName, shapeId, paragraphIndex, and matched text."
         },
-        "exampleCode": "const matches = ppt.findText('ARR');\nmatches.forEach(m => console.log(`Found \"${m.text}\" on slide ${m.slideIndex} in shape \"${m.shapeName}\"`));"
+        "exampleCode": "const matches = ppt.useSlide(1).findText(\"Quarterly\");\nconsole.log(\"Matches found:\", matches.length);"
       },
       {
-        "id": "appendtextrun",
-        "name": "appendTextRun",
-        "signature": "ppt.appendTextRun(shapeId, text, options = {})",
+        "id": "gettext",
+        "name": "getText",
+        "signature": "ppt.getText(tag)",
         "category": "Text & Placeholders",
-        "description": "Appends a new styled text run (&lt;a:r&gt;) to the end of the text frame of an existing shape. Supports custom font family, size, solid fill color, bold, italics, underline, and strike.",
-        "openXmlImpact": "Appends &lt;a:r&gt; with &lt;a:rPr&gt; (@_sz, @_b, &lt;a:solidFill&gt;) to the last &lt;a:p&gt; in &lt;p:txBody&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Extracts raw plain-text content from a target shape identified by tag or shape name, concatenating all internal runs and paragraphs.",
+        "openXmlImpact": "Reads <p:txBody> in target shape, extracts all <a:t> nodes, and joins paragraphs with newline delimiters.",
+        "edgeCases": "Returns null if no shape with the given tag or name exists.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "shapeId",
+            "name": "tag",
             "type": "string",
             "required": true,
             "default": "—",
-            "description": "Shape ID or shape name."
-          },
+            "description": "Target shape name or semantic tag."
+          }
+        ],
+        "returns": {
+          "type": "string | null",
+          "description": "Extracted plain text or null if shape not found."
+        },
+        "exampleCode": "const title = ppt.useSlide(1).getText(\"HeaderTitle\");\nconsole.log(\"Slide title:\", title);"
+      },
+      {
+        "id": "removetext",
+        "name": "removeText",
+        "signature": "ppt.removeText(tag)",
+        "category": "Text & Placeholders",
+        "description": "Removes a text shape completely from the active slide shape tree (<p:spTree>).",
+        "openXmlImpact": "Deletes the corresponding <p:sp> node from slide XML and updates element indices.",
+        "edgeCases": "Silently ignores if target shape is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
           {
-            "name": "text",
+            "name": "tag",
             "type": "string",
             "required": true,
             "default": "—",
-            "description": "Text string to append."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Styling options (fontSize, bold, color, fontFamily)."
+            "description": "Target shape name or semantic tag to remove."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(1).appendTextRun('subtitle_box', ' (Updated October 2026)', {\n  bold: true,\n  color: '2563EB',\n  fontSize: 12\n});"
+        "exampleCode": "ppt.useSlide(1).removeText(\"DraftWatermark\");"
       },
       {
-        "id": "prependtextrun",
-        "name": "prependTextRun",
-        "signature": "ppt.prependTextRun(shapeId, text, options = {})",
+        "id": "cleartext",
+        "name": "clearText",
+        "signature": "ppt.clearText(tag)",
         "category": "Text & Placeholders",
-        "description": "Inserts a new styled text run at the very beginning of a shape's text frame, before all existing paragraphs and runs.",
-        "openXmlImpact": "Prepends &lt;a:r&gt; to the first &lt;a:p&gt; under &lt;p:txBody&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Clears all text paragraphs and runs from a target shape while strictly retaining the shape container, bounding box coordinates, and preset geometry.",
+        "openXmlImpact": "Replaces <p:txBody> paragraphs with a single empty <a:p> while leaving <p:spPr> and geometry intact.",
+        "edgeCases": "Preserves shape position, dimensions, rotation, fill, and borders.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "shapeId",
+            "name": "tag",
             "type": "string",
             "required": true,
             "default": "—",
-            "description": "Target shape identifier."
-          },
-          {
-            "name": "text",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Text string to prepend."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Styling configuration options."
+            "description": "Target shape name or semantic tag."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(1).prependTextRun('title_box', '[FINAL] ', {\n  bold: true,\n  color: '10B981'\n});"
+        "exampleCode": "ppt.useSlide(1).clearText(\"PlaceholderContainer\");"
       },
       {
-        "id": "extractplaceholders",
-        "name": "extractPlaceholders",
-        "signature": "ppt.extractPlaceholders(pattern)",
+        "id": "addlists",
+        "name": "addLists",
+        "signature": "ppt.addLists(items, options = {})",
         "category": "Text & Placeholders",
-        "description": "Scans all text runs across targeted slides and extracts a unique list of all placeholder tokens matching the pattern (defaults to /\\{\\{([^\\{\\}]+)\\}\\}/g). Useful for validating payload completeness before template rendering.",
-        "openXmlImpact": "Parses all &lt;a:t&gt; elements across active slide XML parts.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Creates or appends a multi-level bulleted or numbered list container with custom bullet characters, colors, sizing, and indentation levels.",
+        "openXmlImpact": "Generates <a:p> elements with <a:pPr> configuring <a:buChar>, <a:buClr>, <a:buSzPts>, <a:buSzPct>, and lvl attribute.",
+        "edgeCases": "Handles nested list item arrays and custom bullet glyphs.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "pattern",
-            "type": "RegExp",
+            "name": "items",
+            "type": "Array.<string | Object>",
+            "required": true,
+            "default": "—",
+            "description": "Array of list item strings or structured objects with nested children and level definitions."
+          },
+          {
+            "name": "options",
+            "type": "Object",
             "required": false,
-            "default": "/\\{\\{([^\\{\\}]+)\\}\\}/g",
-            "description": "Custom regular expression for placeholder detection."
+            "default": "{}",
+            "description": "Placement coordinates, bullet type (bulletChar, bulletColor, bulletFontSize, bulletStyle), and shape tag."
           }
         ],
         "returns": {
-          "type": "string[]",
-          "description": "Array of unique placeholder tokens found."
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
         },
-        "exampleCode": "const requiredTags = ppt.useAllSlides().extractPlaceholders();\nconsole.log('Template requires placeholders:', requiredTags);\n// ['{{title}}', '{{author}}', '{{company}}']"
+        "exampleCode": "ppt.useSlide(1).addLists([\n  \"Executive summary of operational performance\",\n  \"Quarterly milestone verification\",\n  \"Statutory compliance certifications\"\n], {\n  tag: \"DeliverablesList\",\n  x: 100, y: 150, width: 600, height: 200,\n  bulletChar: \"•\",\n  bulletColor: \"#2563EB\",\n  fontSize: 14\n});"
+      },
+      {
+        "id": "getlists",
+        "name": "getLists",
+        "signature": "ppt.getLists()",
+        "category": "Text & Placeholders",
+        "description": "Discovers and extracts all bulleted and numbered list structures across all shapes on the active slide.",
+        "openXmlImpact": "Scans all <p:sp> elements in <p:spTree>, identifies paragraphs containing bullet configurations or indent levels, and returns structured data.",
+        "edgeCases": "Returns empty array if no lists exist on the slide.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "Array.<Object>",
+          "description": "Array of list structures with shapeId, shapeName, and items array."
+        },
+        "exampleCode": "const allLists = ppt.useSlide(1).getLists();\nconsole.log(\"Total lists on slide:\", allLists.length);"
       },
       {
         "id": "getlist",
         "name": "getList",
         "signature": "ppt.getList(tag)",
         "category": "Text & Placeholders",
-        "description": "Extracts existing bulleted and numbered items from a shape or text box, returning each line with its hierarchical indentation level.",
-        "openXmlImpact": "Reads &lt;a:p&gt; elements and parses &lt;a:pPr @_lvl=\"...\"&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Retrieves structured items from a bulleted or numbered list shape matching the specified tag or name, including indentation levels and text runs.",
+        "openXmlImpact": "Inspects <p:txBody> in target shape and parses <a:p> elements, reading <a:pPr lvl=\"...\"> attributes and <a:t> text nodes.",
+        "edgeCases": "Returns null if no matching list shape is found on the active slide.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
@@ -1588,39 +1594,224 @@
             "type": "string",
             "required": true,
             "default": "—",
-            "description": "Shape name, shape ID, or placeholder tag."
+            "description": "Target list shape name or semantic tag."
           }
         ],
         "returns": {
-          "type": "Array<Object>",
-          "description": "Array of items with text and 0-based indentation level."
+          "type": "Object | null",
+          "description": "Object containing tag, items array with level and text, or null."
         },
-        "exampleCode": "const items = ppt.useSlide(2).getList('action_items');\nitems.forEach(item => console.log(`Level ${item.level}: ${item.text}`));"
+        "exampleCode": "const listData = ppt.useSlide(1).getList(\"DeliverablesList\");\nconsole.log(listData.items.map(item => item.text));"
       },
       {
-        "id": "validatelist",
-        "name": "validateList",
-        "signature": "PPTXTemplater.validateList(listConfig)",
+        "id": "findlists",
+        "name": "findLists",
+        "signature": "ppt.findLists(query)",
         "category": "Text & Placeholders",
-        "description": "Validates a structured list configuration before injecting it into slide XML. Checks list depth, text integrity, and bullet formatting parameters.",
-        "openXmlImpact": "Schema verification utility for DrawingML paragraph properties.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": true,
+        "description": "Searches all bulleted and numbered lists on the active slide matching a text query string or regular expression.",
+        "openXmlImpact": "Queries list paragraph text across shapes and returns matching list objects and their associated items.",
+        "edgeCases": "Case-insensitive by default; supports regex patterns.",
+        "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "listConfig",
-            "type": "Object",
+            "name": "query",
+            "type": "string | RegExp",
             "required": true,
             "default": "—",
-            "description": "List configuration object with list array and optional style."
+            "description": "Search query string or pattern."
           }
         ],
         "returns": {
-          "type": "{ valid: boolean, errors: string[] }",
-          "description": "Validation outcome descriptor."
+          "type": "Array.<Object>",
+          "description": "Array of matched list descriptors containing items that satisfied the query."
         },
-        "exampleCode": "const result = PPTXTemplater.validateList({ list: ['Item 1', 'Item 2'] });\nif (!result.valid) console.error('List errors:', result.errors);"
+        "exampleCode": "const securityLists = ppt.useSlide(1).findLists(\"Security\");\nconsole.log(\"Found security lists:\", securityLists);"
+      },
+      {
+        "id": "removelist",
+        "name": "removeList",
+        "signature": "ppt.removeList(tag)",
+        "category": "Text & Placeholders",
+        "description": "Removes a bulleted or numbered list shape completely from the active slide shape tree.",
+        "openXmlImpact": "Deletes the <p:sp> container representing the list from <p:spTree>.",
+        "edgeCases": "Silently ignores if target list shape is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target list shape name or semantic tag to remove."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeList(\"TemporaryList\");"
+      },
+      {
+        "id": "clearlist",
+        "name": "clearList",
+        "signature": "ppt.clearList(tag)",
+        "category": "Text & Placeholders",
+        "description": "Clears all list item paragraphs from a list container while retaining the shape position, dimensions, and bullet configuration properties.",
+        "openXmlImpact": "Empties paragraph runs in <p:txBody> while preserving <a:pPr> bullet definitions and <p:spPr> layout.",
+        "edgeCases": "Retains preset bullet formatting for future item additions.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target list shape name or semantic tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).clearList(\"ExecutiveActionItems\");"
+      },
+      {
+        "id": "replacelist",
+        "name": "replaceList",
+        "signature": "ppt.replaceList(tag, newItems, options = {})",
+        "category": "Text & Placeholders",
+        "description": "Replaces existing list items in a shape with a new set of bulleted or numbered items, preserving or updating bullet styling.",
+        "openXmlImpact": "Replaces <a:p> elements in <p:txBody> with new styled paragraphs while maintaining shape geometry and container properties.",
+        "edgeCases": "Supports hierarchical indentation and bullet override options.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target list shape name or semantic tag."
+          },
+          {
+            "name": "newItems",
+            "type": "Array.<string | Object>",
+            "required": true,
+            "default": "—",
+            "description": "New list items to populate."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Bullet styling options (bulletChar, bulletColor, fontSize, etc.)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).replaceList(\"KeyObjectivesList\", [\n  \"Achieve ISO-27001 certification\",\n  \"Complete quarterly security audit\",\n  \"Deploy zero-trust network policy\"\n], { bulletChar: \"✓\", bulletColor: \"#10B981\" });"
+      },
+      {
+        "id": "addstyle",
+        "name": "addStyle",
+        "signature": "ppt.addStyle(target, style)",
+        "category": "Text & Placeholders",
+        "description": "Applies one or more of the 31 DrawingML typography, casing, spacing, bullet, or shadow style properties to a target shape or text run.",
+        "openXmlImpact": "Translates style properties into DrawingML <a:pPr>, <a:rPr>, <a:effectLst>, and <a:outerShdw> nodes without altering text strings.",
+        "edgeCases": "Merges non-destructively with existing run properties.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "target",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape name or semantic tag."
+          },
+          {
+            "name": "style",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Style dictionary supporting 31 properties (fontSize, color, bold, italic, uppercase, lineSpacing, textShadow, etc.)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).addStyle(\"HeroTitle\", {\n  fontSize: 28,\n  bold: true,\n  color: \"#1E3A8A\",\n  textShadow: true,\n  shadowColor: \"#94A3B8\"\n});"
+      },
+      {
+        "id": "removestyle",
+        "name": "removeStyle",
+        "signature": "ppt.removeStyle(target, styleProperties)",
+        "category": "Text & Placeholders",
+        "description": "Strips specified style properties from a target shape text runs or paragraphs, resetting them to inherited presentation defaults.",
+        "openXmlImpact": "Purges corresponding DrawingML attributes and tags from <a:rPr> and <a:pPr> (e.g. deletes b, i, u, <a:highlight>, <a:effectLst>).",
+        "edgeCases": "Preserves text content and unremoved styling attributes intact.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "target",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape name or semantic tag."
+          },
+          {
+            "name": "styleProperties",
+            "type": "string | Array.<string>",
+            "required": true,
+            "default": "—",
+            "description": "Property name or array of property names to strip (e.g. [\"bold\", \"highlight\", \"underline\"])."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeStyle(\"HeroTitle\", [\"highlight\", \"underline\", \"strikethrough\"]);"
+      },
+      {
+        "id": "updatestyle",
+        "name": "updateStyle",
+        "signature": "ppt.updateStyle(target, style)",
+        "category": "Text & Placeholders",
+        "description": "Updates and merges style properties on a target shape, overwriting specified properties while keeping other applied styles intact.",
+        "openXmlImpact": "Merges new DrawingML <a:rPr> and <a:pPr> definitions into existing shape text properties.",
+        "edgeCases": "Overwrites matching properties; retains non-specified properties.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "target",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape name or semantic tag."
+          },
+          {
+            "name": "style",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Updated style properties to merge."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).updateStyle(\"HeroTitle\", {\n  fontSize: 32,\n  color: \"#2563EB\",\n  alignment: \"center\"\n});"
       }
     ],
     "Tables & Cell Shapes": [
@@ -3030,52 +3221,6 @@
     ],
     "Hyperlinks": [
       {
-        "id": "addhyperlink",
-        "name": "addHyperlink",
-        "signature": "ppt.addHyperlink(options)",
-        "category": "Hyperlinks",
-        "description": "Attaches an external web URL hyperlink to a text run or shape. Creates an external relationship in slide{N}.xml.rels and registers the click action.",
-        "openXmlImpact": "Adds &lt;a:hlinkClick r:id=\"rId...\"/&gt; under &lt;a:rPr&gt; and registers relationship in slide{N}.xml.rels with TargetMode=\"External\".",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "options",
-            "type": "Object",
-            "required": true,
-            "default": "—",
-            "description": "Hyperlink configuration."
-          },
-          {
-            "name": "options.url",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Web URL destination (e.g. <code>'https://example.com'</code>)."
-          },
-          {
-            "name": "options.text",
-            "type": "string",
-            "required": false,
-            "default": "—",
-            "description": "Specific text substring to attach link to."
-          },
-          {
-            "name": "options.shapeId",
-            "type": "string",
-            "required": false,
-            "default": "—",
-            "description": "Target shape ID."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(1).addHyperlink({\n  shapeId: 'contact_box',\n  text: 'Visit Documentation',\n  url: 'https://jsuyog2.github.io/node-pptx-templater'\n});"
-      },
-      {
         "id": "addslidelink",
         "name": "addSlideLink",
         "signature": "ppt.addSlideLink(options)",
@@ -3177,45 +3322,6 @@
           "description": "this (chainable)."
         },
         "exampleCode": "ppt.useSlide(1).addShapeLink('cta_button', 'https://company.com/signup');"
-      },
-      {
-        "id": "addtextnavigationlink",
-        "name": "addTextNavigationLink",
-        "signature": "ppt.addTextNavigationLink(shapeId, targetSlideNumber, options = {})",
-        "category": "Hyperlinks",
-        "description": "Creates an internal slide jump link on a specific text run inside a shape.",
-        "openXmlImpact": "Adds ppaction://hlinksldjump to targeted &lt;a:rPr&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "shapeId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Shape ID."
-          },
-          {
-            "name": "targetSlideNumber",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "1-based destination slide index."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Matching options."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(2).addTextNavigationLink('agenda_box', 5, { text: 'Financials' });"
       },
       {
         "id": "addshapenavigationlink",

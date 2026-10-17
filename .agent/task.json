@@ -1,17 +1,38 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.5.0",
-    "category": "Slide Section Subsystem Fix",
+    "category": "Text & Placeholders",
+    "task": "Modify replaceTextByTag Methodology to Target Text Box ID and Replace Full Box Text",
     "tasks": [
         {
-            "id": "TASK-SECTION-001",
-            "title": "Diagnose & Fix PowerPoint Discarding addSection XML",
+            "id": "TASK-REPLACE-TAG-001",
+            "title": "Update replaceTextByTag Methodology in TextManager & Core Orchestrator",
             "status": "completed",
-            "description": "Resolve the root causes preventing sections created via addSection(name, startSlideIndex) from rendering in PowerPoint: (1) Ensure contiguous partitioning across all slides in ppt/presentation.xml (creating a 'Default Section' if startSlideIndex > 1), (2) Map numerical slide IDs (<p14:sldId id='...'/>) extracted from <p:sldIdLst> rather than 1-based indices or relationship IDs, (3) Register uppercase GUIDs wrapped in braces (id='{...}'), (4) Wrap in <p:extLst> with URI '{521415D9-36F7-43E2-AB2F-B90AF26B5E84}' and xmlns:p14 namespace, and (5) Ensure <p:extLst> is written as the final child before </p:presentation>.",
+            "description": "Modify replaceTextByTag(tagOrId, newText, options = {}). Update target resolution to locate the shape/text box directly by its shape ID, shape name, or non-visual property id/name (<p:cNvPr id=\"...\" name=\"...\">). Once resolved, clear the existing text content across all runs inside <p:txBody> and replace the entire text box text with newText, while preserving root text frame properties (<a:bodyPr>), paragraph properties (<a:pPr>), and base typography (<a:rPr>) from the primary run. Maintain fluent chaining returning this.",
             "deliverables": [
-                "src/managers/SlideManager.js (complete addSection overhaul)",
-                "src/core/PPTXTemplater.js (fluent delegation wrapper)",
-                "tests/integration/sectionAddValidation.test.js"
+                "src/managers/TextManager.js",
+                "src/core/PPTXTemplater.js"
+            ]
+        },
+        {
+            "id": "TASK-REPLACE-TAG-002",
+            "title": "Add Unit and Integration Tests for Box ID Full-Text Replacement",
+            "status": "completed",
+            "description": "Create integration tests in tests/integration/replaceTextByTag.test.js verifying that passing a text box ID or shape name completely replaces the entire text frame content regardless of existing run fragmentation or multiple paragraphs, verifies boundary handling if an ID is not found, and confirms proper XML serialization without PowerPoint repair warnings.",
+            "deliverables": [
+                "tests/integration/replaceTextByTag.test.js"
+            ]
+        },
+        {
+            "id": "TASK-REPLACE-TAG-003",
+            "title": "Update Documentation, Showcase & Workspace Knowledge Base",
+            "status": "completed",
+            "description": "Update docs-site/src/data/apiReference.json, README.md, index.d.ts, and .agent memory files (.agent/rules/features.md, .agent/project_summary.md) to reflect the updated signature, parameter semantics (tagOrId: string), behavior (full text box text replacement), and usage examples.",
+            "deliverables": [
+                "docs-site/src/data/apiReference.json",
+                "README.md",
+                "index.d.ts",
+                ".agent/rules/features.md",
+                ".agent/project_summary.md"
             ]
         }
     ]

@@ -172,8 +172,8 @@
         },
         {
           "id": 26,
-          "title": "Text Run Appending & Prepending",
-          "description": "Insert new text spans before or after existing content within any text box."
+          "title": "List & Bullet Hierarchy Engine",
+          "description": "Create and manage multi-level lists, bullet characters, colors, font sizing, and indent levels."
         },
         {
           "id": 27,

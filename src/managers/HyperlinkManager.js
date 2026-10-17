@@ -599,11 +599,18 @@ class HyperlinkManager {
     if (spStart === -1 || spEnd === -1) return slideXml
 
     const spXml = slideXml.substring(spStart, spEnd + '</p:sp>'.length)
-    const cNvSpPrEnd = spXml.indexOf('</p:cNvSpPr>')
-
-    if (cNvSpPrEnd === -1) return slideXml
-
-    const newSpXml = spXml.substring(0, cNvSpPrEnd) + hlinkXml + spXml.substring(cNvSpPrEnd)
+    let newSpXml
+    const selfClosingIndex = spXml.indexOf('<p:cNvSpPr/>')
+    if (selfClosingIndex !== -1) {
+      newSpXml =
+        spXml.substring(0, selfClosingIndex) +
+        `<p:cNvSpPr>${hlinkXml}</p:cNvSpPr>` +
+        spXml.substring(selfClosingIndex + '<p:cNvSpPr/>'.length)
+    } else {
+      const cNvSpPrEnd = spXml.indexOf('</p:cNvSpPr>')
+      if (cNvSpPrEnd === -1) return slideXml
+      newSpXml = spXml.substring(0, cNvSpPrEnd) + hlinkXml + spXml.substring(cNvSpPrEnd)
+    }
 
     return slideXml.substring(0, spStart) + newSpXml + slideXml.substring(spEnd + '</p:sp>'.length)
   }

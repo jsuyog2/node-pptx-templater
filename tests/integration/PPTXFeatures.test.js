@@ -164,7 +164,7 @@ describe('PPTXTemplater - Extended Features & Safety', () => {
       freshPpt.useSlide(1)
 
       freshPpt.replaceTextByTag('title', 'Awesome Presentation Title')
-      freshPpt.replaceMultiple({
+      freshPpt.replaceText({
         title: 'Awesome Title Tag',
         company: 'Google DeepMind',
       })

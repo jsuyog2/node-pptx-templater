@@ -165,4 +165,47 @@ To ensure presentations created from scratch open cleanly in PowerPoint, the gen
   - `(0, 100%)`: Bottom-Left corner ($x = 0$, $y = 100\%$).
   - `(100%, 100%)`: Bottom-Right corner ($x = 100\%$, $y = 100\%$).
 
+---
+
+## 7. Text, Lists & 31-Property Style Engine Invariants
+
+### 7.1 Strict 18-Method Text & List API Boundary
+The public Text & Placeholders surface is locked strictly to **18 approved methods**:
+1. `ppt.replaceText(replacements)`
+2. `ppt.addText(textContent, options)`
+3. `ppt.replaceTextByTag(tagOrId, newText, options)`
+4. `ppt.addLists(items, options)`
+5. `ppt.getList(tag)`
+6. `ppt.findText(query)`
+7. `ppt.addStyle(target, style)`
+8. `ppt.removeStyle(target, styleProperties)`
+9. `ppt.updateStyle(target, style)`
+10. `ppt.getText(tag)`
+11. `ppt.getLists()`
+12. `ppt.findLists(query)`
+13. `ppt.removeText(tag)`
+14. `ppt.removeList(tag)`
+15. `ppt.clearText(tag)`
+16. `ppt.clearList(tag)`
+17. `ppt.replaceList(tag, newItems, options)`
+18. `ppt.getTextElements()`
+
+- **Prohibited & Purged Methods**: Never introduce or accept `updateText`, `replaceMultiple`, `extractPlaceholders`, `addHyperlink`, `addTextNavigationLink`, `appendTextRun`, `prependTextRun`, or `textManager` getter.
+- All mutating text/list instance methods must return `this` for fluent chaining.
+
+### 7.2 Complete 31-Property OpenXML DrawingML Style Engine
+All text formatting must compile cleanly into DrawingML `<a:pPr>`, `<a:rPr>`, and `<a:effectLst>` across all 31 supported properties:
+- **Typography (8)**: `fontSize` (1 pt = 100 sz), `color` (`<a:srgbClr>`), `highlight` (`<a:highlight>`), `underline` (`u`), `bold` (`b`), `italic` (`i`), `superscript` / `subscript` (`baseline`), `strikethrough` (`strike`).
+- **Casing & Spacing (6)**: `uppercase`, `lowercase`, `capitalize`, `smallCaps` (`cap="small"`), `charSpacing` (`spc`), `lineSpacing` (`<a:lnSpc>`).
+- **Alignment & Direction (4)**: `textAlignment` / `alignment` (`algn`), `verticalAlignment` (`anchor`), `textDirection` (`vert`), `indentLevel` (`lvl`).
+- **Bullets & Lists (5)**: `bulletChar` (`<a:buChar>`), `bulletColor` (`<a:buClr>`), `bulletFontSize` (`<a:buSzPts>` / `<a:buSzPct>`), `bulletStyle`, `bulletLevel`.
+- **Shadows & Outer Effects (6)**: `shadowColor`, `textShadow`, `blur`, `shadowRadius`, `shadowOffsetX`, `shadowOffsetY` (mapped to DrawingML `<a:effectLst>` and `<a:outerShdw>`).
+
+### 7.3 Full Text Box Replacement Protocol (`replaceTextByTag`)
+- Target text box or shape is resolved by ID (`<p:cNvPr id="...">`), shape name (`<p:cNvPr name="...">`), description, tag attribute, placeholder type, or semantic tag.
+- Full content replacement clears all existing text runs across all paragraphs in `<p:txBody>` and substitutes `newText`.
+- Root paragraph properties `<a:pPr>` (alignment, line spacing) and base run formatting `<a:rPr>` (font face, size, color, bold, italic) are extracted from the primary run and cloned across all replacement paragraphs.
+- Multi-line strings (containing `\n`) are automatically partitioned into separate `<a:p>` paragraph nodes preserving root paragraph layout.
+- Non-matching targets log a diagnostic warning and return gracefully without throwing exceptions.
+
 

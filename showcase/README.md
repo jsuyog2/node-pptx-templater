@@ -28,7 +28,7 @@ showcase/
 
 ## Demonstrations Included
 
-1. **Basic Report Generation & Text Replacement**: Slide dimensions, widescreen setup (16:9), text tag substitution (`replaceMultiple`), text inspection (`findText`).
+1. **Basic Report Generation & Text Replacement**: Slide dimensions, widescreen setup (16:9), text tag substitution (`replaceText`), text inspection (`findText`).
 2. **Chart Data & Labels Update with Excel Sync**: Multi-series category charts, data label configuration, internal embedded `.xlsx` workbook caching.
 3. **Dynamic Table Operations**: Appending rows, row striping (`stripeRows`), custom cell borders (`border` via `updateCell`), summary row pinning (`splitTableOnOverflow`).
 4. **Nested Tables & Cell Merging**: Hierarchical row expansion with `mergeStrategy: 'rowspan'` and `'auto'`, plus structured table extraction via `getTableRows({ includeMetadata: true })`.
@@ -37,6 +37,6 @@ showcase/
 7. **Multi-Format Media Operations**: Replacing existing slide images (`replaceImage`), adding PNG images with dimensions, and embedding WebP from Base64 Data URIs without native dependencies.
 8. **Slide Management**: Duplicating slides (`duplicateSlide`), reordering (`reorderSlides`), and importing slides across presentations (`importSlideFrom`).
 9. **Hyperlinks & Interactive Navigation**: Adding external URLs, inter-slide jumps (`addSlideLink`), and discovering hyperlink relationships (`getHyperlinks`).
-10. **Rich Typography & Text Runs**: Advanced font styling, colors, weights, line spacing, and appending distinct text runs (`appendTextRun`).
+10. **Rich Typography & Text Styling**: Advanced font styling, colors, weights, line spacing, and paragraph styling.
 11. **OpenXML Folder Workflow**: Unpacking presentations into raw XML folders (`extractPptx`), loading from folder, editing in-place, and rebuilding into binary PPTX (`buildPptx`).
 12. **Serverless Buffer Export**: Generating presentations directly in-memory as a `Buffer` (`toBuffer`) for AWS Lambda, Google Cloud Functions, or streaming HTTP responses.

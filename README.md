@@ -225,19 +225,24 @@ async function inspectPresentation() {
 }
 ```
 
-### 6. Dynamic Text Replacement & Fragment Healing
+### 6. Dynamic Text Replacement, Fragment Healing & Text Box ID Targeting
 
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');
 
-async function updateText() {
+async function replacePresentationText() {
   const ppt = await PPTXTemplater.load('./templates/executive-deck.pptx');
 
-  // Replaces tokens even if split across multiple <a:r> runs by PowerPoint
+  // 1. In-place template token replacement with AST fragment run healing
   ppt.useSlide(1).replaceText({
     '{{COMPANY}}': 'Acme Global Technologies Inc.',
     '{{QUARTER}}': 'Q3 2026',
     '{{PRESENTER}}': 'Sarah Jenkins, VP Engineering'
+  });
+
+  // 2. Full text box replacement by shape ID or name with formatting preservation
+  ppt.replaceTextByTag('SummaryBox', 'Key Takeaways:\n• Revenue up 38%\n• Retention healthy', {
+    bold: true
   });
 
   await ppt.saveToFile('./output/updated-deck.pptx');
