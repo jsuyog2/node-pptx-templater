@@ -3201,6 +3201,54 @@ class TableManager {
       throw new PPTXError(`Cell shape "${shapeIndex}" not found in cell (${rowIndex}, ${colIndex})`)
     }
 
+    const anchorKey = matchingShapes[0].name || matchingShapes[0].id
+    const existingAnchor = this.#cellShapeAnchors.get(anchorKey)
+    const existingConfig = existingAnchor?.config || {}
+    const existingShape = matchingShapes[0] || {}
+
+    // Merge options non-destructively: preserve existing fill, border, type, etc.
+    const mergedOptions = {
+      type:
+        options.type !== undefined
+          ? options.type
+          : existingConfig.type !== undefined
+            ? existingConfig.type
+            : existingShape.type,
+      fill:
+        options.fill !== undefined
+          ? options.fill
+          : existingConfig.fill !== undefined
+            ? existingConfig.fill
+            : existingShape.fill,
+      border:
+        options.border !== undefined
+          ? options.border
+          : existingConfig.border !== undefined
+            ? existingConfig.border
+            : existingShape.border,
+      stroke:
+        options.stroke !== undefined
+          ? options.stroke
+          : existingConfig.stroke !== undefined
+            ? existingConfig.stroke
+            : existingShape.stroke,
+      transparency:
+        options.transparency !== undefined
+          ? options.transparency
+          : existingConfig.transparency !== undefined
+            ? existingConfig.transparency
+            : existingShape.transparency,
+      rotation:
+        options.rotation !== undefined
+          ? options.rotation
+          : existingConfig.rotation !== undefined
+            ? existingConfig.rotation
+            : existingShape.rotation,
+      shadow: options.shadow !== undefined ? options.shadow : existingConfig.shadow,
+      ...existingConfig,
+      ...options,
+    }
+
     for (const s of matchingShapes) {
       shapeManager.removeShape(slideIndex, s.name, slideManager)
     }
@@ -3210,13 +3258,23 @@ class TableManager {
       throw new PPTXError(`Could not calculate bounds for cell (${rowIndex}, ${colIndex})`)
     }
 
-    const expandedConfigs = this.#expandCellShape(options, bounds)
+    const expandedConfigs = this.#expandCellShape(mergedOptions, bounds)
 
     expandedConfigs.forEach((expandedConfig, expIdx) => {
       const finalShapeIndex = expandedConfigs.length > 1 ? `${shapeIndex}_${expIdx}` : shapeIndex
       expandedConfig.id = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${finalShapeIndex}`
 
       shapeManager.addShape(slideIndex, expandedConfig, slideManager)
+
+      this.#cellShapeAnchors.set(expandedConfig.id, {
+        slideIndex,
+        resolvedTableId,
+        tableId,
+        rowIndex,
+        colIndex,
+        shapeIndex: finalShapeIndex,
+        config: { ...mergedOptions },
+      })
     })
   }
 

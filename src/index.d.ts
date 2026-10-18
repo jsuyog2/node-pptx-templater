@@ -40,6 +40,7 @@ export class PPTXTemplater {
   replaceText(replacements: Record<string, string | number>): this;
   addText(textContent: string, options?: any): this;
   replaceTextByTag(tagOrId: string | number, newText: string | number, options?: any): this;
+  updateText(tagOrId: string | number, newText: string | number | any, options?: any): this;
   addLists(items: any[], options?: any): this;
   getList(tag: string): any[];
   findText(query: string, options?: any): any[];

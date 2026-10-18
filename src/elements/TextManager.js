@@ -597,8 +597,59 @@ class TextManager {
       }
     }
 
+    const fillValue =
+      style?.fill !== undefined
+        ? style.fill
+        : style?.backgroundColor !== undefined
+          ? style.backgroundColor
+          : style?.fillColor
+    if (fillValue !== undefined && found.shape['p:spPr']) {
+      const spPr = found.shape['p:spPr']
+      delete spPr['a:noFill']
+      delete spPr['a:solidFill']
+      delete spPr['a:gradFill']
+      delete spPr['a:blipFill']
+      if (fillValue === 'none' || fillValue === 'transparent') {
+        spPr['a:noFill'] = {}
+      } else if (typeof fillValue === 'string') {
+        const hex = fillValue.replace('#', '').toUpperCase()
+        spPr['a:solidFill'] = { 'a:srgbClr': { '@_val': hex } }
+      }
+    }
+
     slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`updateStyle: Applied styles to "${target}" on slide ${slideIndex}`)
+  }
+
+  /**
+   * Updates/replaces text in an existing shape or placeholder non-destructively.
+   *
+   * @param {number} slideIndex
+   * @param {string} target
+   * @param {string|Object} newText
+   * @param {Object} [options]
+   * @param {SlideManager} slideManager
+   * @param {TemplateEngine} [templateEngine]
+   */
+  updateText(slideIndex, target, newText, options = {}, slideManager, templateEngine) {
+    let actualText = newText
+    let actualOptions = options
+    if (
+      typeof newText === 'object' &&
+      newText !== null &&
+      (options === undefined || Object.keys(options).length === 0)
+    ) {
+      actualOptions = newText
+      actualText = actualOptions.text
+    }
+    return this.replaceTextByTag(
+      slideIndex,
+      target,
+      actualText,
+      actualOptions,
+      slideManager,
+      templateEngine
+    )
   }
 
   // ==========================================================================

@@ -77,41 +77,29 @@ class ShapeManager {
     const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 1000
     const newId = maxId + 1
 
+    let assignedId = newId
+    if (normalized.id !== undefined && !isNaN(parseInt(normalized.id, 10))) {
+      const parsedNum = parseInt(normalized.id, 10)
+      if (parsedNum > 0 && !existingIds.includes(parsedNum)) {
+        assignedId = parsedNum
+      }
+    }
+
     const type = normalized.type || 'rectangle'
-    let preset = 'rect'
+    const preset = normalizePresetGeometry(type)
     let width = normalized.width || 100
     let height = normalized.height || 100
 
-    if (type === 'square' || type === 'rectangle' || type === 'rect') {
-      preset = 'rect'
-      if (type === 'square') {
-        width = normalized.size || 100
-        height = normalized.size || 100
+    if (preset === 'rect') {
+      if (type === 'square' || normalized.size !== undefined) {
+        width = normalized.size || width
+        height = normalized.size || height
       }
-    } else if (type === 'circle') {
-      preset = 'ellipse'
-      width = (normalized.radius || 50) * 2
-      height = (normalized.radius || 50) * 2
-    } else if (type === 'ellipse') {
-      preset = 'ellipse'
-    } else if (type === 'roundedRectangle' || type === 'roundRect') {
-      preset = 'roundRect'
-    } else if (
-      [
-        'triangle',
-        'star5',
-        'upArrow',
-        'downArrow',
-        'leftArrow',
-        'rightArrow',
-        'diamond',
-        'hexagon',
-        'line',
-      ].includes(type)
-    ) {
-      preset = type
-    } else {
-      preset = type
+    } else if (preset === 'ellipse') {
+      if (type === 'circle' || normalized.radius !== undefined) {
+        width = (normalized.radius || width / 2) * 2
+        height = (normalized.radius || height / 2) * 2
+      }
     }
 
     const bounds = resolveElementBounds(
@@ -127,10 +115,34 @@ class ShapeManager {
     const wEmu = bounds.width
     const hEmu = bounds.height
 
-    const name = normalized.id || `${type.charAt(0).toUpperCase() + type.slice(1)} ${newId}`
+    const fallbackName = `${preset.charAt(0).toUpperCase() + preset.slice(1)} ${assignedId}`
+    const name =
+      normalized.name ||
+      (normalized.id && isNaN(parseInt(normalized.id, 10)) ? normalized.id : fallbackName)
+
+    const isLine = preset === 'line'
+    let headEndXml = ''
+    let tailEndXml = ''
+    if (
+      normalized.headEnd ||
+      normalized.arrow ||
+      normalized.endArrow ||
+      type === 'lineArrow' ||
+      type === 'arrowLine'
+    ) {
+      const headType = typeof normalized.headEnd === 'string' ? normalized.headEnd : 'triangle'
+      headEndXml = `<a:headEnd type="${headType}"/>`
+    }
+    if (normalized.tailEnd || normalized.startArrow) {
+      const tailType = typeof normalized.tailEnd === 'string' ? normalized.tailEnd : 'triangle'
+      tailEndXml = `<a:tailEnd type="${tailType}"/>`
+    }
 
     // Fill properties
-    let fillXml = '<a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>'
+    let fillXml =
+      isLine && !normalized.fill
+        ? '<a:noFill/>'
+        : '<a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>'
     if (normalized.fill) {
       if (typeof normalized.fill === 'string') {
         const fillStr = normalized.fill.toLowerCase()
@@ -179,9 +191,19 @@ class ShapeManager {
         const bColor = (normalized.border.color || '#000000').replace('#', '').toUpperCase()
         const bWidth = Math.round((normalized.border.width || 1) * 9525)
         borderXml = `<a:ln w="${bWidth}">
-          <a:solidFill><a:srgbClr val="${bColor}"/></a:solidFill>
+          <a:solidFill><a:srgbClr val="${bColor}"/></a:solidFill>${headEndXml}${tailEndXml}
         </a:ln>`
       }
+    } else if (isLine || headEndXml || tailEndXml) {
+      const strokeColor = (normalized.strokeColor || normalized.color || '#000000')
+        .replace('#', '')
+        .toUpperCase()
+      const strokeWidth = Math.round(
+        (normalized.strokeWidth || normalized.lineWidth || (isLine ? 2 : 1)) * 9525
+      )
+      borderXml = `<a:ln w="${strokeWidth}">
+        <a:solidFill><a:srgbClr val="${strokeColor}"/></a:solidFill>${headEndXml}${tailEndXml}
+      </a:ln>`
     }
 
     // Adjustments (border radius)
@@ -241,7 +263,7 @@ class ShapeManager {
       txBodyXml = `<p:txBody><a:bodyPr rtlCol="0"/><a:lstStyle/><a:p><a:endParaRPr lang="en-US" dirty="0"/></a:p></p:txBody>`
     }
 
-    const shapeXml = `<p:sp><p:nvSpPr><p:cNvPr id="${newId}" name="${escapeXml(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm${xfrmAttrs}><a:off x="${xEmu}" y="${yEmu}"/><a:ext cx="${wEmu}" cy="${hEmu}"/></a:xfrm><a:prstGeom prst="${preset}">${avLstXml}</a:prstGeom>${fillXml}${borderXml}${shadowXml}</p:spPr>${txBodyXml}</p:sp>`
+    const shapeXml = `<p:sp><p:nvSpPr><p:cNvPr id="${assignedId}" name="${escapeXml(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm${xfrmAttrs}><a:off x="${xEmu}" y="${yEmu}"/><a:ext cx="${wEmu}" cy="${hEmu}"/></a:xfrm><a:prstGeom prst="${preset}">${avLstXml}</a:prstGeom>${fillXml}${borderXml}${shadowXml}</p:spPr>${txBodyXml}</p:sp>`
 
     const parsed = this.#xmlParser.parse(shapeXml, 'shape.xml')['p:sp']
     const shapeObj = Array.isArray(parsed) ? parsed[0] : parsed
@@ -256,13 +278,13 @@ class ShapeManager {
     }
     spTree['p:sp'].push(shapeObj)
 
-    if (spTree[Z_ORDER_SYMBOL] && !spTree[Z_ORDER_SYMBOL].includes(String(newId))) {
-      spTree[Z_ORDER_SYMBOL].push(String(newId))
+    if (spTree[Z_ORDER_SYMBOL] && !spTree[Z_ORDER_SYMBOL].includes(String(assignedId))) {
+      spTree[Z_ORDER_SYMBOL].push(String(assignedId))
     }
 
     slideManager.markSlideObjDirty(slideIndex)
-    logger.debug(`Added shape "${name}" with ID ${newId} to slide ${slideIndex}`)
-    return String(newId)
+    logger.debug(`Added shape "${name}" with ID ${assignedId} to slide ${slideIndex}`)
+    return String(assignedId)
   }
 
   /**
@@ -274,7 +296,7 @@ class ShapeManager {
    * @param {SlideManager} slideManager - SlideManager instance.
    */
   updateShape(slideIndex, shapeId, options = {}, slideManager) {
-    const res = slideManager.getSlideShape(slideIndex, shapeId)
+    const res = this.#findShape(slideIndex, shapeId, slideManager)
     if (!res) {
       throw new PPTXError(`Shape "${shapeId}" not found in slide ${slideIndex}`)
     }
@@ -285,7 +307,7 @@ class ShapeManager {
     }
     const spPr = shape['p:spPr']
 
-    const normalized = this.#normalizeShapeOptions(options)
+    const normalized = this.#normalizeShapeOptions(options, true)
 
     let w = normalized.width
     let h = normalized.height
@@ -339,43 +361,19 @@ class ShapeManager {
 
     // Update preset geometry type if specified
     if (normalized.type) {
-      let preset = 'rect'
-      if (
-        normalized.type === 'square' ||
-        normalized.type === 'rectangle' ||
-        normalized.type === 'rect'
-      ) {
-        preset = 'rect'
-      } else if (normalized.type === 'circle' || normalized.type === 'ellipse') {
-        preset = 'ellipse'
-      } else if (normalized.type === 'roundedRectangle' || normalized.type === 'roundRect') {
-        preset = 'roundRect'
-      } else if (
-        [
-          'triangle',
-          'star5',
-          'upArrow',
-          'downArrow',
-          'leftArrow',
-          'rightArrow',
-          'diamond',
-          'hexagon',
-          'line',
-        ].includes(normalized.type)
-      ) {
-        preset = normalized.type
-      } else {
-        preset = normalized.type
-      }
+      const preset = normalizePresetGeometry(normalized.type)
       if (!spPr['a:prstGeom']) {
         spPr['a:prstGeom'] = { 'a:avLst': {} }
       }
       spPr['a:prstGeom']['@_prst'] = preset
+      if (!spPr['a:prstGeom']['a:avLst']) {
+        spPr['a:prstGeom']['a:avLst'] = {}
+      }
     }
 
-    // Update fill properties
-    let fillXml = ''
-    if (normalized.fill) {
+    // Update fill properties ONLY if fill was explicitly specified
+    if (normalized.fill !== undefined) {
+      let fillXml = ''
       if (typeof normalized.fill === 'string') {
         const fillStr = normalized.fill.toLowerCase()
         if (fillStr === 'none' || fillStr === 'transparent') {
@@ -388,7 +386,7 @@ class ShapeManager {
               : ''
           fillXml = `<a:solidFill><a:srgbClr val="${hex}">${alphaXml}</a:srgbClr></a:solidFill>`
         }
-      } else if (typeof normalized.fill === 'object') {
+      } else if (typeof normalized.fill === 'object' && normalized.fill !== null) {
         if (normalized.fill.type === 'none') {
           fillXml = '<a:noFill/>'
         } else if (normalized.fill.type === 'gradient') {
@@ -441,11 +439,39 @@ class ShapeManager {
       } else {
         const bColor = (normalized.border.color || '#000000').replace('#', '').toUpperCase()
         const bWidth = Math.round((normalized.border.width || 1) * 9525)
+        let endMarkers = ''
+        if (normalized.headEnd || normalized.arrow || normalized.endArrow) {
+          const hType = typeof normalized.headEnd === 'string' ? normalized.headEnd : 'triangle'
+          endMarkers += `<a:headEnd type="${hType}"/>`
+        }
+        if (normalized.tailEnd || normalized.startArrow) {
+          const tType = typeof normalized.tailEnd === 'string' ? normalized.tailEnd : 'triangle'
+          endMarkers += `<a:tailEnd type="${tType}"/>`
+        }
         const borderXml = `<a:ln w="${bWidth}">
-          <a:solidFill><a:srgbClr val="${bColor}"/></a:solidFill>
+          <a:solidFill><a:srgbClr val="${bColor}"/></a:solidFill>${endMarkers}
         </a:ln>`
         const parsedBorder = this.#xmlParser.parse(borderXml, 'border.xml')['a:ln']
         spPr['a:ln'] = Array.isArray(parsedBorder) ? parsedBorder[0] : parsedBorder
+      }
+    } else if (
+      normalized.headEnd !== undefined ||
+      normalized.tailEnd !== undefined ||
+      normalized.arrow !== undefined
+    ) {
+      if (!spPr['a:ln']) {
+        spPr['a:ln'] = {
+          '@_w': '19050',
+          'a:solidFill': { 'a:srgbClr': { '@_val': '000000' } },
+        }
+      }
+      if (normalized.headEnd || normalized.arrow) {
+        const hType = typeof normalized.headEnd === 'string' ? normalized.headEnd : 'triangle'
+        spPr['a:ln']['a:headEnd'] = { '@_type': hType }
+      }
+      if (normalized.tailEnd) {
+        const tType = typeof normalized.tailEnd === 'string' ? normalized.tailEnd : 'triangle'
+        spPr['a:ln']['a:tailEnd'] = { '@_type': tType }
       }
     }
 
@@ -499,14 +525,90 @@ class ShapeManager {
 
     this.#reorderSpPrKeys(spPr)
 
-    // Update text
-    if (normalized.text !== undefined || normalized.textStyle !== undefined) {
-      let textVal = normalized.text
-      if (textVal === undefined) {
-        textVal = this.#getShapeText(shape) || ''
+    // Update text & typography non-destructively
+    const textPropKeys = [
+      'text',
+      'textStyle',
+      'fontSize',
+      'fontFamily',
+      'color',
+      'textColor',
+      'bold',
+      'italic',
+      'underline',
+      'strike',
+      'strikethrough',
+      'align',
+      'textAlign',
+      'alignment',
+      'verticalAlign',
+      'verticalAlignment',
+      'lineSpacing',
+      'lineSpacingPts',
+      'spaceBefore',
+      'spaceAfter',
+      'characterSpacing',
+      'tracking',
+      'superscript',
+      'subscript',
+    ]
+    const hasTextChange = textPropKeys.some(
+      k => normalized[k] !== undefined || options[k] !== undefined
+    )
+
+    if (hasTextChange) {
+      const textVal =
+        normalized.text !== undefined ? normalized.text : this.#getShapeText(shape) || ''
+
+      const existingTxBody = shape['p:txBody']
+      const existingParas = existingTxBody?.['a:p']
+        ? Array.isArray(existingTxBody['a:p'])
+          ? existingTxBody['a:p']
+          : [existingTxBody['a:p']]
+        : []
+      const existingStyle = {}
+      for (const p of existingParas) {
+        if (p && p['a:r']) {
+          const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
+          for (const r of runs) {
+            if (r && r['a:rPr']) {
+              const rPr = r['a:rPr']
+              if (rPr['@_sz']) existingStyle.fontSize = parseInt(rPr['@_sz'], 10) / 100
+              if (rPr['@_b'] === '1' || rPr['@_b'] === true) existingStyle.bold = true
+              if (rPr['@_i'] === '1' || rPr['@_i'] === true) existingStyle.italic = true
+              if (rPr['@_u']) existingStyle.underline = rPr['@_u']
+              if (rPr['a:solidFill']?.['a:srgbClr']?.['@_val']) {
+                existingStyle.color = '#' + rPr['a:solidFill']['a:srgbClr']['@_val']
+              }
+              if (rPr['a:latin']?.['@_typeface']) {
+                existingStyle.fontFamily = rPr['a:latin']['@_typeface']
+              }
+              break
+            }
+          }
+          if (Object.keys(existingStyle).length > 0) break
+        }
       }
 
-      const txBodyXml = buildTextBodyXml(textVal, normalized.textStyle, normalized)
+      const mergedTextStyle = {
+        ...existingStyle,
+        ...(normalized.textStyle || {}),
+      }
+      if (normalized.fontSize !== undefined) mergedTextStyle.fontSize = normalized.fontSize
+      if (normalized.fontFamily !== undefined) mergedTextStyle.fontFamily = normalized.fontFamily
+      if (normalized.color !== undefined) mergedTextStyle.color = normalized.color
+      if (normalized.textColor !== undefined) mergedTextStyle.color = normalized.textColor
+      if (normalized.bold !== undefined) mergedTextStyle.bold = normalized.bold
+      if (normalized.italic !== undefined) mergedTextStyle.italic = normalized.italic
+      if (normalized.underline !== undefined) mergedTextStyle.underline = normalized.underline
+      if (normalized.align !== undefined || normalized.textAlign !== undefined) {
+        mergedTextStyle.align = normalized.align || normalized.textAlign
+      }
+
+      const txBodyXml = buildTextBodyXml(textVal, mergedTextStyle, {
+        ...normalized,
+        ...mergedTextStyle,
+      })
       const parsedTxBody = this.#xmlParser.parse(txBodyXml, 'txBody.xml')['p:txBody']
       shape['p:txBody'] = Array.isArray(parsedTxBody) ? parsedTxBody[0] : parsedTxBody
     }
@@ -523,7 +625,7 @@ class ShapeManager {
    * @param {SlideManager} slideManager - SlideManager instance.
    */
   removeShape(slideIndex, shapeId, slideManager) {
-    const res = slideManager.getSlideShape(slideIndex, shapeId)
+    const res = this.#findShape(slideIndex, shapeId, slideManager)
     if (!res) {
       throw new PPTXError(`Shape "${shapeId}" not found in slide ${slideIndex}`)
     }
@@ -535,7 +637,15 @@ class ShapeManager {
       } else if (parent['p:sp'] === res.shape) {
         delete parent['p:sp']
       }
-    } else if (parent['p:grpSp']) {
+    }
+    if (parent['p:cxnSp']) {
+      if (Array.isArray(parent['p:cxnSp'])) {
+        parent['p:cxnSp'] = parent['p:cxnSp'].filter(s => s !== res.shape)
+      } else if (parent['p:cxnSp'] === res.shape) {
+        delete parent['p:cxnSp']
+      }
+    }
+    if (parent['p:grpSp']) {
       if (Array.isArray(parent['p:grpSp'])) {
         parent['p:grpSp'] = parent['p:grpSp'].filter(s => s !== res.shape)
       } else if (parent['p:grpSp'] === res.shape) {
@@ -546,6 +656,7 @@ class ShapeManager {
     const zOrder = parent[Z_ORDER_SYMBOL]
     const numericId =
       res.shape?.['p:nvSpPr']?.['p:cNvPr']?.['@_id'] ||
+      res.shape?.['p:nvCxnSpPr']?.['p:cNvPr']?.['@_id'] ||
       res.shape?.['p:nvGrpSpPr']?.['p:cNvPr']?.['@_id']
     if (zOrder && numericId !== undefined) {
       const elementId = String(numericId)
@@ -588,6 +699,16 @@ class ShapeManager {
         }
       }
       spTree['p:sp'] = preserved
+    }
+
+    if (spTree['p:cxnSp']) {
+      let cxns = spTree['p:cxnSp']
+      if (!Array.isArray(cxns)) cxns = [cxns]
+      for (const cxn of cxns) {
+        const id = cxn?.['p:nvCxnSpPr']?.['p:cNvPr']?.['@_id']
+        if (id !== undefined && id !== null) removedIds.add(String(id))
+      }
+      spTree['p:cxnSp'] = []
     }
 
     if (spTree['p:grpSp']) {
@@ -637,7 +758,7 @@ class ShapeManager {
    * @returns {Object|null}
    */
   getShape(slideIndex, shapeId, slideManager) {
-    const res = slideManager.getSlideShape(slideIndex, shapeId)
+    const res = this.#findShape(slideIndex, shapeId, slideManager)
     if (!res) return null
     return this.#normalizeShapeDescriptor(res.shape)
   }
@@ -653,14 +774,17 @@ class ShapeManager {
    */
   cloneShape(slideIndex, shapeId, clonedShapeId, clonedOptions = {}, slideManager) {
     const slideObj = slideManager.getSlideObj(slideIndex)
-    const res = slideManager.getSlideShape(slideIndex, shapeId)
+    const res = this.#findShape(slideIndex, shapeId, slideManager)
 
     if (!res) {
       throw new PPTXError(`Shape "${shapeId}" not found in slide ${slideIndex}`)
     }
 
     const newShape = this.#xmlParser.deepClone(res.shape)
-    const cNvPr = newShape['p:nvSpPr']?.['p:cNvPr']
+    const cNvPr =
+      newShape['p:nvSpPr']?.['p:cNvPr'] ||
+      newShape['p:nvCxnSpPr']?.['p:cNvPr'] ||
+      newShape['p:nvGrpSpPr']?.['p:cNvPr']
 
     const spTree =
       slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
@@ -733,11 +857,12 @@ class ShapeManager {
     }
 
     const parent = res.parent
-    if (!parent['p:sp']) parent['p:sp'] = []
-    if (!Array.isArray(parent['p:sp'])) {
-      parent['p:sp'] = [parent['p:sp']]
+    const targetKey = res.type === 'cxnSp' || newShape['p:nvCxnSpPr'] ? 'p:cxnSp' : 'p:sp'
+    if (!parent[targetKey]) parent[targetKey] = []
+    if (!Array.isArray(parent[targetKey])) {
+      parent[targetKey] = [parent[targetKey]]
     }
-    parent['p:sp'].push(newShape)
+    parent[targetKey].push(newShape)
 
     if (spTree[Z_ORDER_SYMBOL] && !spTree[Z_ORDER_SYMBOL].includes(String(newId))) {
       spTree[Z_ORDER_SYMBOL].push(String(newId))
@@ -757,12 +882,19 @@ class ShapeManager {
    * @returns {Array<Object>}
    */
   getGroupShapes(slideIndex, groupId, slideManager) {
-    const res = slideManager.getSlideShape(slideIndex, groupId)
+    const res = this.#findShape(slideIndex, groupId, slideManager)
     if (!res || res.type !== 'grpSp') return []
 
     const groupObj = res.shape
-    let childShapes = groupObj['p:sp'] || []
-    if (!Array.isArray(childShapes)) childShapes = [childShapes]
+    const childShapes = []
+    if (groupObj['p:sp']) {
+      const sps = Array.isArray(groupObj['p:sp']) ? groupObj['p:sp'] : [groupObj['p:sp']]
+      childShapes.push(...sps)
+    }
+    if (groupObj['p:cxnSp']) {
+      const cxns = Array.isArray(groupObj['p:cxnSp']) ? groupObj['p:cxnSp'] : [groupObj['p:cxnSp']]
+      childShapes.push(...cxns)
+    }
 
     return childShapes.map(shape => this.#normalizeShapeDescriptor(shape))
   }
@@ -793,7 +925,7 @@ class ShapeManager {
 
     const targetShapes = []
     for (const shapeId of shapeIds) {
-      const res = slideManager.getSlideShape(slideIndex, shapeId)
+      const res = this.#findShape(slideIndex, shapeId, slideManager)
       if (!res) {
         throw new PPTXError(`Shape "${shapeId}" not found in slide ${slideIndex}`)
       }
@@ -848,10 +980,16 @@ class ShapeManager {
 
     groupObj['p:sp'] = []
     const removedNumericIds = new Set(
-      targetShapes.map(t => String(t.shape?.['p:nvSpPr']?.['p:cNvPr']?.['@_id']))
+      targetShapes.map(t =>
+        String(
+          t.shape?.['p:nvSpPr']?.['p:cNvPr']?.['@_id'] ||
+            t.shape?.['p:nvCxnSpPr']?.['p:cNvPr']?.['@_id'] ||
+            t.shape?.['p:nvGrpSpPr']?.['p:cNvPr']?.['@_id']
+        )
+      )
     )
 
-    for (const { shape, parent } of targetShapes) {
+    for (const { shape, parent, type } of targetShapes) {
       if (parent['p:sp']) {
         if (Array.isArray(parent['p:sp'])) {
           parent['p:sp'] = parent['p:sp'].filter(s => s !== shape)
@@ -859,7 +997,20 @@ class ShapeManager {
           delete parent['p:sp']
         }
       }
-      groupObj['p:sp'].push(shape)
+      if (parent['p:cxnSp']) {
+        if (Array.isArray(parent['p:cxnSp'])) {
+          parent['p:cxnSp'] = parent['p:cxnSp'].filter(s => s !== shape)
+        } else if (parent['p:cxnSp'] === shape) {
+          delete parent['p:cxnSp']
+        }
+      }
+      if (type === 'cxnSp' || shape['p:nvCxnSpPr']) {
+        if (!groupObj['p:cxnSp']) groupObj['p:cxnSp'] = []
+        if (!Array.isArray(groupObj['p:cxnSp'])) groupObj['p:cxnSp'] = [groupObj['p:cxnSp']]
+        groupObj['p:cxnSp'].push(shape)
+      } else {
+        groupObj['p:sp'].push(shape)
+      }
     }
 
     if (!spTree['p:grpSp']) {
@@ -903,7 +1054,7 @@ class ShapeManager {
    * @param {SlideManager} slideManager - SlideManager instance.
    */
   ungroupShapes(slideIndex, groupId, slideManager) {
-    const res = slideManager.getSlideShape(slideIndex, groupId)
+    const res = this.#findShape(slideIndex, groupId, slideManager)
     if (!res || res.type !== 'grpSp') {
       throw new PPTXError(`Group shape "${groupId}" not found in slide ${slideIndex}`)
     }
@@ -941,8 +1092,15 @@ class ShapeManager {
     const scaleX = chW > 0 ? gW / chW : 1
     const scaleY = chH > 0 ? gH / chH : 1
 
-    let childShapes = groupObj['p:sp'] || []
-    if (!Array.isArray(childShapes)) childShapes = [childShapes]
+    const childShapes = []
+    if (groupObj['p:sp']) {
+      const sps = Array.isArray(groupObj['p:sp']) ? groupObj['p:sp'] : [groupObj['p:sp']]
+      childShapes.push(...sps)
+    }
+    if (groupObj['p:cxnSp']) {
+      const cxns = Array.isArray(groupObj['p:cxnSp']) ? groupObj['p:cxnSp'] : [groupObj['p:cxnSp']]
+      childShapes.push(...cxns)
+    }
 
     if (!spTree['p:sp']) spTree['p:sp'] = []
     if (!Array.isArray(spTree['p:sp'])) spTree['p:sp'] = [spTree['p:sp']]
@@ -971,10 +1129,17 @@ class ShapeManager {
       xfrm['a:ext']['@_cx'] = String(absW)
       xfrm['a:ext']['@_cy'] = String(absH)
 
-      const cid = child?.['p:nvSpPr']?.['p:cNvPr']?.['@_id']
+      const cid =
+        child?.['p:nvSpPr']?.['p:cNvPr']?.['@_id'] || child?.['p:nvCxnSpPr']?.['p:cNvPr']?.['@_id']
       if (cid !== undefined && cid !== null) childIds.push(String(cid))
 
-      spTree['p:sp'].push(child)
+      if (child['p:nvCxnSpPr']) {
+        if (!spTree['p:cxnSp']) spTree['p:cxnSp'] = []
+        if (!Array.isArray(spTree['p:cxnSp'])) spTree['p:cxnSp'] = [spTree['p:cxnSp']]
+        spTree['p:cxnSp'].push(child)
+      } else {
+        spTree['p:sp'].push(child)
+      }
     }
 
     if (parentContainer['p:grpSp']) {
@@ -1005,6 +1170,67 @@ class ShapeManager {
 
   // --- Private Helpers ---
 
+  #findShape(slideIndex, shapeId, slideManager) {
+    const res = slideManager.getSlideShape(slideIndex, shapeId)
+    if (res) return res
+
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+
+    if (!spTree) return null
+
+    const targetIdStr = String(shapeId).trim()
+
+    const searchContainer = container => {
+      if (!container) return null
+
+      let shapes = container['p:sp'] || []
+      if (!Array.isArray(shapes)) shapes = [shapes]
+      for (const s of shapes) {
+        const cNvPr = s?.['p:nvSpPr']?.['p:cNvPr']
+        if (
+          cNvPr &&
+          (String(cNvPr['@_id']) === targetIdStr || String(cNvPr['@_name']) === targetIdStr)
+        ) {
+          return { shape: s, parent: container, type: 'sp' }
+        }
+      }
+
+      let cxns = container['p:cxnSp'] || []
+      if (!Array.isArray(cxns)) cxns = [cxns]
+      for (const c of cxns) {
+        const cNvPr = c?.['p:nvCxnSpPr']?.['p:cNvPr']
+        if (
+          cNvPr &&
+          (String(cNvPr['@_id']) === targetIdStr || String(cNvPr['@_name']) === targetIdStr)
+        ) {
+          return { shape: c, parent: container, type: 'cxnSp' }
+        }
+      }
+
+      let groups = container['p:grpSp'] || []
+      if (!Array.isArray(groups)) groups = [groups]
+      for (const g of groups) {
+        const cNvPr = g?.['p:nvGrpSpPr']?.['p:cNvPr']
+        if (
+          cNvPr &&
+          (String(cNvPr['@_id']) === targetIdStr || String(cNvPr['@_name']) === targetIdStr)
+        ) {
+          return { shape: g, parent: container, type: 'grpSp' }
+        }
+        const inner = searchContainer(g)
+        if (inner) return inner
+      }
+
+      return null
+    }
+
+    return searchContainer(spTree)
+  }
+
   #getAllShapeIds(container) {
     const ids = []
     if (!container) return ids
@@ -1013,6 +1239,13 @@ class ShapeManager {
     if (!Array.isArray(shapes)) shapes = [shapes]
     for (const s of shapes) {
       const id = parseInt(s?.['p:nvSpPr']?.['p:cNvPr']?.['@_id'], 10)
+      if (!isNaN(id)) ids.push(id)
+    }
+
+    let cxns = container['p:cxnSp'] || []
+    if (!Array.isArray(cxns)) cxns = [cxns]
+    for (const c of cxns) {
+      const id = parseInt(c?.['p:nvCxnSpPr']?.['p:cNvPr']?.['@_id'], 10)
       if (!isNaN(id)) ids.push(id)
     }
 
@@ -1051,6 +1284,13 @@ class ShapeManager {
       results.push(this.#normalizeShapeDescriptor(shape))
     }
 
+    let cxnShapes = container['p:cxnSp'] || []
+    if (!Array.isArray(cxnShapes)) cxnShapes = [cxnShapes]
+
+    for (const cxn of cxnShapes) {
+      results.push(this.#normalizeShapeDescriptor(cxn))
+    }
+
     let groups = container['p:grpSp'] || []
     if (!Array.isArray(groups)) groups = [groups]
     for (const g of groups) {
@@ -1061,14 +1301,20 @@ class ShapeManager {
 
   #normalizeShapeDescriptor(shape) {
     const isGroup = Boolean(shape?.['p:nvGrpSpPr'] || shape?.['p:grpSpPr'])
+    const isConnector = Boolean(shape?.['p:nvCxnSpPr'])
     const isPlaceholder = Boolean(shape?.['p:nvSpPr']?.['p:nvPr']?.['p:ph'])
-    const cNvPr = shape?.['p:nvSpPr']?.['p:cNvPr'] || shape?.['p:nvGrpSpPr']?.['p:cNvPr']
+    const cNvPr =
+      shape?.['p:nvSpPr']?.['p:cNvPr'] ||
+      shape?.['p:nvCxnSpPr']?.['p:cNvPr'] ||
+      shape?.['p:nvGrpSpPr']?.['p:cNvPr']
     const xfrm = shape?.['p:spPr']?.['a:xfrm'] || shape?.['p:grpSpPr']?.['a:xfrm']
     const prstGeom = shape?.['p:spPr']?.['a:prstGeom']
 
-    const id = cNvPr?.['@_name'] || (cNvPr?.['@_id'] !== undefined ? String(cNvPr['@_id']) : '')
-    const name = cNvPr?.['@_name'] || id
-    const preset = isGroup ? 'group' : prstGeom ? prstGeom['@_prst'] : 'rect'
+    const rawId = cNvPr?.['@_id'] !== undefined ? String(cNvPr['@_id']) : ''
+    const rawName = cNvPr?.['@_name'] || ''
+    const id = rawName || rawId
+    const name = rawName || id
+    const preset = isGroup ? 'group' : prstGeom ? prstGeom['@_prst'] : isConnector ? 'line' : 'rect'
 
     const xEmu = xfrm?.['a:off']?.['@_x'] !== undefined ? parseInt(xfrm['a:off']['@_x'], 10) : 0
     const yEmu = xfrm?.['a:off']?.['@_y'] !== undefined ? parseInt(xfrm['a:off']['@_y'], 10) : 0
@@ -1104,6 +1350,12 @@ class ShapeManager {
         color: bColor ? '#' + bColor.toUpperCase() : '#000000',
         width: bWidth,
       }
+      if (ln['a:headEnd']?.['@_type']) {
+        border.headEnd = ln['a:headEnd']['@_type']
+      }
+      if (ln['a:tailEnd']?.['@_type']) {
+        border.tailEnd = ln['a:tailEnd']['@_type']
+      }
     }
 
     const text = this.#getShapeText(shape) || undefined
@@ -1128,6 +1380,7 @@ class ShapeManager {
       type,
       geometry: preset,
       isGroup,
+      isConnector,
       isPlaceholder,
       x,
       y,
@@ -1205,7 +1458,7 @@ class ShapeManager {
     }
   }
 
-  #normalizeShapeOptions(options) {
+  #normalizeShapeOptions(options, isUpdate = false) {
     if (!options) return options
     const normalized = { ...options }
 
@@ -1220,7 +1473,25 @@ class ShapeManager {
       normalized.name = normalized.id
     }
 
-    const fillVal = options.fill !== undefined ? options.fill : options.color
+    let fillVal =
+      options.fill !== undefined
+        ? options.fill
+        : options.fillColor !== undefined
+          ? options.fillColor
+          : options.backgroundColor !== undefined
+            ? options.backgroundColor
+            : options.bg
+
+    if (
+      !isUpdate &&
+      fillVal === undefined &&
+      options.color !== undefined &&
+      options.text === undefined &&
+      !options.textColor
+    ) {
+      fillVal = options.color
+    }
+
     if (fillVal !== undefined) {
       normalized.fill = fillVal
     }
@@ -1229,7 +1500,14 @@ class ShapeManager {
       normalized.transparency = Math.round((1 - parseFloat(options.opacity)) * 100)
     }
 
-    const strokeVal = options.stroke !== undefined ? options.stroke : options.border
+    const strokeVal =
+      options.stroke !== undefined
+        ? options.stroke
+        : options.border !== undefined
+          ? options.border
+          : options.strokeColor !== undefined
+            ? options.strokeColor
+            : options.borderColor
     if (strokeVal !== undefined && strokeVal !== null) {
       const strokeWidth =
         options.strokeWidth !== undefined
@@ -1307,13 +1585,29 @@ class ShapeManager {
       'roundRect',
       'triangle',
       'star5',
+      'arrow',
       'upArrow',
       'downArrow',
       'leftArrow',
       'rightArrow',
+      'leftRightArrow',
+      'upDownArrow',
+      'quadArrow',
+      'leftUpArrow',
+      'bentArrow',
+      'curvedRightArrow',
+      'curvedLeftArrow',
+      'curvedUpArrow',
+      'curvedDownArrow',
+      'stripedRightArrow',
+      'notchedRightArrow',
+      'homePlate',
+      'chevron',
       'diamond',
       'hexagon',
       'line',
+      'lineArrow',
+      'connector',
     ]
 
     if (options.type && !supportedTypes.includes(options.type)) {
@@ -1325,6 +1619,76 @@ class ShapeManager {
 }
 
 // --- Module-scoped Utility Functions ---
+
+function normalizePresetGeometry(type) {
+  if (!type || typeof type !== 'string') return 'rect'
+  const clean = type.trim()
+  const lower = clean.toLowerCase().replace(/[-_\s]/g, '')
+
+  switch (lower) {
+    case 'arrow':
+    case 'rightarrow':
+      return 'rightArrow'
+    case 'leftarrow':
+      return 'leftArrow'
+    case 'uparrow':
+      return 'upArrow'
+    case 'downarrow':
+      return 'downArrow'
+    case 'leftrightarrow':
+      return 'leftRightArrow'
+    case 'updownarrow':
+      return 'upDownArrow'
+    case 'quadarrow':
+      return 'quadArrow'
+    case 'leftuparrow':
+      return 'leftUpArrow'
+    case 'bentarrow':
+      return 'bentArrow'
+    case 'curvedrightarrow':
+      return 'curvedRightArrow'
+    case 'curvedleftarrow':
+      return 'curvedLeftArrow'
+    case 'curveduparrow':
+      return 'curvedUpArrow'
+    case 'curveddownarrow':
+      return 'curvedDownArrow'
+    case 'stripedrightarrow':
+      return 'stripedRightArrow'
+    case 'notchedrightarrow':
+      return 'notchedRightArrow'
+    case 'homeplate':
+      return 'homePlate'
+    case 'chevron':
+      return 'chevron'
+    case 'rect':
+    case 'rectangle':
+    case 'square':
+      return 'rect'
+    case 'ellipse':
+    case 'circle':
+      return 'ellipse'
+    case 'roundrect':
+    case 'roundedrectangle':
+      return 'roundRect'
+    case 'line':
+    case 'connector':
+    case 'linearrow':
+    case 'arrowline':
+      return 'line'
+    case 'triangle':
+      return 'triangle'
+    case 'diamond':
+      return 'diamond'
+    case 'hexagon':
+      return 'hexagon'
+    case 'star5':
+    case 'star':
+      return 'star5'
+    default:
+      return clean
+  }
+}
 
 function escapeXml(str) {
   if (typeof str !== 'string') return String(str ?? '')
@@ -1346,6 +1710,10 @@ function mapPresetToType(preset, w, h) {
     if (w === h && w > 0) return 'circle'
     return 'ellipse'
   }
+  if (preset === 'rightArrow') return 'rightArrow'
+  if (preset === 'leftArrow') return 'leftArrow'
+  if (preset === 'upArrow') return 'upArrow'
+  if (preset === 'downArrow') return 'downArrow'
   return preset
 }
 

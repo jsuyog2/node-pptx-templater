@@ -44,7 +44,6 @@ async function runShapesShowcase() {
   const ppt = await PPTXTemplater.load(templatePath)
   ppt.useSlide(1)
 
-
   // 2. addShape — Create various geometric shapes with styling and typography
   console.log('\n[2/10] ppt.addShape() — Adding DrawingML preset geometries...')
   ppt
@@ -121,7 +120,9 @@ async function runShapesShowcase() {
 
   // 3. getShapes — Retrieve all shape metadata across the slide
   console.log('\n[3/10] ppt.getShapes() — Listing all shape metadata on slide 1...')
+
   const shapes = ppt.getShapes()
+
   console.log(`  -> Discovered ${shapes.length} shapes on slide 1:`)
   shapes.forEach(s => {
     console.log(
@@ -144,31 +145,22 @@ async function runShapesShowcase() {
   // 5. updateShape — In-place mutation of coordinates, dimensions, text, and styling
   console.log('\n[5/10] ppt.updateShape() — Mutating shape attributes in-place...')
   ppt.useSlide(2)
-  ppt.updateShape(
-    'updateShape Circle',
-    {
-      fill: '#b813ceff',
-      text: 'Status: Healthy (Live Cluster)\nLatency: 1.2ms | P99: 4.8ms',
-      border: { color: '#2bff00ff', width: 2 },
-    }
-  )
-  ppt.updateShape(
-    'updateShape Triangle',
-    {
-      fill: '#c9ac08ff',
-      text: 'Status: Healthy (Live Cluster)\nLatency: 1.2ms | P99: 4.8ms',
-      border: { color: '#0004ffff', width: 2 },
-    }
-  )
-  ppt.updateShape(
-    'updateShape Arrow',
-    {
-      fill: '#047857'
-    }
-  )
-  const updatedPill = ppt.getShape('updateShape Circle')
+  ppt.updateShape('updateShape Circle', {
+    fill: '#b813ceff',
+    text: 'Status: Healthy (Live Cluster)\nLatency: 1.2ms | P99: 4.8ms',
+    border: { color: '#2bff00ff', width: 2 },
+  })
+  ppt.updateShape('updateShape Triangle', {
+    fill: '#c9ac08ff',
+    text: 'Status: Healthy (Live Cluster)\nLatency: 1.2ms | P99: 4.8ms',
+    border: { color: '#0004ffff', width: 2 },
+  })
+  ppt.updateShape('updateShape Arrow', {
+    x: '50%',
+  })
+  const updatedCircle = ppt.getShape('updateShape Circle')
   console.log(
-    `  -> Updated "MetricsPill": fill is now ${updatedPill.fill}, text:\n     "${updatedPill.text.replace(/\n/g, ' ')}"`
+    `  -> Updated "updateShape Circle": fill is now ${updatedCircle.fill}, text:\n     "${updatedCircle.text.replace(/\n/g, ' ')}"`
   )
 
   // 6. removeShape & clearShapes — Deletion and evacuation
@@ -178,29 +170,24 @@ async function runShapesShowcase() {
   ppt.removeShape('removeShape Circle')
   ppt.removeShape('removeShape Triangle')
   ppt.removeShape('removeShape Arrow')
-  console.log('  -> Removed "AccentIndicator" shape.')
+  console.log('  -> Removed slide 3 shapes.')
 
   ppt.useSlide(4)
   console.log(`  -> Slide 4 created with ${ppt.getShapes().length} shapes.`)
   ppt.clearShapes()
   console.log(
-    `  -> Slide 2 after clearShapes(): ${ppt.getShapes().length} shapes remaining (placeholders preserved).`
+    `  -> Slide 4 after clearShapes(): ${ppt.getShapes().length} shapes remaining (placeholders preserved).`
   )
-
 
   // 6. cloneShape — Duplicate an existing shape with position offsets
   console.log('\n[6/10] ppt.cloneShape() — Cloning shape with offsets...')
   ppt.useSlide(5)
-  ppt.cloneShape(
-    'cloneShape Circle',
-    'cloneShape Circle Copy',
-    {
-      x: '75%',
-      y: 210,
-      text: 'Process Worker',
-      fill: '#8B5CF6',
-    }
-  )
+  ppt.cloneShape('cloneShape Circle', 'cloneShape Circle Copy', {
+    x: '75%',
+    y: 210,
+    text: 'Process Worker',
+    fill: '#8B5CF6',
+  })
   const cloned = ppt.getShape('cloneShape Circle Copy')
   console.log(
     `  -> Cloned "ProcessNode1" into "${cloned.name}" at (${cloned.x}px, ${cloned.y}px) with fill ${cloned.fill}`
@@ -211,12 +198,9 @@ async function runShapesShowcase() {
     '\n[7/10] ppt.groupShapes() — Grouping shapes into a composite <p:grpSp> container...'
   )
   ppt.useSlide(6)
-  ppt.groupShapes(
-    ['groupShapes Circle', 'groupShapes Triangle', 'groupShapes Arrow'],
-    {
-      name: 'PipelineGroup',
-    }
-  )
+  ppt.groupShapes(['groupShapes Circle', 'groupShapes Triangle', 'groupShapes Arrow'], {
+    name: 'PipelineGroup',
+  })
   console.log(
     `  -> Grouped shapes ['groupShapes Circle', 'groupShapes Triangle', 'groupShapes Arrow'] into "PipelineGroup".`
   )
@@ -240,9 +224,22 @@ async function runShapesShowcase() {
     `  -> Ungroup complete. Top-level slide shape count is now ${postUngroupShapes.length}.`
   )
 
-  await ppt.saveToFile(OUTPUT_FILE)
-  console.log(`  -> Successfully exported master shapes presentation to:`)
-  console.log(`     ${OUTPUT_FILE}`)
+  try {
+    await ppt.saveToFile(OUTPUT_FILE)
+    console.log(`  -> Successfully exported master shapes presentation to:`)
+    console.log(`     ${OUTPUT_FILE}`)
+  } catch (err) {
+    if (err.cause?.code === 'EBUSY' || err.message?.includes('EBUSY')) {
+      const fallbackFile = path.join(OUTPUT_DIR, `showcase_shape_advanced_${Date.now()}.pptx`)
+      await ppt.saveToFile(fallbackFile)
+      console.log(
+        `  -> Note: Target file was locked by an external application; saved to fallback:`
+      )
+      console.log(`     ${fallbackFile}`)
+    } else {
+      throw err
+    }
+  }
   console.log('\nAll 10 whitelisted Shapes & Geometry methods verified successfully!')
   console.log('='.repeat(78))
 }

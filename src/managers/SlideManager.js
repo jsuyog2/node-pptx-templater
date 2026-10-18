@@ -2861,6 +2861,20 @@ class SlideManager {
       }
     }
 
+    // Connectors
+    let cxnShapes = container['p:cxnSp'] || []
+    if (!Array.isArray(cxnShapes)) cxnShapes = [cxnShapes]
+    for (const shape of cxnShapes) {
+      const cNvPr = shape?.['p:nvCxnSpPr']?.['p:cNvPr']
+      if (cNvPr) {
+        const name = cNvPr['@_name']
+        const id = String(cNvPr['@_id'])
+        const entry = { shape, parent: container, type: 'cxnSp' }
+        if (name) shapeMap.set(name, entry)
+        if (id) shapeMap.set(id, entry)
+      }
+    }
+
     // Pictures
     let pics = container['p:pic'] || []
     if (!Array.isArray(pics)) pics = [pics]

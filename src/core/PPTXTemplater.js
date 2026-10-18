@@ -3224,6 +3224,46 @@ class PPTXTemplater {
   }
 
   /**
+   * Updates/replaces text and typography in an existing shape or placeholder non-destructively.
+   *
+   * @param {string} tagOrId - Target shape name, ID, or template tag.
+   * @param {string|Object} newText - New text content, or options object containing text.
+   * @param {Object} [options={}] - Typography and style override options.
+   * @returns {this} The chainable presentation engine instance.
+   *
+   * @example
+   * ppt.updateText('TitleBox', 'Updated Header', { fontSize: 28, color: '#3B82F6' });
+   */
+  updateText(tagOrId, newText, options = {}) {
+    this.#assertLoaded()
+    let actualText = newText
+    let actualOptions = options
+    if (
+      typeof newText === 'object' &&
+      newText !== null &&
+      (options === undefined || Object.keys(options).length === 0)
+    ) {
+      actualOptions = newText
+      actualText = actualOptions.text
+    }
+    const targetIndices =
+      actualOptions.slide !== undefined
+        ? [Number(actualOptions.slide)]
+        : this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#textManager.updateText(
+        idx,
+        tagOrId,
+        actualText,
+        actualOptions,
+        this.#slideManager,
+        this.#templateEngine
+      )
+    }
+    return this
+  }
+
+  /**
    * Adds a new bulleted or numbered list shape to targeted slides.
    *
    * @param {Array<string|Object>} items - List items or nested hierarchy.
