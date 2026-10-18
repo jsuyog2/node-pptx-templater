@@ -1,6 +1,6 @@
 {
   "version": "3.0.0-alpha.0",
-  "totalMethods": 121,
+  "totalMethods": 122,
   "categories": [
     "Lifecycle & I/O",
     "Slides",
@@ -2540,48 +2540,55 @@
       {
         "id": "addshape",
         "name": "addShape",
-        "signature": "ppt.addShape(type, options = {})",
+        "signature": "ppt.addShape(slideId, type, options = {})",
         "category": "Shapes & Geometry",
-        "description": "Creates and inserts a new vector shape onto the active slide. Supports preset geometries (rect, roundRect, ellipse, triangle, rightArrow, etc.), hex solid fills, borders, opacity, rotation, and embedded text frames.",
-        "openXmlImpact": "Inserts &lt;p:sp&gt; containing &lt;p:nvSpPr&gt;, &lt;p:spPr&gt; (&lt;a:prstGeom prst=\"...\"&gt;, &lt;a:xfrm&gt;, &lt;a:solidFill&gt;), and &lt;p:txBody&gt; into &lt;p:spTree&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Creates and inserts a new vector shape onto the targeted slide. Supports preset geometries (rect, roundRect, ellipse, triangle, rightArrow, star5, diamond, etc.), solid or gradient fills, borders, opacity, rotation, flips, and embedded text frames.",
+        "openXmlImpact": "Inserts <p:sp> containing <p:nvSpPr>, <p:spPr> (<a:prstGeom prst=\"...\">, <a:xfrm>, <a:solidFill>), and <p:txBody> into <p:spTree>.",
+        "edgeCases": "Throws PPTXError if slide index is invalid or shape options fail schema validation.",
         "isStatic": false,
-        "isAsync": true,
+        "isAsync": false,
         "parameters": [
+          {
+            "name": "slideId",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "1-based target slide index."
+          },
           {
             "name": "type",
             "type": "string",
             "required": true,
             "default": "—",
-            "description": "Preset geometry type (e.g. <code>'rect'</code>, <code>'roundRect'</code>, <code>'ellipse'</code>)."
+            "description": "Preset geometry type (e.g. 'rectangle', 'roundRect', 'circle', 'triangle', 'star5')."
           },
           {
             "name": "options",
             "type": "Object",
             "required": false,
             "default": "{}",
-            "description": "Geometry coordinates (x, y, width, height), fill color, border, text."
+            "description": "Shape properties (x, y, width, height, fill, border, rotation, flipH, flipV, text, textStyle)."
           }
         ],
         "returns": {
-          "type": "Promise<string>",
+          "type": "string",
           "description": "Assigned unique shape ID."
         },
-        "exampleCode": "ppt.useSlide(1);\nconst shapeId = await ppt.addShape('roundRect', {\n  x: '10%', y: '15%', width: '80%', height: '12%',\n  fill: '2563EB',\n  text: 'Quarterly Milestone Achieved',\n  textColor: 'FFFFFF',\n  fontSize: 16,\n  bold: true\n});"
+        "exampleCode": "ppt.addShape(1, 'rectangle', {\n  x: 50, y: 50, width: 300, height: 120,\n  fill: '#1E293B',\n  border: { color: '#38BDF8', width: 2 },\n  text: 'Overview',\n  textStyle: { fontSize: 16, bold: true, color: '#FFFFFF', align: 'center' }\n});"
       },
       {
         "id": "updateshape",
         "name": "updateShape",
-        "signature": "ppt.updateShape(shapeId, options)",
+        "signature": "ppt.updateShape(targetId, options = {})",
         "category": "Shapes & Geometry",
-        "description": "Updates spatial coordinates, fills, borders, or visibility of an existing shape by shape ID or shape name.",
-        "openXmlImpact": "Mutates &lt;a:xfrm&gt; (&lt;a:off&gt;, &lt;a:ext&gt;) and &lt;a:solidFill&gt; under &lt;p:spPr&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Updates spatial coordinates, dimensions, fills, borders, rotation, or inner text of an existing shape by shape ID or name in-place.",
+        "openXmlImpact": "Mutates <a:xfrm> (<a:off>, <a:ext>), <a:solidFill>, <a:ln>, and <p:txBody> under <p:sp>.",
+        "edgeCases": "Throws PPTXError if targeted shape is not found on the slide.",
         "isStatic": false,
-        "isAsync": true,
+        "isAsync": false,
         "parameters": [
           {
-            "name": "shapeId",
+            "name": "targetId",
             "type": "string",
             "required": true,
             "default": "—",
@@ -2592,119 +2599,171 @@
             "type": "Object",
             "required": true,
             "default": "—",
-            "description": "Properties to update (x, y, width, height, fill, stroke)."
+            "description": "Properties to update (x, y, width, height, fill, border, rotation, text, textStyle)."
           }
         ],
         "returns": {
-          "type": "Promise<PPTXTemplater>",
+          "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "await ppt.useSlide(1).updateShape('banner_box', {\n  fill: '10B981',\n  width: '85%'\n});"
+        "exampleCode": "ppt.updateShape('card1', {\n  x: 100, y: 150,\n  fill: '#10B981',\n  text: 'Updated Metric'\n});"
       },
       {
-        "id": "updateshapetext",
-        "name": "updateShapeText",
-        "signature": "ppt.updateShapeText(shapeId, text, options = {})",
+        "id": "removeshape",
+        "name": "removeShape",
+        "signature": "ppt.removeShape(shapeId)",
         "category": "Shapes & Geometry",
-        "description": "Replaces the entire text body of a shape with new text while preserving or updating font styles.",
-        "openXmlImpact": "Updates &lt;a:p&gt; and &lt;a:r&gt; in &lt;p:txBody&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Removes a shape element from the targeted slide(s) by shape ID or name and updates slide z-order.",
+        "openXmlImpact": "Evacuates targeted <p:sp> node from <p:spTree> and clears its z-order entry.",
+        "edgeCases": "Throws PPTXError if targeted shape is not found.",
         "isStatic": false,
-        "isAsync": true,
+        "isAsync": false,
         "parameters": [
           {
             "name": "shapeId",
             "type": "string",
             "required": true,
             "default": "—",
-            "description": "Shape ID or name."
-          },
-          {
-            "name": "text",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "New text content."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Typography formatting options."
+            "description": "Shape identifier or name to remove."
           }
         ],
         "returns": {
-          "type": "Promise<PPTXTemplater>",
+          "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "await ppt.useSlide(1).updateShapeText('badge', '38.2% YoY Growth', {\n  bold: true,\n  color: 'FFFFFF'\n});"
+        "exampleCode": "ppt.removeShape('draft_watermark');"
+      },
+      {
+        "id": "clearshapes",
+        "name": "clearShapes",
+        "signature": "ppt.clearShapes()",
+        "category": "Shapes & Geometry",
+        "description": "Evacuates all user-created shapes from targeted slide(s) while strictly preserving layout placeholders, master placeholders, and background elements.",
+        "openXmlImpact": "Filters <p:spTree> child nodes, removing non-placeholder <p:sp> and <p:grpSp> elements.",
+        "edgeCases": "Does not remove layout titles, footers, slide numbers, or prompt placeholders.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.clearShapes();"
+      },
+      {
+        "id": "getshapes",
+        "name": "getShapes",
+        "signature": "ppt.getShapes()",
+        "category": "Shapes & Geometry",
+        "description": "Returns metadata for all shapes on the targeted slide(s) including IDs, names, preset geometries, pixel coordinates, EMU bounds, style metadata, and text.",
+        "openXmlImpact": "Recursively scans DrawingML nodes (<p:sp>, <p:grpSp>) under <p:spTree> in read-only mode.",
+        "edgeCases": "Returns empty array if slide has no shapes.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "Array<Object>",
+          "description": "List of normalized shape descriptors."
+        },
+        "exampleCode": "const shapes = ppt.getShapes();\nshapes.forEach(s => console.log(s.name, s.x, s.y));"
+      },
+      {
+        "id": "getshape",
+        "name": "getShape",
+        "signature": "ppt.getShape(shapeId)",
+        "category": "Shapes & Geometry",
+        "description": "Discovers and retrieves normalized metadata for a specific shape by shape ID or name on the targeted slide(s).",
+        "openXmlImpact": "Inspects target <p:sp> or <p:grpSp> node and computes coordinate bounds.",
+        "edgeCases": "Returns null if shape is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "shapeId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape ID or shape name."
+          }
+        ],
+        "returns": {
+          "type": "Object|null",
+          "description": "Normalized shape descriptor or null if not found."
+        },
+        "exampleCode": "const shape = ppt.getShape('HeroCard');\nif (shape) console.log(shape.width, shape.height);"
       },
       {
         "id": "cloneshape",
         "name": "cloneShape",
-        "signature": "ppt.cloneShape(shapeId, options = {})",
+        "signature": "ppt.cloneShape(shapeId, clonedShapeId, clonedOptions = {})",
         "category": "Shapes & Geometry",
-        "description": "Deep-clones a shape on the active slide, assigning a new unique shape ID and offsetting its coordinates.",
-        "openXmlImpact": "Deep-clones &lt;p:sp&gt; node, re-indexes &lt;p:cNvPr id=\"...\"&gt;, and adjusts &lt;a:off&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Duplicates an existing shape with a new ID, optional coordinate offsets or overrides, preserving formatting.",
+        "openXmlImpact": "Deep-clones <p:sp> node, assigns unique <p:cNvPr id=\"...\" name=\"...\">, and adjusts <a:off>.",
+        "edgeCases": "Throws PPTXError if source shape is not found.",
         "isStatic": false,
-        "isAsync": true,
+        "isAsync": false,
         "parameters": [
           {
             "name": "shapeId",
             "type": "string",
             "required": true,
             "default": "—",
-            "description": "Shape ID to clone."
+            "description": "Source shape ID to duplicate."
           },
           {
-            "name": "options",
+            "name": "clonedShapeId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "New identifier for cloned shape."
+          },
+          {
+            "name": "clonedOptions",
             "type": "Object",
             "required": false,
             "default": "{}",
-            "description": "Coordinate offsets (dx, dy) or override properties."
+            "description": "Position overrides (x, y) or styling properties."
           }
         ],
         "returns": {
-          "type": "Promise<string>",
-          "description": "New shape ID."
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
         },
-        "exampleCode": "const cloneId = await ppt.useSlide(1).cloneShape('card_template', {\n  dx: '3.2in',\n  text: 'Secondary Metric'\n});"
+        "exampleCode": "ppt.cloneShape('card_template', 'card_copy', { x: 400, y: 150, text: 'Second Card' });"
       },
       {
-        "id": "deleteshape",
-        "name": "deleteShape",
-        "signature": "ppt.deleteShape(shapeId)",
+        "id": "getgroupshapes",
+        "name": "getGroupShapes",
+        "signature": "ppt.getGroupShapes(groupId)",
         "category": "Shapes & Geometry",
-        "description": "Removes a shape element from the active slide by shape ID or name.",
-        "openXmlImpact": "Removes &lt;p:sp&gt; node from &lt;p:spTree&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Inspects a composite group container (<p:grpSp>) and returns normalized descriptors for all direct child shapes.",
+        "openXmlImpact": "Inspects <p:grpSp> children (<p:sp>) and reads their geometry and coordinates.",
+        "edgeCases": "Returns empty array if group ID does not exist or target element is not a group.",
         "isStatic": false,
-        "isAsync": true,
+        "isAsync": false,
         "parameters": [
           {
-            "name": "shapeId",
+            "name": "groupId",
             "type": "string",
             "required": true,
             "default": "—",
-            "description": "Shape identifier to delete."
+            "description": "Group shape ID or name."
           }
         ],
         "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "this (chainable)."
+          "type": "Array<Object>",
+          "description": "Array of child shape descriptors."
         },
-        "exampleCode": "await ppt.useSlide(1).deleteShape('draft_watermark');"
+        "exampleCode": "const children = ppt.getGroupShapes('CardGroup');\nchildren.forEach(c => console.log(c.name));"
       },
       {
-        "id": "alignshapes",
-        "name": "alignShapes",
-        "signature": "ppt.alignShapes(shapeIds, alignment)",
+        "id": "groupshapes",
+        "name": "groupShapes",
+        "signature": "ppt.groupShapes(shapeIds, groupOptions = {})",
         "category": "Shapes & Geometry",
-        "description": "Aligns multiple shapes along a common edge or centerline ('left', 'center', 'right', 'top', 'middle', 'bottom').",
-        "openXmlImpact": "Calculates bounding coordinates and mutates &lt;a:off x=\"...\" y=\"...\"&gt; on &lt;a:xfrm&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Groups multiple shapes into a composite group container (<p:grpSp>), computing composite bounding boxes (<p:grpSpPr> with <a:xfrm>, <a:chOff>, <a:chExt>).",
+        "openXmlImpact": "Constructs <p:grpSp>, moves targeted <p:sp> nodes into it, and updates slide z-order.",
+        "edgeCases": "Throws PPTXError if fewer than 2 shapes are provided or any shape is not found.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
@@ -2713,152 +2772,46 @@
             "type": "string[]",
             "required": true,
             "default": "—",
-            "description": "Array of shape IDs or names to align."
+            "description": "Array of shape IDs or names to group."
           },
           {
-            "name": "alignment",
-            "type": "'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'",
-            "required": true,
-            "default": "—",
-            "description": "Target alignment axis."
+            "name": "groupOptions",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Group options (name, id)."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(1).alignShapes(['card1', 'card2', 'card3'], 'top');"
+        "exampleCode": "ppt.groupShapes(['icon', 'title', 'bg'], { name: 'CardGroup' });"
       },
       {
-        "id": "addtextatposition",
-        "name": "addTextAtPosition",
-        "signature": "ppt.addTextAtPosition(text, options)",
+        "id": "ungroupshapes",
+        "name": "ungroupShapes",
+        "signature": "ppt.ungroupShapes(groupId)",
         "category": "Shapes & Geometry",
-        "description": "Creates a transparent floating text box at specific slide coordinates.",
-        "openXmlImpact": "Creates &lt;p:sp&gt; with transparent geometry (&lt;a:noFill/&gt;) and text body.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "text",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Text string."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": true,
-            "default": "—",
-            "description": "Position coordinates (x, y, width, height) and typography."
-          }
-        ],
-        "returns": {
-          "type": "Promise<string>",
-          "description": "Assigned shape ID."
-        },
-        "exampleCode": "await ppt.useSlide(1).addTextAtPosition('Confidential — Internal Use Only', {\n  x: '5%', y: '92%', width: '90%', height: '5%',\n  color: '64748B', fontSize: 10\n});"
-      },
-      {
-        "id": "getshapes",
-        "name": "getShapes",
-        "signature": "ppt.getShapes()",
-        "category": "Shapes & Geometry",
-        "description": "Returns all shapes on the active slide with IDs, names, preset geometries, and bounding box coordinates.",
-        "openXmlImpact": "Scans &lt;p:spTree&gt; children.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [],
-        "returns": {
-          "type": "Array<Object>",
-          "description": "List of shape descriptors."
-        },
-        "exampleCode": "const shapes = ppt.useSlide(1).getShapes();\nconsole.log('Slide 1 shapes:', shapes);"
-      },
-      {
-        "id": "validateshape",
-        "name": "validateShape",
-        "signature": "ppt.validateShape(shapeId)",
-        "category": "Shapes & Geometry",
-        "description": "Validates DrawingML schema compliance for a given shape.",
-        "openXmlImpact": "Audits &lt;p:sp&gt; XML node.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Dissolves a composite group container (<p:grpSp>), re-projecting child coordinate transforms back to canvas absolute EMUs, and appends shapes back to parent slide.",
+        "openXmlImpact": "Unnests child <p:sp> nodes from <p:grpSp>, removes <p:grpSp>, and updates slide z-order.",
+        "edgeCases": "Throws PPTXError if group shape is not found or is not a group.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "shapeId",
+            "name": "groupId",
             "type": "string",
             "required": true,
             "default": "—",
-            "description": "Shape ID."
-          }
-        ],
-        "returns": {
-          "type": "{ valid: boolean, errors: string[] }",
-          "description": "Validation result."
-        },
-        "exampleCode": "const check = ppt.useSlide(1).validateShape('hero_box');\nif (!check.valid) console.warn(check.errors);"
-      },
-      {
-        "id": "getbounds",
-        "name": "getBounds",
-        "signature": "ppt.getBounds(objectIdOrName)",
-        "category": "Shapes & Geometry",
-        "description": "Calculates the pixel bounding box (x, y, width, height) of an element on the currently active slide.",
-        "openXmlImpact": "Queries a:off (offset) and a:ext (extent) coordinates and converts EMUs to integer pixels.",
-        "edgeCases": "Returns null if element identifier is not found on targeted slide.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "objectIdOrName",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Element name or spId."
-          }
-        ],
-        "returns": {
-          "type": "{ x: number, y: number, width: number, height: number }",
-          "description": "Pixel bounding box coordinates."
-        },
-        "exampleCode": "ppt.useSlide(1);\nconst bounds = ppt.getBounds('HeaderTitle');\nconsole.log(bounds.width, bounds.height);"
-      },
-      {
-        "id": "setbounds",
-        "name": "setBounds",
-        "signature": "ppt.setBounds(objectIdOrName, options)",
-        "category": "Shapes & Geometry",
-        "description": "Updates position and dimensions of an element using integer pixels or string units (e.g. \"2in\", \"100px\", \"5cm\").",
-        "openXmlImpact": "Translates units into English Metric Units (EMU) and mutates a:off / a:ext XML nodes.",
-        "edgeCases": "Safely handles partial coordinate overrides (e.g. updating only width without affecting position).",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "objectIdOrName",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Element identifier."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": true,
-            "default": "—",
-            "description": "Coordinates { x, y, width, height }."
+            "description": "Group shape ID or name to dissolve."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
-          "description": "Chainable instance."
+          "description": "this (chainable)."
         },
-        "exampleCode": "ppt.setBounds('HeaderBox', { width: '8in', height: '1.5in' });"
+        "exampleCode": "ppt.ungroupShapes('CardGroup');"
       }
     ],
     "Images & Media": [
@@ -3217,6 +3170,63 @@
           "description": "Chainable instance."
         },
         "exampleCode": "ppt.useSlide(1).stepBackward('OverlayBox');"
+      },
+      {
+        "id": "getbounds",
+        "name": "getBounds",
+        "signature": "ppt.getBounds(objectIdOrName)",
+        "category": "Z-Order & Layering",
+        "description": "Calculates the pixel bounding box (x, y, width, height) of an element on the currently active slide.",
+        "openXmlImpact": "Queries a:off (offset) and a:ext (extent) coordinates and converts EMUs to integer pixels.",
+        "edgeCases": "Returns null if element identifier is not found on targeted slide.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "objectIdOrName",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Element name or spId."
+          }
+        ],
+        "returns": {
+          "type": "{ x: number, y: number, width: number, height: number }",
+          "description": "Pixel bounding box coordinates."
+        },
+        "exampleCode": "ppt.useSlide(1);\nconst bounds = ppt.getBounds('HeaderTitle');\nconsole.log(bounds.width, bounds.height);"
+      },
+      {
+        "id": "setbounds",
+        "name": "setBounds",
+        "signature": "ppt.setBounds(objectIdOrName, options)",
+        "category": "Z-Order & Layering",
+        "description": "Updates position and dimensions of an element using integer pixels or string units (e.g. \"2in\", \"100px\", \"5cm\").",
+        "openXmlImpact": "Translates units into English Metric Units (EMU) and mutates a:off / a:ext XML nodes.",
+        "edgeCases": "Safely handles partial coordinate overrides (e.g. updating only width without affecting position).",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "objectIdOrName",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Element identifier."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Coordinates { x, y, width, height }."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable instance."
+        },
+        "exampleCode": "ppt.setBounds('HeaderBox', { width: '8in', height: '1.5in' });"
       }
     ],
     "Hyperlinks": [
@@ -5278,329 +5288,6 @@
       "exampleCode": "await ppt.useSlide(2).addTextNearChartLabel('salesChart', 3, '★ Record High', {\n  fill: 'FEF3C7',\n  textColor: 'B45309'\n});"
     },
     {
-      "id": "addshape",
-      "name": "addShape",
-      "signature": "ppt.addShape(type, options = {})",
-      "category": "Shapes & Geometry",
-      "description": "Creates and inserts a new vector shape onto the active slide. Supports preset geometries (rect, roundRect, ellipse, triangle, rightArrow, etc.), hex solid fills, borders, opacity, rotation, and embedded text frames.",
-      "openXmlImpact": "Inserts &lt;p:sp&gt; containing &lt;p:nvSpPr&gt;, &lt;p:spPr&gt; (&lt;a:prstGeom prst=\"...\"&gt;, &lt;a:xfrm&gt;, &lt;a:solidFill&gt;), and &lt;p:txBody&gt; into &lt;p:spTree&gt;.",
-      "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "type",
-          "type": "string",
-          "required": true,
-          "default": "—",
-          "description": "Preset geometry type (e.g. <code>'rect'</code>, <code>'roundRect'</code>, <code>'ellipse'</code>)."
-        },
-        {
-          "name": "options",
-          "type": "Object",
-          "required": false,
-          "default": "{}",
-          "description": "Geometry coordinates (x, y, width, height), fill color, border, text."
-        }
-      ],
-      "returns": {
-        "type": "Promise<string>",
-        "description": "Assigned unique shape ID."
-      },
-      "exampleCode": "ppt.useSlide(1);\nconst shapeId = await ppt.addShape('roundRect', {\n  x: '10%', y: '15%', width: '80%', height: '12%',\n  fill: '2563EB',\n  text: 'Quarterly Milestone Achieved',\n  textColor: 'FFFFFF',\n  fontSize: 16,\n  bold: true\n});"
-    },
-    {
-      "id": "updateshape",
-      "name": "updateShape",
-      "signature": "ppt.updateShape(shapeId, options)",
-      "category": "Shapes & Geometry",
-      "description": "Updates spatial coordinates, fills, borders, or visibility of an existing shape by shape ID or shape name.",
-      "openXmlImpact": "Mutates &lt;a:xfrm&gt; (&lt;a:off&gt;, &lt;a:ext&gt;) and &lt;a:solidFill&gt; under &lt;p:spPr&gt;.",
-      "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "shapeId",
-          "type": "string",
-          "required": true,
-          "default": "—",
-          "description": "Target shape ID or shape name."
-        },
-        {
-          "name": "options",
-          "type": "Object",
-          "required": true,
-          "default": "—",
-          "description": "Properties to update (x, y, width, height, fill, stroke)."
-        }
-      ],
-      "returns": {
-        "type": "Promise<PPTXTemplater>",
-        "description": "this (chainable)."
-      },
-      "exampleCode": "await ppt.useSlide(1).updateShape('banner_box', {\n  fill: '10B981',\n  width: '85%'\n});"
-    },
-    {
-      "id": "updateshapetext",
-      "name": "updateShapeText",
-      "signature": "ppt.updateShapeText(shapeId, text, options = {})",
-      "category": "Shapes & Geometry",
-      "description": "Replaces the entire text body of a shape with new text while preserving or updating font styles.",
-      "openXmlImpact": "Updates &lt;a:p&gt; and &lt;a:r&gt; in &lt;p:txBody&gt;.",
-      "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "shapeId",
-          "type": "string",
-          "required": true,
-          "default": "—",
-          "description": "Shape ID or name."
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "required": true,
-          "default": "—",
-          "description": "New text content."
-        },
-        {
-          "name": "options",
-          "type": "Object",
-          "required": false,
-          "default": "{}",
-          "description": "Typography formatting options."
-        }
-      ],
-      "returns": {
-        "type": "Promise<PPTXTemplater>",
-        "description": "this (chainable)."
-      },
-      "exampleCode": "await ppt.useSlide(1).updateShapeText('badge', '38.2% YoY Growth', {\n  bold: true,\n  color: 'FFFFFF'\n});"
-    },
-    {
-      "id": "cloneshape",
-      "name": "cloneShape",
-      "signature": "ppt.cloneShape(shapeId, options = {})",
-      "category": "Shapes & Geometry",
-      "description": "Deep-clones a shape on the active slide, assigning a new unique shape ID and offsetting its coordinates.",
-      "openXmlImpact": "Deep-clones &lt;p:sp&gt; node, re-indexes &lt;p:cNvPr id=\"...\"&gt;, and adjusts &lt;a:off&gt;.",
-      "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "shapeId",
-          "type": "string",
-          "required": true,
-          "default": "—",
-          "description": "Shape ID to clone."
-        },
-        {
-          "name": "options",
-          "type": "Object",
-          "required": false,
-          "default": "{}",
-          "description": "Coordinate offsets (dx, dy) or override properties."
-        }
-      ],
-      "returns": {
-        "type": "Promise<string>",
-        "description": "New shape ID."
-      },
-      "exampleCode": "const cloneId = await ppt.useSlide(1).cloneShape('card_template', {\n  dx: '3.2in',\n  text: 'Secondary Metric'\n});"
-    },
-    {
-      "id": "deleteshape",
-      "name": "deleteShape",
-      "signature": "ppt.deleteShape(shapeId)",
-      "category": "Shapes & Geometry",
-      "description": "Removes a shape element from the active slide by shape ID or name.",
-      "openXmlImpact": "Removes &lt;p:sp&gt; node from &lt;p:spTree&gt;.",
-      "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "shapeId",
-          "type": "string",
-          "required": true,
-          "default": "—",
-          "description": "Shape identifier to delete."
-        }
-      ],
-      "returns": {
-        "type": "Promise<PPTXTemplater>",
-        "description": "this (chainable)."
-      },
-      "exampleCode": "await ppt.useSlide(1).deleteShape('draft_watermark');"
-    },
-    {
-      "id": "alignshapes",
-      "name": "alignShapes",
-      "signature": "ppt.alignShapes(shapeIds, alignment)",
-      "category": "Shapes & Geometry",
-      "description": "Aligns multiple shapes along a common edge or centerline ('left', 'center', 'right', 'top', 'middle', 'bottom').",
-      "openXmlImpact": "Calculates bounding coordinates and mutates &lt;a:off x=\"...\" y=\"...\"&gt; on &lt;a:xfrm&gt;.",
-      "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-      "isStatic": false,
-      "isAsync": false,
-      "parameters": [
-        {
-          "name": "shapeIds",
-          "type": "string[]",
-          "required": true,
-          "default": "—",
-          "description": "Array of shape IDs or names to align."
-        },
-        {
-          "name": "alignment",
-          "type": "'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'",
-          "required": true,
-          "default": "—",
-          "description": "Target alignment axis."
-        }
-      ],
-      "returns": {
-        "type": "PPTXTemplater",
-        "description": "this (chainable)."
-      },
-      "exampleCode": "ppt.useSlide(1).alignShapes(['card1', 'card2', 'card3'], 'top');"
-    },
-    {
-      "id": "addtextatposition",
-      "name": "addTextAtPosition",
-      "signature": "ppt.addTextAtPosition(text, options)",
-      "category": "Shapes & Geometry",
-      "description": "Creates a transparent floating text box at specific slide coordinates.",
-      "openXmlImpact": "Creates &lt;p:sp&gt; with transparent geometry (&lt;a:noFill/&gt;) and text body.",
-      "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-      "isStatic": false,
-      "isAsync": true,
-      "parameters": [
-        {
-          "name": "text",
-          "type": "string",
-          "required": true,
-          "default": "—",
-          "description": "Text string."
-        },
-        {
-          "name": "options",
-          "type": "Object",
-          "required": true,
-          "default": "—",
-          "description": "Position coordinates (x, y, width, height) and typography."
-        }
-      ],
-      "returns": {
-        "type": "Promise<string>",
-        "description": "Assigned shape ID."
-      },
-      "exampleCode": "await ppt.useSlide(1).addTextAtPosition('Confidential — Internal Use Only', {\n  x: '5%', y: '92%', width: '90%', height: '5%',\n  color: '64748B', fontSize: 10\n});"
-    },
-    {
-      "id": "getshapes",
-      "name": "getShapes",
-      "signature": "ppt.getShapes()",
-      "category": "Shapes & Geometry",
-      "description": "Returns all shapes on the active slide with IDs, names, preset geometries, and bounding box coordinates.",
-      "openXmlImpact": "Scans &lt;p:spTree&gt; children.",
-      "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-      "isStatic": false,
-      "isAsync": false,
-      "parameters": [],
-      "returns": {
-        "type": "Array<Object>",
-        "description": "List of shape descriptors."
-      },
-      "exampleCode": "const shapes = ppt.useSlide(1).getShapes();\nconsole.log('Slide 1 shapes:', shapes);"
-    },
-    {
-      "id": "validateshape",
-      "name": "validateShape",
-      "signature": "ppt.validateShape(shapeId)",
-      "category": "Shapes & Geometry",
-      "description": "Validates DrawingML schema compliance for a given shape.",
-      "openXmlImpact": "Audits &lt;p:sp&gt; XML node.",
-      "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-      "isStatic": false,
-      "isAsync": false,
-      "parameters": [
-        {
-          "name": "shapeId",
-          "type": "string",
-          "required": true,
-          "default": "—",
-          "description": "Shape ID."
-        }
-      ],
-      "returns": {
-        "type": "{ valid: boolean, errors: string[] }",
-        "description": "Validation result."
-      },
-      "exampleCode": "const check = ppt.useSlide(1).validateShape('hero_box');\nif (!check.valid) console.warn(check.errors);"
-    },
-    {
-      "id": "getbounds",
-      "name": "getBounds",
-      "signature": "ppt.getBounds(objectIdOrName)",
-      "category": "Shapes & Geometry",
-      "description": "Calculates the pixel bounding box (x, y, width, height) of an element on the currently active slide.",
-      "openXmlImpact": "Queries a:off (offset) and a:ext (extent) coordinates and converts EMUs to integer pixels.",
-      "edgeCases": "Returns null if element identifier is not found on targeted slide.",
-      "isStatic": false,
-      "isAsync": false,
-      "parameters": [
-        {
-          "name": "objectIdOrName",
-          "type": "string",
-          "required": true,
-          "default": "—",
-          "description": "Element name or spId."
-        }
-      ],
-      "returns": {
-        "type": "{ x: number, y: number, width: number, height: number }",
-        "description": "Pixel bounding box coordinates."
-      },
-      "exampleCode": "ppt.useSlide(1);\nconst bounds = ppt.getBounds('HeaderTitle');\nconsole.log(bounds.width, bounds.height);"
-    },
-    {
-      "id": "setbounds",
-      "name": "setBounds",
-      "signature": "ppt.setBounds(objectIdOrName, options)",
-      "category": "Shapes & Geometry",
-      "description": "Updates position and dimensions of an element using integer pixels or string units (e.g. \"2in\", \"100px\", \"5cm\").",
-      "openXmlImpact": "Translates units into English Metric Units (EMU) and mutates a:off / a:ext XML nodes.",
-      "edgeCases": "Safely handles partial coordinate overrides (e.g. updating only width without affecting position).",
-      "isStatic": false,
-      "isAsync": false,
-      "parameters": [
-        {
-          "name": "objectIdOrName",
-          "type": "string",
-          "required": true,
-          "default": "—",
-          "description": "Element identifier."
-        },
-        {
-          "name": "options",
-          "type": "Object",
-          "required": true,
-          "default": "—",
-          "description": "Coordinates { x, y, width, height }."
-        }
-      ],
-      "returns": {
-        "type": "PPTXTemplater",
-        "description": "Chainable instance."
-      },
-      "exampleCode": "ppt.setBounds('HeaderBox', { width: '8in', height: '1.5in' });"
-    },
-    {
       "id": "addimage",
       "name": "addImage",
       "signature": "ppt.addImage(source, options = {})",
@@ -7102,6 +6789,282 @@
         "description": "Resolves to this (chainable)."
       },
       "exampleCode": "await ppt.useSlide(1).removeComment(1);"
+    },
+    {
+      "id": "addshape",
+      "name": "addShape",
+      "signature": "ppt.addShape(slideId, type, options = {})",
+      "category": "Shapes & Geometry",
+      "description": "Creates and inserts a new vector shape onto the targeted slide. Supports preset geometries (rect, roundRect, ellipse, triangle, rightArrow, star5, diamond, etc.), solid or gradient fills, borders, opacity, rotation, flips, and embedded text frames.",
+      "openXmlImpact": "Inserts <p:sp> containing <p:nvSpPr>, <p:spPr> (<a:prstGeom prst=\"...\">, <a:xfrm>, <a:solidFill>), and <p:txBody> into <p:spTree>.",
+      "edgeCases": "Throws PPTXError if slide index is invalid or shape options fail schema validation.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "slideId",
+          "type": "number",
+          "required": true,
+          "default": "—",
+          "description": "1-based target slide index."
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Preset geometry type (e.g. 'rectangle', 'roundRect', 'circle', 'triangle', 'star5')."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Shape properties (x, y, width, height, fill, border, rotation, flipH, flipV, text, textStyle)."
+        }
+      ],
+      "returns": {
+        "type": "string",
+        "description": "Assigned unique shape ID."
+      },
+      "exampleCode": "ppt.addShape(1, 'rectangle', {\n  x: 50, y: 50, width: 300, height: 120,\n  fill: '#1E293B',\n  border: { color: '#38BDF8', width: 2 },\n  text: 'Overview',\n  textStyle: { fontSize: 16, bold: true, color: '#FFFFFF', align: 'center' }\n});"
+    },
+    {
+      "id": "updateshape",
+      "name": "updateShape",
+      "signature": "ppt.updateShape(targetId, options = {})",
+      "category": "Shapes & Geometry",
+      "description": "Updates spatial coordinates, dimensions, fills, borders, rotation, or inner text of an existing shape by shape ID or name in-place.",
+      "openXmlImpact": "Mutates <a:xfrm> (<a:off>, <a:ext>), <a:solidFill>, <a:ln>, and <p:txBody> under <p:sp>.",
+      "edgeCases": "Throws PPTXError if targeted shape is not found on the slide.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "targetId",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Target shape ID or shape name."
+        },
+        {
+          "name": "options",
+          "type": "Object",
+          "required": true,
+          "default": "—",
+          "description": "Properties to update (x, y, width, height, fill, border, rotation, text, textStyle)."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable)."
+      },
+      "exampleCode": "ppt.updateShape('card1', {\n  x: 100, y: 150,\n  fill: '#10B981',\n  text: 'Updated Metric'\n});"
+    },
+    {
+      "id": "removeshape",
+      "name": "removeShape",
+      "signature": "ppt.removeShape(shapeId)",
+      "category": "Shapes & Geometry",
+      "description": "Removes a shape element from the targeted slide(s) by shape ID or name and updates slide z-order.",
+      "openXmlImpact": "Evacuates targeted <p:sp> node from <p:spTree> and clears its z-order entry.",
+      "edgeCases": "Throws PPTXError if targeted shape is not found.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "shapeId",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Shape identifier or name to remove."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable)."
+      },
+      "exampleCode": "ppt.removeShape('draft_watermark');"
+    },
+    {
+      "id": "clearshapes",
+      "name": "clearShapes",
+      "signature": "ppt.clearShapes()",
+      "category": "Shapes & Geometry",
+      "description": "Evacuates all user-created shapes from targeted slide(s) while strictly preserving layout placeholders, master placeholders, and background elements.",
+      "openXmlImpact": "Filters <p:spTree> child nodes, removing non-placeholder <p:sp> and <p:grpSp> elements.",
+      "edgeCases": "Does not remove layout titles, footers, slide numbers, or prompt placeholders.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable)."
+      },
+      "exampleCode": "ppt.clearShapes();"
+    },
+    {
+      "id": "getshapes",
+      "name": "getShapes",
+      "signature": "ppt.getShapes()",
+      "category": "Shapes & Geometry",
+      "description": "Returns metadata for all shapes on the targeted slide(s) including IDs, names, preset geometries, pixel coordinates, EMU bounds, style metadata, and text.",
+      "openXmlImpact": "Recursively scans DrawingML nodes (<p:sp>, <p:grpSp>) under <p:spTree> in read-only mode.",
+      "edgeCases": "Returns empty array if slide has no shapes.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [],
+      "returns": {
+        "type": "Array<Object>",
+        "description": "List of normalized shape descriptors."
+      },
+      "exampleCode": "const shapes = ppt.getShapes();\nshapes.forEach(s => console.log(s.name, s.x, s.y));"
+    },
+    {
+      "id": "getshape",
+      "name": "getShape",
+      "signature": "ppt.getShape(shapeId)",
+      "category": "Shapes & Geometry",
+      "description": "Discovers and retrieves normalized metadata for a specific shape by shape ID or name on the targeted slide(s).",
+      "openXmlImpact": "Inspects target <p:sp> or <p:grpSp> node and computes coordinate bounds.",
+      "edgeCases": "Returns null if shape is not found.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "shapeId",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Target shape ID or shape name."
+        }
+      ],
+      "returns": {
+        "type": "Object|null",
+        "description": "Normalized shape descriptor or null if not found."
+      },
+      "exampleCode": "const shape = ppt.getShape('HeroCard');\nif (shape) console.log(shape.width, shape.height);"
+    },
+    {
+      "id": "cloneshape",
+      "name": "cloneShape",
+      "signature": "ppt.cloneShape(shapeId, clonedShapeId, clonedOptions = {})",
+      "category": "Shapes & Geometry",
+      "description": "Duplicates an existing shape with a new ID, optional coordinate offsets or overrides, preserving formatting.",
+      "openXmlImpact": "Deep-clones <p:sp> node, assigns unique <p:cNvPr id=\"...\" name=\"...\">, and adjusts <a:off>.",
+      "edgeCases": "Throws PPTXError if source shape is not found.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "shapeId",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Source shape ID to duplicate."
+        },
+        {
+          "name": "clonedShapeId",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "New identifier for cloned shape."
+        },
+        {
+          "name": "clonedOptions",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Position overrides (x, y) or styling properties."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable)."
+      },
+      "exampleCode": "ppt.cloneShape('card_template', 'card_copy', { x: 400, y: 150, text: 'Second Card' });"
+    },
+    {
+      "id": "getgroupshapes",
+      "name": "getGroupShapes",
+      "signature": "ppt.getGroupShapes(groupId)",
+      "category": "Shapes & Geometry",
+      "description": "Inspects a composite group container (<p:grpSp>) and returns normalized descriptors for all direct child shapes.",
+      "openXmlImpact": "Inspects <p:grpSp> children (<p:sp>) and reads their geometry and coordinates.",
+      "edgeCases": "Returns empty array if group ID does not exist or target element is not a group.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "groupId",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Group shape ID or name."
+        }
+      ],
+      "returns": {
+        "type": "Array<Object>",
+        "description": "Array of child shape descriptors."
+      },
+      "exampleCode": "const children = ppt.getGroupShapes('CardGroup');\nchildren.forEach(c => console.log(c.name));"
+    },
+    {
+      "id": "groupshapes",
+      "name": "groupShapes",
+      "signature": "ppt.groupShapes(shapeIds, groupOptions = {})",
+      "category": "Shapes & Geometry",
+      "description": "Groups multiple shapes into a composite group container (<p:grpSp>), computing composite bounding boxes (<p:grpSpPr> with <a:xfrm>, <a:chOff>, <a:chExt>).",
+      "openXmlImpact": "Constructs <p:grpSp>, moves targeted <p:sp> nodes into it, and updates slide z-order.",
+      "edgeCases": "Throws PPTXError if fewer than 2 shapes are provided or any shape is not found.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "shapeIds",
+          "type": "string[]",
+          "required": true,
+          "default": "—",
+          "description": "Array of shape IDs or names to group."
+        },
+        {
+          "name": "groupOptions",
+          "type": "Object",
+          "required": false,
+          "default": "{}",
+          "description": "Group options (name, id)."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable)."
+      },
+      "exampleCode": "ppt.groupShapes(['icon', 'title', 'bg'], { name: 'CardGroup' });"
+    },
+    {
+      "id": "ungroupshapes",
+      "name": "ungroupShapes",
+      "signature": "ppt.ungroupShapes(groupId)",
+      "category": "Shapes & Geometry",
+      "description": "Dissolves a composite group container (<p:grpSp>), re-projecting child coordinate transforms back to canvas absolute EMUs, and appends shapes back to parent slide.",
+      "openXmlImpact": "Unnests child <p:sp> nodes from <p:grpSp>, removes <p:grpSp>, and updates slide z-order.",
+      "edgeCases": "Throws PPTXError if group shape is not found or is not a group.",
+      "isStatic": false,
+      "isAsync": false,
+      "parameters": [
+        {
+          "name": "groupId",
+          "type": "string",
+          "required": true,
+          "default": "—",
+          "description": "Group shape ID or name to dissolve."
+        }
+      ],
+      "returns": {
+        "type": "PPTXTemplater",
+        "description": "this (chainable)."
+      },
+      "exampleCode": "ppt.ungroupShapes('CardGroup');"
     }
   ]
 }

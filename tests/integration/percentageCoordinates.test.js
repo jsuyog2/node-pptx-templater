@@ -86,12 +86,13 @@ describe('CoordinateUtils - Global Percentage Coordinates (0-100%)', () => {
       }
     )
 
-    ppt.addTextAtPosition('Sample Title', {
+    await ppt.addShape('rect', {
+      text: 'Sample Title',
       x: '10%',
       y: '5%',
       width: '80%',
       height: '10%',
-      fontSize: 24,
+      textStyle: { fontSize: 24 },
     })
 
     await ppt.zipManager.waitForPendingWrites()

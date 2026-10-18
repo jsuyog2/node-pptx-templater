@@ -283,7 +283,7 @@ describe('Chart Series Name Labels (External Text Boxes)', () => {
     expect(bars[0].height).toBeGreaterThan(0)
   })
 
-  it('should support addTextAtPosition and addTextNearChartLabel APIs', async () => {
+  it('should support addTextNearChartLabel API', async () => {
     const ppt = await PPTXTemplater.load(testFile)
 
     ppt.useSlide(1).updateChart('Chart', {
@@ -292,19 +292,6 @@ describe('Chart Series Name Labels (External Text Boxes)', () => {
         { name: 'Product A', values: [100] },
         { name: 'Product B', values: [150] },
       ],
-    })
-
-    ppt.useSlide(1).addTextAtPosition({
-      text: 'Custom Text At Position',
-      x: 1000000,
-      y: 2000000,
-      width: 1500000,
-      height: 400000,
-      style: {
-        fontSize: 12,
-        fontFamily: 'Arial',
-        bold: true,
-      },
     })
 
     ppt.addTextNearChartLabel({
@@ -321,11 +308,6 @@ describe('Chart Series Name Labels (External Text Boxes)', () => {
     const buffer = await ppt.toBuffer()
     const ppt2 = await PPTXTemplater.load(buffer)
     const slideXml = await ppt2.zipManager.readFile('ppt/slides/slide1.xml')
-
-    expect(slideXml).toContain('TextBoxAtPosition')
-    expect(slideXml).toContain('Custom Text At Position')
-    expect(slideXml).toContain('sz="1200"')
-    expect(slideXml).toContain('b="1"')
 
     expect(slideXml).toContain('Near Product A')
     expect(slideXml).toContain('Near Product B')

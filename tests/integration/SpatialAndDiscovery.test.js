@@ -94,43 +94,4 @@ describe('Spatial Layout & Element Discovery', () => {
     expect(ppt.isContained('boxC', 'boxB')).toBe(true)
     expect(ppt.isContained('boxB', 'boxC')).toBe(false)
   })
-
-  it('should align multiple shapes (left, center, top, middle)', async () => {
-    const ppt = await PPTXTemplater.load(samplePath)
-    ppt.addShape('rect', { id: 's1', x: 20, y: 40, width: 60, height: 40 })
-    ppt.addShape('rect', { id: 's2', x: 100, y: 80, width: 80, height: 50 })
-    ppt.addShape('rect', { id: 's3', x: 220, y: 150, width: 50, height: 30 })
-
-    // Align left to minX (20)
-    ppt.alignShapes(['s1', 's2', 's3'], 'left')
-    expect(ppt.getBounds('s1').x).toBe(20)
-    expect(ppt.getBounds('s2').x).toBe(20)
-    expect(ppt.getBounds('s3').x).toBe(20)
-
-    // Align top to minY (40)
-    ppt.alignShapes(['s1', 's2', 's3'], 'top')
-    expect(ppt.getBounds('s1').y).toBe(40)
-    expect(ppt.getBounds('s2').y).toBe(40)
-    expect(ppt.getBounds('s3').y).toBe(40)
-  })
-
-  it('should distribute shapes evenly horizontally', async () => {
-    const ppt = await PPTXTemplater.load(samplePath)
-    ppt.addShape('rect', { id: 'd1', x: 0, y: 50, width: 50, height: 50 })
-    ppt.addShape('rect', { id: 'd2', x: 40, y: 50, width: 50, height: 50 })
-    ppt.addShape('rect', { id: 'd3', x: 200, y: 50, width: 50, height: 50 })
-
-    ppt.distributeShapes(['d1', 'd2', 'd3'], 'horizontal')
-
-    const b1 = ppt.getBounds('d1')
-    const b2 = ppt.getBounds('d2')
-    const b3 = ppt.getBounds('d3')
-
-    // First and last remain at bounds: d1.x = 0, d3.x = 200
-    expect(b1.x).toBe(0)
-    expect(b3.x).toBe(200)
-    // Span = 250 - 0 = 250. Total width = 150. Free space = 100. Gap = 100 / 2 = 50.
-    // d2.x = 0 + 50 + 50 = 100
-    expect(b2.x).toBe(100)
-  })
 })

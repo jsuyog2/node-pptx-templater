@@ -50,7 +50,9 @@ async function runSlideAdvancedShowcase() {
 
   // 1. ppt.getSlideDimensions()
   const dimensions = ppt.getSlideDimensions()
-  console.log(`\n[1/23] ppt.getSlideDimensions() -> width: ${dimensions.width}, height: ${dimensions.height} EMUs`)
+  console.log(
+    `\n[1/23] ppt.getSlideDimensions() -> width: ${dimensions.width}, height: ${dimensions.height} EMUs`
+  )
 
   // 2. ppt.getSlides()
   const allSlides = ppt.getSlides()
@@ -58,7 +60,9 @@ async function runSlideAdvancedShowcase() {
 
   // 3. ppt.getSlide(index)
   const firstSlide = ppt.getSlide(1)
-  console.log(`[3/23] ppt.getSlide(1) -> Slide ID: ${firstSlide.slideId}, RelID: ${firstSlide.relationshipId}`)
+  console.log(
+    `[3/23] ppt.getSlide(1) -> Slide ID: ${firstSlide.slideId}, RelID: ${firstSlide.relationshipId}`
+  )
 
   // 4. ppt.getSlideLayout(slideIndex)
   const layout = ppt.getSlideLayout(1)
@@ -78,11 +82,15 @@ async function runSlideAdvancedShowcase() {
 
   // 8. ppt.addSlide(options, position)
   ppt.addSlide({ title: 'Key Performance Indicators' }, 2)
-  console.log(`[8/23] ppt.addSlide({ title: 'Key Performance Indicators' }, 2) -> Inserted slide at pos 2, total: ${ppt.slideCount}`)
+  console.log(
+    `[8/23] ppt.addSlide({ title: 'Key Performance Indicators' }, 2) -> Inserted slide at pos 2, total: ${ppt.slideCount}`
+  )
 
   // 9. ppt.duplicateSlide(sourceIndex, atPosition)
   await ppt.duplicateSlide(1, 3)
-  console.log(`[9/23] ppt.duplicateSlide(1, 3) -> Cloned slide 1 to pos 3, total: ${ppt.slideCount}`)
+  console.log(
+    `[9/23] ppt.duplicateSlide(1, 3) -> Cloned slide 1 to pos 3, total: ${ppt.slideCount}`
+  )
 
   // 10. ppt.moveSlide(fromIndex, toIndex)
   ppt.moveSlide(3, 1)
@@ -95,7 +103,9 @@ async function runSlideAdvancedShowcase() {
 
   // 12. ppt.removeSlide(position)
   ppt.removeSlide(ppt.slideCount - 2)
-  console.log(`[12/23] ppt.removeSlide(${(ppt.slideCount - 2) + 1}) -> Removed slide, remaining: ${ppt.slideCount}`)
+  console.log(
+    `[12/23] ppt.removeSlide(${ppt.slideCount - 2 + 1}) -> Removed slide, remaining: ${ppt.slideCount}`
+  )
 
   // 13. ppt.hideSlide(...slideRefs)
   ppt.hideSlide(1)
@@ -107,15 +117,21 @@ async function runSlideAdvancedShowcase() {
 
   // 15. ppt.resetSlide(slideRef, options)
   ppt.resetSlide(2, { preservePlaceholders: true })
-  console.log(`[15/23] ppt.resetSlide(2, { preservePlaceholders: true }) -> Reset canvas shapes while keeping placeholders`)
+  console.log(
+    `[15/23] ppt.resetSlide(2, { preservePlaceholders: true }) -> Reset canvas shapes while keeping placeholders`
+  )
 
   // 16. ppt.getSection(sectionRef)
   const section = ppt.getSection('Default Section')
-  console.log(`[16/23] ppt.getSection('Default Section') -> Section GUID: ${section.id}, Slides: [${section.slideIndices.join(', ')}]`)
+  console.log(
+    `[16/23] ppt.getSection('Default Section') -> Section GUID: ${section.id}, Slides: [${section.slideIndices.join(', ')}]`
+  )
 
   // 17. ppt.updateSection(sectionIdentifier, options)
   ppt.updateSection('Default Section', { name: 'Leadership Overview' })
-  console.log(`[17/23] ppt.updateSection('Default Section', { name: 'Leadership Overview' }) -> Renamed section`)
+  console.log(
+    `[17/23] ppt.updateSection('Default Section', { name: 'Leadership Overview' }) -> Renamed section`
+  )
 
   // 18. ppt.useSection(sectionRef)
   ppt.useSection('Untitled Section')
@@ -123,12 +139,13 @@ async function runSlideAdvancedShowcase() {
 
   // 19. ppt.removeSection(sectionIdentifier, removeSlides)
   ppt.removeSection('Untitled Section', false)
-  console.log(`[19/23] ppt.removeSection('Untitled Section', false) -> Section deleted, slides preserved`)
+  console.log(
+    `[19/23] ppt.removeSection('Untitled Section', false) -> Section deleted, slides preserved`
+  )
 
   // 20. ppt.addSection(name, startSlideIndex)
   ppt.addSection('Executive Overview', 5)
   console.log(`[20/23] ppt.addSection('Executive Overview', 5) -> Created PowerPoint section`)
-
 
   // 21. ppt.addComment(text, options)
   await ppt.useSlide(1).addComment('Audit team reviewed Q3 figures', {
@@ -137,7 +154,9 @@ async function runSlideAdvancedShowcase() {
     x: '0.1',
     y: '0.1',
   })
-  console.log(`[21/23] ppt.addComment('Audit team reviewed Q3 figures') -> Added collaborative OpenXML comment`)
+  console.log(
+    `[21/23] ppt.addComment('Audit team reviewed Q3 figures') -> Added collaborative OpenXML comment`
+  )
 
   // 22. ppt.removeComment(commentIdentifier, options)
   await ppt.useSlide(1).addComment('Temporary review flag', {
@@ -160,11 +179,15 @@ async function runSlideAdvancedShowcase() {
     text: 'Synthesized with PPTXTemplater.createBlank()',
   })
   await ppt.importSlideFrom(blankDeck, 1, 3)
-  console.log(`[23/23] ppt.importSlideFrom(blankDeck, 1, 3) -> Imported slide across presentations, count: ${blankDeck.slideCount}`)
+  console.log(
+    `[23/23] ppt.importSlideFrom(blankDeck, 1, 3) -> Imported slide across presentations, count: ${blankDeck.slideCount}`
+  )
 
   // 24. ppt.exportSlides(...slideIndices)
   const exportedDeck = await ppt.exportSlides(1)
-  console.log(`[Extra] ppt.exportSlides(1) -> Exported subset deck, count: ${exportedDeck.slideCount}`)
+  console.log(
+    `[Extra] ppt.exportSlides(1) -> Exported subset deck, count: ${exportedDeck.slideCount}`
+  )
 
   // Save and verify package integrity
   const outPath = path.join(OUTPUT_DIR, 'advanced_slides_output.pptx')

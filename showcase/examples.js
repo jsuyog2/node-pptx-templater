@@ -331,9 +331,9 @@ async function demo05_ShapesAndZOrder() {
   })
   console.log('✓ Added stat highlight box.')
 
-  // 4. Align shapes vertically along middle
-  ppt.alignShapes(['StatusBadge', 'KpiStatBox'], 'middle')
-  console.log('✓ Aligned shapes along their vertical middle.')
+  // 4. Update shape coordinates via updateShape
+  ppt.updateShape('StatusBadge', { y: 120 })
+  console.log('✓ Aligned shape coordinates via updateShape.')
 
   // 5. Demonstrate Z-Ordering
   ppt.sendToBack('CardBackground')

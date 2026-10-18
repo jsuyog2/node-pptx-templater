@@ -2692,7 +2692,7 @@ class PPTXTemplater {
     if (options.flipV !== undefined) emuOptions.flipV = options.flipV
 
     for (const idx of targetIndices) {
-      this.#shapeManager.updateShapePosition(idx, objectIdOrName, emuOptions, this.#slideManager)
+      this.#shapeManager.updateShape(idx, objectIdOrName, emuOptions, this.#slideManager)
     }
     return this
   }
@@ -2706,108 +2706,6 @@ class PPTXTemplater {
    */
   move(objectIdOrName, options = {}) {
     return this.setBounds(objectIdOrName, { x: options.x, y: options.y })
-  }
-
-  /**
-   * Aligns multiple shapes on the active slide.
-   *
-   * @param {string[]} shapeIds - Array of shape IDs or names to align.
-   * @param {'left'|'center'|'right'|'top'|'middle'|'bottom'} alignment - Target alignment edge or axis.
-   * @returns {PPTXTemplater} this (chainable)
-   */
-  alignShapes(shapeIds, alignment) {
-    this.#assertLoaded()
-    if (!Array.isArray(shapeIds) || shapeIds.length < 2) return this
-
-    const boxes = shapeIds.map(id => ({ id, bounds: this.getBounds(id) }))
-    const validBoxes = boxes.filter(b => b.bounds)
-    if (validBoxes.length < 2) return this
-
-    const align = String(alignment).toLowerCase()
-    if (align === 'left') {
-      const minX = Math.min(...validBoxes.map(b => b.bounds.x))
-      for (const b of validBoxes) {
-        this.setBounds(b.id, { x: minX })
-      }
-    } else if (align === 'right') {
-      const maxRight = Math.max(...validBoxes.map(b => b.bounds.x + b.bounds.width))
-      for (const b of validBoxes) {
-        this.setBounds(b.id, { x: maxRight - b.bounds.width })
-      }
-    } else if (align === 'center') {
-      const minX = Math.min(...validBoxes.map(b => b.bounds.x))
-      const maxRight = Math.max(...validBoxes.map(b => b.bounds.x + b.bounds.width))
-      const center = (minX + maxRight) / 2
-      for (const b of validBoxes) {
-        this.setBounds(b.id, { x: center - b.bounds.width / 2 })
-      }
-    } else if (align === 'top') {
-      const minY = Math.min(...validBoxes.map(b => b.bounds.y))
-      for (const b of validBoxes) {
-        this.setBounds(b.id, { y: minY })
-      }
-    } else if (align === 'bottom') {
-      const maxBottom = Math.max(...validBoxes.map(b => b.bounds.y + b.bounds.height))
-      for (const b of validBoxes) {
-        this.setBounds(b.id, { y: maxBottom - b.bounds.height })
-      }
-    } else if (align === 'middle') {
-      const minY = Math.min(...validBoxes.map(b => b.bounds.y))
-      const maxBottom = Math.max(...validBoxes.map(b => b.bounds.y + b.bounds.height))
-      const middle = (minY + maxBottom) / 2
-      for (const b of validBoxes) {
-        this.setBounds(b.id, { y: middle - b.bounds.height / 2 })
-      }
-    }
-
-    return this
-  }
-
-  /**
-   * Distributes multiple shapes evenly along a direction.
-   *
-   * @param {string[]} shapeIds - Array of shape IDs or names to distribute.
-   * @param {'horizontal'|'vertical'} [direction='horizontal'] - Distribution direction.
-   * @returns {PPTXTemplater} this (chainable)
-   */
-  distributeShapes(shapeIds, direction = 'horizontal') {
-    this.#assertLoaded()
-    if (!Array.isArray(shapeIds) || shapeIds.length < 3) return this
-
-    const boxes = shapeIds.map(id => ({ id, bounds: this.getBounds(id) }))
-    const validBoxes = boxes.filter(b => b.bounds)
-    if (validBoxes.length < 3) return this
-
-    const dir = String(direction).toLowerCase()
-    if (dir === 'horizontal') {
-      validBoxes.sort((a, b) => a.bounds.x - b.bounds.x)
-      const first = validBoxes[0]
-      const last = validBoxes[validBoxes.length - 1]
-      const totalWidth = validBoxes.reduce((acc, b) => acc + b.bounds.width, 0)
-      const span = last.bounds.x + last.bounds.width - first.bounds.x
-      const gap = (span - totalWidth) / (validBoxes.length - 1)
-
-      let currentX = first.bounds.x + first.bounds.width + gap
-      for (let i = 1; i < validBoxes.length - 1; i++) {
-        this.setBounds(validBoxes[i].id, { x: currentX })
-        currentX += validBoxes[i].bounds.width + gap
-      }
-    } else if (dir === 'vertical') {
-      validBoxes.sort((a, b) => a.bounds.y - b.bounds.y)
-      const first = validBoxes[0]
-      const last = validBoxes[validBoxes.length - 1]
-      const totalHeight = validBoxes.reduce((acc, b) => acc + b.bounds.height, 0)
-      const span = last.bounds.y + last.bounds.height - first.bounds.y
-      const gap = (span - totalHeight) / (validBoxes.length - 1)
-
-      let currentY = first.bounds.y + first.bounds.height + gap
-      for (let i = 1; i < validBoxes.length - 1; i++) {
-        this.setBounds(validBoxes[i].id, { y: currentY })
-        currentY += validBoxes[i].bounds.height + gap
-      }
-    }
-
-    return this
   }
 
   /**
@@ -2931,13 +2829,7 @@ class PPTXTemplater {
     this.#assertLoaded()
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
-      this.#shapeManager.resizeObject(
-        idx,
-        objectIdOrName,
-        options,
-        this.#slideManager,
-        this.#tableManager
-      )
+      this.#slideManager.resizeObject(idx, objectIdOrName, options, this.#tableManager)
     }
     return this
   }
@@ -3243,37 +3135,6 @@ class PPTXTemplater {
       this.#slideManager,
       this.#relationshipManager
     )
-  }
-
-  /**
-   * Adds a textbox shape at a specific EMU coordinate position on targeted slides.
-   * Supports custom font styling and alignment configuration.
-   *
-   * @param {Object} options Textbox positioning and style configuration.
-   * @param {string} options.text Text content to insert in the textbox.
-   * @param {number} options.x Bounding box X offset coordinate (in EMUs).
-   * @param {number} options.y Bounding box Y offset coordinate (in EMUs).
-   * @param {number} [options.width=1200000] Bounding box width (in EMUs).
-   * @param {number} [options.height=300000] Bounding box height (in EMUs).
-   * @param {Object} [options.style] Font formatting properties (fontSize, fontFamily, color, bold, italic, align).
-   * @returns {this} The chainable presentation engine instance.
-   */
-  addTextAtPosition(textOrOptions, maybeOptions = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    let config = {}
-    if (typeof textOrOptions === 'string') {
-      config = { ...maybeOptions, text: textOrOptions }
-    } else if (typeof textOrOptions === 'object' && textOrOptions !== null) {
-      config = { ...textOrOptions }
-    }
-    for (const idx of targetIndices) {
-      // Ensure dirty XML from prior synchronous operations (like addTable) is flushed to zip
-      this.#slideManager.getSlideXml(idx)
-      const p = this.#chartManager.addTextAtPosition(idx, config, this.#slideManager)
-      this.#zipManager.addPendingPromise(p)
-    }
-    return this
   }
 
   /**
@@ -3644,106 +3505,166 @@ class PPTXTemplater {
     return elements
   }
 
-  // === Shape Features ===
+  // === Shapes & Geometry Features (Strict 10-Method Whitelist) ===
+
   /**
-   * Sets the text content of an existing shape by name or ID.
+   * Adds a new shape to the slide.
    *
-   * @param {string} shapeId - Shape name or ID.
-   * @param {string} text - New text content.
+   * @param {number|string|Object} slideIdOrTypeOrOptions - Target slide index/ID, shape type string, or options object.
+   * @param {string|Object} [typeOrOptions] - Shape type string or options object.
+   * @param {Object} [options={}] - Configuration options.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.updateShapeText('CalloutBox', 'Important note here');
+   * ppt.addShape(1, 'rect', { x: 100, y: 100, width: 200, height: 100, fill: '#2563EB' });
    */
-  updateShapeText(shapeId, text) {
+  addShape(slideIdOrTypeOrOptions, typeOrOptions, options = {}) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#shapeManager.updateShapeText(idx, shapeId, text, this.#slideManager)
-    }
-    return this
-  }
+    let targetSlideIndices
+    let shapeType
+    let shapeOptions = {}
 
-  /**
-   * Updates the position and/or dimensions of an existing shape on targeted slides.
-   *
-   * @param {string} shapeId The unique shape name/id in the template slide.
-   * @param {Object} options Positioning and styling dimensions config.
-   * @param {number} [options.x] Absolute X offset coordinate (in EMUs).
-   * @param {number} [options.y] Absolute Y offset coordinate (in EMUs).
-   * @param {number} [options.width] Bounding box width (in EMUs).
-   * @param {number} [options.height] Bounding box height (in EMUs).
-   * @returns {this} The chainable presentation engine instance.
-   */
-  updateShapePosition(shapeId, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      let resolvedOptions = options
-      if (options.alignToCell) {
-        resolvedOptions = this.#resolveAlignToCell(idx, options, shapeId, true)
+    if (
+      typeof slideIdOrTypeOrOptions === 'number' ||
+      (typeof slideIdOrTypeOrOptions === 'string' &&
+        /^\d+$/.test(slideIdOrTypeOrOptions) &&
+        typeof typeOrOptions === 'string')
+    ) {
+      targetSlideIndices = [parseInt(slideIdOrTypeOrOptions, 10)]
+      shapeType = typeOrOptions
+      shapeOptions = { ...options }
+    } else if (typeof slideIdOrTypeOrOptions === 'string') {
+      targetSlideIndices = this.#getTargetSlideIndices()
+      shapeType = slideIdOrTypeOrOptions
+      shapeOptions =
+        typeof typeOrOptions === 'object' && typeOrOptions !== null ? { ...typeOrOptions } : {}
+    } else if (typeof slideIdOrTypeOrOptions === 'object' && slideIdOrTypeOrOptions !== null) {
+      targetSlideIndices = this.#getTargetSlideIndices()
+      shapeOptions = { ...slideIdOrTypeOrOptions }
+      shapeType = shapeOptions.type
+    } else {
+      targetSlideIndices = this.#getTargetSlideIndices()
+    }
+
+    if (shapeType && !shapeOptions.type) {
+      shapeOptions.type = shapeType
+    }
+
+    for (const idx of targetSlideIndices) {
+      let finalOptions = shapeOptions
+      if (shapeOptions.alignToCell) {
+        finalOptions = this.#resolveAlignToCell(idx, shapeOptions)
       }
-      this.#shapeManager.updateShapePosition(idx, shapeId, resolvedOptions, this.#slideManager)
+      this.#shapeManager.addShape(idx, shapeType, finalOptions, this.#slideManager)
     }
     return this
   }
 
   /**
-   * Updates the position and/or dimensions of an existing textbox on targeted slides.
+   * Updates spatial coordinates, fills, borders, text, or visibility of an existing shape by ID or name.
    *
-   * @param {string} textBoxId The unique textbox shape name/id in the template slide.
-   * @param {Object} options Positioning and styling dimensions config.
-   * @param {number} [options.x] Absolute X offset coordinate (in EMUs).
-   * @param {number} [options.y] Absolute Y offset coordinate (in EMUs).
-   * @param {number} [options.width] Bounding box width (in EMUs).
-   * @param {number} [options.height] Bounding box height (in EMUs).
-   * @returns {this} The chainable presentation engine instance.
-   */
-  updateTextBoxPosition(textBoxId, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#shapeManager.updateTextBoxPosition(idx, textBoxId, options, this.#slideManager)
-    }
-    return this
-  }
-
-  /**
-   * Duplicates an existing shape with a new ID, optionally at a different position.
-   *
-   * @param {string} shapeId - Source shape name or ID.
-   * @param {string} newShapeId - Name/ID for the cloned shape.
-   * @param {Object} [options] - Position overrides for the clone.
-   * @param {number} [options.x] - X offset for the clone (EMUs).
-   * @param {number} [options.y] - Y offset for the clone (EMUs).
+   * @param {string} targetId - Shape ID or name to update.
+   * @param {Object} options - Configuration properties to update.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.cloneShape('logo', 'logo-copy', { x: 2000000, y: 500000 });
+   * ppt.updateShape('banner_box', { fill: '#10B981', width: 300 });
    */
-  cloneShape(shapeId, newShapeId, options = {}) {
+  updateShape(targetId, options = {}, maybeSlideIndex) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#shapeManager.cloneShape(idx, shapeId, newShapeId, options, this.#slideManager)
+    let slideIndex = maybeSlideIndex
+    let actualTargetId = targetId
+    let actualOptions = options
+    if (typeof targetId === 'number' && typeof options === 'string') {
+      slideIndex = targetId
+      actualTargetId = options
+      actualOptions = maybeSlideIndex || {}
+    }
+    if (actualOptions && actualOptions.slide !== undefined) {
+      slideIndex = actualOptions.slide
+    }
+
+    const targetIndices = slideIndex !== undefined ? [slideIndex] : this.#getTargetSlideIndices()
+    if (this.#selectedSlides.length > 0 || slideIndex !== undefined) {
+      for (const idx of targetIndices) {
+        let resolvedOptions = actualOptions
+        if (actualOptions.alignToCell) {
+          resolvedOptions = this.#resolveAlignToCell(idx, actualOptions, actualTargetId)
+        }
+        this.#shapeManager.updateShape(idx, actualTargetId, resolvedOptions, this.#slideManager)
+      }
+    } else {
+      let found = false
+      for (const idx of targetIndices) {
+        if (this.#slideManager.getSlideShape(idx, actualTargetId)) {
+          found = true
+          let resolvedOptions = actualOptions
+          if (actualOptions.alignToCell) {
+            resolvedOptions = this.#resolveAlignToCell(idx, actualOptions, actualTargetId)
+          }
+          this.#shapeManager.updateShape(idx, actualTargetId, resolvedOptions, this.#slideManager)
+        }
+      }
+      if (!found) {
+        this.#shapeManager.updateShape(
+          targetIndices[0] || 1,
+          actualTargetId,
+          actualOptions,
+          this.#slideManager
+        )
+      }
     }
     return this
   }
 
   /**
-   * Removes a shape from the targeted slide(s). Alias for `removeShape()`.
+   * Removes a shape from the targeted slide(s) by shape ID or name.
    *
-   * @param {string} shapeId - Shape name or ID to delete.
+   * @param {string} shapeId - Shape ID or name to remove.
+   * @param {number} [maybeSlideIndex] - Optional 1-based slide index.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.deleteShape('temp-banner');
+   * ppt.removeShape('draft_watermark');
    */
-  deleteShape(shapeId) {
+  removeShape(shapeId, maybeSlideIndex) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const slideIndex = maybeSlideIndex
+    const targetIndices = slideIndex !== undefined ? [slideIndex] : this.#getTargetSlideIndices()
+    if (this.#selectedSlides.length > 0 || slideIndex !== undefined) {
+      for (const idx of targetIndices) {
+        this.#shapeManager.removeShape(idx, shapeId, this.#slideManager)
+      }
+    } else {
+      let found = false
+      for (const idx of targetIndices) {
+        if (this.#slideManager.getSlideShape(idx, shapeId)) {
+          found = true
+          this.#shapeManager.removeShape(idx, shapeId, this.#slideManager)
+        }
+      }
+      if (!found) {
+        this.#shapeManager.removeShape(targetIndices[0] || 1, shapeId, this.#slideManager)
+      }
+    }
+    return this
+  }
+
+  /**
+   * Clears all user-created shapes from targeted slide(s) while preserving layout placeholders.
+   *
+   * @param {number} [maybeSlideIndex] - Optional 1-based slide index.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.clearShapes();
+   */
+  clearShapes(maybeSlideIndex) {
+    this.#assertLoaded()
+    const targetIndices =
+      maybeSlideIndex !== undefined ? [maybeSlideIndex] : this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
-      this.#shapeManager.deleteShape(idx, shapeId, this.#slideManager)
+      this.#shapeManager.clearShapes(idx, this.#slideManager)
     }
     return this
   }
@@ -3751,15 +3672,16 @@ class PPTXTemplater {
   /**
    * Returns metadata for all shapes on the targeted slide(s).
    *
-   * @returns {Array<{id: string, name: string, type: string, x: number, y: number, width: number, height: number}>}
+   * @param {number} [maybeSlideIndex] - Optional 1-based slide index.
+   * @returns {Array<Object>} List of shape descriptors.
    *
    * @example
    * const shapes = ppt.getShapes();
-   * shapes.forEach(s => console.log(`${s.name}: ${s.type} at (${s.x}, ${s.y})`));
    */
-  getShapes() {
+  getShapes(maybeSlideIndex) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const targetIndices =
+      maybeSlideIndex !== undefined ? [maybeSlideIndex] : this.#getTargetSlideIndices()
     const shapes = []
     for (const idx of targetIndices) {
       shapes.push(...this.#shapeManager.getShapes(idx, this.#slideManager))
@@ -3768,94 +3690,174 @@ class PPTXTemplater {
   }
 
   /**
-   * Validates shape options configuration.
+   * Discovers and retrieves details of an existing shape on targeted slide(s).
    *
-   * @param {Object} options Shape creation/update options.
-   * @returns {string[]} List of validation error messages.
-   */
-  validateShape(options) {
-    return this.#shapeManager.validateShape(options)
-  }
-
-  /**
-   * Adds a new shape to the targeted slide(s).
-   *
-   * @param {string|Object} typeOrOptions Either the shape type string (e.g., 'rect', 'ellipse') or a full options object.
-   * @param {Object} [options={}] Additional configuration options if type was specified as a string.
-   * @returns {Promise<PPTXTemplater>} The templater instance for chaining.
+   * @param {string} shapeId - Shape ID or name.
+   * @param {number} [maybeSlideIndex] - Optional 1-based slide index.
+   * @returns {Object|null} Shape details object, or null if not found.
    *
    * @example
-   * await ppt.addShape('rect', { id: 'MyShape', x: 100, y: 100, width: 200, height: 100 });
+   * const shape = ppt.getShape('HeroCard');
    */
-  async addShape(typeOrOptions, options = {}) {
+  getShape(shapeId, maybeSlideIndex) {
     this.#assertLoaded()
-    let resolvedOptions = {}
-    if (typeof typeOrOptions === 'string') {
-      resolvedOptions = { ...options, type: typeOrOptions }
-    } else {
-      resolvedOptions = { ...typeOrOptions }
-    }
-
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      let finalOptions = resolvedOptions
-      if (resolvedOptions.alignToCell) {
-        finalOptions = this.#resolveAlignToCell(idx, resolvedOptions)
-      }
-      this.#shapeManager.addShape(idx, finalOptions, this.#slideManager)
-    }
-    return this
-  }
-
-  /**
-   * Updates an existing shape in-place.
-   *
-   * @param {string} shapeId Shape ID or template name to update.
-   * @param {Object} options Configuration properties to update.
-   * @returns {this} The chainable presentation templater instance.
-   */
-  async updateShape(shapeId, options) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      let resolvedOptions = options
-      if (options.alignToCell) {
-        resolvedOptions = this.#resolveAlignToCell(idx, options, shapeId)
-      }
-      this.#shapeManager.updateShape(idx, shapeId, resolvedOptions, this.#slideManager)
-    }
-    return this
-  }
-
-  /**
-   * Removes a shape from the targeted slide(s).
-   *
-   * @param {string} shapeId Shape ID or template name to remove.
-   * @returns {this} The chainable presentation templater instance.
-   */
-  async removeShape(shapeId) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#shapeManager.removeShape(idx, shapeId, this.#slideManager)
-    }
-    return this
-  }
-
-  /**
-   * Discovers and retrieves details of an existing shape on the targeted slides.
-   *
-   * @param {string} shapeId Shape ID or template name to locate.
-   * @returns {Object|null} Shape details object, or null if not found.
-   */
-  getShape(shapeId) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const targetIndices =
+      maybeSlideIndex !== undefined ? [maybeSlideIndex] : this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       const shape = this.#shapeManager.getShape(idx, shapeId, this.#slideManager)
       if (shape) return shape
     }
     return null
+  }
+
+  /**
+   * Duplicates an existing shape with a new ID and optional overrides.
+   *
+   * @param {string} shapeId - Source shape name or ID.
+   * @param {string} clonedShapeId - Identifier for cloned shape.
+   * @param {Object} [clonedOptions={}] - Positioning and styling overrides.
+   * @param {number} [maybeSlideIndex] - Optional 1-based slide index.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.cloneShape('logo', 'logo-copy', { x: 200, y: 50 });
+   */
+  cloneShape(shapeId, clonedShapeId, clonedOptions = {}, maybeSlideIndex) {
+    this.#assertLoaded()
+    const slideIndex = maybeSlideIndex || clonedOptions.slide
+    const targetIndices = slideIndex !== undefined ? [slideIndex] : this.#getTargetSlideIndices()
+    if (this.#selectedSlides.length > 0 || slideIndex !== undefined) {
+      for (const idx of targetIndices) {
+        this.#shapeManager.cloneShape(
+          idx,
+          shapeId,
+          clonedShapeId,
+          clonedOptions,
+          this.#slideManager
+        )
+      }
+    } else {
+      let found = false
+      for (const idx of targetIndices) {
+        if (this.#slideManager.getSlideShape(idx, shapeId)) {
+          found = true
+          this.#shapeManager.cloneShape(
+            idx,
+            shapeId,
+            clonedShapeId,
+            clonedOptions,
+            this.#slideManager
+          )
+        }
+      }
+      if (!found) {
+        this.#shapeManager.cloneShape(
+          targetIndices[0] || 1,
+          shapeId,
+          clonedShapeId,
+          clonedOptions,
+          this.#slideManager
+        )
+      }
+    }
+    return this
+  }
+
+  /**
+   * Inspects a group shape and returns normalized child shape descriptors.
+   *
+   * @param {string} groupId - Group shape ID or name.
+   * @param {number} [maybeSlideIndex] - Optional 1-based slide index.
+   * @returns {Array<Object>} Child shape descriptors.
+   *
+   * @example
+   * const children = ppt.getGroupShapes('HeaderGroup');
+   */
+  getGroupShapes(groupId, maybeSlideIndex) {
+    this.#assertLoaded()
+    const targetIndices =
+      maybeSlideIndex !== undefined ? [maybeSlideIndex] : this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      const children = this.#shapeManager.getGroupShapes(idx, groupId, this.#slideManager)
+      if (children && children.length > 0) return children
+    }
+    return []
+  }
+
+  /**
+   * Groups multiple shapes into a composite group container (<p:grpSp>).
+   *
+   * @param {string[]} shapeIds - Array of shape IDs or names to group.
+   * @param {Object} [groupOptions={}] - Group configuration options (e.g. name, id).
+   * @param {number} [maybeSlideIndex] - Optional 1-based slide index.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.groupShapes(['shape1', 'shape2'], { name: 'CardGroup' });
+   */
+  groupShapes(shapeIds, groupOptions = {}, maybeSlideIndex) {
+    this.#assertLoaded()
+    const slideIndex = maybeSlideIndex || groupOptions.slide
+    const targetIndices = slideIndex !== undefined ? [slideIndex] : this.#getTargetSlideIndices()
+    if (this.#selectedSlides.length > 0 || slideIndex !== undefined) {
+      for (const idx of targetIndices) {
+        this.#shapeManager.groupShapes(idx, shapeIds, groupOptions, this.#slideManager)
+      }
+    } else {
+      let found = false
+      const arr = Array.isArray(shapeIds) ? shapeIds : [shapeIds]
+      for (const idx of targetIndices) {
+        const allExist = arr.every(id => Boolean(this.#slideManager.getSlideShape(idx, id)))
+        if (allExist) {
+          found = true
+          this.#shapeManager.groupShapes(idx, shapeIds, groupOptions, this.#slideManager)
+          break
+        }
+      }
+      if (!found) {
+        this.#shapeManager.groupShapes(
+          targetIndices[0] || 1,
+          shapeIds,
+          groupOptions,
+          this.#slideManager
+        )
+      }
+    }
+    return this
+  }
+
+  /**
+   * Ungroups a composite group container, reprojecting child transforms back to absolute slide coordinates.
+   *
+   * @param {string} groupId - Group shape ID or name to dissolve.
+   * @param {number} [maybeSlideIndex] - Optional 1-based slide index.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.ungroupShapes('CardGroup');
+   */
+  ungroupShapes(groupId, maybeSlideIndex) {
+    this.#assertLoaded()
+    const slideIndex = maybeSlideIndex
+    const targetIndices = slideIndex !== undefined ? [slideIndex] : this.#getTargetSlideIndices()
+    if (this.#selectedSlides.length > 0 || slideIndex !== undefined) {
+      for (const idx of targetIndices) {
+        this.#shapeManager.ungroupShapes(idx, groupId, this.#slideManager)
+      }
+    } else {
+      let found = false
+      for (const idx of targetIndices) {
+        if (this.#slideManager.getSlideShape(idx, groupId)) {
+          found = true
+          this.#shapeManager.ungroupShapes(idx, groupId, this.#slideManager)
+          break
+        }
+      }
+      if (!found) {
+        this.#shapeManager.ungroupShapes(targetIndices[0] || 1, groupId, this.#slideManager)
+      }
+    }
+    return this
   }
 
   /**
@@ -4840,7 +4842,7 @@ class PPTXTemplater {
       typeof tableIdOrObj === 'object'
         ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId
         : tableIdOrObj
-    this.updateShapePosition(shapeId, {
+    this.updateShape(shapeId, {
       alignToCell: {
         table: tableId,
         row: rowIndex,

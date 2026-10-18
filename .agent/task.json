@@ -1,56 +1,82 @@
 {
     "project": "node-pptx-templater",
-    "category": "Workspace & Context Optimization",
-    "task": "Audit, Consolidate, and Prune .agent Directory to Reduce Token Bloat",
+    "version": "3.7.0",
+    "category": "Shapes & Geometry",
+    "scope": "Strict 10 Shapes & Geometry Functions Whitelist Boundary",
+    "approvedFunctions": [
+        "addShape",
+        "updateShape",
+        "removeShape",
+        "clearShapes",
+        "getShapes",
+        "getShape",
+        "cloneShape",
+        "getGroupShapes",
+        "groupShapes",
+        "ungroupShapes"
+    ],
     "tasks": [
         {
-            "id": "TASK-AGENT-OPT-001",
-            "title": "Audit .agent Tree, Stale Cache Artifacts, and Token Footprint",
+            "id": "TASK-SHAPE-001",
+            "title": "Audit, Purge Non-Whitelisted Shape Methods & Enforce 10-Function API Boundary",
             "status": "completed",
-            "description": "Inspect all files and directories inside `.agent/` (including `rules/`, `skills/`, `agents/`, `tools/`, `memory/`, `context/`, `workflows/`, and config files). Identify redundant explanations, bloated chat transcript dumps, duplicate API catalogs already present in `docs-site/src/data/`, stale temporary output files, and unpruned `.agentignore` exclusions.",
+            "description": "Audit src/managers/ShapeManager.js, src/core/PPTXTemplater.js, and index.d.ts. Purge any shapes and geometry methods outside the exact 10-method whitelist (e.g., deleteShape, updateShapeText, alignShapes, validateShape, addTextAtPosition). Ensure that only the 10 approved methods exist across runtime delegates, interfaces, and public classes.",
             "deliverables": [
-                ".agent/.agentignore"
+                "src/managers/ShapeManager.js",
+                "src/core/PPTXTemplater.js",
+                "index.d.ts"
             ]
         },
         {
-            "id": "TASK-AGENT-OPT-002",
-            "title": "Strengthen .agent/.agentignore Exclusions",
+            "id": "TASK-SHAPE-002",
+            "title": "Implement Shape Creation, Cloning, Update & Deletion Operations",
             "status": "completed",
-            "description": "Ensure `.agent/.agentignore` explicitly prevents heavy binaries, logs, test outputs, and compiler caches from being pulled into the LLM context window. Verify exclusions for `node_modules/`, `dist/`, `.next/`, `docs-site/out/`, `docs-site/.next/`, `coverage/`, `scratch/`, `output/`, `*.pptx`, `*.xlsx`, `*.zip`, `*.log`, and temporary raw XML diff fixtures.",
+            "description": "Implement and verify addShape, updateShape, removeShape, clearShapes, and cloneShape in ShapeManager. Handle OpenXML DrawingML shapes (<p:sp>), coordinate transformations (<a:xfrm>), preset geometries (<a:prstGeom>), fills, lines, and text frames (<p:txBody>). Ensure percentage-to-EMU conversions, maintain fluent method chaining returning 'this', and ensure clearShapes evacuates shapes while retaining layout placeholders.",
             "deliverables": [
-                ".agent/.agentignore"
+                "src/managers/ShapeManager.js",
+                "tests/integration/shapeOperations.test.js"
             ]
         },
         {
-            "id": "TASK-AGENT-OPT-003",
-            "title": "Consolidate and Deduplicate Rules, Memory, and Architectural Docs",
+            "id": "TASK-SHAPE-003",
+            "title": "Implement Grouping & Ungrouping Subsystem",
             "status": "completed",
-            "description": "Refactor and prune prose in `.agent/rules/` (`general.md`, `features.md`, `io-whitelist.md`), `.agent/memory/architectural-decisions.md`, and `.agent/project_summary.md`. Replace verbose narrative descriptions with compact bullet points, concise table maps, and targeted code constraints while retaining critical invariants (zero native dependencies, pure JS, 18-method I/O boundary, XML security, run healing, and chart/table integrity rules).",
+            "description": "Implement groupShapes, ungroupShapes, and getGroupShapes. Build composite group containers (<p:grpSp>) under <p:spTree>, calculate composite bounding boxes (<p:grpSpPr> with <a:xfrm> and child offset <a:chOff>/<a:chExt>), handle child unnesting with coordinate re-projection back to canvas absolute EMUs, and return child shape descriptors.",
             "deliverables": [
-                ".agent/project_summary.md",
-                ".agent/rules/general.md",
+                "src/managers/ShapeManager.js",
+                "tests/integration/groupOperations.test.js"
+            ]
+        },
+        {
+            "id": "TASK-SHAPE-004",
+            "title": "Implement Shape Inspection & Metadata Querying",
+            "status": "completed",
+            "description": "Implement getShapes and getShape in ShapeManager and PPTXTemplater. Inspect DrawingML nodes (<p:sp>, <p:grpSp>) to return normalized shape descriptors including ID, name, geometry type, coordinate bounds (x, y, width, height in pixels and EMUs), style metadata (fill, stroke, rotation), and inner text.",
+            "deliverables": [
+                "src/managers/ShapeManager.js",
+                "tests/integration/shapeInspection.test.js"
+            ]
+        },
+        {
+            "id": "TASK-SHAPE-005",
+            "title": "Build Executable Showcase Script (showcase/shapes_geometry.js)",
+            "status": "completed",
+            "description": "Create showcase/shapes_geometry.js executing every single one of the 10 approved Shape & Geometry methods. Provide comprehensive JSDoc headers, explanatory inline comments, and informative console.log statements covering all shape, styling, grouping, and clone features.",
+            "deliverables": [
+                "showcase/shapes_geometry.js"
+            ]
+        },
+        {
+            "id": "TASK-SHAPE-006",
+            "title": "Documentation, Metadata & .agent Knowledge Base Sync",
+            "status": "completed",
+            "description": "Update docs-site/src/data/apiReference.json under 'Shapes & Geometry' to document exclusively the 10 approved methods with signatures, parameters, return types, and copyable examples. Purge removed methods from docs-site/src/data/features.json and README.md, and sync .agent/rules/features.md and .agent/project_summary.md.",
+            "deliverables": [
+                "docs-site/src/data/apiReference.json",
+                "docs-site/src/data/features.json",
+                "README.md",
                 ".agent/rules/features.md",
-                ".agent/memory/architectural-decisions.md"
-            ]
-        },
-        {
-            "id": "TASK-AGENT-OPT-004",
-            "title": "Streamline Agent Roster, Skills, and Workflow SOPs",
-            "status": "completed",
-            "description": "Optimize `.agent/AGENTS.md`, `.agent/agents/*.md`, and `.agent/workflows/*.md`. Consolidate overlapping instructions between agent role definitions and individual skill playbooks (`skills/*.md`). Purge deprecated workflows or duplicate schema definitions that mirror `docs-site/src/data/apiReference.json`.",
-            "deliverables": [
-                ".agent/AGENTS.md",
-                ".agent/skills/",
-                ".agent/workflows/"
-            ]
-        },
-        {
-            "id": "TASK-AGENT-OPT-005",
-            "title": "Validate Total Context Size and Test Agent Performance",
-            "status": "completed",
-            "description": "Verify that total character/token weight of the `.agent/` directory is significantly reduced without breaking Antigravity agent role execution or omitting core OpenXML/OPC constraints. Ensure the project build (`npm test`) and documentation export (`npm run docs:build`) remain completely unaffected.",
-            "deliverables": [
-                "task.json"
+                ".agent/project_summary.md"
             ]
         }
     ]

@@ -2999,7 +2999,7 @@ class TableManager {
 
     for (const name of existingNames) {
       try {
-        shapeManager.deleteShape(slideIndex, name, slideManager)
+        shapeManager.removeShape(slideIndex, name, slideManager)
       } catch (err) {
         logger.warn(`Failed to delete existing cell shape "${name}": ${err.message}`)
       }
@@ -3202,7 +3202,7 @@ class TableManager {
     }
 
     for (const s of matchingShapes) {
-      shapeManager.deleteShape(slideIndex, s.name, slideManager)
+      shapeManager.removeShape(slideIndex, s.name, slideManager)
     }
 
     const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
@@ -3234,7 +3234,7 @@ class TableManager {
     }
 
     for (const s of matchingShapes) {
-      shapeManager.deleteShape(slideIndex, s.name, slideManager)
+      shapeManager.removeShape(slideIndex, s.name, slideManager)
       // Deregister from anchor registry
       this.#cellShapeAnchors.delete(s.name)
     }
@@ -3298,7 +3298,7 @@ class TableManager {
     // Delete shapes for the removed row
     for (const name of toDelete) {
       try {
-        shapeManager.deleteShape(slideIndex, name, slideManager)
+        shapeManager.removeShape(slideIndex, name, slideManager)
       } catch (e) {
         logger.warn(`Failed to delete cell shape "${name}": ${e.message}`)
       }
@@ -3327,7 +3327,7 @@ class TableManager {
     // Phase 1: delete all old shapes to prevent collisions when re-adding
     for (const { name } of toReindex) {
       try {
-        shapeManager.deleteShape(slideIndex, name, slideManager)
+        shapeManager.removeShape(slideIndex, name, slideManager)
       } catch (e) {
         logger.warn(`Failed to delete cell shape "${name}" during reindex: ${e.message}`)
       }
@@ -3411,7 +3411,7 @@ class TableManager {
     // Phase 1: delete all old shapes first
     for (const { name } of toReposition) {
       try {
-        shapeManager.deleteShape(slideIndex, name, slideManager)
+        shapeManager.removeShape(slideIndex, name, slideManager)
       } catch (e) {
         logger.warn(`Failed to delete cell shape "${name}" during reposition: ${e.message}`)
       }
@@ -3657,7 +3657,7 @@ class TableManager {
 
     for (const { name } of anchorsToReposition) {
       try {
-        shapeManager.deleteShape(slideIndex, name, slideManager)
+        shapeManager.removeShape(slideIndex, name, slideManager)
       } catch (e) {
         logger.warn(`Failed to delete cell shape "${name}" during table reposition: ${e.message}`)
       }

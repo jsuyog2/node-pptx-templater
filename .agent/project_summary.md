@@ -77,6 +77,24 @@ All slide manipulations use 1-based indexing and strictly adhere to these 23 app
 
 ---
 
-## 5. Documentation Portal (`docs-site/`)
+## 5. Strict 10-Method Shapes & Geometry Whitelist
+
+All shape creation, inspection, mutation, grouping, and cleanup strictly adhere to these 10 approved methods (all non-whitelisted shape functions such as `deleteShape`, `updateShapeText`, `alignShapes`, `validateShape`, or `addTextAtPosition` are prohibited):
+
+1. `ppt.addShape(slideId, type, options)`
+2. `ppt.updateShape(targetId, options)`
+3. `ppt.removeShape(shapeId)`
+4. `ppt.clearShapes()`
+5. `ppt.getShapes()`
+6. `ppt.getShape(shapeId)`
+7. `ppt.cloneShape(shapeId, clonedShapeId, clonedOptions)`
+8. `ppt.getGroupShapes(groupId)`
+9. `ppt.groupShapes(shapeIds)`
+10. `ppt.ungroupShapes(groupId)`
+
+---
+
+## 6. Documentation Portal (`docs-site/`)
 
 The documentation site is a static export built with Next.js 14+ App Router (`output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`). All documentation content is driven by decoupled JSON schemas in `docs-site/src/data/` (`apiReference.json`, `features.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`) and verified by `npm run docs:validate`.
+

@@ -65,7 +65,7 @@ async function runTextAdvancedShowcase() {
   })
 
   ppt.replaceText({
-    'placeholders': 'Heading',
+    placeholders: 'Heading',
     '{{across}}': 'text',
     '{{template}}': 'textbox',
   })
@@ -84,8 +84,9 @@ async function runTextAdvancedShowcase() {
   console.log('→ Step 3 [getTextElements]: Extracting structured text catalog...')
   ppt.useAllSlides()
   const allElements = ppt.getTextElements()
-  console.log(`  ✓ getTextElements() gathered ${allElements.length} text paragraph(s) across all slide shapes`)
-
+  console.log(
+    `  ✓ getTextElements() gathered ${allElements.length} text paragraph(s) across all slide shapes`
+  )
 
   // --------------------------------------------------------------------------
   // Method 6 & 10: findText & getText
@@ -93,12 +94,12 @@ async function runTextAdvancedShowcase() {
   console.log('→ Step 4 [findText & getText]: Inspecting text elements with AST run healing...')
   ppt.useSlide(2)
   const searchResults = ppt.findText('OpenXML')
-  console.log(`  ✓ findText("OpenXML") matched ${searchResults.length} instance(s) in shape "${searchResults[0]?.shapeName}"`)
-
+  console.log(
+    `  ✓ findText("OpenXML") matched ${searchResults.length} instance(s) in shape "${searchResults[0]?.shapeName}"`
+  )
 
   const headerContent = ppt.getText('Big Content Text')
   console.log(`  ✓ getText("Big Content Text"): "${headerContent}"`)
-
 
   // --------------------------------------------------------------------------
   // Method 13 & 14: removeText & clearText
@@ -109,7 +110,6 @@ async function runTextAdvancedShowcase() {
 
   console.log('→ Step 6 [clearText]: Retaining shape geometry while purging contents...')
   ppt.clearText('Clear Text')
-
 
   // --------------------------------------------------------------------------
   // Method 4 & 5: addLists
@@ -150,11 +150,15 @@ async function runTextAdvancedShowcase() {
   // Method 17: replaceList
   // --------------------------------------------------------------------------
   console.log('→ Step 8 [replaceList]: Dynamically replacing list items inside shape...')
-  ppt.replaceList('Replace List', [
-    'Q4 Final Settlement Confirmed',
-    'IFRS / GAAP Statutory Sign-Off',
-    'Independent Auditor Certificate Issued',
-  ], { ordered: true })
+  ppt.replaceList(
+    'Replace List',
+    [
+      'Q4 Final Settlement Confirmed',
+      'IFRS / GAAP Statutory Sign-Off',
+      'Independent Auditor Certificate Issued',
+    ],
+    { ordered: true }
+  )
   console.log('  ✓ Replaced list items in "ComplianceList" via replaceList()')
 
   // --------------------------------------------------------------------------
@@ -163,7 +167,9 @@ async function runTextAdvancedShowcase() {
   console.log('→ Step 9 [getList]: Dynamically replacing list items inside shape...')
   ppt.useSlide(5)
   const retrievedList = ppt.getList('Big Content List')
-  console.log(`  ✓ Retrieved list structure via getList(): ${retrievedList.length} root items, 2 sub-levels`)
+  console.log(
+    `  ✓ Retrieved list structure via getList(): ${retrievedList.length} root items, 2 sub-levels`
+  )
 
   // --------------------------------------------------------------------------
   // Method 11 & 12: getLists & findLists
@@ -173,7 +179,9 @@ async function runTextAdvancedShowcase() {
   console.log(`  ✓ getLists() discovered ${allLists.length} total active list shape(s)`)
 
   const complianceMatches = ppt.findLists('Big Content List')
-  console.log(`  ✓ findLists("Big Content List") matched list shape: "${complianceMatches[0]?.shapeName}"`)
+  console.log(
+    `  ✓ findLists("Big Content List") matched list shape: "${complianceMatches[0]?.shapeName}"`
+  )
 
   // --------------------------------------------------------------------------
   // Method 15 & 16: removeList & clearList
@@ -189,7 +197,9 @@ async function runTextAdvancedShowcase() {
   // --------------------------------------------------------------------------
   // Method 7, 8 & 9: addStyle, updateStyle, removeStyle (31-Property Style Engine)
   // --------------------------------------------------------------------------
-  console.log('→ Step 10 [addStyle, updateStyle, removeStyle]: Exercising 31-property style engine...')
+  console.log(
+    '→ Step 10 [addStyle, updateStyle, removeStyle]: Exercising 31-property style engine...'
+  )
   ppt.useSlide(7)
   // Mutate with addStyle
   ppt.addStyle('Add Style', {

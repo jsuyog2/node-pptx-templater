@@ -43,3 +43,22 @@
 ## 8. Blank Decks & Flat OPC Packaging
 - **Blank Presentations**: Slide IDs in `ppt/presentation.xml` must be $\ge 256$. Slide Master ID starts at $2^{31}$. Register all part overrides in `[Content_Types].xml` and construct bidirectional `.rels` chains.
 - **Flat OPC XML (`<pkg:package>`)**: Encapsulates OPC archives in a single XML file. XML parts use `<pkg:xmlData>` (root XML declaration stripped), binaries use Base64 `<pkg:binaryData>`.
+
+## 9. Strict 10-Method Shapes & Geometry Whitelist Boundary
+- **Approved 10 Methods**:
+  1. `addShape(slideId, type, options)`
+  2. `updateShape(targetId, options)`
+  3. `removeShape(shapeId)`
+  4. `clearShapes()`
+  5. `getShapes()`
+  6. `getShape(shapeId)`
+  7. `cloneShape(shapeId, clonedShapeId, clonedOptions)`
+  8. `getGroupShapes(groupId)`
+  9. `groupShapes(shapeIds)`
+  10. `ungroupShapes(groupId)`
+- **Mandates**:
+  - Exclusively these 10 methods are exposed on `PPTXTemplater` and `ShapeManager`.
+  - Mutating operations must return fluent `this`.
+  - `clearShapes()` evacuates user shapes while strictly preserving layout placeholders.
+  - Grouping calculates composite `<a:xfrm>` (`<a:chOff>`, `<a:chExt>`) under `<p:grpSp>`, and ungrouping dissolves the group with exact canvas coordinate re-projection.
+

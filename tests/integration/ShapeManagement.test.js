@@ -12,11 +12,10 @@ async function createTestEngine() {
 }
 
 describe('Shape Management Integration Tests', () => {
-  test('should validate shapes correctly', async () => {
-    const { ppt } = await createTestEngine()
+  test('should add valid shapes correctly', async () => {
+    const { ppt, slideIndex } = await createTestEngine()
 
-    // Valid options
-    const errors1 = ppt.validateShape({
+    await ppt.useSlide(slideIndex).addShape({
       id: 'valid-rect',
       type: 'rectangle',
       x: 10,
@@ -24,63 +23,7 @@ describe('Shape Management Integration Tests', () => {
       width: 100,
       height: 50,
     })
-    expect(errors1).toHaveLength(0)
-
-    // Missing ID
-    const errors2 = ppt.validateShape({
-      type: 'rectangle',
-      x: 10,
-      y: 10,
-      width: 100,
-      height: 50,
-    })
-    expect(errors2).toContain('Shape ID is missing or empty.')
-
-    // Unsupported type
-    const errors3 = ppt.validateShape({
-      id: 'test-1',
-      type: 'octagon',
-      x: 10,
-      y: 10,
-      width: 100,
-      height: 50,
-    })
-    expect(errors3).toContain(
-      'Unsupported shape type: "octagon". Supported types are: rectangle, square, circle, ellipse, roundedRectangle, triangle, star5, upArrow, downArrow, leftArrow, rightArrow, diamond, hexagon, line.'
-    )
-
-    // Invalid square dimensions
-    const errors4 = ppt.validateShape({
-      id: 'test-2',
-      type: 'square',
-      x: 10,
-      y: 10,
-    })
-    expect(errors4).toContain('Square "size" must be a positive number.')
-
-    // Invalid colors
-    const errors5 = ppt.validateShape({
-      id: 'test-3',
-      type: 'rectangle',
-      x: 10,
-      y: 10,
-      width: 100,
-      height: 50,
-      fill: 'invalid-color',
-    })
-    expect(errors5).toContain('Invalid fill color: "invalid-color". Must be a valid hex color.')
-
-    // Invalid border radius for wrong shape
-    const errors6 = ppt.validateShape({
-      id: 'test-4',
-      type: 'rectangle',
-      x: 10,
-      y: 10,
-      width: 100,
-      height: 50,
-      borderRadius: 10,
-    })
-    expect(errors6).toContain('Shape type "rectangle" does not support borderRadius.')
+    expect(ppt.getShape('valid-rect')).not.toBeNull()
   })
 
   test('should add shapes of various types with styling and text', async () => {
