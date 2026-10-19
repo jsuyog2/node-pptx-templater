@@ -10,7 +10,12 @@ const { createLogger } = require('../utils/logger.js')
 const { PPTXError } = require('../utils/errors.js')
 const { REL_TYPES } = require('./RelationshipManager.js')
 const { resolveElementBounds } = require('../utils/coordinateUtils.js')
-const { EXT_TO_MIME, DEFAULT_POSTER_PNG, resolveMediaPayload } = require('../utils/mediaUtils.js')
+const {
+  EXT_TO_MIME,
+  DEFAULT_POSTER_PNG,
+  getDefaultAudioIcon,
+  resolveMediaPayload,
+} = require('../utils/mediaUtils.js')
 
 const logger = createLogger('MediaManager')
 
@@ -268,7 +273,7 @@ class MediaManager {
     return `<p:pic>
   <p:nvPicPr>
     <p:cNvPr id="${shapeId}" name="${name}">
-      <a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:action="ppaction://media?action=play"/>
+      <a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="" action="ppaction://media"/>
     </p:cNvPr>
     <p:cNvPicPr>
       <a:picLocks noChangeAspect="1"/>
@@ -276,7 +281,7 @@ class MediaManager {
     <p:nvPr>
       <a:videoFile xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:link="${rIdVideo}"/>
       <p:extLst>
-        <p:ext uri="{DAA4B390-3CA3-4123-8B6D-A65B3222D156}">
+        <p:ext uri="{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}">
           <p14:media xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="${rIdMedia}"${loopAttr}${muteAttr}>
             ${trimXml}
           </p14:media>
@@ -317,7 +322,6 @@ class MediaManager {
       shapeId = 1,
       loop = false,
       volume = 100,
-      hideDuringShow = false,
       startTime,
       endTime,
     } = opts
@@ -331,21 +335,19 @@ class MediaManager {
 
     const loopAttr = loop ? ' loop="1"' : ''
     const volVal = Math.round((volume / 100) * 100000)
-    const showAttr = hideDuringShow ? '<p14:showWhenStopped val="0"/>' : ''
 
     return `<p:pic>
   <p:nvPicPr>
     <p:cNvPr id="${shapeId}" name="${name}">
-      <a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:action="ppaction://media?action=play"/>
+      <a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="" action="ppaction://media"/>
     </p:cNvPr>
     <p:cNvPicPr>
       <a:picLocks noChangeAspect="1"/>
-      ${showAttr}
     </p:cNvPicPr>
     <p:nvPr>
       <a:audioFile xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:link="${rIdAudio}"/>
       <p:extLst>
-        <p:ext uri="{DAA4B390-3CA3-4123-8B6D-A65B3222D156}">
+        <p:ext uri="{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}">
           <p14:media xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="${rIdMedia}" vol="${volVal}"${loopAttr}>
             ${trimXml}
           </p14:media>
@@ -457,9 +459,7 @@ class MediaManager {
     spTree['p:pic'].push(picObj)
     ensureSpTreeOrder(spTree)
 
-    if (options.autoplay) {
-      this.#ensureSlideTiming(slideObj, newId)
-    }
+    this.#ensureVideoTiming(slideObj, newId, options)
 
     slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`Added video "${name}" (ID: ${newId}) to slide ${slideIndex}`)
@@ -587,21 +587,20 @@ class MediaManager {
       const destPosterZipPath = await this.embedMedia(posterSource, 'image')
       const relativePosterTarget = `../media/${destPosterZipPath.split('/').pop()}`
       const existingPosterRId = pic?.['p:blipFill']?.['a:blip']?.['@_r:embed']
-      if (existingPosterRId) {
-        relationshipManager.updateRelationshipTarget(
-          slideInfo.zipPath,
-          existingPosterRId,
-          relativePosterTarget
-        )
-      } else {
-        const newRId = relationshipManager.addRelationship(
-          slideInfo.zipPath,
-          REL_TYPES.IMAGE,
-          relativePosterTarget
-        )
-        if (!pic['p:blipFill']) pic['p:blipFill'] = {}
-        if (!pic['p:blipFill']['a:blip']) pic['p:blipFill']['a:blip'] = {}
-        pic['p:blipFill']['a:blip']['@_r:embed'] = newRId
+      const newRId = relationshipManager.addRelationship(
+        slideInfo.zipPath,
+        REL_TYPES.IMAGE,
+        relativePosterTarget
+      )
+      if (!pic['p:blipFill']) pic['p:blipFill'] = {}
+      if (!pic['p:blipFill']['a:blip']) pic['p:blipFill']['a:blip'] = {}
+      pic['p:blipFill']['a:blip']['@_r:embed'] = newRId
+      if (
+        existingPosterRId &&
+        existingPosterRId !== newRId &&
+        !this.#isRelationshipUsedInTree(spTree, existingPosterRId)
+      ) {
+        relationshipManager.removeRelationship(slideInfo.zipPath, existingPosterRId)
       }
     }
 
@@ -635,14 +634,10 @@ class MediaManager {
       }
     }
 
-    // 4. Autoplay toggle
+    // 4. Timing update
     const shapeId = pic?.['p:nvPicPr']?.['p:cNvPr']?.['@_id']
-    if (options.autoplay !== undefined && shapeId) {
-      if (options.autoplay) {
-        this.#ensureSlideTiming(slideObj, shapeId)
-      } else {
-        this.#removeSlideTiming(slideObj, shapeId)
-      }
+    if (shapeId && (options.autoplay !== undefined || options.volume !== undefined)) {
+      this.#ensureVideoTiming(slideObj, shapeId, options)
     }
 
     ensureSpTreeOrder(spTree)
@@ -775,7 +770,7 @@ class MediaManager {
     // 3. Audio icon poster
     let iconSource = options.icon || options.poster
     if (!iconSource) {
-      iconSource = DEFAULT_POSTER_PNG
+      iconSource = getDefaultAudioIcon()
     }
     const destIconZipPath = await this.embedMedia(iconSource, 'image')
     const relativeIconTarget = `../media/${destIconZipPath.split('/').pop()}`
@@ -813,7 +808,6 @@ class MediaManager {
       shapeId: newId,
       loop: Boolean(options.loop),
       volume: options.volume !== undefined ? options.volume : 100,
-      hideDuringShow: Boolean(options.hideDuringShow || options.hideIcon),
       startTime: options.startTime,
       endTime: options.endTime,
     })
@@ -826,9 +820,7 @@ class MediaManager {
     spTree['p:pic'].push(picObj)
     ensureSpTreeOrder(spTree)
 
-    if (options.autoplay) {
-      this.#ensureSlideTiming(slideObj, newId)
-    }
+    this.#ensureAudioTiming(slideObj, newId, options)
 
     slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`Added audio "${name}" (ID: ${newId}) to slide ${slideIndex}`)
@@ -980,16 +972,20 @@ class MediaManager {
       }
     }
 
-    // 3. Visibility during slide show
-    if (options.hideDuringShow !== undefined || options.hideIcon !== undefined) {
-      const hide = Boolean(options.hideDuringShow || options.hideIcon)
-      if (!pic['p:nvPicPr']) pic['p:nvPicPr'] = {}
-      if (!pic['p:nvPicPr']['p:cNvPicPr']) pic['p:nvPicPr']['p:cNvPicPr'] = {}
-      if (hide) {
-        pic['p:nvPicPr']['p:cNvPicPr']['p14:showWhenStopped'] = { '@_val': '0' }
-      } else {
-        delete pic['p:nvPicPr']['p:cNvPicPr']['p14:showWhenStopped']
-      }
+    // 3. Timing and visibility update
+    if (pic?.['p:nvPicPr']?.['p:cNvPicPr']?.['p14:showWhenStopped']) {
+      delete pic['p:nvPicPr']['p:cNvPicPr']['p14:showWhenStopped']
+    }
+
+    const shapeId = pic?.['p:nvPicPr']?.['p:cNvPr']?.['@_id']
+    if (
+      shapeId &&
+      (options.autoplay !== undefined ||
+        options.volume !== undefined ||
+        options.hideDuringShow !== undefined ||
+        options.hideIcon !== undefined)
+    ) {
+      this.#ensureAudioTiming(slideObj, shapeId, options)
     }
 
     ensureSpTreeOrder(spTree)
@@ -1191,6 +1187,9 @@ class MediaManager {
     if (!clonedPic['p:nvPicPr']['p:cNvPr']) clonedPic['p:nvPicPr']['p:cNvPr'] = {}
     clonedPic['p:nvPicPr']['p:cNvPr']['@_id'] = String(newId)
     clonedPic['p:nvPicPr']['p:cNvPr']['@_name'] = newName
+    if (clonedPic['p:nvPicPr']['p:cNvPr']['a:extLst']) {
+      delete clonedPic['p:nvPicPr']['p:cNvPr']['a:extLst']
+    }
 
     // Apply spatial overrides
     if (
@@ -1250,6 +1249,14 @@ class MediaManager {
     if (!Array.isArray(spTree['p:pic'])) spTree['p:pic'] = [spTree['p:pic']]
     spTree['p:pic'].push(clonedPic)
     ensureSpTreeOrder(spTree)
+
+    const isVideo = Boolean(clonedPic?.['p:nvPicPr']?.['p:nvPr']?.['a:videoFile'])
+    const isAudio = Boolean(clonedPic?.['p:nvPicPr']?.['p:nvPr']?.['a:audioFile'])
+    if (isVideo) {
+      this.#ensureVideoTiming(slideObj, newId, clonedOptions)
+    } else if (isAudio) {
+      this.#ensureAudioTiming(slideObj, newId, clonedOptions)
+    }
 
     slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`Cloned media "${mediaId}" as "${newName}" (ID: ${newId}) on slide ${slideIndex}`)
@@ -1479,8 +1486,31 @@ class MediaManager {
     return false
   }
 
-  #ensureSlideTiming(slideObj, shapeId) {
-    if (!slideObj?.['p:sld']) return
+  #getNextTimingId(slideObj) {
+    let maxId = 0
+    const timing = slideObj?.['p:sld']?.['p:timing']
+    if (!timing) return 1
+    const scan = node => {
+      if (!node || typeof node !== 'object') return
+      if (node['@_id'] && !isNaN(parseInt(node['@_id'], 10))) {
+        maxId = Math.max(maxId, parseInt(node['@_id'], 10))
+      }
+      for (const key of Object.keys(node)) {
+        const val = node[key]
+        if (Array.isArray(val)) {
+          for (const item of val) scan(item)
+        } else if (typeof val === 'object') {
+          scan(val)
+        }
+      }
+    }
+    scan(timing)
+    return maxId + 1
+  }
+
+  #ensureBaseTiming(slideObj) {
+    if (!slideObj) return null
+    if (!slideObj['p:sld']) slideObj['p:sld'] = {}
     if (!slideObj['p:sld']['p:timing']) {
       slideObj['p:sld']['p:timing'] = {
         'p:tnLst': {
@@ -1491,35 +1521,164 @@ class MediaManager {
               '@_restart': 'never',
               '@_nodeType': 'tmRoot',
               'p:childTnLst': {
-                'p:seq': {
-                  '@_concurrent': '1',
-                  '@_nextAc': 'seek',
+                'p:seq': [
+                  {
+                    '@_concurrent': '1',
+                    '@_nextAc': 'seek',
+                    'p:cTn': {
+                      '@_id': '2',
+                      '@_dur': 'indefinite',
+                      '@_nodeType': 'mainSeq',
+                      'p:childTnLst': {
+                        'p:par': [],
+                      },
+                    },
+                    'p:prevCondLst': {
+                      'p:cond': {
+                        '@_evt': 'onPrev',
+                        '@_delay': '0',
+                        'p:tgtEl': { 'p:sldTgt': {} },
+                      },
+                    },
+                    'p:nextCondLst': {
+                      'p:cond': {
+                        '@_evt': 'onNext',
+                        '@_delay': '0',
+                        'p:tgtEl': { 'p:sldTgt': {} },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      }
+    }
+
+    const timing = slideObj['p:sld']['p:timing']
+    if (!timing['p:tnLst']) timing['p:tnLst'] = {}
+    if (!timing['p:tnLst']['p:par']) timing['p:tnLst']['p:par'] = {}
+    const rootPar = timing['p:tnLst']['p:par']
+    if (!rootPar['p:cTn']) {
+      rootPar['p:cTn'] = {
+        '@_id': '1',
+        '@_dur': 'indefinite',
+        '@_restart': 'never',
+        '@_nodeType': 'tmRoot',
+        'p:childTnLst': {},
+      }
+    }
+    if (!rootPar['p:cTn']['p:childTnLst']) {
+      rootPar['p:cTn']['p:childTnLst'] = {}
+    }
+    const rootChildTnLst = rootPar['p:cTn']['p:childTnLst']
+
+    if (!rootChildTnLst['p:seq']) {
+      rootChildTnLst['p:seq'] = []
+    } else if (!Array.isArray(rootChildTnLst['p:seq'])) {
+      rootChildTnLst['p:seq'] = [rootChildTnLst['p:seq']]
+    }
+
+    let mainSeq = rootChildTnLst['p:seq'].find(s => s?.['p:cTn']?.['@_nodeType'] === 'mainSeq')
+    if (!mainSeq) {
+      const maxId = this.#getNextTimingId(slideObj)
+      mainSeq = {
+        '@_concurrent': '1',
+        '@_nextAc': 'seek',
+        'p:cTn': {
+          '@_id': String(maxId),
+          '@_dur': 'indefinite',
+          '@_nodeType': 'mainSeq',
+          'p:childTnLst': {
+            'p:par': [],
+          },
+        },
+        'p:prevCondLst': {
+          'p:cond': {
+            '@_evt': 'onPrev',
+            '@_delay': '0',
+            'p:tgtEl': { 'p:sldTgt': {} },
+          },
+        },
+        'p:nextCondLst': {
+          'p:cond': {
+            '@_evt': 'onNext',
+            '@_delay': '0',
+            'p:tgtEl': { 'p:sldTgt': {} },
+          },
+        },
+      }
+      rootChildTnLst['p:seq'].unshift(mainSeq)
+    }
+
+    if (!mainSeq['p:cTn']) mainSeq['p:cTn'] = {}
+    if (!mainSeq['p:cTn']['p:childTnLst']) {
+      mainSeq['p:cTn']['p:childTnLst'] = { 'p:par': [] }
+    } else if (!mainSeq['p:cTn']['p:childTnLst']['p:par']) {
+      mainSeq['p:cTn']['p:childTnLst']['p:par'] = []
+    } else if (!Array.isArray(mainSeq['p:cTn']['p:childTnLst']['p:par'])) {
+      mainSeq['p:cTn']['p:childTnLst']['p:par'] = [mainSeq['p:cTn']['p:childTnLst']['p:par']]
+    }
+
+    return { rootChildTnLst, mainSeq }
+  }
+
+  #ensureVideoTiming(slideObj, shapeId, options = {}) {
+    if (!slideObj) return
+    const spid = String(shapeId)
+    this.#removeSlideTiming(slideObj, shapeId)
+
+    const base = this.#ensureBaseTiming(slideObj)
+    if (!base) return
+    const { rootChildTnLst, mainSeq } = base
+
+    let nextTnId = this.#getNextTimingId(slideObj)
+    const isAutoplay = Boolean(options.autoplay)
+
+    // 1. Add mainSeq playFrom par
+    const mainSeqPar = {
+      'p:cTn': {
+        '@_id': String(nextTnId++),
+        '@_fill': 'hold',
+        'p:stCondLst': {
+          'p:cond': { '@_delay': isAutoplay ? '0' : 'indefinite' },
+        },
+        'p:childTnLst': {
+          'p:par': {
+            'p:cTn': {
+              '@_id': String(nextTnId++),
+              '@_fill': 'hold',
+              'p:stCondLst': {
+                'p:cond': { '@_delay': '0' },
+              },
+              'p:childTnLst': {
+                'p:par': {
                   'p:cTn': {
-                    '@_id': '2',
-                    '@_dur': 'indefinite',
-                    '@_nodeType': 'mainSeq',
+                    '@_id': String(nextTnId++),
+                    '@_presetID': '1',
+                    '@_presetClass': 'mediacall',
+                    '@_presetSubtype': '0',
+                    '@_fill': 'hold',
+                    '@_nodeType': isAutoplay ? 'afterEffect' : 'clickEffect',
+                    'p:stCondLst': {
+                      'p:cond': { '@_delay': '0' },
+                    },
                     'p:childTnLst': {
-                      'p:par': [
-                        {
+                      'p:cmd': {
+                        '@_type': 'call',
+                        '@_cmd': 'playFrom(0.0)',
+                        'p:cBhvr': {
                           'p:cTn': {
-                            '@_id': '3',
+                            '@_id': String(nextTnId++),
+                            '@_dur': '22165',
                             '@_fill': 'hold',
-                            'p:stCondLst': {
-                              'p:cond': { '@_delay': '0' },
-                            },
-                            'p:childTnLst': {
-                              'p:cmd': {
-                                '@_type': 'call',
-                                '@_cmd': 'playFrom(0.0)',
-                                'p:cBhvr': {
-                                  'p:cTn': { '@_id': '4', '@_dur': '1', '@_fill': 'hold' },
-                                  'p:tgtEl': { 'p:spTgt': { '@_spid': String(shapeId) } },
-                                },
-                              },
-                            },
+                          },
+                          'p:tgtEl': {
+                            'p:spTgt': { '@_spid': spid },
                           },
                         },
-                      ],
+                      },
                     },
                   },
                 },
@@ -1527,8 +1686,228 @@ class MediaManager {
             },
           },
         },
-      }
+      },
     }
+    mainSeq['p:cTn']['p:childTnLst']['p:par'].push(mainSeqPar)
+
+    // 2. Add interactiveSeq (click to togglePause)
+    const interactiveSeq = {
+      '@_concurrent': '1',
+      '@_nextAc': 'seek',
+      'p:cTn': {
+        '@_id': String(nextTnId++),
+        '@_restart': 'whenNotActive',
+        '@_fill': 'hold',
+        '@_evtFilter': 'cancelBubble',
+        '@_nodeType': 'interactiveSeq',
+        'p:stCondLst': {
+          'p:cond': {
+            '@_evt': 'onClick',
+            '@_delay': '0',
+            'p:tgtEl': { 'p:spTgt': { '@_spid': spid } },
+          },
+        },
+        'p:endSync': {
+          '@_evt': 'end',
+          '@_delay': '0',
+          'p:rtn': { '@_val': 'all' },
+        },
+        'p:childTnLst': {
+          'p:par': {
+            'p:cTn': {
+              '@_id': String(nextTnId++),
+              '@_fill': 'hold',
+              'p:stCondLst': {
+                'p:cond': { '@_delay': '0' },
+              },
+              'p:childTnLst': {
+                'p:par': {
+                  'p:cTn': {
+                    '@_id': String(nextTnId++),
+                    '@_fill': 'hold',
+                    'p:stCondLst': {
+                      'p:cond': { '@_delay': '0' },
+                    },
+                    'p:childTnLst': {
+                      'p:par': {
+                        'p:cTn': {
+                          '@_id': String(nextTnId++),
+                          '@_presetID': '2',
+                          '@_presetClass': 'mediacall',
+                          '@_presetSubtype': '0',
+                          '@_fill': 'hold',
+                          '@_nodeType': 'clickEffect',
+                          'p:stCondLst': {
+                            'p:cond': { '@_delay': '0' },
+                          },
+                          'p:childTnLst': {
+                            'p:cmd': {
+                              '@_type': 'call',
+                              '@_cmd': 'togglePause',
+                              'p:cBhvr': {
+                                'p:cTn': {
+                                  '@_id': String(nextTnId++),
+                                  '@_dur': '1',
+                                  '@_fill': 'hold',
+                                },
+                                'p:tgtEl': {
+                                  'p:spTgt': { '@_spid': spid },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        'p:nextCondLst': {
+          'p:cond': {
+            '@_evt': 'onClick',
+            '@_delay': '0',
+            'p:tgtEl': { 'p:spTgt': { '@_spid': spid } },
+          },
+        },
+      },
+    }
+    rootChildTnLst['p:seq'].push(interactiveSeq)
+
+    // 3. Add p:video node
+    const volVal = Math.round(((options.volume !== undefined ? options.volume : 80) / 100) * 100000)
+    const videoNode = {
+      'p:cMediaNode': {
+        '@_vol': String(volVal),
+        'p:cTn': {
+          '@_id': String(nextTnId++),
+          '@_fill': 'hold',
+          '@_display': '0',
+          'p:stCondLst': {
+            'p:cond': { '@_delay': 'indefinite' },
+          },
+        },
+        'p:tgtEl': {
+          'p:spTgt': { '@_spid': spid },
+        },
+      },
+    }
+    if (!rootChildTnLst['p:video']) {
+      rootChildTnLst['p:video'] = []
+    } else if (!Array.isArray(rootChildTnLst['p:video'])) {
+      rootChildTnLst['p:video'] = [rootChildTnLst['p:video']]
+    }
+    rootChildTnLst['p:video'].push(videoNode)
+  }
+
+  #ensureAudioTiming(slideObj, shapeId, options = {}) {
+    if (!slideObj) return
+    const spid = String(shapeId)
+    this.#removeSlideTiming(slideObj, shapeId)
+
+    const base = this.#ensureBaseTiming(slideObj)
+    if (!base) return
+    const { rootChildTnLst, mainSeq } = base
+
+    let nextTnId = this.#getNextTimingId(slideObj)
+    const isAutoplay = Boolean(options.autoplay)
+
+    // 1. Add mainSeq playFrom par
+    const mainSeqPar = {
+      'p:cTn': {
+        '@_id': String(nextTnId++),
+        '@_fill': 'hold',
+        'p:stCondLst': {
+          'p:cond': { '@_delay': isAutoplay ? '0' : 'indefinite' },
+        },
+        'p:childTnLst': {
+          'p:par': {
+            'p:cTn': {
+              '@_id': String(nextTnId++),
+              '@_fill': 'hold',
+              'p:stCondLst': {
+                'p:cond': { '@_delay': '0' },
+              },
+              'p:childTnLst': {
+                'p:par': {
+                  'p:cTn': {
+                    '@_id': String(nextTnId++),
+                    '@_presetID': '1',
+                    '@_presetClass': 'mediacall',
+                    '@_presetSubtype': '0',
+                    '@_fill': 'hold',
+                    '@_nodeType': isAutoplay ? 'afterEffect' : 'clickEffect',
+                    'p:stCondLst': {
+                      'p:cond': { '@_delay': '0' },
+                    },
+                    'p:childTnLst': {
+                      'p:cmd': {
+                        '@_type': 'call',
+                        '@_cmd': 'playFrom(0.0)',
+                        'p:cBhvr': {
+                          'p:cTn': {
+                            '@_id': String(nextTnId++),
+                            '@_dur': '11337',
+                            '@_fill': 'hold',
+                          },
+                          'p:tgtEl': {
+                            'p:spTgt': { '@_spid': spid },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }
+    mainSeq['p:cTn']['p:childTnLst']['p:par'].push(mainSeqPar)
+
+    // 2. Add p:audio node
+    const volVal = Math.round(((options.volume !== undefined ? options.volume : 80) / 100) * 100000)
+    const cMediaNode = {
+      '@_vol': String(volVal),
+      'p:cTn': {
+        '@_id': String(nextTnId++),
+        '@_fill': 'hold',
+        '@_display': '0',
+        'p:stCondLst': {
+          'p:cond': { '@_delay': 'indefinite' },
+        },
+        'p:endCondLst': {
+          'p:cond': {
+            '@_evt': 'onStopAudio',
+            '@_delay': '0',
+            'p:tgtEl': { 'p:sldTgt': {} },
+          },
+        },
+      },
+      'p:tgtEl': {
+        'p:spTgt': { '@_spid': spid },
+      },
+    }
+    if (options.hideDuringShow || options.hideIcon) {
+      cMediaNode['@_showWhenStopped'] = '0'
+    }
+
+    const audioNode = {
+      'p:cMediaNode': cMediaNode,
+    }
+    if (!rootChildTnLst['p:audio']) {
+      rootChildTnLst['p:audio'] = []
+    } else if (!Array.isArray(rootChildTnLst['p:audio'])) {
+      rootChildTnLst['p:audio'] = [rootChildTnLst['p:audio']]
+    }
+    rootChildTnLst['p:audio'].push(audioNode)
+  }
+
+  #ensureSlideTiming(slideObj, shapeId) {
+    this.#ensureVideoTiming(slideObj, shapeId, { autoplay: true })
   }
 
   #containsSpid(node, targetSpid) {

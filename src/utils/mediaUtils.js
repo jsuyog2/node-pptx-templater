@@ -74,6 +74,31 @@ const DEFAULT_POSTER_PNG = Buffer.from(
   'base64'
 )
 
+let defaultAudioIcon = null
+
+/**
+ * Returns default audio speaker icon PNG buffer.
+ *
+ * @returns {Buffer}
+ */
+function getDefaultAudioIcon() {
+  if (!defaultAudioIcon) {
+    try {
+      const path = require('path')
+      const iconPath = path.join(__dirname, '../templates/speaker_icon.png')
+      if (fsExtra.existsSync(iconPath)) {
+        defaultAudioIcon = fsExtra.readFileSync(iconPath)
+      }
+    } catch {
+      // fallback
+    }
+    if (!defaultAudioIcon) {
+      defaultAudioIcon = DEFAULT_POSTER_PNG
+    }
+  }
+  return defaultAudioIcon
+}
+
 /**
  * Checks whether a string represents a Base64 Data URI.
  *
@@ -368,6 +393,7 @@ module.exports = {
   EXT_TO_MIME,
   MIME_TO_EXT,
   DEFAULT_POSTER_PNG,
+  getDefaultAudioIcon,
   isDataUri,
   isRawBase64,
   detectMediaExtension,

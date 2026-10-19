@@ -1,73 +1,68 @@
 {
     "project": "node-pptx-templater",
     "category": "Images & Media",
-    "scope": "Fix media repair errors, support base64 input, enforce camelCase API naming, and adopt fluent useSlide context",
+    "scope": "Fix media repair errors (audio/video), resolve cloneMedia failure, fix video/audio attachment, and update video thumbnails",
     "tasks": [
         {
             "id": "TASK-MEDIA-001",
-            "title": "Fix PowerPoint Repair Errors in Generated Media PPTX",
+            "title": "Resolve PowerPoint Repair Errors Triggered by addAudio and addVideo",
             "status": "completed",
-            "description": "Investigate and resolve presentation repair errors produced after running showcase/media_advanced.js. Ensure [Content_Types].xml includes valid overrides for all embedded media types (audio, video, image formats). Ensure correct relationship mapping in ppt/slides/_rels/slideN.xml.rels with standard OpenXML type schemas and clean up orphaned relationship IDs and timing tree nodes upon media removal.",
+            "description": "Diagnose and fix the schema violations causing PowerPoint repair alerts when addAudio and addVideo are executed in showcase/media_advanced.js. Ensure dual relationship entries are created (audio/video element relationship plus standard media relationship), correct content types are registered in [Content_Types].xml (audio/mpeg, video/mp4, image/jpeg, image/png), and the <p:timing> condition sequences / sound action tags conform strictly to ECMA-376 DrawingML & PresentationML specifications without orphan rIds.",
             "deliverables": [
                 "src/managers/MediaManager.js",
-                "src/elements/ImageManager.js",
+                "src/managers/SlideManager.js",
                 "src/writer/OutputWriter.js"
             ]
         },
         {
             "id": "TASK-MEDIA-002",
-            "title": "Fix Audio, Video, and Image Mutation & Deletion Lifecycle",
+            "title": "Fix Video Attachment & Embedding Pipeline in addVideo",
             "status": "completed",
-            "description": "Fix update and removal logic for media elements: (1) Ensure source swapping for images and videos properly updates ppt/media/ binaries and relationship references. (2) Fix video element fetching and ensure removeVideo correctly removes <p:pic> / <p:spTree> nodes, related <p:timing> sequences, and relationship bindings. (3) Ensure updateAudio, updateVideo, and updateImage update position, bounds (<a:xfrm>), and playback attributes without crashing or leaving stale attributes.",
+            "description": "Fix the issue where addVideo renders only an empty placeholder without attaching the playable video binary. Ingest video files/buffers into ppt/media/, allocate both the video relationship (http://schemas.openxmlformats.org/officeDocument/2006/relationships/video) and the media reference (http://schemas.microsoft.com/office/2007/relationships/media), bind them inside <p:pic>/<p:nvPicPr>/<p:nvPr> via <a:videoFile> and <p14:media>, and ensure the underlying binary payload is persisted in the ZIP package.",
             "deliverables": [
                 "src/managers/MediaManager.js",
-                "src/elements/ImageManager.js",
-                "tests/integration/imagesMedia.test.js"
+                "src/utils/mediaUtils.js"
             ]
         },
         {
             "id": "TASK-MEDIA-003",
-            "title": "Enable Base64 Ingestion Support Across All Media Loaders",
+            "title": "Fix Audio Attachment & Playback Embedding in addAudio",
             "status": "completed",
-            "description": "Allow addImage, updateImage, addVideo, updateVideo, addAudio, and updateAudio to accept base64-encoded strings directly (both raw base64 and data URI schemes like data:image/png;base64,... or data:video/mp4;base64,...). Decode strings into in-memory Buffers before persisting to ppt/media/ and registering content types.",
+            "description": "Fix addAudio failing to attach playable audio. Ingest audio files/buffers into ppt/media/, create the audio relationship (http://schemas.openxmlformats.org/officeDocument/2006/relationships/audio) and media relationship (http://schemas.microsoft.com/office/2007/relationships/media), construct a schema-compliant audio shape (<p:pic> with audio icon blip and sound tag <a:audioFile>), and generate proper slide timing nodes (<p:timing>) to trigger playback.",
             "deliverables": [
                 "src/managers/MediaManager.js",
-                "src/elements/ImageManager.js",
                 "src/utils/mediaUtils.js"
             ]
         },
         {
             "id": "TASK-MEDIA-004",
-            "title": "Enforce CamelCase Function Naming Across Media Subsystem",
+            "title": "Fix Video Thumbnail / Poster Frame Updating in updateVideo",
             "status": "completed",
-            "description": "Audit all exported functions and internal delegates to ensure strict camelCase compliance: addImage, updateImage, removeImage, addVideo, updateVideo, removeVideo, addAudio, updateAudio, removeAudio, getMedias, getMedia, and cloneMedia. Update PPTXTemplater class method delegates, index.d.ts, and test fixtures accordingly.",
+            "description": "Fix updateVideo retaining the old thumbnail when updating a video or changing its poster image. Ensure new poster image assets are ingested into ppt/media/, assign or update the image relationship rId in ppt/slides/_rels/slideN.xml.rels, and point <p:blipFill><a:blip r:embed=\"rId...\"/> inside the video's <p:pic> container to the updated poster relationship.",
             "deliverables": [
-                "src/core/PPTXTemplater.js",
                 "src/managers/MediaManager.js",
-                "src/elements/ImageManager.js",
-                "src/index.d.ts"
+                "src/managers/ImageManager.js"
             ]
         },
         {
             "id": "TASK-MEDIA-005",
-            "title": "Contextualize Slide Operations to useSlide() & Make slideId Optional",
+            "title": "Fix Media Duplication & Asset Binding in cloneMedia",
             "status": "completed",
-            "description": "Refactor media methods so slideId/slideRef is derived from the active context set by ppt.useSlide(slideNumber). Make slideId purely optional across signatures (e.g. ppt.useSlide(1).addImage(source, options)), while safely falling back to the active slide or an optional explicit parameter for backward compatibility.",
+            "description": "Fix cloneMedia failure when duplicating audio, video, or image elements. Ensure cloneMedia duplicates the target <p:pic> node, generates a unique shape ID/name, copies or creates the required relationship references in slideN.xml.rels (reusing the underlying binary asset in ppt/media/), updates position/dimension transforms (<a:xfrm>), and duplicates any corresponding animation/timing triggers in <p:timing> for audio and video elements.",
             "deliverables": [
-                "src/core/PPTXTemplater.js",
                 "src/managers/MediaManager.js",
-                "src/elements/ImageManager.js"
+                "src/managers/ImageManager.js",
+                "src/core/PPTXTemplater.js"
             ]
         },
         {
             "id": "TASK-MEDIA-006",
-            "title": "Update showcase/media_advanced.js, Documentation & Verification",
+            "title": "Verify showcase/media_advanced.js & Comprehensive Test Suite",
             "status": "completed",
-            "description": "Rewrite showcase/media_advanced.js to demonstrate all repaired functions using camelCase and ppt.useSlide(n) contextual chaining with file paths, base64 data URIs, and Buffers. Verify the generated output opens in Microsoft PowerPoint without triggering repair prompts. Run unit and integration tests and update documentation.",
+            "description": "Execute each media function individually and chained in showcase/media_advanced.js. Ensure the resulting presentation opens in Microsoft PowerPoint without triggering repair errors, videos and audio play back correctly, thumbnails update, and cloning works as expected. Add regression tests covering addAudio, addVideo, updateVideo, and cloneMedia.",
             "deliverables": [
                 "showcase/media_advanced.js",
-                "docs-site/src/data/apiReference.json",
-                "tests/integration/imagesMedia.test.js"
+                "tests/integration/mediaAdvanced.test.js"
             ]
         }
     ]
