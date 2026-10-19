@@ -1,68 +1,37 @@
 {
     "project": "node-pptx-templater",
     "category": "Images & Media",
-    "scope": "Fix media repair errors (audio/video), resolve cloneMedia failure, fix video/audio attachment, and update video thumbnails",
+    "scope": "Fix video thumbnail rendering, eliminate green box placeholders, and ensure proper poster updates",
     "tasks": [
         {
-            "id": "TASK-MEDIA-001",
-            "title": "Resolve PowerPoint Repair Errors Triggered by addAudio and addVideo",
+            "id": "TASK-VIDEO-THUMB-001",
+            "title": "Fix Video Thumbnail Display & Eliminate Green Box on addVideo",
             "status": "completed",
-            "description": "Diagnose and fix the schema violations causing PowerPoint repair alerts when addAudio and addVideo are executed in showcase/media_advanced.js. Ensure dual relationship entries are created (audio/video element relationship plus standard media relationship), correct content types are registered in [Content_Types].xml (audio/mpeg, video/mp4, image/jpeg, image/png), and the <p:timing> condition sequences / sound action tags conform strictly to ECMA-376 DrawingML & PresentationML specifications without orphan rIds.",
+            "description": "Resolve the issue in addVideo where newly embedded videos show an unrendered placeholder or solid green box instead of an actual thumbnail. Ensure that when a poster image is supplied (path, Buffer, or base64 data URI), it is correctly ingested into ppt/media/, registered in [Content_Types].xml, bound to an image relationship in ppt/slides/_rels/slideN.xml.rels, and referenced via <p:blipFill><a:blip r:embed=\"rId...\"/> inside <p:pic>. If no poster is explicitly provided, generate or embed a valid default poster image rather than a malformed or empty blip reference.",
             "deliverables": [
                 "src/managers/MediaManager.js",
-                "src/managers/SlideManager.js",
-                "src/writer/OutputWriter.js"
-            ]
-        },
-        {
-            "id": "TASK-MEDIA-002",
-            "title": "Fix Video Attachment & Embedding Pipeline in addVideo",
-            "status": "completed",
-            "description": "Fix the issue where addVideo renders only an empty placeholder without attaching the playable video binary. Ingest video files/buffers into ppt/media/, allocate both the video relationship (http://schemas.openxmlformats.org/officeDocument/2006/relationships/video) and the media reference (http://schemas.microsoft.com/office/2007/relationships/media), bind them inside <p:pic>/<p:nvPicPr>/<p:nvPr> via <a:videoFile> and <p14:media>, and ensure the underlying binary payload is persisted in the ZIP package.",
-            "deliverables": [
-                "src/managers/MediaManager.js",
+                "src/elements/ImageManager.js",
                 "src/utils/mediaUtils.js"
             ]
         },
         {
-            "id": "TASK-MEDIA-003",
-            "title": "Fix Audio Attachment & Playback Embedding in addAudio",
+            "id": "TASK-VIDEO-THUMB-002",
+            "title": "Fix Video Poster / Thumbnail Replacement in updateVideo",
             "status": "completed",
-            "description": "Fix addAudio failing to attach playable audio. Ingest audio files/buffers into ppt/media/, create the audio relationship (http://schemas.openxmlformats.org/officeDocument/2006/relationships/audio) and media relationship (http://schemas.microsoft.com/office/2007/relationships/media), construct a schema-compliant audio shape (<p:pic> with audio icon blip and sound tag <a:audioFile>), and generate proper slide timing nodes (<p:timing>) to trigger playback.",
+            "description": "Fix the issue in updateVideo where changing the poster or video source leaves the old thumbnail displayed. When updateVideo is called with a new poster or replacement video source: (1) Ingest the new thumbnail into ppt/media/, (2) Update or replace the image relationship target in the slide's .rels file, (3) Update <p:blipFill><a:blip r:embed=\"rIdNew\"/> to point directly to the new relationship ID, and (4) Purge or clean up orphaned thumbnail binaries to prevent caching stale posters.",
             "deliverables": [
                 "src/managers/MediaManager.js",
-                "src/utils/mediaUtils.js"
+                "src/elements/ImageManager.js"
             ]
         },
         {
-            "id": "TASK-MEDIA-004",
-            "title": "Fix Video Thumbnail / Poster Frame Updating in updateVideo",
+            "id": "TASK-VIDEO-THUMB-003",
+            "title": "Update Showcase Script, Add Regression Tests & Verify",
             "status": "completed",
-            "description": "Fix updateVideo retaining the old thumbnail when updating a video or changing its poster image. Ensure new poster image assets are ingested into ppt/media/, assign or update the image relationship rId in ppt/slides/_rels/slideN.xml.rels, and point <p:blipFill><a:blip r:embed=\"rId...\"/> inside the video's <p:pic> container to the updated poster relationship.",
-            "deliverables": [
-                "src/managers/MediaManager.js",
-                "src/managers/ImageManager.js"
-            ]
-        },
-        {
-            "id": "TASK-MEDIA-005",
-            "title": "Fix Media Duplication & Asset Binding in cloneMedia",
-            "status": "completed",
-            "description": "Fix cloneMedia failure when duplicating audio, video, or image elements. Ensure cloneMedia duplicates the target <p:pic> node, generates a unique shape ID/name, copies or creates the required relationship references in slideN.xml.rels (reusing the underlying binary asset in ppt/media/), updates position/dimension transforms (<a:xfrm>), and duplicates any corresponding animation/timing triggers in <p:timing> for audio and video elements.",
-            "deliverables": [
-                "src/managers/MediaManager.js",
-                "src/managers/ImageManager.js",
-                "src/core/PPTXTemplater.js"
-            ]
-        },
-        {
-            "id": "TASK-MEDIA-006",
-            "title": "Verify showcase/media_advanced.js & Comprehensive Test Suite",
-            "status": "completed",
-            "description": "Execute each media function individually and chained in showcase/media_advanced.js. Ensure the resulting presentation opens in Microsoft PowerPoint without triggering repair errors, videos and audio play back correctly, thumbnails update, and cloning works as expected. Add regression tests covering addAudio, addVideo, updateVideo, and cloneMedia.",
+            "description": "Update showcase/media_advanced.js to demonstrate adding a video with a visible poster image and subsequently updating that video's thumbnail to a distinct new image. Add automated integration tests in tests/integration/videoThumbnail.test.js checking relationship targets, blip references, and [Content_Types].xml entries. Verify that opening the resulting presentation in Microsoft PowerPoint displays the correct thumbnails without green boxes or repair errors.",
             "deliverables": [
                 "showcase/media_advanced.js",
-                "tests/integration/mediaAdvanced.test.js"
+                "tests/integration/videoThumbnail.test.js"
             ]
         }
     ]

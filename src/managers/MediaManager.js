@@ -12,7 +12,7 @@ const { REL_TYPES } = require('./RelationshipManager.js')
 const { resolveElementBounds } = require('../utils/coordinateUtils.js')
 const {
   EXT_TO_MIME,
-  DEFAULT_POSTER_PNG,
+  getDefaultVideoPoster,
   getDefaultAudioIcon,
   resolveMediaPayload,
 } = require('../utils/mediaUtils.js')
@@ -158,6 +158,30 @@ class MediaManager {
   }
 
   /**
+   * Removes an internal media file from ZIP and registry if it is no longer referenced anywhere in relationships.
+   *
+   * @param {string} zipPath
+   * @param {RelationshipManager} relationshipManager
+   */
+  cleanupOrphanedMedia(zipPath, relationshipManager) {
+    if (!zipPath || !relationshipManager || !this.#zipManager) return
+    const normalPath = zipPath.replace(/\\/g, '/')
+    if (relationshipManager.isTargetReferenced(normalPath)) {
+      return
+    }
+
+    this.#zipManager.removeFile(normalPath)
+    this.#mediaRegistry.delete(normalPath)
+    for (const [hash, path] of this.#mediaHashIndex.entries()) {
+      if (path === normalPath) {
+        this.#mediaHashIndex.delete(hash)
+        break
+      }
+    }
+    logger.debug(`Purged orphaned media binary: ${normalPath}`)
+  }
+
+  /**
    * Embeds an image file. Delegates to embedMedia.
    *
    * @param {string|Buffer|Uint8Array} source
@@ -290,7 +314,7 @@ class MediaManager {
     </p:nvPr>
   </p:nvPicPr>
   <p:blipFill>
-    <a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="${rIdPoster}" cstate="print"/>
+    <a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="${rIdPoster}"/>
     <a:stretch><a:fillRect/></a:stretch>
   </p:blipFill>
   <p:spPr>
@@ -409,7 +433,7 @@ class MediaManager {
     // 3. Poster image
     let posterSource = options.poster || options.posterFrame
     if (!posterSource) {
-      posterSource = DEFAULT_POSTER_PNG
+      posterSource = getDefaultVideoPoster()
     }
     const destPosterZipPath = await this.embedMedia(posterSource, 'image')
     const relativePosterTarget = `../media/${destPosterZipPath.split('/').pop()}`
@@ -501,8 +525,6 @@ class MediaManager {
 
     // 0. Source swap
     if (options.source) {
-      const destVideoZipPath = await this.embedMedia(options.source, 'video')
-      const relativeVideoTarget = `../media/${destVideoZipPath.split('/').pop()}`
       const rIdVideo = pic?.['p:nvPicPr']?.['p:nvPr']?.['a:videoFile']?.['@_r:link']
       let rIdMedia =
         pic?.['p:nvPicPr']?.['p:nvPr']?.['p:extLst']?.['p:ext']?.['p14:media']?.['@_r:embed']
@@ -517,6 +539,18 @@ class MediaManager {
           }
         }
       }
+
+      let oldVideoZipPath = null
+      if (rIdVideo) {
+        const oldRel = relationshipManager.getRelationshipById(slideInfo.zipPath, rIdVideo)
+        if (oldRel) {
+          oldVideoZipPath = relationshipManager.resolveTarget(slideInfo.zipPath, oldRel.target)
+        }
+      }
+
+      const destVideoZipPath = await this.embedMedia(options.source, 'video')
+      const relativeVideoTarget = `../media/${destVideoZipPath.split('/').pop()}`
+
       if (rIdVideo) {
         relationshipManager.updateRelationshipTarget(
           slideInfo.zipPath,
@@ -530,6 +564,9 @@ class MediaManager {
           rIdMedia,
           relativeVideoTarget
         )
+      }
+      if (oldVideoZipPath && oldVideoZipPath !== destVideoZipPath) {
+        this.cleanupOrphanedMedia(oldVideoZipPath, relationshipManager)
       }
     }
 
@@ -584,9 +621,17 @@ class MediaManager {
     // 2. Poster frame update
     if (options.poster || options.posterFrame) {
       const posterSource = options.poster || options.posterFrame
+      const existingPosterRId = pic?.['p:blipFill']?.['a:blip']?.['@_r:embed']
+      let oldPosterZipPath = null
+      if (existingPosterRId) {
+        const oldRel = relationshipManager.getRelationshipById(slideInfo.zipPath, existingPosterRId)
+        if (oldRel) {
+          oldPosterZipPath = relationshipManager.resolveTarget(slideInfo.zipPath, oldRel.target)
+        }
+      }
+
       const destPosterZipPath = await this.embedMedia(posterSource, 'image')
       const relativePosterTarget = `../media/${destPosterZipPath.split('/').pop()}`
-      const existingPosterRId = pic?.['p:blipFill']?.['a:blip']?.['@_r:embed']
       const newRId = relationshipManager.addRelationship(
         slideInfo.zipPath,
         REL_TYPES.IMAGE,
@@ -601,6 +646,9 @@ class MediaManager {
         !this.#isRelationshipUsedInTree(spTree, existingPosterRId)
       ) {
         relationshipManager.removeRelationship(slideInfo.zipPath, existingPosterRId)
+        if (oldPosterZipPath && oldPosterZipPath !== destPosterZipPath) {
+          this.cleanupOrphanedMedia(oldPosterZipPath, relationshipManager)
+        }
       }
     }
 
@@ -705,12 +753,26 @@ class MediaManager {
     }
     const rIdPoster = pic?.['p:blipFill']?.['a:blip']?.['@_r:embed']
 
+    let videoZipPath = null
+    if (rIdVideo) {
+      const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rIdVideo)
+      if (rel) videoZipPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
+    }
+    let posterZipPath = null
+    if (rIdPoster) {
+      const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rIdPoster)
+      if (rel) posterZipPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
+    }
+
     if (rIdVideo) relationshipManager.removeRelationship(slideInfo.zipPath, rIdVideo)
     if (rIdMedia && rIdMedia !== rIdVideo)
       relationshipManager.removeRelationship(slideInfo.zipPath, rIdMedia)
     if (rIdPoster && !this.#isRelationshipUsedInTree(spTree, rIdPoster)) {
       relationshipManager.removeRelationship(slideInfo.zipPath, rIdPoster)
     }
+
+    if (videoZipPath) this.cleanupOrphanedMedia(videoZipPath, relationshipManager)
+    if (posterZipPath) this.cleanupOrphanedMedia(posterZipPath, relationshipManager)
 
     // Remove timing node
     if (shapeId) {
@@ -862,8 +924,6 @@ class MediaManager {
 
     // 0. Source swap
     if (options.source && relationshipManager) {
-      const destAudioZipPath = await this.embedMedia(options.source, 'audio')
-      const relativeAudioTarget = `../media/${destAudioZipPath.split('/').pop()}`
       const rIdAudio = pic?.['p:nvPicPr']?.['p:nvPr']?.['a:audioFile']?.['@_r:link']
       let rIdMedia =
         pic?.['p:nvPicPr']?.['p:nvPr']?.['p:extLst']?.['p:ext']?.['p14:media']?.['@_r:embed']
@@ -878,6 +938,18 @@ class MediaManager {
           }
         }
       }
+
+      let oldAudioZipPath = null
+      if (rIdAudio) {
+        const oldRel = relationshipManager.getRelationshipById(slideInfo.zipPath, rIdAudio)
+        if (oldRel) {
+          oldAudioZipPath = relationshipManager.resolveTarget(slideInfo.zipPath, oldRel.target)
+        }
+      }
+
+      const destAudioZipPath = await this.embedMedia(options.source, 'audio')
+      const relativeAudioTarget = `../media/${destAudioZipPath.split('/').pop()}`
+
       if (rIdAudio) {
         relationshipManager.updateRelationshipTarget(
           slideInfo.zipPath,
@@ -891,6 +963,9 @@ class MediaManager {
           rIdMedia,
           relativeAudioTarget
         )
+      }
+      if (oldAudioZipPath && oldAudioZipPath !== destAudioZipPath) {
+        this.cleanupOrphanedMedia(oldAudioZipPath, relationshipManager)
       }
     }
 
@@ -1051,12 +1126,26 @@ class MediaManager {
     }
     const rIdIcon = pic?.['p:blipFill']?.['a:blip']?.['@_r:embed']
 
+    let audioZipPath = null
+    if (rIdAudio) {
+      const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rIdAudio)
+      if (rel) audioZipPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
+    }
+    let iconZipPath = null
+    if (rIdIcon) {
+      const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rIdIcon)
+      if (rel) iconZipPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
+    }
+
     if (rIdAudio) relationshipManager.removeRelationship(slideInfo.zipPath, rIdAudio)
     if (rIdMedia && rIdMedia !== rIdAudio)
       relationshipManager.removeRelationship(slideInfo.zipPath, rIdMedia)
     if (rIdIcon && !this.#isRelationshipUsedInTree(spTree, rIdIcon)) {
       relationshipManager.removeRelationship(slideInfo.zipPath, rIdIcon)
     }
+
+    if (audioZipPath) this.cleanupOrphanedMedia(audioZipPath, relationshipManager)
+    if (iconZipPath) this.cleanupOrphanedMedia(iconZipPath, relationshipManager)
 
     if (shapeId) {
       this.#removeSlideTiming(slideObj, shapeId)
@@ -1362,6 +1451,18 @@ class MediaManager {
         }
       }
 
+      if (isVideo) {
+        const posterRId = pic?.['p:blipFill']?.['a:blip']?.['@_r:embed'] || ''
+        item.posterRId = posterRId
+        if (posterRId) {
+          const posterRel = relationshipManager.getRelationshipById(slideZipPath, posterRId)
+          if (posterRel) {
+            item.posterPath = relationshipManager.resolveTarget(slideZipPath, posterRel.target)
+            item.poster = item.posterPath
+          }
+        }
+      }
+
       results.push(item)
     }
 
@@ -1475,6 +1576,13 @@ class MediaManager {
       if (pic?.['p:blipFill']?.['a:blip']?.['@_r:embed'] === rId) return true
       if (pic?.['p:nvPicPr']?.['p:nvPr']?.['a:videoFile']?.['@_r:link'] === rId) return true
       if (pic?.['p:nvPicPr']?.['p:nvPr']?.['a:audioFile']?.['@_r:link'] === rId) return true
+      let extList = pic?.['p:nvPicPr']?.['p:nvPr']?.['p:extLst']?.['p:ext']
+      if (extList) {
+        if (!Array.isArray(extList)) extList = [extList]
+        for (const e of extList) {
+          if (e?.['p14:media']?.['@_r:embed'] === rId) return true
+        }
+      }
     }
 
     let groups = container['p:grpSp'] || []

@@ -74,6 +74,41 @@ const DEFAULT_POSTER_PNG = Buffer.from(
   'base64'
 )
 
+/**
+ * Opaque 16:9 dark slate PNG thumbnail with play button.
+ * Eliminates the Windows DirectShow green chroma-key placeholder in PowerPoint.
+ */
+const DEFAULT_VIDEO_POSTER_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAUAAAAC0CAIAAABqhmJGAAAC+ElEQVR42u3cS1KTURSFUWagiEl4JAgChpcPQEWgxSCY/1Bix4b2pPLf5O6TlVojOLu+Sv0hZOvw4gkIteUEIGBAwICAYVMCnp0/AqEEDAIGBAwIGAQMCBgQMCBgKBbwdP4AhBIwCBgQMCBgEDAgYEDAgIChWMAHn34BoQQMAgYEDAgYBAwIGBAwIGAoFvD+2T0QSsAgYEDAgIBBwICAAQEDAoZiAe+d/gRCCRgEDAgYEDAIGBAwIGBAwFAs4N2TH0AoAYOAAQEDAgYBAwIGBAwIGIoFPPn4HQglYBAwIGAGd/f84ggCJqPV/+dcAiavWyULmCLpyljAxKcrYwFToV4NRwY8Pr4jRdN0/+bUKQSsXg0LmFr1aljAZNerYQGTXa+GBUx2vRoWMAJGwOrVMAJWr4ZLBTw6uqVDHQZslA4JWL0aFjACRsAsWe9isdCwgAkOuHXDBhIwbQNumrGBBEyrp9/Fvy8NC5jggBtlbCYBs7qAB8/YTB0F/P7DDf1oF/CADZupHwLeoICHythMAmZtAS/fsJkEzDoDXjJjMwmY4et9bcDLZGwsAeMdGAEL2DOwgPEptIAFjL8Ds9qAdw6/0Y+Ib2KZqR8Crh/w4N+FNpOAWUXAjf4byUwCpknD6hUw8QE3/UUOAwmYhgG3/k0sAwmYtk/C6hUwAhawgCnUsFF6DPjd7Csd6jBgo3RIwBpWr4Ap3bAhBIyAEbCG1YuANaxeAVO8YWcXMKkNO7iASW3YqWMC3p5+IUvTdJ03i4A1rF4BE56xYwqYyIwdUMDklexcAiajakcQMCBgQMDAn4DfHnwGQgkYBAwIGBAwCBgQMCBgQMBQLOA3+9dAKAGDgAEBAwIGAQMCBgQMCBiqBbx3BYQSMAgYEDAgYBAwIGBAwICAoVrAu5dAKAGDgAEBAwIGAQMCBgQMCBiqBTy5AEIJGAQMCBgQMAgYEDAgYEDAUC3g8TkQSsAgYEDAgIBBwICAAQEDAoZqAY/mQCgBg4ABAQOv8hugaN1hxlx7XgAAAABJRU5ErkJggg==',
+  'base64'
+)
+
+let defaultVideoPoster = null
+
+/**
+ * Returns default video poster PNG buffer (16:9 opaque canvas with play symbol).
+ * Eliminates green box overlay in PowerPoint when no poster is provided.
+ *
+ * @returns {Buffer}
+ */
+function getDefaultVideoPoster() {
+  if (!defaultVideoPoster) {
+    try {
+      const path = require('path')
+      const posterPath = path.join(__dirname, '../templates/default_video_poster.png')
+      if (fsExtra.existsSync(posterPath)) {
+        defaultVideoPoster = fsExtra.readFileSync(posterPath)
+      }
+    } catch {
+      // fallback
+    }
+    if (!defaultVideoPoster) {
+      defaultVideoPoster = DEFAULT_VIDEO_POSTER_PNG
+    }
+  }
+  return defaultVideoPoster
+}
+
 let defaultAudioIcon = null
 
 /**
@@ -393,6 +428,8 @@ module.exports = {
   EXT_TO_MIME,
   MIME_TO_EXT,
   DEFAULT_POSTER_PNG,
+  DEFAULT_VIDEO_POSTER_PNG,
+  getDefaultVideoPoster,
   getDefaultAudioIcon,
   isDataUri,
   isRawBase64,

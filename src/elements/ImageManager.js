@@ -254,9 +254,17 @@ class ImageManager {
 
     // 1. Swap source if provided
     if (options.source) {
+      const existingRId = pic?.['p:blipFill']?.['a:blip']?.['@_r:embed']
+      let oldImageZipPath = null
+      if (existingRId) {
+        const oldRel = relationshipManager.getRelationshipById(slideInfo.zipPath, existingRId)
+        if (oldRel) {
+          oldImageZipPath = relationshipManager.resolveTarget(slideInfo.zipPath, oldRel.target)
+        }
+      }
+
       const destMediaZipPath = await mediaManager.embedMedia(options.source, 'image')
       const relativeTarget = `../media/${destMediaZipPath.split('/').pop()}`
-      const existingRId = pic?.['p:blipFill']?.['a:blip']?.['@_r:embed']
       if (existingRId) {
         relationshipManager.updateRelationshipTarget(slideInfo.zipPath, existingRId, relativeTarget)
       } else {
@@ -268,6 +276,13 @@ class ImageManager {
         if (!pic['p:blipFill']) pic['p:blipFill'] = {}
         if (!pic['p:blipFill']['a:blip']) pic['p:blipFill']['a:blip'] = {}
         pic['p:blipFill']['a:blip']['@_r:embed'] = newRId
+      }
+      if (
+        oldImageZipPath &&
+        oldImageZipPath !== destMediaZipPath &&
+        mediaManager?.cleanupOrphanedMedia
+      ) {
+        mediaManager.cleanupOrphanedMedia(oldImageZipPath, relationshipManager)
       }
     }
 
@@ -421,9 +436,10 @@ class ImageManager {
    * @param {string|number} imageIdOrName
    * @param {SlideManager} slideManager
    * @param {RelationshipManager} relationshipManager
+   * @param {MediaManager} [mediaManager]
    * @returns {boolean} True if removed, false if not found.
    */
-  removeImage(slideIndex, imageIdOrName, slideManager, relationshipManager) {
+  removeImage(slideIndex, imageIdOrName, slideManager, relationshipManager, mediaManager) {
     const slideInfo = slideManager.getSlideInfo(slideIndex)
     if (!slideInfo) return false
     const slideObj = slideManager.getSlideObj(slideIndex)
@@ -452,9 +468,17 @@ class ImageManager {
     // Check relationship and remove if not used elsewhere on this slide
     const rId = pic?.['p:blipFill']?.['a:blip']?.['@_r:embed']
     if (rId) {
+      let imageZipPath = null
+      const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rId)
+      if (rel) {
+        imageZipPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
+      }
       const isUsedElsewhere = this.#isRelationshipUsedInTree(spTree, rId)
       if (!isUsedElsewhere) {
         relationshipManager.removeRelationship(slideInfo.zipPath, rId)
+        if (imageZipPath && mediaManager?.cleanupOrphanedMedia) {
+          mediaManager.cleanupOrphanedMedia(imageZipPath, relationshipManager)
+        }
       }
     }
 
@@ -573,6 +597,13 @@ class ImageManager {
       if (pic?.['p:blipFill']?.['a:blip']?.['@_r:embed'] === rId) return true
       if (pic?.['p:nvPicPr']?.['p:nvPr']?.['a:videoFile']?.['@_r:link'] === rId) return true
       if (pic?.['p:nvPicPr']?.['p:nvPr']?.['a:audioFile']?.['@_r:link'] === rId) return true
+      let extList = pic?.['p:nvPicPr']?.['p:nvPr']?.['p:extLst']?.['p:ext']
+      if (extList) {
+        if (!Array.isArray(extList)) extList = [extList]
+        for (const e of extList) {
+          if (e?.['p14:media']?.['@_r:embed'] === rId) return true
+        }
+      }
     }
 
     let groups = container['p:grpSp'] || []

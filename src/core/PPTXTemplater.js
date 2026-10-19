@@ -4329,7 +4329,8 @@ class PPTXTemplater {
         idx,
         imageId,
         this.#slideManager,
-        this.#relationshipManager
+        this.#relationshipManager,
+        this.#mediaManager
       )
       if (removed) break
     }
@@ -4340,7 +4341,8 @@ class PPTXTemplater {
           idx,
           imageId,
           this.#slideManager,
-          this.#relationshipManager
+          this.#relationshipManager,
+          this.#mediaManager
         )
         if (removed) break
       }

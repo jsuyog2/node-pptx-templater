@@ -93,7 +93,7 @@ async function runMediaAdvancedShowcase() {
     ppt.useSlide(3).removeImage('ShowcaseLogo')
     console.log('  ✓ Image "ShowcaseLogo" cleanly removed from slide 3')
 
-    // 4. addVideo with raw Base64 string and useSlide(4)
+    // 4. addVideo with raw Base64 string, custom poster, and useSlide(4)
     console.log('\n[4/12] Executing addVideo(source, options) with useSlide(4)...')
     await ppt.useSlide(4).addVideo(sampleMp4RawBase64, {
       x: '40%',
@@ -101,24 +101,30 @@ async function runMediaAdvancedShowcase() {
       width: '50%',
       height: '35%',
       name: 'ShowcaseVideo',
+      poster: sampleImageBuf,
       autoplay: true,
       loop: true,
       mute: true,
       startTime: 0,
       endTime: 10,
     })
-    console.log('  ✓ Video "ShowcaseVideo" added with raw Base64 and playback options')
+    console.log(
+      '  ✓ Video "ShowcaseVideo" added with custom poster thumbnail and playback options'
+    )
 
-    // 5. updateVideo with source swap and playback option modifications
+    // 5. updateVideo with source swap and replacement poster thumbnail
     console.log('\n[5/12] Executing updateVideo(videoId, options) with useSlide(5)...')
     await ppt.useSlide(5).updateVideo('ShowcaseVideo', {
       loop: false,
       mute: false,
       source: replaceMp4Buf,
+      poster: replaceImageBuf,
       startTime: 1.0,
       endTime: 8.0,
     })
-    console.log('  ✓ Video "ShowcaseVideo" playback options and source updated')
+    console.log(
+      '  ✓ Video "ShowcaseVideo" playback options, source, and poster thumbnail updated'
+    )
 
     // 6. removeVideo with automated timing sequence cleanup
     console.log('\n[6/12] Executing removeVideo(videoId) with useSlide(6)...')

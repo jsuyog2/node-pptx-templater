@@ -467,6 +467,28 @@ class RelationshipManager {
     }
     logger.debug(`Removed ${removedCount} orphan relationship(s).`)
   }
+
+  /**
+   * Checks if an internal target ZIP path is referenced by any relationship.
+   *
+   * @param {string} targetZipPath
+   * @returns {boolean}
+   */
+  isTargetReferenced(targetZipPath) {
+    if (!targetZipPath) return false
+    const normalizedTarget = targetZipPath.replace(/\\/g, '/')
+    for (const [relsPath, rels] of this.#relationships.entries()) {
+      const partPath = relsPath.replace('_rels/', '').replace('.rels', '')
+      for (const rel of rels) {
+        if (rel.targetMode === 'External') continue
+        const resolved = this.resolveTarget(partPath, rel.target)
+        if (resolved === normalizedTarget) {
+          return true
+        }
+      }
+    }
+    return false
+  }
 }
 
 module.exports = { REL_TYPES, RelationshipManager }
