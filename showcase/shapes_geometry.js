@@ -113,6 +113,28 @@ async function runShapesShowcase() {
       height: 70,
       fill: '#EC4899',
     })
+    // Arrow geometry
+    .addShape(1, 'lineArrow', {
+      id: 'chevronRightNode2',
+      x: '50%',
+      y: '80%',
+      width: 80,
+      height: 70,
+      fill: '#ff0000ff',
+      border: { color: '#ff0000ff', width: 2 },
+
+    })
+    // line geometry
+    .addShape(1, 'line', {
+      id: 'chevronRightNode2',
+      x: '80%',
+      y: '80%',
+      width: 80,
+      height: 70,
+      fill: '#ff0000ff',
+      border: { color: '#ff0000ff', width: 2 },
+
+    })
 
   console.log(
     '  -> Added HeroHeaderCard, MetricsPill, AccentIndicator, ProcessNode1, and ProcessNode2.'
@@ -157,6 +179,8 @@ async function runShapesShowcase() {
   })
   ppt.updateShape('updateShape Arrow', {
     x: '50%',
+
+    border: { color: '#ff0000ff', width: 2 },
   })
   const updatedCircle = ppt.getShape('updateShape Circle')
   console.log(
