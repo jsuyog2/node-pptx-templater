@@ -122,7 +122,6 @@ async function runShapesShowcase() {
       height: 70,
       fill: '#ff0000ff',
       border: { color: '#ff0000ff', width: 2 },
-
     })
     // line geometry
     .addShape(1, 'line', {
@@ -133,7 +132,6 @@ async function runShapesShowcase() {
       height: 70,
       fill: '#ff0000ff',
       border: { color: '#ff0000ff', width: 2 },
-
     })
 
   console.log(

@@ -357,6 +357,73 @@ async function manageSlideDeck() {
 }
 ```
 
+### 10. Images & Media Lifecycle (Strict 12 Methods)
+
+```javascript
+const { PPTXTemplater } = require('node-pptx-templater');
+
+async function manageMedia() {
+  const ppt = await PPTXTemplater.load('./templates/multimedia.pptx');
+
+  // 1. Image Lifecycle: Add, Update, Remove
+  await ppt.AddImage(1, './assets/logo.png', {
+    id: 'companyLogo',
+    x: '5%', y: '5%', width: '20%', height: '10%',
+    altText: 'Company Logo',
+    transparency: 10
+  });
+
+  await ppt.UpdateImage('companyLogo', {
+    x: '10%',
+    rotation: 45,
+    crop: { left: 5, top: 5, right: 5, bottom: 5 }
+  });
+
+  await ppt.RemoveImage('companyLogo');
+
+  // 2. Video Lifecycle: Add, Update, Remove
+  await ppt.AddVideo(1, './assets/intro.mp4', {
+    id: 'introVideo',
+    x: 100, y: 150, width: 400, height: 250,
+    autoplay: true,
+    loop: false,
+    posterFrame: './assets/intro-poster.png'
+  });
+
+  await ppt.UpdateVideo('introVideo', {
+    volume: 80,
+    startTime: 2000,
+    endTime: 15000
+  });
+
+  await ppt.RemoveVideo('introVideo');
+
+  // 3. Audio Lifecycle: Add, Update, Remove
+  await ppt.AddAudio(1, './assets/narration.mp3', {
+    id: 'slideNarration',
+    x: 50, y: 50, width: 48, height: 48,
+    autoplay: true,
+    loop: true,
+    hideDuringShow: true
+  });
+
+  await ppt.UpdateAudio('slideNarration', {
+    volume: 50
+  });
+
+  await ppt.RemoveAudio('slideNarration');
+
+  // 4. Querying & Deduplicated Cloning
+  const allMedia = await ppt.GetMedias(1);
+  const singleMedia = await ppt.GetMedia('introVideo');
+  await ppt.CloneMedia('companyLogo', 'companyLogoClone', {
+    x: '75%', y: '5%'
+  });
+
+  await ppt.saveToFile('./output/multimedia-presentation.pptx');
+}
+```
+
 ---
 
 ## 🎪 CLI Usage

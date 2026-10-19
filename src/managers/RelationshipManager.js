@@ -64,6 +64,9 @@ const REL_TYPES = {
   COMMENT_AUTHORS:
     'http://schemas.openxmlformats.org/officeDocument/2006/relationships/commentAuthors',
   COMMENTS: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments',
+  VIDEO: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/video',
+  AUDIO: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/audio',
+  MEDIA: 'http://schemas.microsoft.com/office/2007/relationships/media',
 }
 
 /**

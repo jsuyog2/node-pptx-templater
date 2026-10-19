@@ -52,7 +52,7 @@ describe('Images & Media: Base64, WebP, Metadata Extraction', () => {
   it('should embed an image from a Base64 data URI and save presentation', async () => {
     const ppt = await PPTXTemplater.load(samplePath)
 
-    await ppt.addImage(base64Png, {
+    await ppt.AddImage(1, base64Png, {
       x: 50,
       y: 50,
       width: 100,
@@ -60,7 +60,7 @@ describe('Images & Media: Base64, WebP, Metadata Extraction', () => {
       name: 'Base64Logo',
     })
 
-    const images = ppt.getImages()
+    const images = ppt.GetMedias(1)
     expect(images.length).toBeGreaterThan(0)
     const embedded = images.find(img => img.name === 'Base64Logo')
     expect(embedded).toBeDefined()
@@ -72,7 +72,7 @@ describe('Images & Media: Base64, WebP, Metadata Extraction', () => {
     expect(existsSync(outputPath)).toBe(true)
 
     const reloaded = await PPTXTemplater.load(outputPath)
-    const reloadedImages = reloaded.getImages()
+    const reloadedImages = reloaded.GetMedias(1)
     const found = reloadedImages.find(img => img.name === 'Base64Logo')
     expect(found).toBeDefined()
   })
@@ -80,7 +80,7 @@ describe('Images & Media: Base64, WebP, Metadata Extraction', () => {
   it('should embed WebP image buffer and extract complete image metadata', async () => {
     const ppt = await PPTXTemplater.load(samplePath)
 
-    await ppt.addImage(webpBuffer, {
+    await ppt.AddImage(1, webpBuffer, {
       x: 100,
       y: 100,
       width: 80,
@@ -88,7 +88,7 @@ describe('Images & Media: Base64, WebP, Metadata Extraction', () => {
       name: 'WebpImage',
     })
 
-    const images = ppt.getImages()
+    const images = ppt.GetMedias(1)
     const webpImg = images.find(img => img.name === 'WebpImage')
     expect(webpImg).toBeDefined()
     expect(webpImg.format).toBe('webp')

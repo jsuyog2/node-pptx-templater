@@ -94,7 +94,28 @@ All shape creation, inspection, mutation, grouping, and cleanup strictly adhere 
 
 ---
 
-## 6. Documentation Portal (`docs-site/`)
+## 6. Strict 12-Method Images & Media Whitelist
+
+All image, video, and audio operations strictly adhere to these 12 approved methods across `PPTXTemplater`, `ImageManager`, and `MediaManager` (with PascalCase aliases maintained for backward compatibility):
+
+- **Images (3)**:
+  `ppt.addImage([slideId], source, options)` • `ppt.updateImage(imageId, options)` • `ppt.removeImage(imageId)`
+- **Videos (3)**:
+  `ppt.addVideo([slideId], source, options)` • `ppt.updateVideo(videoId, options)` • `ppt.removeVideo(videoId)`
+- **Audio (3)**:
+  `ppt.addAudio([slideId], source, options)` • `ppt.updateAudio(audioId, options)` • `ppt.removeAudio(audioId)`
+- **Inspection & Cloning (3)**:
+  `ppt.getMedias([slideId])` • `ppt.getMedia(mediaId)` • `ppt.cloneMedia(mediaId, clonedMediaId, clonedOptions)`
+
+**Architecture Highlights**:
+- **`useSlide()` Context Binding**: Operations seamlessly resolve the active slide from `ppt.useSlide(slideNumber)` when `slideId` is omitted.
+- **Universal Input Ingestion**: Supports local file paths, remote URLs, Base64 Data URIs (`data:...;base64,...`), raw Base64 strings, Buffers, and streams.
+- **Automatic In-Memory Deduplication**: Content-hash SHA-1 tracking avoids duplicate media assets in `ppt/media/`.
+- **Full OpenXML Conformance**: Slide relationships (`.rels`), `<p:pic>` generation, `<p:timing>` audio/video node generation and automated orphaned timing sequence purging, percentage and EMU spatial resolution, and safe relationship deletion without breaking sibling references.
+
+---
+
+## 7. Documentation Portal (`docs-site/`)
 
 The documentation site is a static export built with Next.js 14+ App Router (`output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`). All documentation content is driven by decoupled JSON schemas in `docs-site/src/data/` (`apiReference.json`, `features.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`) and verified by `npm run docs:validate`.
 

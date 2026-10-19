@@ -127,10 +127,10 @@ describe('Performance and Optimizations Integration Tests', () => {
       const imgStream = createReadStream(imagePath)
 
       ppt.useSlide(1)
-      const imagesBefore = ppt.getImages()
+      const imagesBefore = ppt.GetMedias()
       if (imagesBefore.length > 0) {
         const firstImageId = imagesBefore[0].id
-        await ppt.replaceImage(firstImageId, imgStream)
+        await ppt.UpdateImage(firstImageId, { source: imgStream })
 
         const buf = await ppt.toBuffer()
         expect(buf).toBeDefined()

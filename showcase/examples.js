@@ -392,30 +392,30 @@ async function demo07_ImageOperations() {
 
   // 1. Add a new PNG image with explicit position and size
   if (fs.existsSync(IMAGE_ROOK)) {
-    await ppt.addImage(IMAGE_ROOK, {
+    await ppt.AddImage(1, IMAGE_ROOK, {
       x: 914400,
       y: 3500000,
       width: 1200000,
       height: 1200000,
-      name: 'demo-logo',
+      id: 'demo-logo',
     })
     console.log(`✓ Added new PNG image from file with dimensions.`)
 
-    // 2. Replace that image with another image
+    // 2. Replace that image with another image using UpdateImage
     if (fs.existsSync(IMAGE_CHESS)) {
-      await ppt.replaceImage('demo-logo', IMAGE_CHESS)
+      await ppt.UpdateImage('demo-logo', { source: IMAGE_CHESS })
       console.log(`✓ Replaced image "demo-logo" with chess image.`)
     }
   }
 
   // 3. Add WebP / Base64 image
   try {
-    await ppt.addImage(WEBP_BASE64_DATA, {
+    await ppt.AddImage(1, WEBP_BASE64_DATA, {
       x: 2500000,
       y: 3500000,
       width: 800000,
       height: 800000,
-      name: 'webp-icon',
+      id: 'webp-icon',
     })
     console.log('✓ Added WebP image from Base64 Data URI.')
   } catch (err) {

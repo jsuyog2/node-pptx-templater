@@ -20,6 +20,7 @@ const { XMLParser } = require('../parsers/XMLParser.js')
 const { createLogger } = require('../utils/logger.js')
 const { PPTXError } = require('../utils/errors.js')
 const { sendExpress, sendFastify, createWebResponse } = require('./FrameworkAdapters.js')
+const { EXT_TO_MIME } = require('../utils/mediaUtils.js')
 
 const logger = createLogger('OutputWriter')
 
@@ -133,6 +134,37 @@ class OutputWriter {
       this.#relationshipManager
     ) {
       await slideManager.normalizeStructure(this.#relationshipManager, this.#contentTypesManager)
+    }
+    // Ensure all media files in ppt/media/ have default content types registered
+    const mediaFiles = zipManager.listFiles('ppt/media/')
+    for (const mf of mediaFiles) {
+      const ext = mf.split('.').pop().toLowerCase()
+      const mime = EXT_TO_MIME[ext] || 'application/octet-stream'
+      this.#contentTypesManager.addDefault(ext, mime)
+    }
+    // Sanitize slide tree ordering and timing references
+    if (slideManager && typeof slideManager.slideCount === 'number') {
+      for (let idx = 1; idx <= slideManager.slideCount; idx++) {
+        const slideObj = slideManager.getSlideObj(idx)
+        if (slideObj) {
+          const spTree =
+            slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+            slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
+            slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
+          if (spTree && spTree['p:extLst']) {
+            const extLst = spTree['p:extLst']
+            delete spTree['p:extLst']
+            spTree['p:extLst'] = extLst
+            slideManager.markSlideObjDirty(idx)
+          }
+          if (slideObj['p:sld']?.['p:timing']) {
+            const modified = this.#sanitizeSlideTiming(slideObj, spTree)
+            if (modified) {
+              slideManager.markSlideObjDirty(idx)
+            }
+          }
+        }
+      }
     }
     await this.#flushAllSlides(slideManager, zipManager)
     this.#contentTypesManager.flush(zipManager)
@@ -467,6 +499,215 @@ class OutputWriter {
     }
 
     logger.debug(`Flushed ${info.length} slide(s) to ZIP`)
+  }
+
+  /**
+   * Sanitizes slide timing nodes ensuring no orphaned shape IDs exist.
+   *
+   * @private
+   * @param {Object} slideObj
+   * @param {Object} spTree
+   * @returns {boolean} True if modified.
+   */
+  #sanitizeSlideTiming(slideObj, spTree) {
+    if (!slideObj?.['p:sld']?.['p:timing'] || !spTree) return false
+    const existingShapeIds = new Set(this.#collectAllShapeIds(spTree).map(String))
+    const referencedSpids = new Set()
+    this.#collectReferencedSpids(slideObj['p:sld']['p:timing'], referencedSpids)
+
+    let modified = false
+    for (const spid of referencedSpids) {
+      if (!existingShapeIds.has(spid)) {
+        this.#removeSlideTimingForSpid(slideObj, spid)
+        modified = true
+      }
+    }
+    return modified
+  }
+
+  /**
+   * @private
+   * @param {Object} container
+   * @returns {Array<number>}
+   */
+  #collectAllShapeIds(container) {
+    const ids = []
+    if (!container) return ids
+
+    let shapes = container['p:sp'] || []
+    if (!Array.isArray(shapes)) shapes = [shapes]
+    for (const s of shapes) {
+      const id = parseInt(s?.['p:nvSpPr']?.['p:cNvPr']?.['@_id'], 10)
+      if (!isNaN(id)) ids.push(id)
+    }
+
+    let pics = container['p:pic'] || []
+    if (!Array.isArray(pics)) pics = [pics]
+    for (const p of pics) {
+      const id = parseInt(p?.['p:nvPicPr']?.['p:cNvPr']?.['@_id'], 10)
+      if (!isNaN(id)) ids.push(id)
+    }
+
+    let frames = container['p:graphicFrame'] || []
+    if (!Array.isArray(frames)) frames = [frames]
+    for (const f of frames) {
+      const id = parseInt(f?.['p:nvGraphicFramePr']?.['p:cNvPr']?.['@_id'], 10)
+      if (!isNaN(id)) ids.push(id)
+    }
+
+    let groups = container['p:grpSp'] || []
+    if (!Array.isArray(groups)) groups = [groups]
+    for (const g of groups) {
+      const id = parseInt(g?.['p:nvGrpSpPr']?.['p:cNvPr']?.['@_id'], 10)
+      if (!isNaN(id)) ids.push(id)
+      ids.push(...this.#collectAllShapeIds(g))
+    }
+
+    return ids
+  }
+
+  /**
+   * @private
+   * @param {Object} node
+   * @param {Set<string>} spids
+   */
+  #collectReferencedSpids(node, spids) {
+    if (!node || typeof node !== 'object') return
+    if (node['p:spTgt'] && node['p:spTgt']['@_spid']) {
+      spids.add(String(node['p:spTgt']['@_spid']))
+    }
+    if (node['@_spid']) {
+      spids.add(String(node['@_spid']))
+    }
+    for (const key of Object.keys(node)) {
+      const val = node[key]
+      if (Array.isArray(val)) {
+        for (const item of val) this.#collectReferencedSpids(item, spids)
+      } else if (typeof val === 'object') {
+        this.#collectReferencedSpids(val, spids)
+      }
+    }
+  }
+
+  /**
+   * @private
+   * @param {Object} node
+   * @param {string} targetSpid
+   * @returns {boolean}
+   */
+  #containsSpid(node, targetSpid) {
+    if (!node || typeof node !== 'object') return false
+    if (node['p:spTgt'] && String(node['p:spTgt']['@_spid']) === String(targetSpid)) return true
+    if (node['@_spid'] && String(node['@_spid']) === String(targetSpid)) return true
+    for (const key of Object.keys(node)) {
+      const val = node[key]
+      if (Array.isArray(val)) {
+        for (const item of val) {
+          if (this.#containsSpid(item, targetSpid)) return true
+        }
+      } else if (typeof val === 'object') {
+        if (this.#containsSpid(val, targetSpid)) return true
+      }
+    }
+    return false
+  }
+
+  /**
+   * @private
+   * @param {Object} slideObj
+   * @param {string|number} shapeId
+   */
+  #removeSlideTimingForSpid(slideObj, shapeId) {
+    if (!slideObj?.['p:sld']?.['p:timing']) return
+    const targetSpid = String(shapeId)
+    const timing = slideObj['p:sld']['p:timing']
+    const rootChildTnLst = timing?.['p:tnLst']?.['p:par']?.['p:cTn']?.['p:childTnLst']
+    if (!rootChildTnLst) return
+
+    // 1. Remove video nodes
+    if (rootChildTnLst['p:video']) {
+      let videos = Array.isArray(rootChildTnLst['p:video'])
+        ? rootChildTnLst['p:video']
+        : [rootChildTnLst['p:video']]
+      videos = videos.filter(v => !this.#containsSpid(v, targetSpid))
+      if (videos.length === 0) {
+        delete rootChildTnLst['p:video']
+      } else {
+        rootChildTnLst['p:video'] = videos.length === 1 ? videos[0] : videos
+      }
+    }
+
+    // 2. Remove audio nodes
+    if (rootChildTnLst['p:audio']) {
+      let audios = Array.isArray(rootChildTnLst['p:audio'])
+        ? rootChildTnLst['p:audio']
+        : [rootChildTnLst['p:audio']]
+      audios = audios.filter(a => !this.#containsSpid(a, targetSpid))
+      if (audios.length === 0) {
+        delete rootChildTnLst['p:audio']
+      } else {
+        rootChildTnLst['p:audio'] = audios.length === 1 ? audios[0] : audios
+      }
+    }
+
+    // 3. Remove sequence nodes
+    if (rootChildTnLst['p:seq']) {
+      let seqs = Array.isArray(rootChildTnLst['p:seq'])
+        ? rootChildTnLst['p:seq']
+        : [rootChildTnLst['p:seq']]
+      seqs = seqs.filter(seq => {
+        const isInteractive = seq['p:cTn']?.['@_nodeType'] === 'interactiveSeq'
+        if (isInteractive && this.#containsSpid(seq, targetSpid)) {
+          return false
+        }
+        const isMain = seq['p:cTn']?.['@_nodeType'] === 'mainSeq'
+        if (isMain) {
+          const childTnLst = seq['p:cTn']?.['p:childTnLst']
+          if (childTnLst?.['p:par']) {
+            let pars = Array.isArray(childTnLst['p:par'])
+              ? childTnLst['p:par']
+              : [childTnLst['p:par']]
+            pars = pars.filter(p => !this.#containsSpid(p, targetSpid))
+            if (pars.length === 0) {
+              delete childTnLst['p:par']
+            } else {
+              childTnLst['p:par'] = pars.length === 1 ? pars[0] : pars
+            }
+          }
+        }
+        return true
+      })
+
+      if (seqs.length === 0) {
+        delete rootChildTnLst['p:seq']
+      } else {
+        rootChildTnLst['p:seq'] = seqs.length === 1 ? seqs[0] : seqs
+      }
+    }
+
+    // Check if any active animation or media node remains
+    const hasVideo = Boolean(rootChildTnLst['p:video'])
+    const hasAudio = Boolean(rootChildTnLst['p:audio'])
+    let hasMainSeqPars = false
+    let hasInteractiveSeq = false
+    if (rootChildTnLst['p:seq']) {
+      const seqs = Array.isArray(rootChildTnLst['p:seq'])
+        ? rootChildTnLst['p:seq']
+        : [rootChildTnLst['p:seq']]
+      for (const seq of seqs) {
+        if (seq['p:cTn']?.['@_nodeType'] === 'interactiveSeq') hasInteractiveSeq = true
+        if (
+          seq['p:cTn']?.['@_nodeType'] === 'mainSeq' &&
+          seq['p:cTn']?.['p:childTnLst']?.['p:par']
+        ) {
+          hasMainSeqPars = true
+        }
+      }
+    }
+
+    if (!hasVideo && !hasAudio && !hasInteractiveSeq && !hasMainSeqPars) {
+      delete slideObj['p:sld']['p:timing']
+    }
   }
 }
 

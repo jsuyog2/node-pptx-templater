@@ -62,3 +62,30 @@
   - `clearShapes()` evacuates user shapes while strictly preserving layout placeholders.
   - Grouping calculates composite `<a:xfrm>` (`<a:chOff>`, `<a:chExt>`) under `<p:grpSp>`, and ungrouping dissolves the group with exact canvas coordinate re-projection.
 
+## 10. Strict 12-Method Images & Media Whitelist Boundary
+- **Approved 12 Methods** (canonical camelCase with optional `slideId` when using `useSlide()`, with PascalCase aliases supported):
+  1. `addImage([slideId], source, options)`
+  2. `updateImage(imageId, options)`
+  3. `removeImage(imageId)`
+  4. `addVideo([slideId], source, options)`
+  5. `updateVideo(videoId, options)`
+  6. `removeVideo(videoId)`
+  7. `addAudio([slideId], source, options)`
+  8. `updateAudio(audioId, options)`
+  9. `removeAudio(audioId)`
+  10. `getMedias([slideId])`
+  11. `getMedia(mediaId)`
+  12. `cloneMedia(mediaId, clonedMediaId, clonedOptions)`
+- **OpenXML Media Architecture**:
+  - **Context Resolution**: Methods bind to active slide context from `ppt.useSlide(slideNumber)` when `slideId` is omitted.
+  - **Universal Ingestion**: Supports local paths, remote URLs, Base64 Data URIs, raw Base64 strings, Buffers, and streams.
+  - **Storage**: Media streams are ingested into `ppt/media/` with automatic SHA-1 hash deduplication.
+  - **Content Types**: Extensions mapped in `[Content_Types].xml` (`image/png`, `video/mp4`, `audio/mpeg`, etc.).
+  - **Relationships**: Tracked via `RelationshipManager` with namespaces for images (`.../relationships/image`), audio/video (`.../relationships/video`, `.../relationships/audio`, `.../relationships/media`).
+  - **Shape Structures**:
+    - Images: `<p:pic>` with `<p:blipFill>` and DrawingML coordinates (`<a:xfrm>`). Supports percentage & EMU coordinates, cropping (`<a:srcRect>`), rotation, borders, shadows, transparency (`<a:alphaModFix>`).
+    - Video: `<p:pic>` with `<a:videoFile>` referencing video rel, poster frame blip, and `<p:timing>` sequence bindings for play/pause/stop and loop triggers.
+    - Audio: `<p:pic>` with `<a:audioFile>` (or sound node) in `<p:spTree>`, optional `<p:timing>` audio actions, loop tags, and toggle icon visibility via `<p:cNvPr hidden="...">`.
+  - **Fluent API**: All mutation methods return `this` (or `Promise<PPTXTemplater>`).
+  - **Non-destructive Removal & Timing Pruning**: Deleting shapes clears timing sequence nodes in `<p:timing>` and verifies relationship targets are not shared before removing `.rels` entries.
+

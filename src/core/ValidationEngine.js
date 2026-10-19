@@ -97,16 +97,12 @@ class ValidationEngine {
         }
       }
 
-      // Verify image references on the slide
-      const images = ppt.imageManager.getImages(
-        slideIndex,
-        ppt.slideManager,
-        ppt.relationshipManager
-      )
-      for (const image of images) {
-        if (image.targetPath && !ppt.zipManager.hasFile(image.targetPath)) {
+      // Verify media references on the slide
+      const medias = ppt.GetMedias(slideIndex)
+      for (const media of medias) {
+        if (media.targetPath && !ppt.zipManager.hasFile(media.targetPath)) {
           errors.push(
-            `Slide ${slideIndex} referenced image file does not exist at ${image.targetPath}`
+            `Slide ${slideIndex} referenced media file does not exist at ${media.targetPath}`
           )
         }
       }

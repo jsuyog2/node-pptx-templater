@@ -1,34 +1,73 @@
 {
     "project": "node-pptx-templater",
-    "category": "Shapes & Geometry Subsystem",
-    "scope": "Arrow Shape Geometry & Shape Lifecycle Handler Fix",
+    "category": "Images & Media",
+    "scope": "Fix media repair errors, support base64 input, enforce camelCase API naming, and adopt fluent useSlide context",
     "tasks": [
         {
-            "id": "TASK-ARROW-001",
-            "title": "Normalize Arrow Preset Geometries in ShapeManager",
+            "id": "TASK-MEDIA-001",
+            "title": "Fix PowerPoint Repair Errors in Generated Media PPTX",
             "status": "completed",
-            "description": "In src/managers/ShapeManager.js (and src/elements/ShapeManager.js), map preset geometry aliases: map 'arrow' and 'right-arrow' to 'rightArrow', 'left-arrow' to 'leftArrow', 'up-arrow' to 'upArrow', and 'down-arrow' to 'downArrow'. Ensure output DrawingML writes valid <a:prstGeom prst=\"rightArrow\"><a:avLst/></a:prstGeom> under <p:spPr>.",
+            "description": "Investigate and resolve presentation repair errors produced after running showcase/media_advanced.js. Ensure [Content_Types].xml includes valid overrides for all embedded media types (audio, video, image formats). Ensure correct relationship mapping in ppt/slides/_rels/slideN.xml.rels with standard OpenXML type schemas and clean up orphaned relationship IDs and timing tree nodes upon media removal.",
             "deliverables": [
-                "src/managers/ShapeManager.js"
+                "src/managers/MediaManager.js",
+                "src/elements/ImageManager.js",
+                "src/writer/OutputWriter.js"
             ]
         },
         {
-            "id": "TASK-ARROW-002",
-            "title": "Ensure getShape, updateShape, and removeShape Support Connector and Arrow Nodes",
+            "id": "TASK-MEDIA-002",
+            "title": "Fix Audio, Video, and Image Mutation & Deletion Lifecycle",
             "status": "completed",
-            "description": "Audit getShape, getShapes, updateShape, and removeShape in ShapeManager. Ensure selectors inspect both <p:sp> (standard shape) and <p:cxnSp> (connector) elements by matching against <p:cNvPr id=\"...\"> and name=\"...\". Ensure generated arrows always receive unique non-visual IDs and names.",
+            "description": "Fix update and removal logic for media elements: (1) Ensure source swapping for images and videos properly updates ppt/media/ binaries and relationship references. (2) Fix video element fetching and ensure removeVideo correctly removes <p:pic> / <p:spTree> nodes, related <p:timing> sequences, and relationship bindings. (3) Ensure updateAudio, updateVideo, and updateImage update position, bounds (<a:xfrm>), and playback attributes without crashing or leaving stale attributes.",
             "deliverables": [
-                "src/managers/ShapeManager.js",
-                "src/core/PPTXTemplater.js"
+                "src/managers/MediaManager.js",
+                "src/elements/ImageManager.js",
+                "tests/integration/imagesMedia.test.js"
             ]
         },
         {
-            "id": "TASK-ARROW-003",
-            "title": "Automated Arrow Lifecycle Integration Tests",
+            "id": "TASK-MEDIA-003",
+            "title": "Enable Base64 Ingestion Support Across All Media Loaders",
             "status": "completed",
-            "description": "Write integration tests in tests/integration/arrowLifecycle.test.js covering the full lifecycle: adding an arrow with type 'arrow' and 'rightArrow', querying it via getShape(), updating its dimensions/color via updateShape(), and verifying deletion via removeShape().",
+            "description": "Allow addImage, updateImage, addVideo, updateVideo, addAudio, and updateAudio to accept base64-encoded strings directly (both raw base64 and data URI schemes like data:image/png;base64,... or data:video/mp4;base64,...). Decode strings into in-memory Buffers before persisting to ppt/media/ and registering content types.",
             "deliverables": [
-                "tests/integration/arrowLifecycle.test.js"
+                "src/managers/MediaManager.js",
+                "src/elements/ImageManager.js",
+                "src/utils/mediaUtils.js"
+            ]
+        },
+        {
+            "id": "TASK-MEDIA-004",
+            "title": "Enforce CamelCase Function Naming Across Media Subsystem",
+            "status": "completed",
+            "description": "Audit all exported functions and internal delegates to ensure strict camelCase compliance: addImage, updateImage, removeImage, addVideo, updateVideo, removeVideo, addAudio, updateAudio, removeAudio, getMedias, getMedia, and cloneMedia. Update PPTXTemplater class method delegates, index.d.ts, and test fixtures accordingly.",
+            "deliverables": [
+                "src/core/PPTXTemplater.js",
+                "src/managers/MediaManager.js",
+                "src/elements/ImageManager.js",
+                "src/index.d.ts"
+            ]
+        },
+        {
+            "id": "TASK-MEDIA-005",
+            "title": "Contextualize Slide Operations to useSlide() & Make slideId Optional",
+            "status": "completed",
+            "description": "Refactor media methods so slideId/slideRef is derived from the active context set by ppt.useSlide(slideNumber). Make slideId purely optional across signatures (e.g. ppt.useSlide(1).addImage(source, options)), while safely falling back to the active slide or an optional explicit parameter for backward compatibility.",
+            "deliverables": [
+                "src/core/PPTXTemplater.js",
+                "src/managers/MediaManager.js",
+                "src/elements/ImageManager.js"
+            ]
+        },
+        {
+            "id": "TASK-MEDIA-006",
+            "title": "Update showcase/media_advanced.js, Documentation & Verification",
+            "status": "completed",
+            "description": "Rewrite showcase/media_advanced.js to demonstrate all repaired functions using camelCase and ppt.useSlide(n) contextual chaining with file paths, base64 data URIs, and Buffers. Verify the generated output opens in Microsoft PowerPoint without triggering repair prompts. Run unit and integration tests and update documentation.",
+            "deliverables": [
+                "showcase/media_advanced.js",
+                "docs-site/src/data/apiReference.json",
+                "tests/integration/imagesMedia.test.js"
             ]
         }
     ]

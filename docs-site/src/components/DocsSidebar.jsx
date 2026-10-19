@@ -21,6 +21,7 @@ import {
   X
 } from 'lucide-react';
 import docsNavigation from '../data/docsNavigation.json';
+import apiReference from '../data/apiReference.json';
 
 const CATEGORY_ICONS = {
   'Lifecycle & I/O': Layers,
@@ -58,8 +59,8 @@ export default function DocsSidebar() {
               href="/docs"
               onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${isOverview
-                  ? 'bg-brand-500/15 text-brand-700 dark:text-brand-300 font-semibold border border-brand-500/25 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                ? 'bg-brand-500/15 text-brand-700 dark:text-brand-300 font-semibold border border-brand-500/25 shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
             >
               <span className="text-base">📌</span>
@@ -70,8 +71,8 @@ export default function DocsSidebar() {
               href="/docs/installation"
               onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${isInstallation
-                  ? 'bg-brand-500/15 text-brand-700 dark:text-brand-300 font-semibold border border-brand-500/25 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                ? 'bg-brand-500/15 text-brand-700 dark:text-brand-300 font-semibold border border-brand-500/25 shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
             >
               <span className="text-base">🚀</span>
@@ -82,8 +83,8 @@ export default function DocsSidebar() {
               href="/docs/compatibility"
               onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${isCompatibility
-                  ? 'bg-brand-500/15 text-brand-700 dark:text-brand-300 font-semibold border border-brand-500/25 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                ? 'bg-brand-500/15 text-brand-700 dark:text-brand-300 font-semibold border border-brand-500/25 shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
             >
               <span className="text-base">⚡</span>
@@ -117,13 +118,13 @@ export default function DocsSidebar() {
               href="/docs/api"
               onClick={() => setMobileOpen(false)}
               className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-all ${isApi && !pathname.includes('#')
-                  ? 'bg-brand-500/15 text-brand-700 dark:text-brand-300 font-semibold'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                ? 'bg-brand-500/15 text-brand-700 dark:text-brand-300 font-semibold'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
             >
               <span>All Methods</span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                101
+                {Object.values(apiReference.methodsByCategory).flatMap(methods => methods).length}
               </span>
             </Link>
           </div>
@@ -139,9 +140,9 @@ export default function DocsSidebar() {
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors"
                   >
-                    <span className="truncate pr-1">{cat.title}</span>
+                    <span className="truncate pr-1 flex items-center gap-1"><Icon className="size-3" />{cat.title}</span>
                     <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 shrink-0">
-                      {cat.count}
+                      {apiReference.methodsByCategory[cat.category].length}
                     </span>
                   </Link>
                 );

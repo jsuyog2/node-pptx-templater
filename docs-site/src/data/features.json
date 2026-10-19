@@ -265,41 +265,71 @@
     {
       "id": "media-image-handling",
       "number": 7,
-      "title": "Media & Image Handling",
+      "title": "Images & Media",
       "isFlagship": false,
       "items": [
         {
           "id": 42,
-          "title": "Insert Images",
-          "description": "Add images from local file paths, binary Buffers, or Base64 data URIs."
+          "title": "Add Images (addImage)",
+          "description": "Add images from local file paths, remote URLs, binary Buffers, or Base64 data URIs with EMU and percentage coordinates."
         },
         {
           "id": 43,
-          "title": "Multi-Format Media Support",
-          "description": "Support PNG, JPEG, SVG, GIF, and WebP media types."
+          "title": "Update Images (updateImage)",
+          "description": "Modify coordinates, dimensions, rotation, crop (<a:srcRect>), opacity (<a:alphaModFix>), borders, shadows, or swap underlying source."
         },
         {
           "id": 44,
-          "title": "In-Place Image Swapping",
-          "description": "Replace template image placeholders while preserving original bounding boxes and coordinates."
+          "title": "Remove Images (removeImage)",
+          "description": "Delete image shape elements from <p:spTree> and safely purge orphaned relationship references from the slide .rels."
         },
         {
           "id": 45,
-          "title": "Aspect Ratio Preservation",
-          "description": "Automatically calculate and lock aspect ratios when inserting or updating images."
+          "title": "Add Videos (addVideo)",
+          "description": "Embed MP4/AVI/MOV videos into ppt/media/ with custom poster frames, coordinates, autoplay, loop, mute, and trim timing."
         },
         {
           "id": 46,
-          "title": "Image Metadata Extraction",
-          "description": "Query image dimensions, format types, file sizes, and internal relationship references."
+          "title": "Update Videos (updateVideo)",
+          "description": "Update video bounds, start/end time, loop, mute, poster frames, and playback timing bindings."
         },
         {
           "id": 47,
-          "title": "Remove Image",
-          "description": "Remove media elements and clean up associated relationship pointers."
+          "title": "Remove Videos (removeVideo)",
+          "description": "Cleanly remove video shapes, timing sequences in <p:timing>, and relationship entries without schema corruption."
+        },
+        {
+          "id": 48,
+          "title": "Add Audio (addAudio)",
+          "description": "Embed MP3/WAV/M4A audio into ppt/media/, wire audio action geometry, volume, loop, autoplay, and slide show icon visibility."
+        },
+        {
+          "id": 49,
+          "title": "Update Audio (updateAudio)",
+          "description": "Adjust volume (0-100), loop, start/end trim, icon position, and slide show visibility toggles."
+        },
+        {
+          "id": 50,
+          "title": "Remove Audio (removeAudio)",
+          "description": "Purge audio shape nodes, related sound timing nodes, and slide relationship entries."
+        },
+        {
+          "id": 51,
+          "title": "Inspect All Slide Media (getMedias)",
+          "description": "Scan slide DrawingML tree and extract comprehensive metadata for images, videos, and audio (type, ID, dimensions, positions, formats, sizes)."
+        },
+        {
+          "id": 52,
+          "title": "Inspect Specific Media (getMedia)",
+          "description": "Locate specific media element by shape ID, name, or relationship ID across presentation slides."
+        },
+        {
+          "id": 53,
+          "title": "Deduplicated Cloning (cloneMedia)",
+          "description": "Duplicate media shape elements with coordinate and styling overrides while reusing existing binary assets in ppt/media/ (zero byte duplication)."
         }
       ],
-      "count": 6
+      "count": 12
     },
     {
       "id": "table-engine-structural-manipulation",

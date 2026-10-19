@@ -4177,139 +4177,571 @@ class PPTXTemplater {
     return null
   }
 
-  // === Image Features ===
+  // === Images & Media ===
+
   /**
-   * Replaces an existing image in the presentation by shape name or relationship ID.
-   *
-   * @param {string} imageIdOrName - Shape name, alt text, or relationship ID of the image.
-   * @param {string|Buffer} sourcePathOrBuffer - Path to the replacement image file, or a Buffer.
-   * @returns {Promise<PPTXTemplater>} this (chainable)
-   *
-   * @example
-   * await ppt.replaceImage('company-logo', './new-logo.png');
+   * Helper to normalize arguments for addImage, addVideo, and addAudio.
+   * Supports (slideId, source, options) and (source, options) using active slide context.
+   * @private
    */
-  async replaceImage(imageIdOrName, sourcePathOrBuffer) {
+  #resolveMediaAddArgs(arg1, arg2, arg3) {
+    const isOptionsObj = obj =>
+      typeof obj === 'object' &&
+      obj !== null &&
+      !Buffer.isBuffer(obj) &&
+      !(obj instanceof Uint8Array) &&
+      typeof obj.pipe !== 'function'
+
+    // If arg2 is an options object, it's (source, options) using active slide context
+    if (isOptionsObj(arg2)) {
+      const activeIdx = this.#getTargetSlideIndices()[0] || 1
+      return { slideIndex: activeIdx, source: arg1, options: arg2 }
+    }
+
+    // If 3 arguments provided: (slideId, source, options)
+    if (arg3 !== undefined) {
+      const slideInfo = this.#slideManager.resolveSlideInfo(arg1)
+      const slideIndex = slideInfo ? slideInfo.index : typeof arg1 === 'number' ? arg1 : 1
+      return { slideIndex, source: arg2, options: arg3 || {} }
+    }
+
+    // If 2 arguments provided: (slideId, source)
+    if (arg2 !== undefined) {
+      const slideInfo = this.#slideManager.resolveSlideInfo(arg1)
+      const slideIndex = slideInfo ? slideInfo.index : typeof arg1 === 'number' ? arg1 : 1
+      return { slideIndex, source: arg2, options: {} }
+    }
+
+    // If 1 argument provided: (source)
+    const activeIdx = this.#getTargetSlideIndices()[0] || 1
+    return { slideIndex: activeIdx, source: arg1, options: {} }
+  }
+
+  /**
+   * Adds an image to a slide.
+   *
+   * @param {number|string|Buffer|Uint8Array} slideIdOrSource - 1-based slide index, tag, or image source.
+   * @param {string|Buffer|Uint8Array|Object} [sourceOrOptions] - Image source or options when slide is inferred.
+   * @param {Object} [options={}] - Bounds, coordinates, crop, opacity, rotation, and border styling.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async addImage(slideIdOrSource, sourceOrOptions, options = {}) {
     this.#assertLoaded()
     const t0 = performance.now()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      await this.#imageManager.replaceImage(
-        idx,
-        imageIdOrName,
-        sourcePathOrBuffer,
-        this.#slideManager,
-        this.#mediaManager,
-        this.#relationshipManager
-      )
-    }
+    const {
+      slideIndex,
+      source,
+      options: opts,
+    } = this.#resolveMediaAddArgs(slideIdOrSource, sourceOrOptions, options)
+    await this.#imageManager.addImage(
+      slideIndex,
+      source,
+      opts,
+      this.#slideManager,
+      this.#mediaManager,
+      this.#relationshipManager
+    )
     this.#profiler.imageUpdateMs += performance.now() - t0
     return this
   }
 
   /**
-   * Adds a new image to the targeted slide(s) at the specified position.
+   * Alias for addImage.
    *
-   * @param {string|Buffer} sourcePathOrBuffer - Path to the image file, or a Buffer.
-   * @param {Object} [options] - Positioning and display options.
-   * @param {number} [options.x] - X offset in EMUs (1 inch = 914,400 EMUs).
-   * @param {number} [options.y] - Y offset in EMUs.
-   * @param {number} [options.width] - Width in EMUs.
-   * @param {number} [options.height] - Height in EMUs.
-   * @param {number} [options.rotation] - Rotation in degrees (0–360).
-   * @param {number} [options.opacity] - Opacity (0–100).
-   * @param {string} [options.name] - Shape name for the image.
-   * @param {Object} [options.cropTo] - Crop percentages `{ l, r, t, b }` (0–100000).
+   * @param {number|string|Buffer|Uint8Array} slideIdOrSource - 1-based slide index, tag, or image source.
+   * @param {string|Buffer|Uint8Array|Object} [sourceOrOptions] - Image source or options.
+   * @param {Object} [options={}] - Options object.
    * @returns {Promise<PPTXTemplater>} this (chainable)
-   *
-   * @example
-   * await ppt.addImage('./photo.jpg', {
-   *   x: 914400,       // 1 inch
-   *   y: 914400,       // 1 inch
-   *   width: 3657600,  // 4 inches
-   *   height: 2743200, // 3 inches
-   *   name: 'hero-image'
-   * });
    */
-  async addImage(sourcePathOrBuffer, options = {}) {
+  async AddImage(...args) {
+    return this.addImage(...args)
+  }
+
+  /**
+   * Updates an existing image on the targeted slide(s).
+   *
+   * @param {string|number} imageId - Shape ID or name of the image to update.
+   * @param {Object|string|Buffer} [options={}] - Updated bounds, crop, opacity, rotation, or new source.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async updateImage(imageId, options = {}) {
     this.#assertLoaded()
     const t0 = performance.now()
     const targetIndices = this.#getTargetSlideIndices()
+    const opts =
+      typeof options === 'string' || Buffer.isBuffer(options) || options instanceof Uint8Array
+        ? { source: options }
+        : { ...options }
+
+    let updated = false
     for (const idx of targetIndices) {
-      await this.#imageManager.addImage(
+      updated = await this.#imageManager.updateImage(
         idx,
-        sourcePathOrBuffer,
-        options,
+        imageId,
+        opts,
         this.#slideManager,
         this.#mediaManager,
         this.#relationshipManager
       )
+      if (updated) break
     }
-    this.#profiler.imageUpdateMs += performance.now() - t0
-    return this
-  }
-
-  /**
-   * Removes an image from the targeted slide(s) by shape name or relationship ID.
-   *
-   * @param {string} imageIdOrName - Shape name, alt text, or relationship ID of the image.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.removeImage('old-logo');
-   */
-  removeImage(imageIdOrName) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#imageManager.removeImage(
-        idx,
-        imageIdOrName,
-        this.#slideManager,
-        this.#relationshipManager
-      )
-    }
-    return this
-  }
-
-  /**
-   * Returns metadata for all images found on the targeted slide(s).
-   * Extracts format, MIME type, byte size, dimensions, position, and relationship info.
-   *
-   * @returns {Array<{rId: string, name: string, x: number, y: number, width: number, height: number, mediaPath: string, format: string, mimeType: string, size: number}>}
-   *
-   * @example
-   * const images = ppt.getImages();
-   * images.forEach(img => console.log(`${img.name}: ${img.width}×${img.height} EMUs, ${img.format}, ${img.size} bytes`));
-   */
-  getImages() {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    const images = []
-    for (const idx of targetIndices) {
-      const rawImages = this.#imageManager.getImages(
-        idx,
-        this.#slideManager,
-        this.#relationshipManager
-      )
-      for (const img of rawImages) {
-        const mediaInfo = img.targetPath ? this.#mediaManager.getMediaInfo(img.targetPath) : null
-        const ext = img.targetPath ? img.targetPath.split('.').pop().toLowerCase() : ''
-        images.push({
-          ...img,
-          slideIndex: idx,
-          format: ext,
-          mimeType: mediaInfo?.mimeType || (ext ? `image/${ext}` : undefined),
-          size: mediaInfo?.size,
-          width: img.position ? img.position.cx : 0,
-          height: img.position ? img.position.cy : 0,
-          x: img.position ? img.position.x : 0,
-          y: img.position ? img.position.y : 0,
-          mediaPath: img.targetPath,
-          rId: img.relationshipId,
-        })
+    if (!updated) {
+      for (const idx of this.#slideManager.getAllSlideIndices()) {
+        if (targetIndices.includes(idx)) continue
+        updated = await this.#imageManager.updateImage(
+          idx,
+          imageId,
+          opts,
+          this.#slideManager,
+          this.#mediaManager,
+          this.#relationshipManager
+        )
+        if (updated) break
       }
     }
-    return images
+    this.#profiler.imageUpdateMs += performance.now() - t0
+    return this
+  }
+
+  /**
+   * Alias for updateImage.
+   *
+   * @param {string|number} imageId - Shape ID or name of the image to update.
+   * @param {Object|string|Buffer} [options={}] - Updated bounds, crop, opacity, rotation, or source.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async UpdateImage(...args) {
+    return this.updateImage(...args)
+  }
+
+  /**
+   * Removes an image from the targeted slide(s) by shape ID, name, or relationship ID.
+   *
+   * @param {string|number} imageId - Shape ID, name, or relationship ID of the image to remove.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  removeImage(imageId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    let removed = false
+    for (const idx of targetIndices) {
+      removed = this.#imageManager.removeImage(
+        idx,
+        imageId,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+      if (removed) break
+    }
+    if (!removed) {
+      for (const idx of this.#slideManager.getAllSlideIndices()) {
+        if (targetIndices.includes(idx)) continue
+        removed = this.#imageManager.removeImage(
+          idx,
+          imageId,
+          this.#slideManager,
+          this.#relationshipManager
+        )
+        if (removed) break
+      }
+    }
+    return this
+  }
+
+  /**
+   * Alias for removeImage.
+   *
+   * @param {string|number} imageId - Shape ID, name, or relationship ID of the image to remove.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  RemoveImage(...args) {
+    return this.removeImage(...args)
+  }
+
+  /**
+   * Adds a video element to a slide.
+   *
+   * @param {number|string|Buffer|Uint8Array} slideIdOrSource - 1-based slide index, tag, or video source.
+   * @param {string|Buffer|Uint8Array|Object} [sourceOrOptions] - Video source or options when slide is inferred.
+   * @param {Object} [options={}] - Video positioning, poster image, and playback options.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async addVideo(slideIdOrSource, sourceOrOptions, options = {}) {
+    this.#assertLoaded()
+    const {
+      slideIndex,
+      source,
+      options: opts,
+    } = this.#resolveMediaAddArgs(slideIdOrSource, sourceOrOptions, options)
+    await this.#mediaManager.addVideo(
+      slideIndex,
+      source,
+      opts,
+      this.#slideManager,
+      this.#relationshipManager,
+      this.#xmlParser
+    )
+    return this
+  }
+
+  /**
+   * Alias for addVideo.
+   *
+   * @param {number|string|Buffer|Uint8Array} slideIdOrSource - 1-based slide index, tag, or video source.
+   * @param {string|Buffer|Uint8Array|Object} [sourceOrOptions] - Video source or options.
+   * @param {Object} [options={}] - Options object.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async AddVideo(...args) {
+    return this.addVideo(...args)
+  }
+
+  /**
+   * Updates an existing video shape and playback properties.
+   *
+   * @param {string|number} videoId - Shape ID or name of the video.
+   * @param {Object} [options={}] - Updated bounds, poster, loop, mute, timing, or new source.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async updateVideo(videoId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    let updated = null
+    for (const idx of targetIndices) {
+      updated = await this.#mediaManager.updateVideo(
+        idx,
+        videoId,
+        options,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+      if (updated) break
+    }
+    if (!updated) {
+      for (const idx of this.#slideManager.getAllSlideIndices()) {
+        if (targetIndices.includes(idx)) continue
+        updated = await this.#mediaManager.updateVideo(
+          idx,
+          videoId,
+          options,
+          this.#slideManager,
+          this.#relationshipManager
+        )
+        if (updated) break
+      }
+    }
+    return this
+  }
+
+  /**
+   * Alias for updateVideo.
+   *
+   * @param {string|number} videoId - Shape ID or name of the video.
+   * @param {Object} [options={}] - Updated options.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async UpdateVideo(...args) {
+    return this.updateVideo(...args)
+  }
+
+  /**
+   * Removes a video shape and associated timing/relationships.
+   *
+   * @param {string|number} videoId - Shape ID or name of the video to remove.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  removeVideo(videoId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    let removed = false
+    for (const idx of targetIndices) {
+      removed = this.#mediaManager.removeVideo(
+        idx,
+        videoId,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+      if (removed) break
+    }
+    if (!removed) {
+      for (const idx of this.#slideManager.getAllSlideIndices()) {
+        if (targetIndices.includes(idx)) continue
+        removed = this.#mediaManager.removeVideo(
+          idx,
+          videoId,
+          this.#slideManager,
+          this.#relationshipManager
+        )
+        if (removed) break
+      }
+    }
+    return this
+  }
+
+  /**
+   * Alias for removeVideo.
+   *
+   * @param {string|number} videoId - Shape ID or name of the video to remove.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  RemoveVideo(...args) {
+    return this.removeVideo(...args)
+  }
+
+  /**
+   * Adds an audio element to a slide.
+   *
+   * @param {number|string|Buffer|Uint8Array} slideIdOrSource - 1-based slide index, tag, or audio source.
+   * @param {string|Buffer|Uint8Array|Object} [sourceOrOptions] - Audio source or options when slide is inferred.
+   * @param {Object} [options={}] - Positioning, volume, loop, autoplay, or visibility options.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async addAudio(slideIdOrSource, sourceOrOptions, options = {}) {
+    this.#assertLoaded()
+    const {
+      slideIndex,
+      source,
+      options: opts,
+    } = this.#resolveMediaAddArgs(slideIdOrSource, sourceOrOptions, options)
+    await this.#mediaManager.addAudio(
+      slideIndex,
+      source,
+      opts,
+      this.#slideManager,
+      this.#relationshipManager,
+      this.#xmlParser
+    )
+    return this
+  }
+
+  /**
+   * Alias for addAudio.
+   *
+   * @param {number|string|Buffer|Uint8Array} slideIdOrSource - 1-based slide index, tag, or audio source.
+   * @param {string|Buffer|Uint8Array|Object} [sourceOrOptions] - Audio source or options.
+   * @param {Object} [options={}] - Options object.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async AddAudio(...args) {
+    return this.addAudio(...args)
+  }
+
+  /**
+   * Updates an existing audio element and playback properties.
+   *
+   * @param {string|number} audioId - Shape ID or name of the audio.
+   * @param {Object} [options={}] - Updated bounds, volume, loop, autoplay, visibility settings, or source.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async updateAudio(audioId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    let updated = null
+    for (const idx of targetIndices) {
+      updated = await this.#mediaManager.updateAudio(
+        idx,
+        audioId,
+        options,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+      if (updated) break
+    }
+    if (!updated) {
+      for (const idx of this.#slideManager.getAllSlideIndices()) {
+        if (targetIndices.includes(idx)) continue
+        updated = await this.#mediaManager.updateAudio(
+          idx,
+          audioId,
+          options,
+          this.#slideManager,
+          this.#relationshipManager
+        )
+        if (updated) break
+      }
+    }
+    return this
+  }
+
+  /**
+   * Alias for updateAudio.
+   *
+   * @param {string|number} audioId - Shape ID or name of the audio.
+   * @param {Object} [options={}] - Updated options.
+   * @returns {Promise<PPTXTemplater>} this (chainable)
+   */
+  async UpdateAudio(...args) {
+    return this.updateAudio(...args)
+  }
+
+  /**
+   * Removes an audio shape and associated timing/relationships.
+   *
+   * @param {string|number} audioId - Shape ID or name of the audio to remove.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  removeAudio(audioId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    let removed = false
+    for (const idx of targetIndices) {
+      removed = this.#mediaManager.removeAudio(
+        idx,
+        audioId,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+      if (removed) break
+    }
+    if (!removed) {
+      for (const idx of this.#slideManager.getAllSlideIndices()) {
+        if (targetIndices.includes(idx)) continue
+        removed = this.#mediaManager.removeAudio(
+          idx,
+          audioId,
+          this.#slideManager,
+          this.#relationshipManager
+        )
+        if (removed) break
+      }
+    }
+    return this
+  }
+
+  /**
+   * Alias for removeAudio.
+   *
+   * @param {string|number} audioId - Shape ID or name of the audio to remove.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  RemoveAudio(...args) {
+    return this.removeAudio(...args)
+  }
+
+  /**
+   * Retrieves metadata for all media items (images, videos, audio) on a slide or presentation.
+   *
+   * @param {number|string} [slideId] - Optional slide index, ID, or tag.
+   * @returns {Array<Object>} List of media metadata items.
+   */
+  getMedias(slideId) {
+    this.#assertLoaded()
+    if (slideId !== undefined) {
+      const slideInfo = this.#slideManager.resolveSlideInfo(slideId)
+      const slideIndex = slideInfo ? slideInfo.index : typeof slideId === 'number' ? slideId : 1
+      return this.#mediaManager.getMedias(slideIndex, this.#slideManager, this.#relationshipManager)
+    }
+    const targetIndices = this.#getTargetSlideIndices()
+    const all = []
+    for (const idx of targetIndices) {
+      all.push(...this.#mediaManager.getMedias(idx, this.#slideManager, this.#relationshipManager))
+    }
+    return all
+  }
+
+  /**
+   * Alias for getMedias.
+   *
+   * @param {number|string} [slideId] - Optional slide index, ID, or tag.
+   * @returns {Array<Object>} List of media metadata items.
+   */
+  GetMedias(...args) {
+    return this.getMedias(...args)
+  }
+
+  /**
+   * Retrieves detailed metadata for a specific media element by ID across slides.
+   *
+   * @param {string|number} mediaId - Shape ID, name, or relationship ID of the media item.
+   * @returns {Object|null} Media metadata object or null if not found.
+   */
+  getMedia(mediaId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      const found = this.#mediaManager.getMedia(
+        mediaId,
+        idx,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+      if (found) return found
+    }
+    for (const idx of this.#slideManager.getAllSlideIndices()) {
+      if (targetIndices.includes(idx)) continue
+      const found = this.#mediaManager.getMedia(
+        mediaId,
+        idx,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+      if (found) return found
+    }
+    return null
+  }
+
+  /**
+   * Alias for getMedia.
+   *
+   * @param {string|number} mediaId - Shape ID, name, or relationship ID of the media item.
+   * @returns {Object|null} Media metadata object or null if not found.
+   */
+  GetMedia(...args) {
+    return this.getMedia(...args)
+  }
+
+  /**
+   * Clones an existing media item and applies property overrides while deduplicating assets.
+   *
+   * @param {string|number} mediaId - Shape ID or name of the media item to clone.
+   * @param {string|number} [clonedMediaId] - Name or ID for the cloned shape.
+   * @param {Object} [clonedOptions={}] - Property overrides for position, dimensions, or styling.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  cloneMedia(mediaId, clonedMediaId, clonedOptions = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    let cloned = null
+    for (const idx of targetIndices) {
+      cloned = this.#mediaManager.cloneMedia(
+        mediaId,
+        clonedMediaId,
+        clonedOptions,
+        idx,
+        this.#slideManager,
+        this.#relationshipManager,
+        this.#xmlParser
+      )
+      if (cloned) break
+    }
+    if (!cloned) {
+      for (const idx of this.#slideManager.getAllSlideIndices()) {
+        if (targetIndices.includes(idx)) continue
+        cloned = this.#mediaManager.cloneMedia(
+          mediaId,
+          clonedMediaId,
+          clonedOptions,
+          idx,
+          this.#slideManager,
+          this.#relationshipManager,
+          this.#xmlParser
+        )
+        if (cloned) break
+      }
+    }
+    return this
+  }
+
+  /**
+   * Alias for cloneMedia.
+   *
+   * @param {string|number} mediaId - Shape ID or name of the media item to clone.
+   * @param {string|number} [clonedMediaId] - Name or ID for the cloned shape.
+   * @param {Object} [clonedOptions={}] - Property overrides for position, dimensions, or styling.
+   * @returns {PPTXTemplater} this (chainable)
+   */
+  CloneMedia(...args) {
+    return this.cloneMedia(...args)
   }
 
   /**
