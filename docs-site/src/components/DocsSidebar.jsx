@@ -28,7 +28,7 @@ const CATEGORY_ICONS = {
   'Slides': Layers,
   'Text & Placeholders': Sparkles,
   'Tables & Cell Shapes': Table,
-  'Charts & Series Sync': BarChart3,
+  'Charts': BarChart3,
   'Shapes & Geometry': Cpu,
   'Images & Media': ImageIcon,
   'Z-Order & Layering': Split,

@@ -30,7 +30,7 @@ Ingestion (PackageLoader, FlatOpcConverter, LegacyConverter)
 - **`ValidationEngine`** (`src/core/ValidationEngine.js`): XXE defense, entity bomb prevention, and structural package verification.
 - **`SlideManager`** (`src/managers/SlideManager.js`): 1-based slide operations, deep cloning, reordering, layout binding, sections, and comments.
 - **`TableManager`** (`src/elements/TableManager.js`): Dynamic row/column mutations, cell merging (`gridSpan`/`rowSpan`/`hMerge`/`vMerge`), `<a16:rowId>` generation, and auto-pagination (`splitTableOnOverflow`).
-- **`ChartManager`** (`src/elements/ChartManager.js`): Mutates series/categories across DrawingML `<c:chartSpace>` and embedded Excel workbooks synchronously.
+- **`ChartManager`** (`src/elements/ChartManager.js`): Strict 11-method whitelist supporting all 17 standard (`<c:chartSpace>`) and Office 2016+ extended (`<cx:chartSpace>`) chart types with Dual-Sync updating of embedded Excel workbooks.
 - **`ShapeManager`** (`src/elements/ShapeManager.js`): Vector geometry, fills, borders, text, alignment, and coordinate math.
 - **`TextManager`** (`src/elements/TextManager.js`): Run substitutions, full text box replacement (`replaceTextByTag`), and 31-property DrawingML styling.
 - **`ZOrderManager`** (`src/spatial/ZOrderManager.js`): Visual stacking operations while preserving `<p:nvGrpSpPr>` and `<p:grpSpPr>` header invariants.
@@ -115,7 +115,33 @@ All image, video, and audio operations strictly adhere to these 12 approved meth
 
 ---
 
-## 7. Documentation Portal (`docs-site/`)
+## 7. Strict 11-Method Charts Whitelist
+
+All chart creation, mutation, inspection, cloning, labeling, and removal strictly adhere to these 11 approved methods (prohibiting non-whitelisted functions like `repairCharts`, `refreshChartCache`, `setChartTitle`, `formatChartSeries`):
+
+1. `ppt.addChart(slideId, chartType, data, options)`
+2. `ppt.updateChart(chartId, options)`
+3. `ppt.updateChartData(chartId, data)`
+4. `ppt.removeChart(chartId)`
+5. `ppt.clearCharts()`
+6. `ppt.getCharts(slideId)`
+7. `ppt.getChart(chartId)`
+8. `ppt.cloneChart(chartId, clonedChartId, clonedOptions)`
+9. `ppt.getChartLabel(chartId)`
+10. `ppt.setChartLabel(chartId, label, options)`
+11. `ppt.updateChartLabel(chartId, options)`
+
+**17 Supported Chart Types**:
+- **Standard DrawingML (`<c:chartSpace>`)**: Column (`column`, `col`), Line (`line`), Pie (`pie`), Bar (`bar`), Area (`area`), XY Scatter (`scatter`, `xy`, `xyScatter`), Map (`map`), Stock (`stock`), Surface (`surface`), Radar (`radar`), Combo (`combo`).
+- **Office 2016+ Extended (`<cx:chartSpace>`)**: Treemap (`treemap`), Sunburst (`sunburst`), Histogram (`histogram`), Box & Whisker (`boxWhisker`, `boxAndWhisker`, `box_and_whisker`), Waterfall (`waterfall`), Funnel (`funnel`).
+
+**Core Invariants**:
+- **Dual-Sync Invariant**: Every chart addition or data mutation synchronously updates the XML cache (`ppt/charts/chartN.xml` or `chartExN.xml`) and the backing embedded Excel workbook (`ppt/embeddings/Microsoft_Excel_WorksheetN.xlsx`) with table cleansing to eliminate PowerPoint repair prompts.
+- **clearCharts Evacuation**: Evacuates all chart graphic frames from targeted slide(s) and purges unreferenced chart parts and workbooks while preserving layout shapes, tables, and text frames.
+
+---
+
+## 8. Documentation Portal (`docs-site/`)
 
 The documentation site is a static export built with Next.js 14+ App Router (`output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`). All documentation content is driven by decoupled JSON schemas in `docs-site/src/data/` (`apiReference.json`, `features.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`) and verified by `npm run docs:validate`.
 

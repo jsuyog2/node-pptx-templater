@@ -1,6 +1,437 @@
 const { ChartWorkbookUpdater } = require('./ChartWorkbookUpdater.js')
+const { ExtendedChartGenerator } = require('./ExtendedChartGenerator.js')
+
+const CANONICAL_CHART_TYPES = {
+  column: 'column',
+  col: 'column',
+  bar: 'bar',
+  line: 'line',
+  pie: 'pie',
+  area: 'area',
+  scatter: 'scatter',
+  xy: 'scatter',
+  xyscatter: 'scatter',
+  stock: 'stock',
+  surface: 'surface',
+  radar: 'radar',
+  treemap: 'treemap',
+  sunburst: 'sunburst',
+  histogram: 'histogram',
+  boxwhisker: 'boxWhisker',
+  boxandwhisker: 'boxWhisker',
+  box_and_whisker: 'boxWhisker',
+  waterfall: 'waterfall',
+  funnel: 'funnel',
+  combo: 'combo',
+  map: 'map',
+  regionmap: 'map',
+  geochart: 'map',
+}
+
+const EXTENDED_CHART_TYPES = new Set([
+  'treemap',
+  'sunburst',
+  'histogram',
+  'boxWhisker',
+  'waterfall',
+  'funnel',
+  'map',
+])
 
 class ChartCacheGenerator {
+  /**
+   * Normalizes chart type and aliases to canonical lowercase names.
+   */
+  static normalizeChartType(type) {
+    if (!type) return 'column'
+    const key = String(type).trim().toLowerCase()
+    return CANONICAL_CHART_TYPES[key] || type
+  }
+
+  /**
+   * Checks whether the chart type or alias is supported.
+   */
+  static isSupportedType(type) {
+    if (!type || typeof type !== 'string') return false
+    return CANONICAL_CHART_TYPES[type.trim().toLowerCase()] !== undefined
+  }
+
+  /**
+   * Checks whether the chart type requires Office 2016+ extended chart parts (<cx:chartSpace>).
+   */
+  static isExtendedChart(type) {
+    const canonical = this.normalizeChartType(type)
+    return EXTENDED_CHART_TYPES.has(canonical)
+  }
+
+  /**
+   * Generates a complete OpenXML chart XML string for all 17 supported types.
+   */
+  static generateChartSpaceXml({ type = 'column', data = {}, title, options = {}, rId = 'rId1' }) {
+    const canonicalType = this.normalizeChartType(type)
+
+    if (this.isExtendedChart(canonicalType)) {
+      return ExtendedChartGenerator.generateChartSpaceXml({
+        type: canonicalType,
+        data,
+        title,
+        options,
+        rId,
+      })
+    }
+
+    const categories = data.categories || ['Category 1', 'Category 2', 'Category 3', 'Category 4']
+    let series =
+      data.series && data.series.length > 0
+        ? data.series
+        : [{ name: 'Series 1', values: [10, 20, 30, 40] }]
+
+    // Stock charts require at least 3 series (High, Low, Close)
+    if (canonicalType === 'stock' && series.length < 3) {
+      const baseVals = series[0]?.values || [100, 105, 110, 115]
+      series = [
+        { name: 'High', values: baseVals.map(v => v + 5) },
+        { name: 'Low', values: baseVals.map(v => Math.max(0, v - 5)) },
+        { name: 'Close', values: baseVals },
+      ]
+    }
+
+    const catStrCache = this.generateStrCache(categories)
+    const catCount = categories.length
+
+    // Title XML
+    let titleXml = ''
+    if (title || (options && options.title)) {
+      const text = this.#escapeXml(title || options.title)
+      titleXml = `<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>${text}</a:t></a:r></a:p></c:rich></c:tx><c:layout/></c:title>`
+    }
+
+    // Legend XML
+    let legendXml = ''
+    if (!options || options.legend !== false) {
+      const pos = (options && options.legend && options.legend.position) || 'r'
+      legendXml = `<c:legend><c:legendPos val="${pos}"/><c:layout/></c:legend>`
+    }
+
+    // View3D XML (required for 3D charts like surface)
+    let view3DXml = ''
+    if (canonicalType === 'surface') {
+      view3DXml = `<c:view3D><c:rotX val="30"/><c:rotY val="30"/><c:rAngAx val="0"/><c:perspective val="30"/></c:view3D>`
+    }
+
+    // Helper to generate a standard series block
+    const buildSerXml = (ser, idx, isScatter = false) => {
+      const colLetter = ChartWorkbookUpdater.getColumnLetter(idx + 1)
+      const values = ser.values || []
+      const name = ser.name || `Series ${idx + 1}`
+      const numCache = this.generateNumCache(values)
+      const valCount = values.length
+
+      const nameBlock = `<c:tx><c:strRef><c:f>Sheet1!$${colLetter}$1</c:f><c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${this.#escapeXml(name)}</c:v></c:pt></c:strCache></c:strRef></c:tx>`
+
+      if (isScatter) {
+        // Scatter uses numeric xVal and yVal
+        const xValues = categories.map((cat, i) => {
+          const num = Number(cat)
+          return isNaN(num) ? i + 1 : num
+        })
+        const xNumCache = this.generateNumCache(xValues)
+        return `<c:ser>
+          <c:idx val="${idx}"/>
+          <c:order val="${idx}"/>
+          ${nameBlock}
+          <c:marker><c:symbol val="circle"/><c:size val="5"/></c:marker>
+          <c:xVal><c:numRef><c:f>Sheet1!$A$2:$A$${catCount + 1}</c:f>${xNumCache}</c:numRef></c:xVal>
+          <c:yVal><c:numRef><c:f>Sheet1!$${colLetter}$2:$${colLetter}$${valCount + 1}</c:f>${numCache}</c:numRef></c:yVal>
+          <c:smooth val="0"/>
+        </c:ser>`
+      }
+
+      const invertIfNeg =
+        canonicalType === 'column' || canonicalType === 'bar' ? '<c:invertIfNegative val="0"/>' : ''
+
+      return `<c:ser>
+        <c:idx val="${idx}"/>
+        <c:order val="${idx}"/>
+        ${nameBlock}
+        ${invertIfNeg}
+        <c:cat><c:strRef><c:f>Sheet1!$A$2:$A$${catCount + 1}</c:f>${catStrCache}</c:strRef></c:cat>
+        <c:val><c:numRef><c:f>Sheet1!$${colLetter}$2:$${colLetter}$${valCount + 1}</c:f>${numCache}</c:numRef></c:val>
+      </c:ser>`
+    }
+
+    let plotXml = ''
+    let axesXml = ''
+    const axIdCat = '123456'
+    const axIdVal = '123457'
+
+    // Standard schema-compliant Axis XML builders (ISO/IEC 29500-1 §21.2 strictly ordered)
+    const buildCatAx = (id, crossId, pos = 'b') => `<c:catAx>
+      <c:axId val="${id}"/>
+      <c:scaling><c:orientation val="minMax"/></c:scaling>
+      <c:delete val="0"/>
+      <c:axPos val="${pos}"/>
+      <c:majorTickMark val="none"/>
+      <c:minorTickMark val="none"/>
+      <c:tickLblPos val="nextTo"/>
+      <c:crossAx val="${crossId}"/>
+      <c:crosses val="autoZero"/>
+      <c:auto val="1"/>
+      <c:lblAlgn val="ctr"/>
+      <c:lblOffset val="100"/>
+    </c:catAx>`
+
+    const buildValAx = (id, crossId, pos = 'l', crossBetween = 'between') => `<c:valAx>
+      <c:axId val="${id}"/>
+      <c:scaling><c:orientation val="minMax"/></c:scaling>
+      <c:delete val="0"/>
+      <c:axPos val="${pos}"/>
+      <c:majorGridlines/>
+      <c:numFmt formatCode="General" sourceLinked="1"/>
+      <c:majorTickMark val="none"/>
+      <c:minorTickMark val="none"/>
+      <c:tickLblPos val="nextTo"/>
+      <c:crossAx val="${crossId}"/>
+      <c:crosses val="autoZero"/>
+      <c:crossBetween val="${crossBetween}"/>
+    </c:valAx>`
+
+    switch (canonicalType) {
+      case 'column': {
+        const serList = series.map((s, i) => buildSerXml(s, i)).join('')
+        plotXml = `<c:barChart>
+          <c:barDir val="col"/>
+          <c:grouping val="clustered"/>
+          <c:varyColors val="0"/>
+          ${serList}
+          <c:gapWidth val="150"/>
+          <c:overlap val="0"/>
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+        </c:barChart>`
+        axesXml = `${buildCatAx(axIdCat, axIdVal, 'b')}\n        ${buildValAx(axIdVal, axIdCat, 'l', 'between')}`
+        break
+      }
+
+      case 'bar': {
+        const serList = series.map((s, i) => buildSerXml(s, i)).join('')
+        plotXml = `<c:barChart>
+          <c:barDir val="bar"/>
+          <c:grouping val="clustered"/>
+          <c:varyColors val="0"/>
+          ${serList}
+          <c:gapWidth val="150"/>
+          <c:overlap val="0"/>
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+        </c:barChart>`
+        axesXml = `${buildCatAx(axIdCat, axIdVal, 'l')}\n        ${buildValAx(axIdVal, axIdCat, 'b', 'between')}`
+        break
+      }
+
+      case 'line': {
+        const serList = series.map((s, i) => buildSerXml(s, i)).join('')
+        plotXml = `<c:lineChart>
+          <c:grouping val="standard"/>
+          <c:varyColors val="0"/>
+          ${serList}
+          <c:marker val="1"/>
+          <c:smooth val="0"/>
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+        </c:lineChart>`
+        axesXml = `${buildCatAx(axIdCat, axIdVal, 'b')}\n        ${buildValAx(axIdVal, axIdCat, 'l', 'between')}`
+        break
+      }
+
+      case 'pie': {
+        const serList = series
+          .slice(0, 1)
+          .map((s, i) => buildSerXml(s, i))
+          .join('')
+        plotXml = `<c:pieChart>
+          <c:varyColors val="1"/>
+          ${serList}
+          <c:firstSliceAng val="0"/>
+        </c:pieChart>`
+        axesXml = '' // Pie charts do not use catAx / valAx
+        break
+      }
+
+      case 'area': {
+        const serList = series.map((s, i) => buildSerXml(s, i)).join('')
+        plotXml = `<c:areaChart>
+          <c:grouping val="standard"/>
+          <c:varyColors val="0"/>
+          ${serList}
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+        </c:areaChart>`
+        axesXml = `${buildCatAx(axIdCat, axIdVal, 'b')}\n        ${buildValAx(axIdVal, axIdCat, 'l', 'midCat')}`
+        break
+      }
+
+      case 'scatter': {
+        const serList = series.map((s, i) => buildSerXml(s, i, true)).join('')
+        plotXml = `<c:scatterChart>
+          <c:scatterStyle val="lineMarker"/>
+          <c:varyColors val="0"/>
+          ${serList}
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+        </c:scatterChart>`
+        // Scatter uses two valAx elements (bottom and left)
+        axesXml = `${buildValAx(axIdCat, axIdVal, 'b', 'between')}\n        ${buildValAx(axIdVal, axIdCat, 'l', 'between')}`
+        break
+      }
+
+      case 'radar': {
+        const serList = series.map((s, i) => buildSerXml(s, i)).join('')
+        plotXml = `<c:radarChart>
+          <c:radarStyle val="standard"/>
+          <c:varyColors val="0"/>
+          ${serList}
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+        </c:radarChart>`
+        axesXml = `${buildCatAx(axIdCat, axIdVal, 'b')}\n        ${buildValAx(axIdVal, axIdCat, 'l', 'between')}`
+        break
+      }
+
+      case 'surface': {
+        const axIdSer = '123458'
+        const serList = series.map((s, i) => buildSerXml(s, i)).join('')
+        plotXml = `<c:surfaceChart>
+          <c:wireframe val="0"/>
+          ${serList}
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+          <c:axId val="${axIdSer}"/>
+        </c:surfaceChart>`
+        const buildSerAx = (id, crossId) => `<c:serAx>
+          <c:axId val="${id}"/>
+          <c:scaling><c:orientation val="minMax"/></c:scaling>
+          <c:delete val="0"/>
+          <c:axPos val="b"/>
+          <c:majorTickMark val="none"/>
+          <c:minorTickMark val="none"/>
+          <c:tickLblPos val="nextTo"/>
+          <c:crossAx val="${crossId}"/>
+          <c:crosses val="autoZero"/>
+        </c:serAx>`
+        axesXml = `${buildCatAx(axIdCat, axIdVal, 'b')}\n        ${buildValAx(axIdVal, axIdCat, 'l', 'between')}\n        ${buildSerAx(axIdSer, axIdVal)}`
+        break
+      }
+
+      case 'stock': {
+        const serList = series.map((s, i) => buildSerXml(s, i)).join('')
+        plotXml = `<c:stockChart>
+          ${serList}
+          <c:hiLowLines/>
+          <c:upDownBars><c:gapWidth val="150"/></c:upDownBars>
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+        </c:stockChart>`
+        axesXml = `${buildCatAx(axIdCat, axIdVal, 'b')}\n        ${buildValAx(axIdVal, axIdCat, 'l', 'between')}`
+        break
+      }
+
+      case 'map': {
+        const serList = series.map((s, i) => buildSerXml(s, i)).join('')
+        plotXml = `<c:areaChart>
+          <c:grouping val="standard"/>
+          <c:varyColors val="0"/>
+          ${serList}
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+        </c:areaChart>`
+        axesXml = `${buildCatAx(axIdCat, axIdVal, 'b')}\n        ${buildValAx(axIdVal, axIdCat, 'l', 'midCat')}`
+        break
+      }
+
+      case 'combo': {
+        // Multi-plot combining bar and line charts
+        const barSeries = series.filter(s => s.type === 'bar' || s.type === 'column')
+        const lineSeries = series.filter(s => s.type === 'line' || s.type === 'area')
+
+        // If no explicit types, split half-and-half
+        const effectiveBar = barSeries.length > 0 || lineSeries.length > 0 ? barSeries : [series[0]]
+        const effectiveLine =
+          barSeries.length > 0 || lineSeries.length > 0
+            ? lineSeries
+            : series.length > 1
+              ? series.slice(1)
+              : [series[0]]
+
+        const barSerList = effectiveBar.map((s, i) => buildSerXml(s, i)).join('')
+        const lineSerList = effectiveLine
+          .map((s, i) => buildSerXml(s, effectiveBar.length + i))
+          .join('')
+
+        plotXml = `<c:barChart>
+          <c:barDir val="col"/>
+          <c:grouping val="clustered"/>
+          <c:varyColors val="0"/>
+          ${barSerList}
+          <c:gapWidth val="150"/>
+          <c:overlap val="0"/>
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+        </c:barChart>
+        <c:lineChart>
+          <c:grouping val="standard"/>
+          <c:varyColors val="0"/>
+          ${lineSerList}
+          <c:marker val="1"/>
+          <c:smooth val="0"/>
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+        </c:lineChart>`
+
+        axesXml = `${buildCatAx(axIdCat, axIdVal, 'b')}\n        ${buildValAx(axIdVal, axIdCat, 'l', 'between')}`
+        break
+      }
+
+      default: {
+        const serList = series.map((s, i) => buildSerXml(s, i)).join('')
+        plotXml = `<c:barChart>
+          <c:barDir val="col"/>
+          <c:grouping val="clustered"/>
+          <c:varyColors val="0"/>
+          ${serList}
+          <c:gapWidth val="150"/>
+          <c:overlap val="0"/>
+          <c:axId val="${axIdCat}"/>
+          <c:axId val="${axIdVal}"/>
+        </c:barChart>`
+        axesXml = `${buildCatAx(axIdCat, axIdVal, 'b')}\n        ${buildValAx(axIdVal, axIdCat, 'l', 'between')}`
+      }
+    }
+
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <c:date1904 val="0"/>
+  <c:lang val="en-US"/>
+  <c:roundedCorners val="0"/>
+  <c:chart>
+    ${titleXml}
+    <c:autoTitleDeleted val="0"/>
+    ${view3DXml}
+    <c:plotArea>
+      <c:layout/>
+      ${plotXml}
+      ${axesXml}
+    </c:plotArea>
+    ${legendXml}
+    <c:plotVisOnly val="1"/>
+    <c:dispBlanksAs val="gap"/>
+    <c:showDLblsOverMax val="0"/>
+  </c:chart>
+  <c:externalData r:id="${rId}">
+    <c:autoUpdate val="0"/>
+  </c:externalData>
+</c:chartSpace>`
+  }
   /**
    * Generates a string cache XML string (used for categories or series names).
    */
@@ -24,6 +455,29 @@ class ChartCacheGenerator {
       })
       .join('')
     return `<c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${values.length}"/>${ptEntries}</c:numCache>`
+  }
+
+  /**
+   * Updates an existing chart XML string (standard or extended) with new data and options.
+   */
+  static updateChartSpaceXml(xml, data = {}, options = {}) {
+    if (xml.includes('<cx:chartSpace')) {
+      return ExtendedChartGenerator.updateChartSpaceXml(xml, data, options)
+    }
+
+    let updated = xml
+    if (data.categories && data.categories.length > 0) {
+      updated = this.updateCategories(updated, data.categories)
+    }
+    if (data.series && data.series.length > 0) {
+      const catLen = data.categories ? data.categories.length : 0
+      updated = this.updateSeries(updated, data.series, catLen)
+    }
+    if (options.title !== undefined || (data && data.title !== undefined)) {
+      const title = options.title !== undefined ? options.title : data.title
+      updated = this.updateTitle(updated, title)
+    }
+    return updated
   }
 
   /**
@@ -446,16 +900,24 @@ class ChartCacheGenerator {
 
     const posMap = {
       center: 'ctr',
+      ctr: 'ctr',
       insideEnd: 'inEnd',
+      inEnd: 'inEnd',
       insideBase: 'inBase',
+      inBase: 'inBase',
       outsideEnd: 'outEnd',
+      outEnd: 'outEnd',
       bestFit: 'bestFit',
       left: 'l',
+      l: 'l',
       right: 'r',
+      r: 'r',
       top: 't',
+      t: 't',
       bottom: 'b',
+      b: 'b',
     }
-    let openxmlPos = position ? posMap[position] : null
+    let openxmlPos = position ? posMap[position] || position : null
     if (!openxmlPos && showSeriesNameInBar) {
       openxmlPos = 'ctr'
     }
@@ -642,7 +1104,9 @@ class ChartCacheGenerator {
     }
 
     // showLegendKey
-    if (existingShowTags['showLegendKey']) {
+    if (options.showLegendKey !== undefined) {
+      xml += `<c:showLegendKey val="${options.showLegendKey ? '1' : '0'}"/>`
+    } else if (existingShowTags['showLegendKey']) {
       xml += existingShowTags['showLegendKey']
     } else {
       xml += `<c:showLegendKey val="0"/>`
@@ -650,7 +1114,9 @@ class ChartCacheGenerator {
 
     // showVal
     const defaultShowVal = hasCustomLabels ? '0' : '1'
-    if (showSeriesNameInBar) {
+    if (options.showVal !== undefined) {
+      xml += `<c:showVal val="${options.showVal ? '1' : '0'}"/>`
+    } else if (showSeriesNameInBar) {
       xml += `<c:showVal val="0"/>`
     } else if (existingShowTags['showVal'] && !hasCustomLabels) {
       xml += existingShowTags['showVal']
@@ -659,14 +1125,18 @@ class ChartCacheGenerator {
     }
 
     // showCatName
-    if (existingShowTags['showCatName']) {
+    if (options.showCatName !== undefined) {
+      xml += `<c:showCatName val="${options.showCatName ? '1' : '0'}"/>`
+    } else if (existingShowTags['showCatName']) {
       xml += existingShowTags['showCatName']
     } else {
       xml += `<c:showCatName val="0"/>`
     }
 
     // showSerName
-    if (showSeriesNameInBar) {
+    if (options.showSerName !== undefined) {
+      xml += `<c:showSerName val="${options.showSerName ? '1' : '0'}"/>`
+    } else if (showSeriesNameInBar) {
       xml += `<c:showSerName val="1"/>`
     } else if (existingShowTags['showSerName']) {
       xml += existingShowTags['showSerName']

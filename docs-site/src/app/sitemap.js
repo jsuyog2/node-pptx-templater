@@ -11,7 +11,7 @@ export default function sitemap() {
     'Slides Management',
     'Text & Placeholders',
     'Tables & Cell Shapes',
-    'Charts & Series Sync',
+    'Charts',
     'Shapes & Geometry',
     'Images & Media',
     'Z-Order & Layering',

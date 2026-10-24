@@ -44,7 +44,10 @@ const { ChartNotFoundError } = require('../utils/errors.js')
 const { REL_TYPES } = require('../managers/RelationshipManager.js')
 const { ChartWorkbookUpdater } = require('./charts/ChartWorkbookUpdater.js')
 const { ChartCacheGenerator } = require('./charts/ChartCacheGenerator.js')
+const { ExtendedChartGenerator } = require('./charts/ExtendedChartGenerator.js')
+const { CHART_COLOR_STYLE_XML, CHART_STYLE_XML } = require('../templates/chartStyles.js')
 const { resolveElementBounds } = require('../utils/coordinateUtils.js')
+const { toEmu } = require('../spatial/units.js')
 
 const JSZip = require('jszip')
 
@@ -53,7 +56,7 @@ const logger = createLogger('ChartManager')
 /**
  * Supported chart types and their XML element names.
  */
-const CHART_TYPE_MAP = {
+const _CHART_TYPE_MAP = {
   bar: 'c:barChart',
   line: 'c:lineChart',
   pie: 'c:pieChart',
@@ -96,11 +99,16 @@ class ChartManager {
    */
   #slideQueues = new Map()
 
+  /** @private @type {ContentTypesManager} */
+  #contentTypesManager
+
   /**
    * @param {XMLParser} xmlParser
+   * @param {ContentTypesManager} [contentTypesManager]
    */
-  constructor(xmlParser) {
+  constructor(xmlParser, contentTypesManager) {
     this.#xmlParser = xmlParser
+    this.#contentTypesManager = contentTypesManager
   }
 
   async initialize(zipManager) {
@@ -110,7 +118,7 @@ class ChartManager {
       .filter(f => f.endsWith('.xml') && !f.includes('_rels'))
 
     for (const chartPath of chartFiles) {
-      // Chart name is inferred from file name
+      await zipManager.readFile(chartPath)
       const chartName = chartPath.split('/').pop().replace('.xml', '')
       this.#chartRegistry.set(chartName, { zipPath: chartPath, slideIndex: null })
     }
@@ -119,17 +127,262 @@ class ChartManager {
   }
 
   /**
-   * Updates chart data for a named chart within a slide.
-   *
-   * @param {number} slideIndex - 1-based slide index.
-   * @param {string} chartId - Chart name (from shape's cNvPr name attribute) or chart file name.
-   * @param {ChartData} data - New chart data.
-   * @param {SlideManager} slideManager
-   * @param {RelationshipManager} relationshipManager
-   * @throws {ChartNotFoundError} If the chart cannot be found.
+   * 1. addChart - Adds a new chart to a slide supporting all 17 chart types.
    */
-  updateChart(slideIndex, chartId, data, slideManager, relationshipManager) {
-    this.#validateChartData(data)
+  addChart(
+    slideIndexOrType,
+    chartTypeOrData,
+    dataOrOptions = {},
+    optionsOrSlideManager = {},
+    maybeSlideManager,
+    maybeRelationshipManager,
+    maybeContentTypesManager
+  ) {
+    let slideIndex = slideIndexOrType
+    let chartType = chartTypeOrData
+    let data = dataOrOptions
+    let options = optionsOrSlideManager
+    let slideManager = maybeSlideManager
+    let relationshipManager = maybeRelationshipManager
+    let contentTypesManager = maybeContentTypesManager
+
+    if (
+      typeof slideIndexOrType === 'string' &&
+      (ChartCacheGenerator.isSupportedType(slideIndexOrType) ||
+        (typeof chartTypeOrData === 'object' &&
+          chartTypeOrData !== null &&
+          !chartTypeOrData.getSlideInfo))
+    ) {
+      slideIndex = 1
+      chartType = slideIndexOrType
+      data = chartTypeOrData || {}
+      options =
+        typeof dataOrOptions === 'object' && !dataOrOptions.getSlideInfo ? dataOrOptions : {}
+      slideManager = dataOrOptions?.getSlideInfo ? dataOrOptions : optionsOrSlideManager
+      relationshipManager = optionsOrSlideManager?.getRelationships
+        ? optionsOrSlideManager
+        : maybeSlideManager
+      contentTypesManager = maybeSlideManager?.addOverride
+        ? maybeSlideManager
+        : maybeRelationshipManager
+    }
+
+    const canonicalType = ChartCacheGenerator.normalizeChartType(chartType)
+    const isExtended = ChartCacheGenerator.isExtendedChart(canonicalType)
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    let slideXml = slideManager.getSlideXml(slideIndex)
+
+    // 1. Next chart number
+    const chartFiles = this.#zipManager.listFiles('ppt/charts/').filter(f => !f.includes('_rels'))
+    let maxChartNum = 0
+    for (const f of chartFiles) {
+      const numMatch = /chart(?:Ex)?(\d+)\.xml$/i.exec(f)
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10)
+        if (num > maxChartNum) maxChartNum = num
+      }
+    }
+    const nextChartNum = maxChartNum + 1
+    const chartZipPath = isExtended
+      ? `ppt/charts/chartEx${nextChartNum}.xml`
+      : `ppt/charts/chart${nextChartNum}.xml`
+
+    // 2. Next workbook number
+    const wbFiles = this.#zipManager.listFiles('ppt/embeddings/')
+    let maxWbNum = 0
+    for (const f of wbFiles) {
+      const numMatch = /Microsoft_Excel_Worksheet(\d*)\.xlsx$/i.exec(f)
+      if (numMatch) {
+        const num = numMatch[1] ? parseInt(numMatch[1], 10) : 1
+        if (num > maxWbNum) maxWbNum = num
+      }
+    }
+    const nextWbNum = maxWbNum + 1
+    const wbZipPath = `ppt/embeddings/Microsoft_Excel_Worksheet${nextWbNum}.xlsx`
+
+    // 3. Shape ID & name
+    let maxShapeId = 1
+    const idRegex = /<p:cNvPr\b[^>]*\bid="(\d+)"/g
+    let idMatch
+    while ((idMatch = idRegex.exec(slideXml)) !== null) {
+      const id = parseInt(idMatch[1], 10)
+      if (id > maxShapeId) maxShapeId = id
+    }
+    const newShapeId = maxShapeId + 1
+    const chartName = options.name || options.id || `${canonicalType}-chart-${nextChartNum}`
+
+    // 4. Coordinates
+    const x = toEmu(options.x !== undefined ? options.x : 914400)
+    const y = toEmu(options.y !== undefined ? options.y : 914400)
+    const cx = toEmu(
+      options.cx !== undefined ? options.cx : options.width !== undefined ? options.width : 5486400
+    )
+    const cy = toEmu(
+      options.cy !== undefined
+        ? options.cy
+        : options.height !== undefined
+          ? options.height
+          : 3200400
+    )
+
+    // 5. Chart .rels pointing to workbook
+    const chartWbRelId = relationshipManager.addRelationship(
+      chartZipPath,
+      REL_TYPES.PACKAGE,
+      `../embeddings/Microsoft_Excel_Worksheet${nextWbNum}.xlsx`
+    )
+
+    if (isExtended) {
+      const styleFileName = `style${nextChartNum}.xml`
+      const colorsFileName = `colors${nextChartNum}.xml`
+      const styleZipPath = `ppt/charts/${styleFileName}`
+      const colorsZipPath = `ppt/charts/${colorsFileName}`
+
+      this.#zipManager.writeFile(styleZipPath, CHART_STYLE_XML)
+      this.#zipManager.writeFile(colorsZipPath, CHART_COLOR_STYLE_XML)
+
+      relationshipManager.addRelationship(chartZipPath, REL_TYPES.CHART_STYLE, styleFileName)
+      relationshipManager.addRelationship(chartZipPath, REL_TYPES.CHART_COLOR_STYLE, colorsFileName)
+    }
+
+    // Pre-cache chart XML in ZipManager before enqueuing task
+    const immediateChartXml = ChartCacheGenerator.generateChartSpaceXml({
+      type: canonicalType,
+      data,
+      title: options.title,
+      options,
+      rId: chartWbRelId,
+    })
+    this.#zipManager.writeFile(chartZipPath, immediateChartXml)
+
+    // Generate and write embedded Excel workbook and chart XML
+    this.#enqueueChartTask(chartZipPath, async () => {
+      const wbBuffer = await ChartWorkbookUpdater.createNewWorkbook(data, canonicalType)
+      this.#zipManager.writeBinaryFile(wbZipPath, wbBuffer)
+
+      // Chart XML
+      const chartXml = ChartCacheGenerator.generateChartSpaceXml({
+        type: canonicalType,
+        data,
+        title: options.title,
+        options,
+        rId: chartWbRelId,
+      })
+      this.#zipManager.writeFile(chartZipPath, chartXml)
+    })
+
+    // 6. Content Types override
+    const ct = contentTypesManager || this.#contentTypesManager
+    if (ct) {
+      const contentType = isExtended
+        ? 'application/vnd.ms-office.chartex+xml'
+        : 'application/vnd.openxmlformats-officedocument.drawingml.chart+xml'
+      ct.addOverride('/' + chartZipPath, contentType)
+      ct.addOverride(
+        '/' + wbZipPath,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      )
+      ct.addDefault('xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+      if (isExtended) {
+        ct.addOverride(
+          `/ppt/charts/style${nextChartNum}.xml`,
+          'application/vnd.ms-office.chartstyle+xml'
+        )
+        ct.addOverride(
+          `/ppt/charts/colors${nextChartNum}.xml`,
+          'application/vnd.ms-office.chartcolorstyle+xml'
+        )
+      }
+    }
+
+    // 7. Add relationship from slide to chart
+    const relType = isExtended ? REL_TYPES.CHART_EX : REL_TYPES.CHART
+    const slideRelId = relationshipManager.addRelationship(
+      slideInfo.zipPath,
+      relType,
+      `../charts/${chartZipPath.split('/').pop()}`
+    )
+
+    // 8. GraphicFrame XML
+    const graphicUri = isExtended
+      ? 'http://schemas.microsoft.com/office/drawing/2014/chartex'
+      : 'http://schemas.openxmlformats.org/drawingml/2006/chart'
+    const chartTag = isExtended ? 'cx:chart' : 'c:chart'
+    const chartNamespace = isExtended
+      ? 'xmlns:cx="http://schemas.microsoft.com/office/drawing/2014/chartex"'
+      : 'xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"'
+
+    const coreFrameXml = `<p:graphicFrame>
+  <p:nvGraphicFramePr>
+    <p:cNvPr id="${newShapeId}" name="${chartName}"/>
+    <p:cNvGraphicFramePr/>
+    <p:nvPr/>
+  </p:nvGraphicFramePr>
+  <p:xfrm>
+    <a:off x="${x}" y="${y}"/>
+    <a:ext cx="${cx}" cy="${cy}"/>
+  </p:xfrm>
+  <a:graphic>
+    <a:graphicData uri="${graphicUri}">
+      <${chartTag} ${chartNamespace} xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="${slideRelId}"/>
+    </a:graphicData>
+  </a:graphic>
+</p:graphicFrame>`
+
+    const frameXml = isExtended
+      ? `<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+  <mc:Choice xmlns:cx1="http://schemas.microsoft.com/office/drawing/2015/9/8/chartex" Requires="cx1">
+    ${coreFrameXml}
+  </mc:Choice>
+  <mc:Fallback>
+    <p:cxnSp>
+      <p:nvCxnSpPr>
+        <p:cNvPr id="${newShapeId}" name="${chartName}"/>
+        <p:cNvCxnSpPr/>
+        <p:nvPr/>
+      </p:nvCxnSpPr>
+      <p:spPr/>
+    </p:cxnSp>
+  </mc:Fallback>
+</mc:AlternateContent>`
+      : coreFrameXml
+
+    const spTreeEnd = '</p:spTree>'
+    const spTreeEndIdx = slideXml.indexOf(spTreeEnd)
+    if (spTreeEndIdx !== -1) {
+      const spTreeStartIdx = slideXml.lastIndexOf('<p:spTree', spTreeEndIdx)
+      const spTreeContent = slideXml.slice(spTreeStartIdx, spTreeEndIdx)
+      const directExtLstMatch = /<p:extLst\b[\s\S]*?<\/p:extLst>\s*$/.exec(spTreeContent)
+      if (directExtLstMatch) {
+        const insertPos = spTreeStartIdx + directExtLstMatch.index
+        slideXml = slideXml.slice(0, insertPos) + `  ${frameXml}\n  ` + slideXml.slice(insertPos)
+      } else {
+        slideXml =
+          slideXml.slice(0, spTreeEndIdx) + `  ${frameXml}\n` + slideXml.slice(spTreeEndIdx)
+      }
+
+      slideManager.setSlideXml(slideIndex, slideXml)
+    }
+
+    this.#chartRegistry.set(chartName, { zipPath: chartZipPath, slideIndex, frameXml })
+
+    return {
+      chartId: chartName,
+      shapeId: newShapeId,
+      rId: slideRelId,
+      zipPath: chartZipPath,
+    }
+  }
+
+  /**
+   * 2. updateChart - Updates chart data, title, and options with Dual-Sync.
+   */
+  updateChart(slideIndex, chartId, options = {}, slideManager, relationshipManager) {
+    const data = options.data ? options.data : options
+    if (data.categories || data.series) {
+      this.#validateChartData(data)
+    }
     const chartInfo = this.findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
 
     if (!chartInfo) {
@@ -139,7 +392,7 @@ class ChartManager {
     logger.debug(`Updating chart "${chartId}" at ${chartInfo.zipPath}`)
     this.#updateChartXml(
       chartInfo.zipPath,
-      data,
+      options,
       relationshipManager,
       slideIndex,
       chartId,
@@ -148,83 +401,743 @@ class ChartManager {
   }
 
   /**
-   * Returns all chart info objects for a given slide.
-   *
-   * @param {number} slideIndex
-   * @param {SlideManager} slideManager
-   * @param {RelationshipManager} relationshipManager
-   * @returns {Array<{name: string, zipPath: string}>}
+   * 3. updateChartData - Specifically updates data series and categories.
    */
-  getChartsInSlide(slideIndex, slideManager, relationshipManager) {
-    const slideInfo = slideManager.getSlideInfo(slideIndex)
-    const rels = relationshipManager.getRelationshipsByType(slideInfo.zipPath, REL_TYPES.CHART)
+  updateChartData(slideIndex, chartId, data = {}, slideManager, relationshipManager) {
+    return this.updateChart(slideIndex, chartId, data, slideManager, relationshipManager)
+  }
 
-    return rels.map(rel => {
-      const chartPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
-      return { rId: rel.id, zipPath: chartPath }
+  /**
+   * 4. removeChart - Removes a chart from a slide and cleans unreferenced parts.
+   */
+  removeChart(slideIndex, chartId, slideManager, relationshipManager, contentTypesManager) {
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    let slideXml = slideManager.getSlideXml(slideIndex)
+
+    const frameRegex = /<p:graphicFrame\b[\s\S]*?<\/p:graphicFrame>/g
+    let match
+    let targetFrame = null
+    let targetRId = null
+
+    while ((match = frameRegex.exec(slideXml)) !== null) {
+      const frameXml = match[0]
+      const isChart =
+        frameXml.includes('drawingml/2006/chart') ||
+        frameXml.includes('drawing/2014/chartex') ||
+        /<c:chart\b/.test(frameXml) ||
+        /<cx:chart\b/.test(frameXml)
+
+      if (!isChart) continue
+
+      const nameMatch = /<p:cNvPr\b[^>]*\bname="([^"]*)"/.exec(frameXml)
+      const idMatch = /<p:cNvPr\b[^>]*\bid="([^"]*)"/.exec(frameXml)
+      const rIdMatch = /<(?:c|cx):chart\b[^>]*\br:id="(rId\d+)"/.exec(frameXml)
+
+      const name = nameMatch ? nameMatch[1] : ''
+      const shapeId = idMatch ? idMatch[1] : ''
+      const rId = rIdMatch ? rIdMatch[1] : ''
+
+      if (
+        name === chartId ||
+        shapeId === chartId ||
+        rId === chartId ||
+        (chartId && chartId.toLowerCase() === name.toLowerCase())
+      ) {
+        targetFrame = frameXml
+        targetRId = rId
+        break
+      }
+    }
+
+    if (!targetFrame) {
+      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
+    }
+
+    const escapeRegex = s => s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+    const mcRegex = new RegExp(
+      `\\s*<mc:AlternateContent\\b[\\s\\S]*?${escapeRegex(targetFrame)}[\\s\\S]*?<\\/mc:AlternateContent>`,
+      'g'
+    )
+    if (mcRegex.test(slideXml)) {
+      slideXml = slideXml.replace(mcRegex, '')
+    } else {
+      slideXml = slideXml.replace(targetFrame, '')
+    }
+    slideManager.setSlideXml(slideIndex, slideXml)
+
+    if (targetRId) {
+      const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, targetRId)
+      if (rel) {
+        const chartZipPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
+        relationshipManager.removeRelationship(slideInfo.zipPath, targetRId)
+        this.#cleanupOrphanedChartPart(
+          chartZipPath,
+          slideManager,
+          relationshipManager,
+          contentTypesManager
+        )
+      }
+    }
+
+    return true
+  }
+
+  /**
+   * 5. clearCharts - Evacuates all chart frames from targeted slide(s) while preserving shapes/tables.
+   */
+  clearCharts(slideIndex, slideManager, relationshipManager, contentTypesManager) {
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    let slideXml = slideManager.getSlideXml(slideIndex)
+
+    const frameRegex = /<p:graphicFrame\b[\s\S]*?<\/p:graphicFrame>/g
+    const framesToRemove = []
+    let match
+
+    while ((match = frameRegex.exec(slideXml)) !== null) {
+      const frameXml = match[0]
+      const isChart =
+        frameXml.includes('drawingml/2006/chart') ||
+        frameXml.includes('drawing/2014/chartex') ||
+        /<c:chart\b/.test(frameXml) ||
+        /<cx:chart\b/.test(frameXml)
+
+      if (isChart) {
+        const rIdMatch = /<(?:c|cx):chart\b[^>]*\br:id="(rId\d+)"/.exec(frameXml)
+        framesToRemove.push({
+          frameXml,
+          rId: rIdMatch ? rIdMatch[1] : null,
+        })
+      }
+    }
+
+    for (const item of framesToRemove) {
+      const escapeRegex = s => s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+      const mcRegex = new RegExp(
+        `\\s*<mc:AlternateContent\\b[\\s\\S]*?${escapeRegex(item.frameXml)}[\\s\\S]*?<\\/mc:AlternateContent>`,
+        'g'
+      )
+      if (mcRegex.test(slideXml)) {
+        slideXml = slideXml.replace(mcRegex, '')
+      } else {
+        slideXml = slideXml.replace(item.frameXml, '')
+      }
+      if (item.rId) {
+        const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, item.rId)
+        if (rel) {
+          const chartZipPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
+          relationshipManager.removeRelationship(slideInfo.zipPath, item.rId)
+          this.#cleanupOrphanedChartPart(
+            chartZipPath,
+            slideManager,
+            relationshipManager,
+            contentTypesManager
+          )
+        }
+      }
+    }
+
+    slideManager.setSlideXml(slideIndex, slideXml)
+    return framesToRemove.length
+  }
+
+  /**
+   * 6. getCharts - Discovers and returns normalized metadata for all charts on a slide.
+   */
+  getCharts(slideIndex, slideManager, relationshipManager) {
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    const slideXml = slideManager.getSlideXml(slideIndex)
+    const charts = []
+
+    const frameRegex = /<p:graphicFrame\b[\s\S]*?<\/p:graphicFrame>/g
+    let match
+
+    while ((match = frameRegex.exec(slideXml)) !== null) {
+      const frameXml = match[0]
+      const isChart =
+        frameXml.includes('drawingml/2006/chart') ||
+        frameXml.includes('drawing/2014/chartex') ||
+        /<c:chart\b/.test(frameXml) ||
+        /<cx:chart\b/.test(frameXml)
+
+      if (!isChart) continue
+
+      const nameMatch = /<p:cNvPr\b[^>]*\bname="([^"]*)"/.exec(frameXml)
+      const idMatch = /<p:cNvPr\b[^>]*\bid="([^"]*)"/.exec(frameXml)
+      const rIdMatch = /<(?:c|cx):chart\b[^>]*\br:id="(rId\d+)"/.exec(frameXml)
+
+      const name = nameMatch ? nameMatch[1] : ''
+      const shapeId = idMatch ? idMatch[1] : ''
+      const rId = rIdMatch ? rIdMatch[1] : ''
+
+      let zipPath = null
+      let workbookPath = null
+
+      if (rId) {
+        const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rId)
+        if (rel) {
+          zipPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
+        }
+      }
+
+      let coordinates = null
+      const offMatch = /<a:off\b[^>]*\bx="([^"]*)"[^>]*\by="([^"]*)"/.exec(frameXml)
+      const extMatch = /<a:ext\b[^>]*\bcx="([^"]*)"[^>]*\bcy="([^"]*)"/.exec(frameXml)
+      if (offMatch && extMatch) {
+        coordinates = {
+          x: parseInt(offMatch[1], 10),
+          y: parseInt(offMatch[2], 10),
+          cx: parseInt(extMatch[1], 10),
+          cy: parseInt(extMatch[2], 10),
+        }
+      }
+
+      let chartType = 'column'
+      let title = null
+      let legend = null
+      let categories = []
+      let series = []
+      let dataLabels = null
+
+      if (zipPath && this.#zipManager && this.#zipManager.hasFile(zipPath)) {
+        const chartXml = this.#zipManager.readCachedFile(zipPath)
+
+        const pkgRels = relationshipManager.getRelationshipsByType(zipPath, REL_TYPES.PACKAGE)
+        if (pkgRels && pkgRels.length > 0) {
+          workbookPath = relationshipManager.resolveTarget(zipPath, pkgRels[0].target)
+        }
+
+        if (chartXml) {
+          chartType = this.#detectChartType(chartXml)
+          const data = this.#extractChartData(chartXml)
+          categories = data.categories || []
+          series = data.series || []
+
+          const titleMatch =
+            /<c:title\b[\s\S]*?<a:t>([^<]*)<\/a:t>/i.exec(chartXml) ||
+            /<cx:title\b[\s\S]*?<a:t>([^<]*)<\/a:t>/i.exec(chartXml)
+          if (titleMatch) title = this.#unescape(titleMatch[1])
+
+          const legendMatch =
+            /<c:legendPos\b[^>]*\bval="([^"]*)"/.exec(chartXml) ||
+            /<cx:legend\b[^>]*\bpos="([^"]*)"/.exec(chartXml)
+          if (legendMatch) {
+            legend = {
+              position: legendMatch[1],
+              overlay: chartXml.includes('<c:overlay val="1"/>'),
+            }
+          }
+
+          const dLblsMatch =
+            /<c:dLbls\b[\s\S]*?<\/c:dLbls>/.exec(chartXml) ||
+            /<cx:dataLabels\b[\s\S]*?<\/cx:dataLabels>/.exec(chartXml)
+          if (dLblsMatch) {
+            const dXml = dLblsMatch[0]
+            dataLabels = {
+              showVal: dXml.includes('showVal val="1"') || dXml.includes('showVal val="true"'),
+              showCatName:
+                dXml.includes('showCatName val="1"') || dXml.includes('showCatName val="true"'),
+              showPercent:
+                dXml.includes('showPercent val="1"') || dXml.includes('showPercent val="true"'),
+              position:
+                (/<c:dLblPos\b[^>]*\bval="([^"]*)"/.exec(dXml) ||
+                  /<cx:dataLabels\b[^>]*\bpos="([^"]*)"/.exec(dXml) ||
+                  [])[1] || 'bestFit',
+            }
+          }
+        }
+      }
+
+      charts.push({
+        chartId: name || shapeId || rId,
+        name,
+        shapeId,
+        rId,
+        zipPath,
+        workbookPath,
+        type: ChartCacheGenerator.normalizeChartType(chartType),
+        slideIndex,
+        coordinates,
+        title,
+        legend,
+        categories,
+        series,
+        dataLabels,
+      })
+    }
+
+    return charts
+  }
+
+  getChartsInSlide(slideIndex, slideManager, relationshipManager) {
+    return this.getCharts(slideIndex, slideManager, relationshipManager)
+  }
+
+  /**
+   * 7. getChart - Returns normalized descriptor for a specific chart.
+   */
+  getChart(slideIndex, chartId, slideManager, relationshipManager) {
+    const charts = this.getCharts(slideIndex, slideManager, relationshipManager)
+    const found = charts.find(
+      c =>
+        c.chartId === chartId ||
+        c.name === chartId ||
+        c.shapeId === chartId ||
+        c.rId === chartId ||
+        (c.zipPath && c.zipPath.includes(chartId))
+    )
+    if (!found) {
+      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
+    }
+    return found
+  }
+
+  /**
+   * 8. cloneChart - Clones a chart, its relationships, and its embedded Excel workbook.
+   */
+  cloneChart(
+    slideIndex,
+    chartId,
+    clonedChartId,
+    clonedOptions = {},
+    slideManager,
+    relationshipManager,
+    contentTypesManager
+  ) {
+    const slideInfo = slideManager.getSlideInfo(slideIndex)
+    let slideXml = slideManager.getSlideXml(slideIndex)
+
+    const srcInfo = this.findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
+    if (!srcInfo || !srcInfo.zipPath) {
+      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
+    }
+
+    const isExtended = srcInfo.zipPath.includes('chartEx')
+
+    // Next chart number
+    const chartFiles = this.#zipManager.listFiles('ppt/charts/').filter(f => !f.includes('_rels'))
+    let maxChartNum = 0
+    for (const f of chartFiles) {
+      const numMatch = /chart(?:Ex)?(\d+)\.xml$/i.exec(f)
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10)
+        if (num > maxChartNum) maxChartNum = num
+      }
+    }
+    const newChartNum = maxChartNum + 1
+    const newChartZipPath = isExtended
+      ? `ppt/charts/chartEx${newChartNum}.xml`
+      : `ppt/charts/chart${newChartNum}.xml`
+
+    // Clone chart XML
+    let clonedChartXml = this.#zipManager.readCachedFile(srcInfo.zipPath) || ''
+
+    // Next workbook number
+    const wbFiles = this.#zipManager.listFiles('ppt/embeddings/')
+    let maxWbNum = 0
+    for (const f of wbFiles) {
+      const numMatch = /Microsoft_Excel_Worksheet(\d*)\.xlsx$/i.exec(f)
+      if (numMatch) {
+        const num = numMatch[1] ? parseInt(numMatch[1], 10) : 1
+        if (num > maxWbNum) maxWbNum = num
+      }
+    }
+    const newWbNum = maxWbNum + 1
+    const newWbZipPath = `ppt/embeddings/Microsoft_Excel_Worksheet${newWbNum}.xlsx`
+
+    const newWbRelId = relationshipManager.addRelationship(
+      newChartZipPath,
+      REL_TYPES.PACKAGE,
+      `../embeddings/Microsoft_Excel_Worksheet${newWbNum}.xlsx`
+    )
+
+    if (newWbRelId && /<c:externalData\b[^>]*\br:id="[^"]*"/.test(clonedChartXml)) {
+      clonedChartXml = clonedChartXml.replace(
+        /(<c:externalData\b[^>]*\br:id=")[^"]*(")/,
+        `$1${newWbRelId}$2`
+      )
+    }
+    this.#zipManager.writeFile(newChartZipPath, clonedChartXml)
+
+    // Duplicate workbook binary and relationships
+    const srcPkgRels = relationshipManager.getRelationshipsByType(
+      srcInfo.zipPath,
+      REL_TYPES.PACKAGE
+    )
+    const srcQueue = this.#chartQueues.get(srcInfo.zipPath) || Promise.resolve()
+    this.#enqueueChartTask(newChartZipPath, async () => {
+      await srcQueue
+      if (srcPkgRels.length > 0) {
+        const srcWbPath = relationshipManager.resolveTarget(srcInfo.zipPath, srcPkgRels[0].target)
+        const wbBuffer = await this.#zipManager.readBinaryFile(srcWbPath)
+        if (wbBuffer) {
+          this.#zipManager.writeBinaryFile(newWbZipPath, wbBuffer)
+        }
+      }
     })
+
+    const ct = contentTypesManager || this.#contentTypesManager
+    if (ct) {
+      const contentType = isExtended
+        ? 'application/vnd.ms-office.chartex+xml'
+        : 'application/vnd.openxmlformats-officedocument.drawingml.chart+xml'
+      ct.addOverride('/' + newChartZipPath, contentType)
+      ct.addOverride(
+        '/' + newWbZipPath,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      )
+      ct.addDefault('xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+      if (isExtended) {
+        ct.addOverride(
+          `/ppt/charts/style${newChartNum}.xml`,
+          'application/vnd.ms-office.chartstyle+xml'
+        )
+        ct.addOverride(
+          `/ppt/charts/colors${newChartNum}.xml`,
+          'application/vnd.ms-office.chartcolorstyle+xml'
+        )
+      }
+    }
+
+    if (isExtended) {
+      const styleFileName = `style${newChartNum}.xml`
+      const colorsFileName = `colors${newChartNum}.xml`
+      const styleZipPath = `ppt/charts/${styleFileName}`
+      const colorsZipPath = `ppt/charts/${colorsFileName}`
+
+      this.#zipManager.writeFile(styleZipPath, CHART_STYLE_XML)
+      this.#zipManager.writeFile(colorsZipPath, CHART_COLOR_STYLE_XML)
+
+      relationshipManager.addRelationship(newChartZipPath, REL_TYPES.CHART_STYLE, styleFileName)
+      relationshipManager.addRelationship(
+        newChartZipPath,
+        REL_TYPES.CHART_COLOR_STYLE,
+        colorsFileName
+      )
+    }
+
+    const relType = isExtended ? REL_TYPES.CHART_EX : REL_TYPES.CHART
+    const newSlideRelId = relationshipManager.addRelationship(
+      slideInfo.zipPath,
+      relType,
+      `../charts/${newChartZipPath.split('/').pop()}`
+    )
+
+    let maxShapeId = 1
+    const idRegex = /<p:cNvPr\b[^>]*\bid="(\d+)"/g
+    let idMatch
+    while ((idMatch = idRegex.exec(slideXml)) !== null) {
+      const id = parseInt(idMatch[1], 10)
+      if (id > maxShapeId) maxShapeId = id
+    }
+    const newShapeId = maxShapeId + 1
+    const clonedName = clonedChartId || `${srcInfo.name || 'chart'}_clone`
+
+    let clonedFrame = srcInfo.frameXml
+    clonedFrame = clonedFrame.replace(
+      /<p:cNvPr\b[^>]*\bid="[^"]*"[^>]*\bname="[^"]*"/,
+      `<p:cNvPr id="${newShapeId}" name="${clonedName}"`
+    )
+    const chartNs = isExtended
+      ? 'xmlns:cx="http://schemas.microsoft.com/office/drawing/2014/chartex"'
+      : 'xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"'
+    const chartTag = isExtended ? 'cx:chart' : 'c:chart'
+    clonedFrame = clonedFrame.replace(
+      /<(?:c|cx):chart\b[^>]*\br:id="[^"]*"/,
+      `<${chartTag} ${chartNs} xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="${newSlideRelId}"`
+    )
+
+    if (clonedOptions.x !== undefined || clonedOptions.y !== undefined) {
+      const offMatch = /<a:off\b[^>]*\bx="([^"]*)"[^>]*\by="([^"]*)"/.exec(clonedFrame)
+      const curX = offMatch ? parseInt(offMatch[1], 10) : 0
+      const curY = offMatch ? parseInt(offMatch[2], 10) : 0
+      const newX = clonedOptions.x !== undefined ? toEmu(clonedOptions.x) : curX + 457200
+      const newY = clonedOptions.y !== undefined ? toEmu(clonedOptions.y) : curY + 457200
+      clonedFrame = clonedFrame.replace(/<a:off\b[^>]*\/>/, `<a:off x="${newX}" y="${newY}"/>`)
+    }
+    if (
+      clonedOptions.width !== undefined ||
+      clonedOptions.height !== undefined ||
+      clonedOptions.cx !== undefined ||
+      clonedOptions.cy !== undefined
+    ) {
+      const offCx =
+        clonedOptions.width !== undefined
+          ? toEmu(clonedOptions.width)
+          : clonedOptions.cx !== undefined
+            ? toEmu(clonedOptions.cx)
+            : null
+      const offCy =
+        clonedOptions.height !== undefined
+          ? toEmu(clonedOptions.height)
+          : clonedOptions.cy !== undefined
+            ? toEmu(clonedOptions.cy)
+            : null
+      if (offCx !== null && offCy !== null) {
+        clonedFrame = clonedFrame.replace(
+          /<a:ext\b[^>]*\/>/,
+          `<a:ext cx="${offCx}" cy="${offCy}"/>`
+        )
+      }
+    }
+
+    const spTreeEnd = '</p:spTree>'
+    const spTreeEndIdx = slideXml.indexOf(spTreeEnd)
+    if (spTreeEndIdx !== -1) {
+      const spTreeStartIdx = slideXml.lastIndexOf('<p:spTree', spTreeEndIdx)
+      const spTreeContent = slideXml.slice(spTreeStartIdx, spTreeEndIdx)
+      const directExtLstMatch = /<p:extLst\b[\s\S]*?<\/p:extLst>\s*$/.exec(spTreeContent)
+      if (directExtLstMatch) {
+        const insertPos = spTreeStartIdx + directExtLstMatch.index
+        slideXml = slideXml.slice(0, insertPos) + `  ${clonedFrame}\n  ` + slideXml.slice(insertPos)
+      } else {
+        slideXml =
+          slideXml.slice(0, spTreeEndIdx) + `  ${clonedFrame}\n` + slideXml.slice(spTreeEndIdx)
+      }
+      slideManager.setSlideXml(slideIndex, slideXml)
+    }
+
+    this.#chartRegistry.set(clonedName, {
+      zipPath: newChartZipPath,
+      slideIndex,
+      frameXml: clonedFrame,
+    })
+
+    return {
+      chartId: clonedName,
+      shapeId: newShapeId,
+      rId: newSlideRelId,
+      zipPath: newChartZipPath,
+    }
+  }
+
+  /**
+   * 9. getChartLabel - Inspects and retrieves data label configurations.
+   */
+  async getChartLabel(slideIndex, chartId, options = {}, slideManager, relationshipManager) {
+    const chartInfo = this.findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
+    if (!chartInfo) {
+      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
+    }
+    const queue = this.#chartQueues.get(chartInfo.zipPath) || Promise.resolve()
+    await queue
+    const xml = await this.#zipManager.readFile(chartInfo.zipPath)
+    if (!xml) throw new ChartNotFoundError(`Chart file not found: ${chartInfo.zipPath}`)
+    const seriesIndex = options && options.series !== undefined ? options.series : 0
+
+    const dLblsMatch = /<c:dLbls\b[\s\S]*?<\/c:dLbls>/.exec(xml)
+    const cxMatch = /<cx:dataLabels\b[\s\S]*?<\/cx:dataLabels>/.exec(xml)
+    const customLabels = ChartCacheGenerator.getDataLabelsFromXml(xml, seriesIndex)
+
+    let showVal = false
+    let showCatName = false
+    let showPercent = false
+    let showLegendKey = false
+    let showSerName = false
+    let position = 'bestFit'
+
+    if (dLblsMatch) {
+      const dXml = dLblsMatch[0]
+      showVal = dXml.includes('showVal val="1"') || dXml.includes('showVal val="true"')
+      showCatName = dXml.includes('showCatName val="1"') || dXml.includes('showCatName val="true"')
+      showPercent = dXml.includes('showPercent val="1"') || dXml.includes('showPercent val="true"')
+      showLegendKey =
+        dXml.includes('showLegendKey val="1"') || dXml.includes('showLegendKey val="true"')
+      showSerName = dXml.includes('showSerName val="1"') || dXml.includes('showSerName val="true"')
+      const posMatch = /<c:dLblPos\b[^>]*\bval="([^"]*)"/.exec(dXml)
+      if (posMatch) position = posMatch[1]
+    } else if (cxMatch) {
+      const dXml = cxMatch[0]
+      showVal = dXml.includes('showVal val="1"')
+      showCatName = dXml.includes('showCatName val="1"')
+      const posMatch = /<cx:dataLabels\b[^>]*\bpos="([^"]*)"/.exec(dXml)
+      if (posMatch) position = posMatch[1]
+    }
+
+    const arr = [...customLabels]
+    arr.series = seriesIndex
+    arr.showVal = showVal
+    arr.showCatName = showCatName
+    arr.showPercent = showPercent
+    arr.showLegendKey = showLegendKey
+    arr.showSerName = showSerName
+    arr.position = position
+    arr.labels = customLabels
+    return arr
+  }
+
+  /**
+   * 10. setChartLabel - Sets or enables chart data labels with presets or options.
+   */
+  setChartLabel(slideIndex, chartId, label, options = {}, slideManager, relationshipManager) {
+    let finalOptions = { ...options }
+    if (typeof label === 'boolean') {
+      finalOptions.showVal = label
+    } else if (typeof label === 'string') {
+      finalOptions.position = label
+    } else if (typeof label === 'object' && label !== null) {
+      finalOptions = { ...finalOptions, ...label }
+    }
+    return this.updateChartLabel(
+      slideIndex,
+      chartId,
+      finalOptions,
+      slideManager,
+      relationshipManager
+    )
+  }
+
+  /**
+   * 11. updateChartLabel - Updates data labels in chart XML and backing workbook.
+   */
+  updateChartLabel(slideIndex, chartId, options = {}, slideManager, relationshipManager) {
+    return this.updateDataLabels(slideIndex, chartId, options, slideManager, relationshipManager)
+  }
+
+  #cleanupOrphanedChartPart(chartZipPath, slideManager, relationshipManager, contentTypesManager) {
+    if (!chartZipPath) return
+
+    const allSlideIndices = slideManager.getAllSlideIndices()
+    let isReferenced = false
+
+    for (const sIdx of allSlideIndices) {
+      const sInfo = slideManager.getSlideInfo(sIdx)
+      const rels = relationshipManager.getRelationships(sInfo.zipPath)
+      for (const r of rels) {
+        if (
+          r.type === REL_TYPES.CHART ||
+          r.type === REL_TYPES.CHART_EX ||
+          r.type.includes('chart')
+        ) {
+          const target = relationshipManager.resolveTarget(sInfo.zipPath, r.target)
+          if (target === chartZipPath) {
+            isReferenced = true
+            break
+          }
+        }
+      }
+      if (isReferenced) break
+    }
+
+    if (!isReferenced) {
+      const pkgRels = relationshipManager.getRelationshipsByType(chartZipPath, REL_TYPES.PACKAGE)
+      let wbPath = null
+      if (pkgRels.length > 0) {
+        wbPath = relationshipManager.resolveTarget(chartZipPath, pkgRels[0].target)
+      }
+
+      if (this.#zipManager.hasFile(chartZipPath)) {
+        this.#zipManager.removeFile(chartZipPath)
+      }
+
+      const relsPath = chartZipPath.replace('ppt/charts/', 'ppt/charts/_rels/') + '.rels'
+      if (this.#zipManager.hasFile(relsPath)) {
+        this.#zipManager.removeFile(relsPath)
+      }
+      relationshipManager.deleteRelationships(chartZipPath)
+
+      const ct = contentTypesManager || this.#contentTypesManager
+      if (ct) {
+        ct.removeOverride('/' + chartZipPath)
+      }
+
+      if (wbPath && this.#zipManager.hasFile(wbPath)) {
+        let wbReferenced = false
+        const remainingCharts = this.#zipManager
+          .listFiles('ppt/charts/')
+          .filter(f => !f.includes('_rels'))
+        for (const cPath of remainingCharts) {
+          const cRels = relationshipManager.getRelationshipsByType(cPath, REL_TYPES.PACKAGE)
+          for (const cr of cRels) {
+            if (relationshipManager.resolveTarget(cPath, cr.target) === wbPath) {
+              wbReferenced = true
+              break
+            }
+          }
+          if (wbReferenced) break
+        }
+        if (!wbReferenced) {
+          this.#zipManager.removeFile(wbPath)
+          if (ct) ct.removeOverride('/' + wbPath)
+        }
+      }
+    }
   }
 
   /**
    * Finds a chart in a slide by name/ID.
-   * @private
    *
    * @param {number} slideIndex
    * @param {string} chartId - Shape name or rId.
    * @param {SlideManager} slideManager
    * @param {RelationshipManager} relationshipManager
-   * @returns {{ zipPath: string }|null}
+   * @returns {{ zipPath: string, name: string, shapeId: string, rId: string, frameXml: string }|null}
    */
   findChartInSlide(slideIndex, chartId, slideManager, relationshipManager) {
     const slideInfo = slideManager.getSlideInfo(slideIndex)
     const slideXml = slideManager.getSlideXml(slideIndex)
 
-    // Strategy 1: Look for shape with matching name (cNvPr name attribute)
-    const shapeNamePattern = new RegExp(
-      `<p:cNvPr[^>]*name="${chartId}"[^>]*>(?:.*?)<c:chart[^>]*r:id="(rId\\d+)"`,
-      's'
-    )
-    const rIdMatch = shapeNamePattern.exec(slideXml)
+    const frameRegex = /<p:graphicFrame\b[\s\S]*?<\/p:graphicFrame>/g
+    let match
+    let fallbackFirst = null
 
-    // Strategy 2: Find graphicFrame shapes and match chart rIds
-    if (!rIdMatch) {
-      const chartRIdPattern = /<c:chart[^>]*r:id="(rId\d+)"/g
-      let chartMatch
-      while ((chartMatch = chartRIdPattern.exec(slideXml)) !== null) {
-        const rId = chartMatch[1]
+    while ((match = frameRegex.exec(slideXml)) !== null) {
+      const frameXml = match[0]
+      const isChart =
+        frameXml.includes('drawingml/2006/chart') ||
+        frameXml.includes('drawing/2014/chartex') ||
+        /<c:chart\b/.test(frameXml) ||
+        /<cx:chart\b/.test(frameXml)
+
+      if (!isChart) continue
+
+      const nameMatch = /<p:cNvPr\b[^>]*\bname="([^"]*)"/.exec(frameXml)
+      const idMatch = /<p:cNvPr\b[^>]*\bid="([^"]*)"/.exec(frameXml)
+      const rIdMatch = /<(?:c|cx):chart\b[^>]*\br:id="(rId\d+)"/.exec(frameXml)
+
+      const name = nameMatch ? nameMatch[1] : ''
+      const shapeId = idMatch ? idMatch[1] : ''
+      const rId = rIdMatch ? rIdMatch[1] : ''
+
+      let zipPath = null
+      if (rId) {
         const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rId)
         if (rel) {
-          const chartPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
-          // Check if chart file name matches chartId
-          if (chartPath.includes(chartId) || rel.id === chartId) {
-            return { zipPath: chartPath }
-          }
-          // For the first chart found, if chartId looks like a chart file name
-          if (chartId.startsWith('chart')) {
-            return { zipPath: chartPath }
-          }
+          zipPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
         }
       }
-    }
 
-    if (rIdMatch) {
-      const rId = rIdMatch[1]
-      const rel = relationshipManager.getRelationshipById(slideInfo.zipPath, rId)
-      if (rel) {
-        const chartPath = relationshipManager.resolveTarget(slideInfo.zipPath, rel.target)
-        return { zipPath: chartPath }
+      const info = { name, shapeId, rId, zipPath, frameXml }
+
+      if (
+        chartId === undefined ||
+        chartId === null ||
+        name === chartId ||
+        shapeId === chartId ||
+        rId === chartId ||
+        (zipPath && (zipPath.includes(chartId) || zipPath.endsWith(`/${chartId}.xml`)))
+      ) {
+        return info
+      }
+
+      if (!fallbackFirst) {
+        fallbackFirst = info
       }
     }
 
-    // Strategy 3: Direct chart registry lookup
-    if (this.#chartRegistry.has(chartId)) {
+    if (chartId && this.#chartRegistry.has(chartId)) {
       return this.#chartRegistry.get(chartId)
     }
 
-    // Strategy 4: Try chartN naming convention
-    const chartPath = `ppt/charts/${chartId}.xml`
-    if (this.#zipManager.hasFile(chartPath)) {
-      return { zipPath: chartPath }
+    if (chartId) {
+      const chartPath = `ppt/charts/${chartId}.xml`
+      if (this.#zipManager && this.#zipManager.hasFile(chartPath)) {
+        return { zipPath: chartPath, name: chartId, rId: null, shapeId: '', frameXml: '' }
+      }
+    }
+
+    if (chartId && chartId.startsWith('chart') && fallbackFirst) {
+      return fallbackFirst
     }
 
     return null
@@ -288,14 +1201,78 @@ class ChartManager {
     const seriesLabels = normalized.labels
 
     // 3. Apply Chart XML Updates
-    let updatedXml = this.#applyChartData(xml, cleanNumericData, chartZipPath)
-    if (data.title !== undefined) {
-      updatedXml = require('./charts/ChartCacheGenerator.js').ChartCacheGenerator.updateTitle(
-        updatedXml,
-        data.title
-      )
+    let updatedXml
+    if (xml.includes('<cx:chartSpace')) {
+      updatedXml = ExtendedChartGenerator.updateChartSpaceXml(xml, cleanNumericData, data)
+    } else {
+      updatedXml = this.#applyChartData(xml, cleanNumericData, chartZipPath)
+      if (data.title !== undefined) {
+        updatedXml = ChartCacheGenerator.updateTitle(updatedXml, data.title)
+      }
     }
     this.#zipManager.writeFile(chartZipPath, updatedXml)
+
+    // Spatial updates on graphicFrame
+    if (
+      slideIndex !== undefined &&
+      slideManager !== undefined &&
+      (data.x !== undefined ||
+        data.y !== undefined ||
+        data.width !== undefined ||
+        data.height !== undefined ||
+        data.cx !== undefined ||
+        data.cy !== undefined)
+    ) {
+      let slideXml = slideManager.getSlideXml(slideIndex)
+      const chartInfo = this.findChartInSlide(
+        slideIndex,
+        chartId,
+        slideManager,
+        relationshipManager
+      )
+      if (chartInfo && chartInfo.frameXml) {
+        let updatedFrame = chartInfo.frameXml
+        if (data.x !== undefined || data.y !== undefined) {
+          const offMatch = /<a:off\b[^>]*\bx="([^"]*)"[^>]*\by="([^"]*)"/.exec(updatedFrame)
+          const curX = offMatch ? parseInt(offMatch[1], 10) : 0
+          const curY = offMatch ? parseInt(offMatch[2], 10) : 0
+          const newX = data.x !== undefined ? toEmu(data.x) : curX
+          const newY = data.y !== undefined ? toEmu(data.y) : curY
+          updatedFrame = updatedFrame.replace(
+            /<a:off\b[^>]*\/>/,
+            `<a:off x="${newX}" y="${newY}"/>`
+          )
+        }
+        if (
+          data.width !== undefined ||
+          data.height !== undefined ||
+          data.cx !== undefined ||
+          data.cy !== undefined
+        ) {
+          const extMatch = /<a:ext\b[^>]*\bcx="([^"]*)"[^>]*\bcy="([^"]*)"/.exec(updatedFrame)
+          const curCx = extMatch ? parseInt(extMatch[1], 10) : 0
+          const curCy = extMatch ? parseInt(extMatch[2], 10) : 0
+          const newCx =
+            data.width !== undefined
+              ? toEmu(data.width)
+              : data.cx !== undefined
+                ? toEmu(data.cx)
+                : curCx
+          const newCy =
+            data.height !== undefined
+              ? toEmu(data.height)
+              : data.cy !== undefined
+                ? toEmu(data.cy)
+                : curCy
+          updatedFrame = updatedFrame.replace(
+            /<a:ext\b[^>]*\/>/,
+            `<a:ext cx="${newCx}" cy="${newCy}"/>`
+          )
+        }
+        slideXml = slideXml.replace(chartInfo.frameXml, updatedFrame)
+        slideManager.setSlideXml(slideIndex, slideXml)
+      }
+    }
 
     // 4. Find and Update Embedded Workbook
     if (relationshipManager) {
@@ -305,7 +1282,15 @@ class ChartManager {
         const buffer = await this.#zipManager.readBinaryFile(xlsxPath)
         if (buffer) {
           logger.debug(`Found embedded workbook: ${xlsxPath}`)
-          const updatedXlsx = await ChartWorkbookUpdater.updateWorkbook(buffer, cleanNumericData)
+          const chartType =
+            xml.includes('layoutId="clusteredColumn"') && xml.includes('<cx:binning')
+              ? 'histogram'
+              : undefined
+          const updatedXlsx = await ChartWorkbookUpdater.updateWorkbook(
+            buffer,
+            cleanNumericData,
+            chartType
+          )
           if (updatedXlsx) {
             logger.debug(`Writing updated workbook to: ${xlsxPath}, size: ${updatedXlsx.length}`)
             this.#zipManager.writeBinaryFile(xlsxPath, updatedXlsx)
@@ -463,6 +1448,16 @@ class ChartManager {
     this.#zipManager.writeFile(chartZipPath, updatedXml)
   }
 
+  #unescape(str) {
+    if (!str || typeof str !== 'string') return str
+    return str
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+  }
+
   /**
    * Helper to extract data from chart XML.
    */
@@ -470,13 +1465,53 @@ class ChartManager {
     const categories = []
     const series = []
 
+    if (!xml) return { categories, series }
+
+    // Support Office 2016+ extended charts (<cx:chartSpace>)
+    if (xml.includes('<cx:chartSpace')) {
+      const catMatch = /<cx:strDim\b[^>]*type="cat"[^>]*>([\s\S]*?)<\/cx:strDim>/.exec(xml)
+      if (catMatch) {
+        const ptPattern = /<cx:pt\b[^>]*>([^<]*)<\/cx:pt>/g
+        let m
+        while ((m = ptPattern.exec(catMatch[1])) !== null) {
+          categories.push(this.#unescape(m[1]))
+        }
+      }
+
+      let seriesName = 'Series 1'
+      const txMatch = /<cx:series\b[\s\S]*?<cx:v>([^<]*)<\/cx:v>/.exec(xml)
+      if (txMatch) seriesName = this.#unescape(txMatch[1])
+
+      const valMatch = /<cx:numDim\b[^>]*type="val"[^>]*>([\s\S]*?)<\/cx:numDim>/.exec(xml)
+      const values = []
+      if (valMatch) {
+        const ptPattern = /<cx:pt\b[^>]*>([^<]*)<\/cx:pt>/g
+        let m
+        while ((m = ptPattern.exec(valMatch[1])) !== null) {
+          values.push(Number(m[1]) || 0)
+        }
+      }
+      series.push({ name: seriesName, values })
+      return { categories, series }
+    }
+
     const catMatch = /<c:cat>([\s\S]*?)<\/c:cat>/.exec(xml)
     if (catMatch) {
       const catXml = catMatch[1]
       const ptPattern = /<c:pt idx="\d+">\s*<c:v>([^<]*)<\/c:v>/g
       let match
       while ((match = ptPattern.exec(catXml)) !== null) {
-        categories.push(match[1])
+        categories.push(this.#unescape(match[1]))
+      }
+    } else if (xml.includes('<c:xVal>')) {
+      // Scatter chart uses xVal for categories / X coordinates
+      const xValMatch = /<c:xVal>([\s\S]*?)<\/c:xVal>/.exec(xml)
+      if (xValMatch) {
+        const ptPattern = /<c:pt idx="\d+">\s*<c:v>([^<]*)<\/c:v>/g
+        let match
+        while ((match = ptPattern.exec(xValMatch[1])) !== null) {
+          categories.push(this.#unescape(match[1]))
+        }
       }
     }
 
@@ -490,11 +1525,11 @@ class ChartManager {
       const txMatch = /<c:tx>([\s\S]*?)<\/c:tx>/.exec(serXml)
       if (txMatch) {
         const nameValMatch = /<c:v>([^<]*)<\/c:v>/.exec(txMatch[1])
-        if (nameValMatch) name = nameValMatch[1]
+        if (nameValMatch) name = this.#unescape(nameValMatch[1])
       }
 
       const values = []
-      const valMatch = /<c:val>([\s\S]*?)<\/c:val>/.exec(serXml)
+      const valMatch = /<(?:c:val|c:yVal)>([\s\S]*?)<\/(?:c:val|c:yVal)>/.exec(serXml)
       if (valMatch) {
         const ptPattern = /<c:pt idx="\d+">\s*<c:v>([^<]*)<\/c:v>/g
         let match
@@ -517,10 +1552,39 @@ class ChartManager {
    * @returns {string} Chart type name.
    */
   #detectChartType(xml) {
-    for (const [name, element] of Object.entries(CHART_TYPE_MAP)) {
-      if (xml.includes(element)) return name
+    if (!xml) return 'column'
+
+    // Extended chart space
+    if (xml.includes('<cx:chartSpace')) {
+      const layoutMatch = /<cx:series\b[^>]*\blayoutId="([^"]*)"/.exec(xml)
+      if (layoutMatch) {
+        return ChartCacheGenerator.normalizeChartType(layoutMatch[1])
+      }
+      return 'treemap'
     }
-    return 'unknown'
+
+    // Check combo: multiple chart types in plotArea
+    const hasBar = xml.includes('<c:barChart')
+    const hasLine = xml.includes('<c:lineChart')
+    const hasArea = xml.includes('<c:areaChart')
+    const plotCount = (hasBar ? 1 : 0) + (hasLine ? 1 : 0) + (hasArea ? 1 : 0)
+    if (plotCount > 1) return 'combo'
+
+    if (hasBar) {
+      if (xml.includes('<c:barDir val="col"')) return 'column'
+      if (xml.includes('<c:barDir val="bar"')) return 'bar'
+      return 'column'
+    }
+    if (hasLine) return 'line'
+    if (xml.includes('<c:pieChart')) return 'pie'
+    if (hasArea) return 'area'
+    if (xml.includes('<c:scatterChart')) return 'scatter'
+    if (xml.includes('<c:radarChart')) return 'radar'
+    if (xml.includes('<c:surfaceChart') || xml.includes('<c:surface3DChart')) return 'surface'
+    if (xml.includes('<c:stockChart')) return 'stock'
+    if (xml.includes('<c:geochart')) return 'map'
+
+    return 'column'
   }
 
   updateDataLabels(slideIndex, chartId, options, slideManager, relationshipManager) {

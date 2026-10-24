@@ -80,10 +80,10 @@
           "count": 11
         },
         {
-          "title": "Charts & Series Sync",
-          "href": "/api-reference/?category=Charts%20%26%20Series%20Sync",
-          "category": "Charts & Series Sync",
-          "count": 8
+          "title": "Charts",
+          "href": "/api-reference/?category=Charts",
+          "category": "Charts",
+          "count": 11
         },
         {
           "title": "Shapes & Geometry",

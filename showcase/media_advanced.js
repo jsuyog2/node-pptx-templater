@@ -108,9 +108,7 @@ async function runMediaAdvancedShowcase() {
       startTime: 0,
       endTime: 10,
     })
-    console.log(
-      '  ✓ Video "ShowcaseVideo" added with custom poster thumbnail and playback options'
-    )
+    console.log('  ✓ Video "ShowcaseVideo" added with custom poster thumbnail and playback options')
 
     // 5. updateVideo with source swap and replacement poster thumbnail
     console.log('\n[5/12] Executing updateVideo(videoId, options) with useSlide(5)...')
@@ -122,9 +120,7 @@ async function runMediaAdvancedShowcase() {
       startTime: 1.0,
       endTime: 8.0,
     })
-    console.log(
-      '  ✓ Video "ShowcaseVideo" playback options, source, and poster thumbnail updated'
-    )
+    console.log('  ✓ Video "ShowcaseVideo" playback options, source, and poster thumbnail updated')
 
     // 6. removeVideo with automated timing sequence cleanup
     console.log('\n[6/12] Executing removeVideo(videoId) with useSlide(6)...')

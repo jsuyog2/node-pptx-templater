@@ -1,38 +1,56 @@
 {
     "project": "node-pptx-templater",
-    "category": "Images & Media",
-    "scope": "Fix video thumbnail rendering, eliminate green box placeholders, and ensure proper poster updates",
+    "version": "3.9.6",
+    "category": "Map Chart Subsystem Fix",
+    "scope": "Fix Map (Geographic) Chart Visual & Structural Divergence to Match Native PowerPoint Map Charts (Office 2016+ Chartex)",
+    "testBed": {
+        "showcaseScript": "showcase/charts_operations.js",
+        "templatePath": "showcase/templates/ChartPowerPointSample.pptx"
+    },
+    "failingChartTypes": [
+        "map"
+    ],
     "tasks": [
         {
-            "id": "TASK-VIDEO-THUMB-001",
-            "title": "Fix Video Thumbnail Display & Eliminate Green Box on addVideo",
+            "id": "TASK-MAP-AUDIT-001",
+            "title": "Audit Native Map Chart Schemas",
             "status": "completed",
-            "description": "Resolve the issue in addVideo where newly embedded videos show an unrendered placeholder or solid green box instead of an actual thumbnail. Ensure that when a poster image is supplied (path, Buffer, or base64 data URI), it is correctly ingested into ppt/media/, registered in [Content_Types].xml, bound to an image relationship in ppt/slides/_rels/slideN.xml.rels, and referenced via <p:blipFill><a:blip r:embed=\"rId...\"/> inside <p:pic>. If no poster is explicitly provided, generate or embed a valid default poster image rather than a malformed or empty blip reference.",
+            "description": "Inspect chartEx7.xml, slide4.xml, and embedded workbook Microsoft_Excel_Worksheet11.xlsx in showcase/templates/ChartPowerPointSample.pptx to audit the exact layoutId='regionMap', numDim type='colorVal', cx:geography layoutPr, relationships, and content types.",
             "deliverables": [
-                "src/managers/MediaManager.js",
-                "src/elements/ImageManager.js",
-                "src/utils/mediaUtils.js"
+                "showcase/inspect_map_chart.js"
             ]
         },
         {
-            "id": "TASK-VIDEO-THUMB-002",
-            "title": "Fix Video Poster / Thumbnail Replacement in updateVideo",
+            "id": "TASK-MAP-SCHEMA-ALIGN-002",
+            "title": "Align Map Chart XML Generator",
             "status": "completed",
-            "description": "Fix the issue in updateVideo where changing the poster or video source leaves the old thumbnail displayed. When updateVideo is called with a new poster or replacement video source: (1) Ingest the new thumbnail into ppt/media/, (2) Update or replace the image relationship target in the slide's .rels file, (3) Update <p:blipFill><a:blip r:embed=\"rIdNew\"/> to point directly to the new relationship ID, and (4) Purge or clean up orphaned thumbnail binaries to prevent caching stale posters.",
+            "description": "Register 'map' in EXTENDED_CHART_TYPES in ChartCacheGenerator.js. In ExtendedChartGenerator.js, support layoutId='regionMap', numDim type='colorVal', and cx:geography layoutPr with projection and viewedRegionType options.",
             "deliverables": [
-                "src/managers/MediaManager.js",
-                "src/elements/ImageManager.js"
+                "src/elements/charts/ChartCacheGenerator.js",
+                "src/elements/charts/ExtendedChartGenerator.js",
+                "src/elements/ChartManager.js"
             ]
         },
         {
-            "id": "TASK-VIDEO-THUMB-003",
-            "title": "Update Showcase Script, Add Regression Tests & Verify",
+            "id": "TASK-MAP-EXCEL-SYNC-003",
+            "title": "Align Dual-Sync Embedded Excel Workbook",
             "status": "completed",
-            "description": "Update showcase/media_advanced.js to demonstrate adding a video with a visible poster image and subsequently updating that video's thumbnail to a distinct new image. Add automated integration tests in tests/integration/videoThumbnail.test.js checking relationship targets, blip references, and [Content_Types].xml entries. Verify that opening the resulting presentation in Microsoft PowerPoint displays the correct thumbnails without green boxes or repair errors.",
+            "description": "Ensure ChartWorkbookUpdater.js generates clean geographical category columns and numeric metric values matching Sheet1!$A$2:$A$N and Sheet1!$B$2:$B$N for map charts.",
             "deliverables": [
-                "showcase/media_advanced.js",
-                "tests/integration/videoThumbnail.test.js"
+                "src/elements/charts/ChartWorkbookUpdater.js"
+            ]
+        },
+        {
+            "id": "TASK-MAP-TEST-SHOWCASE-004",
+            "title": "Update Showcase & Verify Zero Repair & Visual Fidelity",
+            "status": "completed",
+            "description": "Update testMapChart in showcase/charts_operations.js to add real geographical country adoption data, run showcase tests, verify zero repair prompts in PowerPoint, and run full test suites.",
+            "deliverables": [
+                "showcase/charts_operations.js",
+                "tests/integration/extendedChartRepairs.test.js",
+                "tests/integration/allChartTypes.test.js"
             ]
         }
     ]
 }
+

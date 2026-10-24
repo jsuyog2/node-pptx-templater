@@ -1,12 +1,12 @@
 {
   "version": "3.0.0-alpha.0",
-  "totalMethods": 122,
+  "totalMethods": 125,
   "categories": [
     "Lifecycle & I/O",
     "Slides",
     "Text & Placeholders",
     "Tables & Cell Shapes",
-    "Charts & Series Sync",
+    "Charts",
     "Shapes & Geometry",
     "Images & Media",
     "Z-Order & Layering",
@@ -2266,15 +2266,61 @@
         "exampleCode": "await ppt.useSlide(1).updateCellShape('status_table', 1, 2, 0, {\n  fill: 'EF4444',\n  text: 'OFFLINE'\n});"
       }
     ],
-    "Charts & Series Sync": [
+    "Charts": [
+      {
+        "id": "addchart",
+        "name": "addChart",
+        "signature": "ppt.addChart(slideId, chartType, data, options = {})",
+        "category": "Charts",
+        "description": "Creates and inserts a new native PowerPoint chart on the targeted slide. Fully supports all 17 chart types across standard OpenXML (<c:chartSpace>) and Office 2016+ extended schemas (<cx:chartSpace>): column, line, pie, bar, area, scatter, map, stock, surface, radar, treemap, sunburst, histogram, boxWhisker, waterfall, funnel, and combo. Automatically generates the backing embedded Excel worksheet (ppt/embeddings/*.xlsx) maintaining the Dual-Sync invariant.",
+        "openXmlImpact": "Generates <c:chartSpace> or <cx:chartSpace> part, registers relationships in slide rels, creates embedded XLSX workbook, and injects <p:graphicFrame> into <p:spTree>.",
+        "edgeCases": "Normalizes aliases (col -> column, xy -> scatter, boxAndWhisker -> boxWhisker). Cleanses embedded Excel table markup to avoid PowerPoint repair prompts.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number|string",
+            "required": true,
+            "default": "—",
+            "description": "1-based slide index, slide ID, or tag name."
+          },
+          {
+            "name": "chartType",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "One of the 17 supported chart types (column, line, pie, bar, area, scatter, map, stock, surface, radar, treemap, sunburst, histogram, boxWhisker, waterfall, funnel, combo)."
+          },
+          {
+            "name": "data",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Chart data containing categories and series."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Chart styling, coordinates (x, y, width, height), title, and display toggles."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.addChart(1, 'column', {\n  categories: ['Q1', 'Q2', 'Q3', 'Q4'],\n  series: [{ name: 'ARR', values: [100, 200, 350, 500] }]\n}, {\n  name: 'RevenueChart',\n  title: 'Annual Revenue Run Rate',\n  x: '1in',\n  y: '1.5in',\n  width: '6in',\n  height: '4in'\n});"
+      },
       {
         "id": "updatechart",
         "name": "updateChart",
-        "signature": "ppt.updateChart(chartId, data)",
-        "category": "Charts & Series Sync",
-        "description": "Updates chart categories, series names, and numerical values on the active slide. Simultaneously synchronizes both the DrawingML ChartSpace XML (ppt/charts/chart{N}.xml) and the embedded Excel worksheet data cache (ppt/embeddings/Microsoft_Excel_Worksheet{N}.xlsx), preventing PowerPoint \"Repair Workbook\" warnings.",
-        "openXmlImpact": "Mutates &lt;c:chartSpace&gt; (&lt;c:ser&gt;, &lt;c:cat&gt;, &lt;c:val&gt;, &lt;c:numCache&gt;) and updates embedded Excel sheet data.",
-        "edgeCases": "Ensures synchronization between drawingML series and embedded Excel worksheet to avoid Office Repair prompts. Gracefully handles missing categories.",
+        "signature": "ppt.updateChart(chartId, options)",
+        "category": "Charts",
+        "description": "Updates chart categories, series names, numerical values, title, and canvas layout on the active slide. Simultaneously synchronizes both the DrawingML ChartSpace XML (ppt/charts/chart{N}.xml) and the embedded Excel worksheet data cache (ppt/embeddings/Microsoft_Excel_Worksheet{N}.xlsx), preventing PowerPoint 'Repair Workbook' warnings.",
+        "openXmlImpact": "Mutates <c:chartSpace> or <cx:chartSpace> series, categories, values, and updates embedded Excel sheet1.xml & sharedStrings.xml.",
+        "edgeCases": "Ensures synchronization between drawingML series and embedded Excel worksheet to avoid Office Repair prompts. Handles missing categories gracefully.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
@@ -2286,73 +2332,27 @@
             "description": "Chart title, shape name, or chart relationship ID."
           },
           {
-            "name": "data",
+            "name": "options",
             "type": "Object",
             "required": true,
             "default": "—",
-            "description": "New chart data payload."
-          },
-          {
-            "name": "data.categories",
-            "type": "string[]",
-            "required": true,
-            "default": "—",
-            "description": "Array of category labels (X-axis)."
-          },
-          {
-            "name": "data.series",
-            "type": "Array<{ name: string, values: number[] }>",
-            "required": true,
-            "default": "—",
-            "description": "Array of data series with name and numerical values."
+            "description": "New chart data payload or options object (categories, series, title, x, y, width, height)."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(2).updateChart('RevenueTrend', {\n  categories: ['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],\n  series: [\n    { name: 'Enterprise Cloud', values: [18.4, 22.1, 26.8, 31.5] },\n    { name: 'AI Solutions', values: [8.2, 12.6, 17.4, 23.0] }\n  ]\n});"
+        "exampleCode": "ppt.useSlide(2).updateChart('RevenueTrend', {\n  categories: ['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],\n  series: [\n    { name: 'Enterprise Cloud', values: [18.4, 22.1, 26.8, 31.5] },\n    { name: 'AI Solutions', values: [8.2, 12.6, 17.4, 23.0] }\n  ],\n  title: 'Updated Revenue Trajectory'\n});"
       },
       {
-        "id": "updatechartcategories",
-        "name": "updateChartCategories",
-        "signature": "ppt.updateChartCategories(chartId, categories)",
-        "category": "Charts & Series Sync",
-        "description": "Updates category labels along the chart axis without altering series data values. Updates both chart XML string cache and Excel worksheet row/column headers.",
-        "openXmlImpact": "Mutates &lt;c:cat&gt; &lt;c:strCache&gt; in chart{N}.xml and updates embedded Excel cells.",
-        "edgeCases": "Ensures synchronization between drawingML series and embedded Excel worksheet to avoid Office Repair prompts. Gracefully handles missing categories.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "chartId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Chart identifier."
-          },
-          {
-            "name": "categories",
-            "type": "string[]",
-            "required": true,
-            "default": "—",
-            "description": "Array of category labels."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(1).updateChartCategories('quarterly_chart', [\n  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'\n]);"
-      },
-      {
-        "id": "updatecharttitle",
-        "name": "updateChartTitle",
-        "signature": "ppt.updateChartTitle(chartId, title)",
-        "category": "Charts & Series Sync",
-        "description": "Updates the title text displayed on a chart while preserving existing title typography, rotation, and font styling.",
-        "openXmlImpact": "Replaces &lt;a:t&gt; text under &lt;c:title&gt; in chart{N}.xml.",
-        "edgeCases": "Ensures synchronization between drawingML series and embedded Excel worksheet to avoid Office Repair prompts. Gracefully handles missing categories.",
+        "id": "updatechartdata",
+        "name": "updateChartData",
+        "signature": "ppt.updateChartData(chartId, data)",
+        "category": "Charts",
+        "description": "Dedicated data updater for named chart series and category axes. Enforces the Dual-Sync invariant across slide XML and embedded Excel worksheet.",
+        "openXmlImpact": "Updates <c:numCache>, <c:strCache>, and worksheet cells in Sheet1.xml.",
+        "edgeCases": "Clears orphaned cell coordinates outside the updated matrix dimension.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
@@ -2364,27 +2364,229 @@
             "description": "Chart name or ID."
           },
           {
-            "name": "title",
-            "type": "string",
+            "name": "data",
+            "type": "Object",
             "required": true,
             "default": "—",
-            "description": "New title text."
+            "description": "Data object containing categories and series arrays."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(2).updateChartTitle('chart1', 'Annual Recurring Revenue (2026)');"
+        "exampleCode": "ppt.useSlide(1).updateChartData('QuarterlyARR', {\n  categories: ['Q1', 'Q2', 'Q3', 'Q4'],\n  series: [{ name: 'Velocity', values: [55.1, 66.2, 77.3, 88.4] }]\n});"
       },
       {
-        "id": "updatedatalabels",
-        "name": "updateDataLabels",
-        "signature": "ppt.updateDataLabels(chartId, options)",
-        "category": "Charts & Series Sync",
-        "description": "Controls chart data label display visibility and formatting. Toggles value display, category names, series names, percentages, and legend keys.",
-        "openXmlImpact": "Mutates &lt;c:dLbls&gt; (&lt;c:showVal&gt;, &lt;c:showCatName&gt;, &lt;c:showPercent&gt;, &lt;c:showLegendKey&gt;).",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "id": "removechart",
+        "name": "removeChart",
+        "signature": "ppt.removeChart(chartId)",
+        "category": "Charts",
+        "description": "Removes a specific chart graphic frame from the targeted slide, unlinks its relationship node from slide rels, and purges orphaned chart XML parts and unreferenced embedded Excel workbooks.",
+        "openXmlImpact": "Deletes <p:graphicFrame> referencing the chart, removes relationship from ppt/slides/_rels/slide{N}.xml.rels, unlinks chart XML and unreferenced workbook.",
+        "edgeCases": "Leaves non-chart shapes, text frames, and tables completely intact. Checks for shared workbook references before purging binary Excel embeddings.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "chartId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Chart name, shape ID, or relationship ID."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeChart('LegacyChart');"
+      },
+      {
+        "id": "clearcharts",
+        "name": "clearCharts",
+        "signature": "ppt.clearCharts()",
+        "category": "Charts",
+        "description": "Evacuates all chart graphic frames from targeted slide(s) while strictly preserving layout shapes, tables, and text boxes. Unlinks chart relationships and cleans unreferenced parts and workbooks from the VFS.",
+        "openXmlImpact": "Iterates <p:graphicFrame> elements, unlinks all chart relationships, and cleans orphaned parts from the VFS.",
+        "edgeCases": "Only targets graphicFrames containing <c:chart> or <cx:chart>; tables and smart-art are preserved.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(2).clearCharts();"
+      },
+      {
+        "id": "getcharts",
+        "name": "getCharts",
+        "signature": "ppt.getCharts(slideId)",
+        "category": "Charts",
+        "description": "Discovers and returns normalized metadata descriptors for all charts on targeted slide(s) or across the entire presentation.",
+        "openXmlImpact": "Inspects <p:graphicFrame> elements and parses chart XML headers.",
+        "edgeCases": "Resolves slide tags or numerical indices. Returns empty array if no charts are present.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number|string",
+            "required": false,
+            "default": "—",
+            "description": "Optional slide index, ID, or tag. Defaults to active slide selection."
+          }
+        ],
+        "returns": {
+          "type": "Array<Object>",
+          "description": "Array of normalized chart descriptors."
+        },
+        "exampleCode": "const charts = ppt.getCharts(1);\nconsole.log(`Slide 1 has ${charts.length} charts:`, charts.map(c => c.name));"
+      },
+      {
+        "id": "getchart",
+        "name": "getChart",
+        "signature": "ppt.getChart(chartId)",
+        "category": "Charts",
+        "description": "Retrieves the normalized metadata descriptor for a specific chart, including canonical chart type, series configuration, categories, spatial coordinates, title, legend, and data labels.",
+        "openXmlImpact": "Inspects chart graphic frame and parses chart XML.",
+        "edgeCases": "Throws ChartNotFoundError if the chart cannot be located.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "chartId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Chart name, shape ID, or relationship ID."
+          }
+        ],
+        "returns": {
+          "type": "Object",
+          "description": "Normalized chart descriptor object."
+        },
+        "exampleCode": "const chart = ppt.getChart('RevenueChart');\nconsole.log(chart.type, chart.series, chart.coordinates);"
+      },
+      {
+        "id": "clonechart",
+        "name": "cloneChart",
+        "signature": "ppt.cloneChart(chartId, clonedChartId, clonedOptions = {})",
+        "category": "Charts",
+        "description": "Deeply clones an existing chart on the active slide, duplicating its graphic frame, relationship entry, chart XML part, and backing Excel binary workbook with unique IDs to prevent rId collisions.",
+        "openXmlImpact": "Duplicates <p:graphicFrame>, creates new relationship in slide rels, clones chart XML, duplicates embedded XLSX workbook.",
+        "edgeCases": "Ensures clean separation so mutating the clone never impacts the original chart or its embedded workbook.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "chartId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Chart name or ID to clone."
+          },
+          {
+            "name": "clonedChartId",
+            "type": "string",
+            "required": false,
+            "default": "—",
+            "description": "Unique name for the cloned chart."
+          },
+          {
+            "name": "clonedOptions",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Optional layout/coordinate overrides (x, y, width, height)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).cloneChart('Q1_Chart', 'Q2_Chart', { x: '5.5in', y: '1.5in' });"
+      },
+      {
+        "id": "getchartlabel",
+        "name": "getChartLabel",
+        "signature": "ppt.getChartLabel(chartId, options = {})",
+        "category": "Charts",
+        "description": "Inspects and retrieves data label configurations for a specific chart series, including showVal, showCatName, showPercent, position, and custom point labels.",
+        "openXmlImpact": "Reads <c:dLbls> or <cx:dataLabels> from chart XML.",
+        "edgeCases": "Awaits any pending chart tasks in the serialization queue before inspecting.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "chartId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Chart name or ID."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Options such as `{ series: 0 }`."
+          }
+        ],
+        "returns": {
+          "type": "Promise<Object>",
+          "description": "Current data label settings."
+        },
+        "exampleCode": "const labels = await ppt.getChartLabel('SalesBar', { series: 0 });\nconsole.log(labels.showVal, labels.position);"
+      },
+      {
+        "id": "setchartlabel",
+        "name": "setChartLabel",
+        "signature": "ppt.setChartLabel(chartId, label, options = {})",
+        "category": "Charts",
+        "description": "Sets or toggles data labels on a chart series. Accepts boolean to toggle value visibility, position string (e.g. 'outsideEnd', 'insideEnd', 'center'), or options object.",
+        "openXmlImpact": "Mutates <c:dLbls> in chart XML.",
+        "edgeCases": "Normalizes friendly position names ('outsideEnd' -> 'outEnd', 'center' -> 'ctr').",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "chartId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Chart identifier."
+          },
+          {
+            "name": "label",
+            "type": "boolean|string|Object",
+            "required": true,
+            "default": "—",
+            "description": "Boolean to toggle showVal, string for position, or options object."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Additional label options."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).setChartLabel('SalesBar', true, { position: 'outsideEnd' });"
+      },
+      {
+        "id": "updatechartlabel",
+        "name": "updateChartLabel",
+        "signature": "ppt.updateChartLabel(chartId, options = {})",
+        "category": "Charts",
+        "description": "Updates custom data labels, category display, percentage calculations, templated label strings, and position in chart XML and backing embedded workbook.",
+        "openXmlImpact": "Generates point-level <c:dLbl> elements and synchronizes label cells in embedded Excel sheet.",
+        "edgeCases": "Supports dynamic template strings like '{category}: {value} ({percentage}%)'.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
@@ -2398,142 +2600,16 @@
           {
             "name": "options",
             "type": "Object",
-            "required": true,
-            "default": "—",
-            "description": "Display toggles."
-          },
-          {
-            "name": "options.showVal",
-            "type": "boolean",
             "required": false,
-            "default": "true",
-            "description": "Display numerical value."
-          },
-          {
-            "name": "options.showCatName",
-            "type": "boolean",
-            "required": false,
-            "default": "false",
-            "description": "Display category label."
-          },
-          {
-            "name": "options.showPercent",
-            "type": "boolean",
-            "required": false,
-            "default": "false",
-            "description": "Display percentage."
+            "default": "{}",
+            "description": "Label options (showVal, showCatName, showPercent, position, labels, template)."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(2).updateDataLabels('market_share_pie', {\n  showVal: true,\n  showPercent: true,\n  showCatName: false\n});"
-      },
-      {
-        "id": "repaircharts",
-        "name": "repairCharts",
-        "signature": "ppt.repairCharts()",
-        "category": "Charts & Series Sync",
-        "description": "Audits and repairs chart XML inconsistencies, missing Excel workbook relationships, or corrupt formula ranges across all charts in the presentation.",
-        "openXmlImpact": "Re-synthesizes missing Excel parts, fixes &lt;c:f&gt; cell coordinate references, and syncs [Content_Types].xml.",
-        "edgeCases": "Ensures synchronization between drawingML series and embedded Excel worksheet to avoid Office Repair prompts. Gracefully handles missing categories.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "await ppt.repairCharts();\nconsole.log('All chart structures validated and synchronized.');"
-      },
-      {
-        "id": "getcharts",
-        "name": "getCharts",
-        "signature": "ppt.getCharts()",
-        "category": "Charts & Series Sync",
-        "description": "Discovers and returns descriptors for all chart elements embedded on targeted slides.",
-        "openXmlImpact": "Finds &lt;c:chart&gt; relationship references in &lt;p:graphicFrame&gt; elements.",
-        "edgeCases": "Ensures synchronization between drawingML series and embedded Excel worksheet to avoid Office Repair prompts. Gracefully handles missing categories.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [],
-        "returns": {
-          "type": "Array<Object>",
-          "description": "List of chart descriptors."
-        },
-        "exampleCode": "const charts = ppt.useSlide(2).getCharts();\nconsole.log('Slide 2 contains charts:', charts);"
-      },
-      {
-        "id": "getchartlabelpositions",
-        "name": "getChartLabelPositions",
-        "signature": "ppt.getChartLabelPositions(chartId)",
-        "category": "Charts & Series Sync",
-        "description": "Calculates the spatial coordinates (in EMUs) of rendered data labels and data points on a chart canvas. Allows programmatic alignment of external callouts.",
-        "openXmlImpact": "Derives geometry from &lt;c:plotArea&gt; and chart frame transform &lt;a:xfrm&gt;.",
-        "edgeCases": "Ensures synchronization between drawingML series and embedded Excel worksheet to avoid Office Repair prompts. Gracefully handles missing categories.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "chartId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Target chart identifier."
-          }
-        ],
-        "returns": {
-          "type": "Promise<Array<Object>>",
-          "description": "Array of spatial coordinates for each series point."
-        },
-        "exampleCode": "const positions = await ppt.useSlide(2).getChartLabelPositions('salesChart');\nconsole.log('Label positions for series 0:', positions[0]);"
-      },
-      {
-        "id": "addtextnearchartlabel",
-        "name": "addTextNearChartLabel",
-        "signature": "ppt.addTextNearChartLabel(chartId, labelIndex, text, options = {})",
-        "category": "Charts & Series Sync",
-        "description": "Places a floating text callout or annotation badge positioned adjacent to a specific chart data point or label.",
-        "openXmlImpact": "Inserts a positioned &lt;p:sp&gt; shape into &lt;p:spTree&gt; relative to chart coordinates.",
-        "edgeCases": "Ensures synchronization between drawingML series and embedded Excel worksheet to avoid Office Repair prompts. Gracefully handles missing categories.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "chartId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Target chart identifier."
-          },
-          {
-            "name": "labelIndex",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based data point index."
-          },
-          {
-            "name": "text",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Annotation text string."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Offset and styling options."
-          }
-        ],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "await ppt.useSlide(2).addTextNearChartLabel('salesChart', 3, '★ Record High', {\n  fill: 'FEF3C7',\n  textColor: 'B45309'\n});"
+        "exampleCode": "ppt.useSlide(1).updateChartLabel('SalesBar', {\n  labels: ['Low (42)', 'Mid (85)', 'High (120)'],\n  showCatName: true,\n  position: 'insideEnd'\n});"
       }
     ],
     "Shapes & Geometry": [

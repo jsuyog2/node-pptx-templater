@@ -121,10 +121,10 @@ const DOMAINS = [
     desc: 'Dynamic rows, rectangular cell span merging, auto-fitting, and cell-anchored shape placements.'
   },
   {
-    title: 'Charts & Series Sync',
-    count: 8,
+    title: 'Charts',
+    count: 11,
     icon: BarChart3,
-    desc: 'Update bar, pie, and line charts while seamlessly caching data in embedded Excel workbooks.'
+    desc: 'Support for all 17 chart types across standard & extended schemas with synchronized embedded Excel workbooks.'
   },
   {
     title: 'Shapes & Geometry',

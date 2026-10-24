@@ -30,6 +30,7 @@ const { ContentTypesManager } = require('../managers/ContentTypesManager.js')
 const { SlideManager } = require('../managers/SlideManager.js')
 const { CommentManager } = require('../managers/CommentManager.js')
 const { ChartManager } = require('../elements/ChartManager.js')
+const { ChartCacheGenerator } = require('../elements/charts/ChartCacheGenerator.js')
 const { TableManager } = require('../elements/TableManager.js')
 const { HyperlinkManager } = require('../managers/HyperlinkManager.js')
 const { MediaManager } = require('../managers/MediaManager.js')
@@ -42,7 +43,7 @@ const { ValidationEngine } = require('./ValidationEngine.js')
 const { OutputWriter } = require('./OutputWriter.js')
 const { TemplateEngine } = require('./TemplateEngine.js')
 const { createLogger, setGlobalLogLevel } = require('../utils/logger.js')
-const { PPTXError } = require('../utils/errors.js')
+const { PPTXError, ChartNotFoundError } = require('../utils/errors.js')
 const { performance } = require('perf_hooks')
 
 const logger = createLogger('PPTXTemplater')
@@ -1217,142 +1218,6 @@ class PPTXTemplater {
       logger.info('(File not found or empty)')
     } else {
       logger.info(xml.substring(0, 1500) + (xml.length > 1500 ? '...\n[Truncated]' : ''))
-    }
-    return this
-  }
-
-  /**
-   * Validates all charts in the presentation to ensure they are not corrupted.
-   * Checks XML, caches, and embedded workbook references.
-   *
-   * @returns {Promise<Object>} Validation results for charts.
-   */
-  async validateCharts() {
-    this.#assertLoaded()
-    const issues = { valid: true, errors: [], warnings: [] }
-
-    // We lazy require ChartRelationshipManager so we don't circularly depend if not needed
-    const { ChartRelationshipManager } = require('../managers/charts/ChartRelationshipManager.js')
-
-    const chartFiles = this.#zipManager.listFiles('ppt/charts/').filter(f => {
-      const name = f.split('/').pop()
-      return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels')
-    })
-
-    for (const chartPath of chartFiles) {
-      const relIssues = ChartRelationshipManager.validateChartRelationships(
-        this.#relationshipManager,
-        this.#zipManager,
-        chartPath
-      )
-      issues.errors.push(...relIssues.errors)
-      issues.warnings.push(...relIssues.warnings)
-    }
-
-    if (issues.errors.length > 0) issues.valid = false
-    return issues
-  }
-
-  /**
-   * Repairs common chart corruption issues such as broken caches,
-   * missing embedded workbooks, or orphan nodes.
-   *
-   * @returns {Promise<PPTXTemplater>} this
-   */
-  async repairCharts() {
-    this.#assertLoaded()
-    logger.info('Repairing charts...')
-
-    // Check all charts for missing embedded workbooks
-    const chartFiles = this.#zipManager.listFiles('ppt/charts/').filter(f => {
-      const name = f.split('/').pop()
-      return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels')
-    })
-    for (const chartPath of chartFiles) {
-      const rels = this.#relationshipManager.getRelationshipsByType(
-        chartPath,
-        'http://schemas.openxmlformats.org/officeDocument/2006/relationships/package'
-      )
-      for (const rel of rels) {
-        const xlsxPath = this.#relationshipManager.resolveTarget(chartPath, rel.target)
-        if (!this.#zipManager.hasFile(xlsxPath)) {
-          logger.warn(
-            `Chart ${chartPath} has broken workbook reference ${rel.id}, removing to prevent repair mode.`
-          )
-          this.#relationshipManager.removeRelationship(chartPath, rel.id)
-
-          // Also strip c:externalData from chart XML to prevent PowerPoint looking for it
-          const xml = await this.#zipManager.readFile(chartPath)
-          if (xml) {
-            const updated = xml
-              .replace(/<c:externalData[^>]*r:id="[^"]*"[^>]*>/, '')
-              .replace(/<\/c:externalData>/, '')
-            this.#zipManager.writeFile(chartPath, updated)
-          }
-        }
-      }
-    }
-
-    return this
-  }
-
-  /**
-   * Inspects a specific chart's metadata and structure.
-   *
-   * @param {string} chartId
-   */
-  inspectChart(chartId) {
-    this.#assertLoaded()
-    logger.info(`=== Chart Inspection: ${chartId} ===`)
-    let found = false
-    for (const i of this.#slideManager.getAllSlideIndices()) {
-      try {
-        const info = this.#chartManager.getChartsInSlide(
-          i,
-          this.#slideManager,
-          this.#relationshipManager
-        )
-        const chart = info.find(
-          c => c.zipPath.toLowerCase().includes(chartId.toLowerCase()) || c.rId === chartId
-        )
-        if (chart) {
-          logger.info(`Found on Slide ${i}`)
-          logger.info(`ZIP Path: ${chart.zipPath}`)
-          logger.info(`Relationship ID: ${chart.rId}`)
-          found = true
-          break
-        }
-      } catch (e) {}
-    }
-    if (!found) logger.info('Chart not found.')
-    return this
-  }
-
-  /**
-   * Inspects and logs the raw XML of a chart file.
-   *
-   * @param {string} chartFileName
-   */
-  async inspectChartXML(chartFileName) {
-    const fullPath = chartFileName.includes('/') ? chartFileName : `ppt/charts/${chartFileName}`
-    await this.inspectXML(fullPath)
-    return this
-  }
-
-  /**
-   * Logs all chart relationships.
-   */
-  debugChartRelationships() {
-    this.#assertLoaded()
-    logger.info('=== Chart Relationships ===')
-    const chartFiles = this.#zipManager.listFiles('ppt/charts/').filter(f => {
-      const name = f.split('/').pop()
-      return name.startsWith('chart') && name.endsWith('.xml') && !f.includes('_rels')
-    })
-    for (const chartPath of chartFiles) {
-      logger.info(`\n${chartPath}:`)
-      const rels = this.#relationshipManager.getRelationships(chartPath)
-      rels.forEach(r => logger.info(`  - ${r.id} [${r.type.split('/').pop()}] -> ${r.target}`))
     }
     return this
   }
@@ -2855,6 +2720,280 @@ class PPTXTemplater {
 
   // === Chart Features ===
   /**
+   * Adds a new chart to the presentation supporting all 17 chart types.
+   * Supports both explicit slide targets `ppt.addChart(1, 'bar', data, options)`
+   * and active slide context `ppt.useSlide(1).addChart('bar', data, options)`
+   * or direct invocation `ppt.addChart('bar', data, options)`.
+   *
+   * @param {number|string} [slideIdOrType] - Slide number/ID or chart type if slideId is omitted.
+   * @param {string|Object} [chartTypeOrData] - Chart type or data payload.
+   * @param {Object} [dataOrOptions] - Chart data payload or options.
+   * @param {Object} [options={}] - Layout and styling options (x, y, width, height, title, legend).
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).addChart('bar', { categories: ['A', 'B'], series: [{ name: 'S', values: [1, 2] }] });
+   * ppt.addChart('column', { categories: ['Q1', 'Q2'], series: [{ name: 'S', values: [10, 20] }] });
+   * ppt.addChart(1, 'pie', { categories: ['X', 'Y'], series: [{ name: 'S', values: [50, 50] }] });
+   */
+  addChart(slideIdOrType, chartTypeOrData, dataOrOptions, options = {}) {
+    this.#assertLoaded()
+    let targetSlideIndex
+    let chartType
+    let chartData
+    let chartOptions
+
+    const isFirstArgChartType =
+      typeof slideIdOrType === 'string' &&
+      (ChartCacheGenerator.isSupportedType(slideIdOrType) ||
+        (typeof chartTypeOrData === 'object' && chartTypeOrData !== null))
+
+    if (isFirstArgChartType) {
+      const targets = this.#getTargetSlideIndices()
+      targetSlideIndex = targets.length > 0 ? targets[0] : 1
+      chartType = slideIdOrType
+      chartData = chartTypeOrData || {}
+      chartOptions = dataOrOptions || {}
+    } else if (
+      typeof slideIdOrType === 'number' ||
+      (typeof slideIdOrType === 'string' && typeof chartTypeOrData === 'string')
+    ) {
+      targetSlideIndex =
+        typeof slideIdOrType === 'number'
+          ? slideIdOrType
+          : this.#slideManager.resolveSlideIndex(slideIdOrType)
+      chartType = chartTypeOrData
+      chartData = dataOrOptions || {}
+      chartOptions = options || {}
+    } else {
+      const targets = this.#getTargetSlideIndices()
+      targetSlideIndex = targets.length > 0 ? targets[0] : 1
+      chartType = slideIdOrType
+      chartData = chartTypeOrData || {}
+      chartOptions = dataOrOptions || {}
+    }
+
+    this.#chartManager.addChart(
+      targetSlideIndex,
+      chartType,
+      chartData,
+      chartOptions,
+      this.#slideManager,
+      this.#relationshipManager,
+      this.#contentTypesManager
+    )
+    return this
+  }
+
+  /**
+   * Removes a chart by ID, name, or relationship ID from targeted slides.
+   *
+   * @param {string} chartId - Chart name, shape ID, or relationship ID.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).removeChart('sales-chart');
+   */
+  removeChart(chartId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      try {
+        this.#chartManager.removeChart(
+          idx,
+          chartId,
+          this.#slideManager,
+          this.#relationshipManager,
+          this.#contentTypesManager
+        )
+      } catch (e) {
+        // Continue
+      }
+    }
+    return this
+  }
+
+  /**
+   * Clears all charts from the selected slide(s) while preserving layout shapes, tables, and text frames.
+   *
+   * @param {number|string} [maybeSlideIndex] - Optional 1-based slide index or ID.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).clearCharts();
+   * ppt.clearCharts(2);
+   */
+  clearCharts(maybeSlideIndex) {
+    this.#assertLoaded()
+    const targetIndices =
+      maybeSlideIndex !== undefined
+        ? [
+            typeof maybeSlideIndex === 'number'
+              ? maybeSlideIndex
+              : this.#slideManager.resolveSlideIndex(maybeSlideIndex),
+          ]
+        : this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#chartManager.clearCharts(
+        idx,
+        this.#slideManager,
+        this.#relationshipManager,
+        this.#contentTypesManager
+      )
+    }
+    return this
+  }
+
+  /**
+   * Retrieves normalized descriptor and metadata for a specific chart.
+   *
+   * @param {string} chartId - Chart name, shape ID, or relationship ID.
+   * @returns {Object} Normalized chart descriptor.
+   *
+   * @example
+   * const chart = ppt.getChart('sales-chart');
+   * console.log(chart.type, chart.series, chart.coordinates);
+   */
+  getChart(chartId) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      try {
+        const chart = this.#chartManager.getChart(
+          idx,
+          chartId,
+          this.#slideManager,
+          this.#relationshipManager
+        )
+        if (chart) return chart
+      } catch (e) {}
+    }
+    for (const idx of this.#slideManager.getAllSlideIndices()) {
+      try {
+        const chart = this.#chartManager.getChart(
+          idx,
+          chartId,
+          this.#slideManager,
+          this.#relationshipManager
+        )
+        if (chart) return chart
+      } catch (e) {}
+    }
+    throw new ChartNotFoundError(`Chart "${chartId}" not found in presentation`)
+  }
+
+  /**
+   * Clones a chart, duplicating its XML part, relationship, and embedded Excel workbook.
+   *
+   * @param {string} chartId - Chart name or ID to clone.
+   * @param {string} [clonedChartId] - Unique name for the cloned chart.
+   * @param {Object} [clonedOptions={}] - Optional layout/coordinate overrides (x, y, width, height).
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).cloneChart('chart1', 'chart1_copy', { x: '5in', y: '2in' });
+   */
+  cloneChart(chartId, clonedChartId, clonedOptions = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      try {
+        this.#chartManager.cloneChart(
+          idx,
+          chartId,
+          clonedChartId,
+          clonedOptions,
+          this.#slideManager,
+          this.#relationshipManager,
+          this.#contentTypesManager
+        )
+        return this
+      } catch (e) {
+        if (!e.message.includes('not found')) {
+          throw e
+        }
+      }
+    }
+    throw new ChartNotFoundError(`Chart "${chartId}" not found for cloning`)
+  }
+
+  /**
+   * Retrieves data label configuration for a specific chart series.
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {Object} [options={}] - Options (e.g., { series: 0 }).
+   * @returns {Promise<Object>} Current data label settings.
+   *
+   * @example
+   * const labels = await ppt.getChartLabel('sales-chart', { series: 0 });
+   * console.log(labels.showVal, labels.position);
+   */
+  async getChartLabel(chartId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    const idx = targetIndices.length > 0 ? targetIndices[0] : 1
+    return this.#chartManager.getChartLabel(
+      idx,
+      chartId,
+      options,
+      this.#slideManager,
+      this.#relationshipManager
+    )
+  }
+
+  /**
+   * Sets or toggles data labels on a chart.
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {boolean|string|Object} label - Boolean to toggle showVal, string for position, or options object.
+   * @param {Object} [options={}] - Additional data label options.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.setChartLabel('sales-chart', true, { position: 'bestFit' });
+   */
+  setChartLabel(chartId, label, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#chartManager.setChartLabel(
+        idx,
+        chartId,
+        label,
+        options,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+    }
+    return this
+  }
+
+  /**
+   * Updates data label configurations, custom labels, templates, or styles.
+   *
+   * @param {string} chartId - Chart name or shape ID.
+   * @param {Object} options - Label options (showVal, showCatName, position, style, labels, template).
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateChartLabel('sales-chart', { showVal: true, position: 'outEnd' });
+   */
+  updateChartLabel(chartId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#getTargetSlideIndices()
+    for (const idx of targetIndices) {
+      this.#chartManager.updateChartLabel(
+        idx,
+        chartId,
+        options,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+    }
+    return this
+  }
+
+  /**
    * Alias for `updateChart()`. Updates chart data for a named chart.
    *
    * @param {string} chartId - Chart name or shape ID.
@@ -3077,21 +3216,25 @@ class PPTXTemplater {
   }
 
   /**
-   * Returns an array of all charts found on the targeted slide(s).
+   * Returns an array of normalized chart metadata found on the targeted slide(s) or specified slide.
    *
-   * @returns {Array<{rId: string, zipPath: string}>} Chart info objects.
+   * @param {number|string} [slideId] - Optional slide number, ID, or tag.
+   * @returns {Array<Object>} Chart descriptor objects.
    *
    * @example
    * const charts = ppt.getCharts();
-   * charts.forEach(c => console.log(c.zipPath));
+   * const slide1Charts = ppt.getCharts(1);
    */
-  getCharts() {
+  getCharts(slideId) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const targetIndices =
+      slideId !== undefined
+        ? [typeof slideId === 'number' ? slideId : this.#slideManager.resolveSlideIndex(slideId)]
+        : this.#getTargetSlideIndices()
     const charts = []
     for (const idx of targetIndices) {
       charts.push(
-        ...this.#chartManager.getChartsInSlide(idx, this.#slideManager, this.#relationshipManager)
+        ...this.#chartManager.getCharts(idx, this.#slideManager, this.#relationshipManager)
       )
     }
     return charts

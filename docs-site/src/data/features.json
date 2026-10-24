@@ -472,28 +472,28 @@
         },
         {
           "id": 71,
-          "title": "Supported Chart Types",
-          "description": "Support Bar, Column, Line, Pie, Doughnut, Area, and Scatter charts."
+          "title": "17 Supported Chart Types",
+          "description": "Comprehensive support for all 17 chart types across standard OpenXML (<c:chartSpace>) and Office 2016+ extended schemas (<cx:chartSpace>): Column, Line, Pie, Bar, Area, Scatter, Map, Stock, Surface, Radar, Treemap, Sunburst, Histogram, Box & Whisker, Waterfall, Funnel, and Combo."
         },
         {
           "id": 72,
-          "title": "Chart Series Data Updates",
-          "description": "Modify existing series data values, categories, and series labels dynamically."
+          "title": "Strict 11-Function Whitelist API",
+          "description": "Unified and strictly bounded chart API surface: addChart, updateChart, updateChartData, removeChart, clearCharts, getCharts, getChart, cloneChart, getChartLabel, setChartLabel, and updateChartLabel."
         },
         {
           "id": 73,
-          "title": "Synchronous Excel Cache Updating",
-          "description": "Update embedded `.xlsx` workbooks (`ppt/embeddings/`) alongside `<c:chartSpace>` to eliminate Microsoft PowerPoint repair prompts."
+          "title": "Dual-Sync Excel Engine",
+          "description": "Synchronously updates both DrawingML XML (<c:chartSpace> / <cx:chartSpace>) and the backing embedded Excel workbook (`ppt/embeddings/*.xlsx`) with table cleansing to eliminate PowerPoint repair prompts."
         },
         {
           "id": 74,
-          "title": "Chart Spatial Adjustment",
-          "description": "Resize and reposition chart elements on the slide canvas."
+          "title": "Deep Chart Cloning & Slide-Wide clearCharts",
+          "description": "Duplicate complete chart parts, relationships, and workbooks without rId collisions via cloneChart, or cleanly evacuate all charts from a slide via clearCharts while preserving text, shapes, and tables."
         },
         {
           "id": 75,
-          "title": "Chart Element Toggles",
-          "description": "Show or hide legends, data labels, category axes, and gridlines."
+          "title": "Data Labels & Spatial Alignment",
+          "description": "Inspect, toggle, and customize rich data labels with formatting, positioning (outEnd, inEnd, ctr), percentages, and category labels."
         }
       ],
       "count": 6

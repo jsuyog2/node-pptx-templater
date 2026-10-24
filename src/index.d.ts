@@ -56,8 +56,19 @@ export class PPTXTemplater {
   clearList(tag: string): this;
   replaceList(tag: string, newItems: any[] | any, options?: any): this;
   getTextElements(): any[];
-  updateChart(chartName: string, data: any): this;
-  updateChartTitle(chartName: string, title: string): this;
+  // Charts (Strict 11 Whitelisted Methods)
+  addChart(chartType: string, data: any, options?: any): this;
+  addChart(slideId: number | string, chartType: string, data: any, options?: any): this;
+  updateChart(chartId: string, options: any): this;
+  updateChartData(chartId: string, data: any): this;
+  removeChart(chartId: string): this;
+  clearCharts(maybeSlideIndex?: number | string): this;
+  getCharts(slideId?: number | string): any[];
+  getChart(chartId: string): any;
+  cloneChart(chartId: string, clonedChartId?: string, clonedOptions?: any): this;
+  getChartLabel(chartId: string, options?: any): Promise<any>;
+  setChartLabel(chartId: string, label: boolean | string | any, options?: any): this;
+  updateChartLabel(chartId: string, options?: any): this;
   applyZOrder(slideNumber: number, zOrderConfig: any[]): this;
   getHyperlinks(slideIndex?: number): any[];
   removeHyperlink(textOrOptions: any): this;
@@ -89,9 +100,6 @@ export class PPTXTemplater {
   toFlatXml(destinationPathOrOptions?: string | any, options?: any): Promise<string>;
   repair(): Promise<this>;
   inspectXML(xmlPath: string): Promise<any>;
-  validateCharts(): Promise<any>;
-  repairCharts(): Promise<any>;
-  inspectChartXML(chartFileName: string): Promise<any>;
   getDataLabels(chartId: string, options?: any): Promise<any>;
   validateDataLabels(chartId: string, options?: any): Promise<any>;
   validateChartLabels(chartId: string, options?: any): Promise<any>;

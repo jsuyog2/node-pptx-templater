@@ -5,13 +5,90 @@ const logger = createLogger('ChartWorkbookUpdater')
 
 class ChartWorkbookUpdater {
   /**
+   * Creates a brand-new minimal Excel workbook buffer with Sheet1 populated with data.
+   *
+   * @param {Object} data - Chart data (categories, series).
+   * @returns {Promise<Buffer>} - Raw XLSX buffer.
+   */
+  static async createNewWorkbook(data = {}, chartType) {
+    const zip = new JSZip()
+
+    zip.file(
+      '[Content_Types].xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`
+    )
+
+    zip.file(
+      '_rels/.rels',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`
+    )
+
+    zip.file(
+      'xl/_rels/workbook.xml.rels',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`
+    )
+
+    zip.file(
+      'xl/workbook.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Sheet1" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`
+    )
+
+    zip.file(
+      'xl/styles.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
+  <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
+</styleSheet>`
+    )
+
+    const cells = {}
+    this.#updateCellGrid(cells, data, chartType)
+    const baseSheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData/>
+</worksheet>`
+    const finalSheetXml = this.#serializeSheetXml(baseSheetXml, cells)
+    zip.file('xl/worksheets/sheet1.xml', finalSheetXml)
+
+    return await zip.generateAsync({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+    })
+  }
+
+  /**
    * Updates the embedded Excel workbook for a chart.
    *
    * @param {Buffer|Uint8Array} workbookData - The raw XLSX buffer.
    * @param {Object} data - Chart data (categories, series).
+   * @param {string} [chartType] - Optional chart type identifier.
    * @returns {Promise<Buffer>} - The updated XLSX buffer.
    */
-  static async updateWorkbook(workbookData, data) {
+  static async updateWorkbook(workbookData, data, chartType) {
     if (!workbookData) return null
 
     try {
@@ -29,7 +106,7 @@ class ChartWorkbookUpdater {
       const cells = this.parseWorksheetCells(sheetXml, sharedStrings)
 
       // Update categories, series values, and custom labels in the cell grid
-      this.#updateCellGrid(cells, data)
+      this.#updateCellGrid(cells, data, chartType)
 
       // Serialize cells to sheet XML
       const updatedSheetXml = this.#serializeSheetXml(sheetXml, cells)
@@ -119,8 +196,75 @@ class ChartWorkbookUpdater {
     return cells
   }
 
-  static #updateCellGrid(cells, data) {
-    const { categories = [], series = [] } = data
+  static #updateCellGrid(cells, data, chartType) {
+    const isHistogram =
+      chartType === 'histogram' ||
+      data.type === 'histogram' ||
+      data.isHistogram ||
+      (data.series &&
+        data.series.length > 0 &&
+        (!data.categories || data.categories.length === 0) &&
+        (chartType === 'clusteredColumn' || chartType === 'column'))
+
+    if (isHistogram) {
+      for (const ref of Object.keys(cells)) {
+        delete cells[ref]
+      }
+      const ser = (data.series && data.series[0]) || { name: 'Values', values: [] }
+      cells['A1'] = ser.name || 'Values'
+      if (ser.values) {
+        ser.values.forEach((val, rowIndex) => {
+          cells[`A${rowIndex + 2}`] =
+            val !== undefined && val !== null && !isNaN(val) ? Number(val) : 0
+        })
+      }
+      return
+    }
+
+    if (
+      data.hierarchyLevels &&
+      Array.isArray(data.hierarchyLevels) &&
+      data.hierarchyLevels.length > 1
+    ) {
+      const numLevels = data.hierarchyLevels.length
+      const series =
+        data.series && data.series.length > 0 ? data.series : [{ name: 'Values', values: [] }]
+
+      // Clear existing cells
+      for (const ref of Object.keys(cells)) {
+        delete cells[ref]
+      }
+
+      // Write hierarchy levels in Col A, Col B, etc.
+      data.hierarchyLevels.forEach((lvl, lvlIdx) => {
+        const colLetter = this.getColumnLetter(lvlIdx)
+        cells[`${colLetter}1`] = `Level ${lvlIdx + 1}`
+        lvl.forEach((cat, rowIndex) => {
+          cells[`${colLetter}${rowIndex + 2}`] = String(cat)
+        })
+      })
+
+      // Write series values in subsequent columns
+      series.forEach((ser, sIdx) => {
+        const colLetter = this.getColumnLetter(numLevels + sIdx)
+        cells[`${colLetter}1`] = ser.name || ''
+        if (ser.values) {
+          ser.values.forEach((val, rowIndex) => {
+            cells[`${colLetter}${rowIndex + 2}`] = val !== undefined ? val : null
+          })
+        }
+      })
+      return
+    }
+
+    const categories =
+      data.categories && data.categories.length > 0
+        ? data.categories
+        : ['Category 1', 'Category 2', 'Category 3', 'Category 4']
+    const series =
+      data.series && data.series.length > 0
+        ? data.series
+        : [{ name: 'Series 1', values: [10, 20, 30, 40] }]
 
     // Clear cells that are outside the new category/series grid
     const maxRow = categories.length + 1
@@ -149,7 +293,15 @@ class ChartWorkbookUpdater {
 
     // 3. Write categories in column A (A2, A3, etc.)
     categories.forEach((cat, rowIndex) => {
-      cells[`A${rowIndex + 2}`] = String(cat)
+      const num = Number(cat)
+      if (
+        typeof cat === 'number' ||
+        (cat !== '' && !isNaN(num) && String(num) === String(cat).trim())
+      ) {
+        cells[`A${rowIndex + 2}`] = num
+      } else {
+        cells[`A${rowIndex + 2}`] = String(cat)
+      }
     })
 
     // 4. Write series values
@@ -233,8 +385,21 @@ class ChartWorkbookUpdater {
     const maxColLetter = this.numToColLetter(maxColNum)
     const newDimension = `<dimension ref="A1:${maxColLetter}${maxRow}"/>`
 
-    let updatedXml = sheetXml.replace(/<sheetData>[\s\S]*?<\/sheetData>/, sheetData)
-    updatedXml = updatedXml.replace(/<dimension ref="[^"]*"\/>/, newDimension)
+    let updatedXml
+    if (/<sheetData\b[^>]*\/>|<sheetData\b[^>]*>[\s\S]*?<\/sheetData>/.test(sheetXml)) {
+      updatedXml = sheetXml.replace(
+        /<sheetData\b[^>]*\/>|<sheetData\b[^>]*>[\s\S]*?<\/sheetData>/,
+        sheetData
+      )
+    } else {
+      updatedXml = sheetXml.replace('</worksheet>', `${sheetData}</worksheet>`)
+    }
+
+    if (/<dimension ref="[^"]*"\/>/.test(updatedXml)) {
+      updatedXml = updatedXml.replace(/<dimension ref="[^"]*"\/>/, newDimension)
+    } else if (/<worksheet\b[^>]*>/.test(updatedXml)) {
+      updatedXml = updatedXml.replace(/<worksheet\b[^>]*>/, `$&${newDimension}`)
+    }
 
     return updatedXml
   }

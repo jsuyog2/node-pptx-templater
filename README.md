@@ -31,7 +31,7 @@ Unlike legacy solutions that require spinning up heavyweight LibreOffice Docker 
 - **Microsoft Flat OPC XML Support (`<pkg:package>`):** Ingest and export single-file XML presentations (`sample.xml`) directly with zero ZIP overhead. Decodes embedded base64 media and workbooks into the in-memory Virtual File System (VFS).
 - **Template-Free Blank Deck Generation:** Create pristine, valid OpenXML presentations from scratch with exact aspect ratios (`16:9`, `4:3`, `16:10`) or custom EMU/pixel dimensions without any template fixtures.
 - **Anti-Corruption Run Fragment Healing:** PowerPoint frequently splits placeholder tokens like `{{COMPANY_NAME}}` into disjoint `<a:r>` XML run nodes. Our AST paragraph normalizer merges split runs while preserving font styles, weights, colors, and layout intact.
-- **Excel Dual-Sync Technology:** Updating only XML chart series causes Microsoft Office to trigger "Repair Presentation" warnings when a user clicks "Edit Data in Excel". `node-pptx-templater` updates both DrawingML `<c:chartSpace>` series and embedded binary Excel workbooks (`.xlsx`) simultaneously.
+- **Excel Dual-Sync Technology & 17 Chart Types:** Support for all 17 chart types across standard OpenXML (`<c:chartSpace>`) and Office 2016+ extended schemas (`<cx:chartSpace>`): Column, Line, Pie, Bar, Area, Scatter, Map, Stock, Surface, Radar, Treemap, Sunburst, Histogram, Box & Whisker, Waterfall, Funnel, and Combo. Strict 11-method whitelist (`addChart`, `updateChart`, `updateChartData`, `removeChart`, `clearCharts`, `getCharts`, `getChart`, `cloneChart`, `getChartLabel`, `setChartLabel`, `updateChartLabel`). Simultaneously updates DrawingML chart caches and embedded binary Excel workbooks (`ppt/embeddings/*.xlsx`) with table cleansing to eliminate Microsoft PowerPoint repair prompts.
 - **Spatial Geometry & Percentage Coordinates (0–100%):** Position shapes, tables, charts, images, and text boxes using intuitive percentage strings (`x: '10%'`, `y: '50%'`, `width: '80%'`) or numeric percentages (`unit: '%'`) mapped precisely across canvas boundaries without rounding drift.
 - **Non-Blocking In-Memory Lifecycles:** Agile presentation synthesis without artificial validation hurdles. `validatePresentation()` serves as an on-demand, non-blocking diagnostic tool.
 - **Spatial Geometry & Z-Order Layering:** Reorder visual stack depth (`bringToFront`, `sendToBack`, `stepForward`, `stepBackward`) and calculate coordinates using English Metric Units (EMU), pixels, inches, and millimeters with zero floating-point rounding drift.
@@ -249,23 +249,37 @@ async function replacePresentationText() {
 }
 ```
 
-### 7. Native Chart Update with Excel Dual-Sync
+### 7. Native Charts Engine (11 Whitelisted Methods, 17 Chart Types & Excel Dual-Sync)
 
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');
 
-async function updateMetrics() {
+async function chartOperations() {
   const ppt = await PPTXTemplater.load('./templates/financial-report.pptx');
 
-  // Synchronizes XML <c:chartSpace> AND embedded .xlsx workbook
-  ppt.useSlide(2);
-  await ppt.updateChart('QuarterlyRevenueChart', {
+  // 1. Add standard or Office 2016+ extended charts (e.g. Column, Waterfall, Combo)
+  ppt.addChart(1, 'waterfall', {
+    categories: ['Starting', 'Revenue', 'COGS', 'Taxes', 'Ending'],
+    series: [{ name: 'Cash Flow', values: [1000, 450, -300, -100, 1050] }]
+  }, { name: 'CashWaterfall', title: 'Enterprise Cash Waterfall' });
+
+  // 2. Synchronize XML cache AND embedded .xlsx workbook simultaneously
+  ppt.useSlide(2).updateChartData('QuarterlyRevenueChart', {
     categories: ['Q1', 'Q2', 'Q3', 'Q4 (Proj)'],
     series: [
       { name: 'Enterprise Cloud', values: [18.4, 22.1, 26.8, 31.5] },
       { name: 'AI Solutions', values: [8.2, 12.6, 17.4, 23.0] }
     ]
   });
+
+  // 3. Clone charts deeply with unique XML parts and workbooks
+  ppt.useSlide(2).cloneChart('QuarterlyRevenueChart', 'RevenueChart_Copy', { x: '5in', y: '2in' });
+
+  // 4. Data labels manipulation
+  ppt.useSlide(2).setChartLabel('RevenueChart_Copy', true, { position: 'outsideEnd' });
+
+  // 5. Slide-wide clean evacuation while preserving text boxes, layout shapes, and tables
+  ppt.useSlide(3).clearCharts();
 
   await ppt.saveToFile('./output/synced-charts.pptx');
 }
