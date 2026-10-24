@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import path from 'path'
 import fs from 'fs-extra'
 import JSZip from 'jszip'
-import { testMapChart } from '../../showcase/charts_operations.js'
+import { testMapChart } from '../helpers/chartTestGenerators.js'
 
 describe('TASK-MAP-DATA-RESOLVE: Map Chart Bing Maps Offline/Online Resolution Verification', () => {
   const templatePath = path.join(__dirname, '../../showcase/templates/ChartPowerPointSample.pptx')

@@ -21,7 +21,7 @@ import {
   testWaterfallChart,
   testFunnelChart,
   testComboChart,
-} from '../../showcase/charts_operations.js'
+} from '../helpers/chartTestGenerators.js'
 
 describe('TASK-CHART-VERIFY-005: Comprehensive All 17 Chart Types Verification Suite', () => {
   const templatePath = path.join(__dirname, '../../showcase/templates/ChartPowerPointSample.pptx')

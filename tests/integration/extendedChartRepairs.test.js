@@ -11,7 +11,7 @@ import {
   testSunburstChart,
   testTreemapChart,
   testWaterfallChart,
-} from '../../showcase/charts_operations.js'
+} from '../helpers/chartTestGenerators.js'
 
 describe('TASK-CX-REPAIR-004: Office 2016+ Extended Charts Reverse-Engineered Schema Verification', () => {
   const templatePath = path.join(__dirname, '../../showcase/templates/ChartPowerPointSample.pptx')

@@ -1,51 +1,52 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.9.7",
+    "version": "3.9.8",
     "category": "Charts Subsystem Engine Fix",
-    "scope": "Resolve PowerPoint 'There was a problem getting the information for your map chart' Bing Maps resolution failure",
+    "scope": "Resolve PowerPoint Repair Errors Triggered by Multi-Chart Collisions, Shared Resource Overwrites, and Batch Insertion",
     "testBed": {
         "showcaseScript": "showcase/charts_operations.js",
-        "templatePath": "showcase/templates/ChartPowerPointSample.pptx"
+        "rule": "Read-only test harness; do NOT modify or add code to showcase/charts_operations.js"
     },
     "tasks": [
         {
-            "id": "TASK-MAP-DATA-RESOLVE-001",
-            "title": "Fix Map Chart Series Layout & Geography Entity XML Schema",
+            "id": "TASK-MULTI-CHART-001",
+            "title": "Fix Part Naming, Relationship ID Collisions, and Content Types for Multiple Charts",
             "status": "completed",
-            "description": "Fix the <cx:chartSpace> definition for map charts in ExtendedChartGenerator.js / ChartCacheGenerator.js. PowerPoint's Bing Maps integration displays 'There was a problem getting the information for your map chart' when entity references or dimension structures are invalid: (1) Ensure <cx:series layoutId='geochart'> defines proper layout properties (<cx:layoutPr><cx:parentLabels/><cx:regionLabel/></cx:layoutPr>), (2) Structure <cx:chartData> with dimension type 'entity' or category text values conforming to ISO alpha-2/3 country codes or standard English geographic names, (3) Link the geographic entity dimension correctly via <cx:strRef> pointing to the workbook sheet and range, (4) Ensure the numeric metric values map strictly as continuous values with an associated <cx:colorScale> containing min/mid/max stops.",
+            "description": "Fix the root cause where adding more than one chart corrupts the presentation: (1) Ensure each new chart part receives a strictly unique part name across both standard charts (/ppt/charts/chart1.xml, chart2.xml, ...) and Office 2016+ extended charts (/ppt/charts/chartEx1.xml, chartEx2.xml, ...), (2) Ensure each embedded Excel spreadsheet receives a unique part filename (/ppt/embeddings/Microsoft_Excel_Worksheet1.xlsx, Worksheet2.xlsx, ...), (3) Allocate globally unique relationship IDs (rId) in both presentation-level and slide-level .rels files without overwriting prior chart relationships, (4) Register individual <Override> entries in [Content_Types].xml for all added chart parts and spreadsheets without deduplicating or dropping earlier entries.",
             "deliverables": [
-                "src/elements/charts/ExtendedChartGenerator.js",
-                "src/elements/charts/ChartCacheGenerator.js"
+                "src/elements/ChartManager.js",
+                "src/managers/RelationshipManager.js",
+                "src/managers/ContentTypesManager.js"
             ]
         },
         {
-            "id": "TASK-MAP-WORKBOOK-ALIGN-002",
-            "title": "Fix Backing Excel Worksheet Structure for Bing Maps Recognition",
+            "id": "TASK-MULTI-CHART-002",
+            "title": "Fix Shape ID, Non-Visual Properties, and Coordinate Transform Collisions in <p:spTree>",
             "status": "completed",
-            "description": "Align ChartWorkbookUpdater.js for map charts: (1) Ensure Sheet1.xml uses strict 2-column tabular data with explicit row/column headers ('Country' / 'Region' and metric title), (2) Wrap the data inside an official Excel Table element (xl/tables/table1.xml) if required by Office 2016+ map charts with 'Geography' entity type hints, (3) Populate xl/sharedStrings.xml with recognized canonical nation names (e.g. 'United States', 'United Kingdom', 'France', 'India', 'Germany', 'Australia'), (4) Match exact formula coordinates between <cx:formula> in chart XML and the cell ranges in Sheet1.xml.",
+            "description": "Ensure multiple chart graphic frames inserted on the same or sequential slides do not clash: (1) Allocate monotonically increasing unique <p:cNvPr id='...' name='...'> IDs across all slide shapes, (2) Prevent overlapping coordinate collisions by validating bounding transforms (<a:xfrm><a:off x='...' y=''/><a:ext cx='...' cy=''/></a:xfrm>), (3) Correctly append multiple <p:graphicFrame> elements to <p:spTree> sequentially without replacing earlier graphic frames or truncating group shapes.",
+            "deliverables": [
+                "src/elements/ChartManager.js",
+                "src/elements/charts/ChartCacheGenerator.js",
+                "src/elements/charts/ExtendedChartGenerator.js"
+            ]
+        },
+        {
+            "id": "TASK-MULTI-CHART-003",
+            "title": "Isolate Dual-Sync Embedded Excel Workbooks Across Concurrent Charts",
+            "status": "completed",
+            "description": "Fix src/elements/charts/ChartWorkbookUpdater.js to decouple backing workbooks so multiple charts do not attempt to share or mutate the same /ppt/embeddings/Microsoft_Excel_Worksheet1.xlsx: (1) Generate an isolated .xlsx archive in the Virtual File System for each chart instance, (2) Create an independent ppt/charts/_rels/chartN.xml.rels (or chartExN.xml.rels) targeting its dedicated workbook, (3) Ensure formula strings (<c:f> or <cx:f>) reference the correct isolated worksheet without inter-chart cell collisions.",
             "deliverables": [
                 "src/elements/charts/ChartWorkbookUpdater.js",
                 "src/elements/ChartManager.js"
             ]
         },
         {
-            "id": "TASK-MAP-CACHE-FALLBACK-003",
-            "title": "Implement Pre-Rendered Geographic Shape and Data Cache Fallback",
+            "id": "TASK-MULTI-CHART-004",
+            "title": "End-to-End Validation with showcase/charts_operations.js and Zero-Repair Verification",
             "status": "completed",
-            "description": "Ensure ExtendedChartGenerator.js provides pre-cached data point values and attributes (<cx:dataPt>, <cx:geoCache>, or cached values inside <cx:lvl>) so PowerPoint does not fail immediately or display a broken offline state when opening without an immediate Bing Maps API round-trip.",
+            "description": "Execute showcase/charts_operations.js in read-only mode to test batch chart additions. Verify through automated tests and PowerPoint presentation opening that all chart types added consecutively across slides or onto a single slide open cleanly with zero repair prompts or XML corruption warnings.",
             "deliverables": [
-                "src/elements/charts/ExtendedChartGenerator.js",
-                "src/elements/charts/ChartCacheGenerator.js"
-            ]
-        },
-        {
-            "id": "TASK-MAP-VALIDATE-004",
-            "title": "Verify testMapChart in showcase/charts_operations.js",
-            "status": "completed",
-            "description": "Run node showcase/charts_operations.js map using showcase/templates/ChartPowerPointSample.pptx. Open the resulting presentation in Microsoft PowerPoint and confirm that the error banner 'There was a problem getting the information for your map chart' is completely eliminated, data resolves automatically without requiring manual refresh, and geographic boundaries render cleanly.",
-            "deliverables": [
-                "showcase/charts_operations.js",
-                "tests/integration/mapChartResolution.test.js"
+                "tests/integration/multiChartAdd.test.js"
             ]
         }
     ]

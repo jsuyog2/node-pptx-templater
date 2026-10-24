@@ -172,17 +172,33 @@ class ChartManager {
     const slideInfo = slideManager.getSlideInfo(slideIndex)
     let slideXml = slideManager.getSlideXml(slideIndex)
 
-    // 1. Next chart number
+    // 1. Next chart number (distinct sequence for standard charts vs Office 2016+ extended charts)
     const chartFiles = this.#zipManager.listFiles('ppt/charts/').filter(f => !f.includes('_rels'))
-    let maxChartNum = 0
+    let maxStdChartNum = 0
+    let maxExtChartNum = 0
+    let maxStyleNum = 0
+
     for (const f of chartFiles) {
-      const numMatch = /chart(?:Ex)?(\d+)\.xml$/i.exec(f)
-      if (numMatch) {
-        const num = parseInt(numMatch[1], 10)
-        if (num > maxChartNum) maxChartNum = num
+      const extMatch = /chartEx(\d+)\.xml$/i.exec(f)
+      if (extMatch) {
+        const num = parseInt(extMatch[1], 10)
+        if (num > maxExtChartNum) maxExtChartNum = num
+        continue
+      }
+      const stdMatch = /chart(\d+)\.xml$/i.exec(f)
+      if (stdMatch) {
+        const num = parseInt(stdMatch[1], 10)
+        if (num > maxStdChartNum) maxStdChartNum = num
+      }
+      const styleMatch = /style(\d+)\.xml$/i.exec(f)
+      if (styleMatch) {
+        const num = parseInt(styleMatch[1], 10)
+        if (num > maxStyleNum) maxStyleNum = num
       }
     }
-    const nextChartNum = maxChartNum + 1
+
+    const nextChartNum = isExtended ? maxExtChartNum + 1 : maxStdChartNum + 1
+    const nextStyleNum = maxStyleNum + 1
     const chartZipPath = isExtended
       ? `ppt/charts/chartEx${nextChartNum}.xml`
       : `ppt/charts/chart${nextChartNum}.xml`
@@ -199,6 +215,8 @@ class ChartManager {
     }
     const nextWbNum = maxWbNum + 1
     const wbZipPath = `ppt/embeddings/Microsoft_Excel_Worksheet${nextWbNum}.xlsx`
+    // Immediately reserve workbook placeholder in ZipManager to prevent collision on sequential additions
+    this.#zipManager.writeBinaryFile(wbZipPath, Buffer.alloc(0))
 
     // 3. Shape ID & name
     let maxShapeId = 1
@@ -233,8 +251,8 @@ class ChartManager {
     )
 
     if (isExtended) {
-      const styleFileName = `style${nextChartNum}.xml`
-      const colorsFileName = `colors${nextChartNum}.xml`
+      const styleFileName = `style${nextStyleNum}.xml`
+      const colorsFileName = `colors${nextStyleNum}.xml`
       const styleZipPath = `ppt/charts/${styleFileName}`
       const colorsZipPath = `ppt/charts/${colorsFileName}`
 
@@ -286,11 +304,11 @@ class ChartManager {
 
       if (isExtended) {
         ct.addOverride(
-          `/ppt/charts/style${nextChartNum}.xml`,
+          `/ppt/charts/style${nextStyleNum}.xml`,
           'application/vnd.ms-office.chartstyle+xml'
         )
         ct.addOverride(
-          `/ppt/charts/colors${nextChartNum}.xml`,
+          `/ppt/charts/colors${nextStyleNum}.xml`,
           'application/vnd.ms-office.chartcolorstyle+xml'
         )
       }
@@ -718,17 +736,32 @@ class ChartManager {
 
     const isExtended = srcInfo.zipPath.includes('chartEx')
 
-    // Next chart number
+    // Next chart number (distinct sequence for standard charts vs Office 2016+ extended charts)
     const chartFiles = this.#zipManager.listFiles('ppt/charts/').filter(f => !f.includes('_rels'))
-    let maxChartNum = 0
+    let maxStdChartNum = 0
+    let maxExtChartNum = 0
+    let maxStyleNum = 0
+
     for (const f of chartFiles) {
-      const numMatch = /chart(?:Ex)?(\d+)\.xml$/i.exec(f)
-      if (numMatch) {
-        const num = parseInt(numMatch[1], 10)
-        if (num > maxChartNum) maxChartNum = num
+      const extMatch = /chartEx(\d+)\.xml$/i.exec(f)
+      if (extMatch) {
+        const num = parseInt(extMatch[1], 10)
+        if (num > maxExtChartNum) maxExtChartNum = num
+        continue
+      }
+      const stdMatch = /chart(\d+)\.xml$/i.exec(f)
+      if (stdMatch) {
+        const num = parseInt(stdMatch[1], 10)
+        if (num > maxStdChartNum) maxStdChartNum = num
+      }
+      const styleMatch = /style(\d+)\.xml$/i.exec(f)
+      if (styleMatch) {
+        const num = parseInt(styleMatch[1], 10)
+        if (num > maxStyleNum) maxStyleNum = num
       }
     }
-    const newChartNum = maxChartNum + 1
+    const newChartNum = isExtended ? maxExtChartNum + 1 : maxStdChartNum + 1
+    const newStyleNum = maxStyleNum + 1
     const newChartZipPath = isExtended
       ? `ppt/charts/chartEx${newChartNum}.xml`
       : `ppt/charts/chart${newChartNum}.xml`
@@ -748,6 +781,8 @@ class ChartManager {
     }
     const newWbNum = maxWbNum + 1
     const newWbZipPath = `ppt/embeddings/Microsoft_Excel_Worksheet${newWbNum}.xlsx`
+    // Immediately reserve workbook placeholder in ZipManager to prevent collision on sequential additions
+    this.#zipManager.writeBinaryFile(newWbZipPath, Buffer.alloc(0))
 
     const newWbRelId = relationshipManager.addRelationship(
       newChartZipPath,
@@ -794,19 +829,19 @@ class ChartManager {
 
       if (isExtended) {
         ct.addOverride(
-          `/ppt/charts/style${newChartNum}.xml`,
+          `/ppt/charts/style${newStyleNum}.xml`,
           'application/vnd.ms-office.chartstyle+xml'
         )
         ct.addOverride(
-          `/ppt/charts/colors${newChartNum}.xml`,
+          `/ppt/charts/colors${newStyleNum}.xml`,
           'application/vnd.ms-office.chartcolorstyle+xml'
         )
       }
     }
 
     if (isExtended) {
-      const styleFileName = `style${newChartNum}.xml`
-      const colorsFileName = `colors${newChartNum}.xml`
+      const styleFileName = `style${newStyleNum}.xml`
+      const colorsFileName = `colors${newStyleNum}.xml`
       const styleZipPath = `ppt/charts/${styleFileName}`
       const colorsZipPath = `ppt/charts/${colorsFileName}`
 
