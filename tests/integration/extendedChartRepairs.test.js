@@ -100,7 +100,8 @@ describe('TASK-CX-REPAIR-004: Office 2016+ Extended Charts Reverse-Engineered Sc
       // 3. Slide GraphicFrame enclosed in mc:AlternateContent
       const slideXml = await zip.file('ppt/slides/slide1.xml').async('text')
       expect(slideXml).toContain('<mc:AlternateContent')
-      expect(slideXml).toContain('Requires="cx1"')
+      const expectedRequires = type === 'map' ? 'Requires="cx4"' : 'Requires="cx1"'
+      expect(slideXml).toContain(expectedRequires)
       expect(slideXml).toContain('<p:graphicFrame>')
       expect(slideXml).toContain('http://schemas.microsoft.com/office/drawing/2014/chartex')
       expect(slideXml).toContain('<cx:chart')

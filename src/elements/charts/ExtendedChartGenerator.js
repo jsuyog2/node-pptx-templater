@@ -9,7 +9,25 @@
 
 'use strict'
 
+const fs = require('fs')
+const path = require('path')
 const { generateGuid } = require('../../utils/idUtils.js')
+
+let cachedDefaultGeoXml = null
+function getDefaultGeoCacheXml() {
+  if (cachedDefaultGeoXml !== null) return cachedDefaultGeoXml
+  try {
+    const geoPath = path.join(__dirname, '../../templates/defaultMapGeoCache.xml')
+    if (fs.existsSync(geoPath)) {
+      cachedDefaultGeoXml = fs.readFileSync(geoPath, 'utf8')
+    } else {
+      cachedDefaultGeoXml = ''
+    }
+  } catch (_e) {
+    cachedDefaultGeoXml = ''
+  }
+  return cachedDefaultGeoXml
+}
 
 class ExtendedChartGenerator {
   static #escapeXml(str) {
@@ -382,6 +400,7 @@ class ExtendedChartGenerator {
       const viewedRegion = options.viewedRegion || options.viewedRegionType || 'dataOnly'
       const cultureLang = options.cultureLanguage || 'en-US'
       const cultureRegion = options.cultureRegion || 'US'
+      const geoCacheXml = options.geoCache || getDefaultGeoCacheXml()
 
       seriesXml = `<cx:series layoutId="regionMap" uniqueId="${generateGuid()}">
           <cx:tx>
@@ -392,7 +411,7 @@ class ExtendedChartGenerator {
           </cx:tx>
           <cx:dataId val="0"/>
           <cx:layoutPr>
-            <cx:geography projectionType="${projection}" viewedRegionType="${viewedRegion}" cultureLanguage="${cultureLang}" cultureRegion="${cultureRegion}" attribution="Powered by Bing"/>
+            <cx:geography projectionType="${projection}" viewedRegionType="${viewedRegion}" cultureLanguage="${cultureLang}" cultureRegion="${cultureRegion}" attribution="Powered by Bing">${geoCacheXml}</cx:geography>
           </cx:layoutPr>
         </cx:series>`
 

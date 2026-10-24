@@ -1,56 +1,52 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.9.6",
-    "category": "Map Chart Subsystem Fix",
-    "scope": "Fix Map (Geographic) Chart Visual & Structural Divergence to Match Native PowerPoint Map Charts (Office 2016+ Chartex)",
+    "version": "3.9.7",
+    "category": "Charts Subsystem Engine Fix",
+    "scope": "Resolve PowerPoint 'There was a problem getting the information for your map chart' Bing Maps resolution failure",
     "testBed": {
         "showcaseScript": "showcase/charts_operations.js",
         "templatePath": "showcase/templates/ChartPowerPointSample.pptx"
     },
-    "failingChartTypes": [
-        "map"
-    ],
     "tasks": [
         {
-            "id": "TASK-MAP-AUDIT-001",
-            "title": "Audit Native Map Chart Schemas",
+            "id": "TASK-MAP-DATA-RESOLVE-001",
+            "title": "Fix Map Chart Series Layout & Geography Entity XML Schema",
             "status": "completed",
-            "description": "Inspect chartEx7.xml, slide4.xml, and embedded workbook Microsoft_Excel_Worksheet11.xlsx in showcase/templates/ChartPowerPointSample.pptx to audit the exact layoutId='regionMap', numDim type='colorVal', cx:geography layoutPr, relationships, and content types.",
+            "description": "Fix the <cx:chartSpace> definition for map charts in ExtendedChartGenerator.js / ChartCacheGenerator.js. PowerPoint's Bing Maps integration displays 'There was a problem getting the information for your map chart' when entity references or dimension structures are invalid: (1) Ensure <cx:series layoutId='geochart'> defines proper layout properties (<cx:layoutPr><cx:parentLabels/><cx:regionLabel/></cx:layoutPr>), (2) Structure <cx:chartData> with dimension type 'entity' or category text values conforming to ISO alpha-2/3 country codes or standard English geographic names, (3) Link the geographic entity dimension correctly via <cx:strRef> pointing to the workbook sheet and range, (4) Ensure the numeric metric values map strictly as continuous values with an associated <cx:colorScale> containing min/mid/max stops.",
             "deliverables": [
-                "showcase/inspect_map_chart.js"
+                "src/elements/charts/ExtendedChartGenerator.js",
+                "src/elements/charts/ChartCacheGenerator.js"
             ]
         },
         {
-            "id": "TASK-MAP-SCHEMA-ALIGN-002",
-            "title": "Align Map Chart XML Generator",
+            "id": "TASK-MAP-WORKBOOK-ALIGN-002",
+            "title": "Fix Backing Excel Worksheet Structure for Bing Maps Recognition",
             "status": "completed",
-            "description": "Register 'map' in EXTENDED_CHART_TYPES in ChartCacheGenerator.js. In ExtendedChartGenerator.js, support layoutId='regionMap', numDim type='colorVal', and cx:geography layoutPr with projection and viewedRegionType options.",
+            "description": "Align ChartWorkbookUpdater.js for map charts: (1) Ensure Sheet1.xml uses strict 2-column tabular data with explicit row/column headers ('Country' / 'Region' and metric title), (2) Wrap the data inside an official Excel Table element (xl/tables/table1.xml) if required by Office 2016+ map charts with 'Geography' entity type hints, (3) Populate xl/sharedStrings.xml with recognized canonical nation names (e.g. 'United States', 'United Kingdom', 'France', 'India', 'Germany', 'Australia'), (4) Match exact formula coordinates between <cx:formula> in chart XML and the cell ranges in Sheet1.xml.",
             "deliverables": [
-                "src/elements/charts/ChartCacheGenerator.js",
-                "src/elements/charts/ExtendedChartGenerator.js",
+                "src/elements/charts/ChartWorkbookUpdater.js",
                 "src/elements/ChartManager.js"
             ]
         },
         {
-            "id": "TASK-MAP-EXCEL-SYNC-003",
-            "title": "Align Dual-Sync Embedded Excel Workbook",
+            "id": "TASK-MAP-CACHE-FALLBACK-003",
+            "title": "Implement Pre-Rendered Geographic Shape and Data Cache Fallback",
             "status": "completed",
-            "description": "Ensure ChartWorkbookUpdater.js generates clean geographical category columns and numeric metric values matching Sheet1!$A$2:$A$N and Sheet1!$B$2:$B$N for map charts.",
+            "description": "Ensure ExtendedChartGenerator.js provides pre-cached data point values and attributes (<cx:dataPt>, <cx:geoCache>, or cached values inside <cx:lvl>) so PowerPoint does not fail immediately or display a broken offline state when opening without an immediate Bing Maps API round-trip.",
             "deliverables": [
-                "src/elements/charts/ChartWorkbookUpdater.js"
+                "src/elements/charts/ExtendedChartGenerator.js",
+                "src/elements/charts/ChartCacheGenerator.js"
             ]
         },
         {
-            "id": "TASK-MAP-TEST-SHOWCASE-004",
-            "title": "Update Showcase & Verify Zero Repair & Visual Fidelity",
+            "id": "TASK-MAP-VALIDATE-004",
+            "title": "Verify testMapChart in showcase/charts_operations.js",
             "status": "completed",
-            "description": "Update testMapChart in showcase/charts_operations.js to add real geographical country adoption data, run showcase tests, verify zero repair prompts in PowerPoint, and run full test suites.",
+            "description": "Run node showcase/charts_operations.js map using showcase/templates/ChartPowerPointSample.pptx. Open the resulting presentation in Microsoft PowerPoint and confirm that the error banner 'There was a problem getting the information for your map chart' is completely eliminated, data resolves automatically without requiring manual refresh, and geographic boundaries render cleanly.",
             "deliverables": [
                 "showcase/charts_operations.js",
-                "tests/integration/extendedChartRepairs.test.js",
-                "tests/integration/allChartTypes.test.js"
+                "tests/integration/mapChartResolution.test.js"
             ]
         }
     ]
 }
-

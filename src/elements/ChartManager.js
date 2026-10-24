@@ -330,9 +330,14 @@ class ChartManager {
   </a:graphic>
 </p:graphicFrame>`
 
+    const choiceNs =
+      canonicalType === 'map'
+        ? 'xmlns:cx4="http://schemas.microsoft.com/office/drawing/2016/5/10/chartex" Requires="cx4"'
+        : 'xmlns:cx1="http://schemas.microsoft.com/office/drawing/2015/9/8/chartex" Requires="cx1"'
+
     const frameXml = isExtended
       ? `<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
-  <mc:Choice xmlns:cx1="http://schemas.microsoft.com/office/drawing/2015/9/8/chartex" Requires="cx1">
+  <mc:Choice ${choiceNs}>
     ${coreFrameXml}
   </mc:Choice>
   <mc:Fallback>
