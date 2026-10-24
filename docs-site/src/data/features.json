@@ -478,7 +478,7 @@
         {
           "id": 72,
           "title": "Strict 11-Function Whitelist API",
-          "description": "Unified and strictly bounded chart API surface: addChart, updateChart, updateChartData, removeChart, clearCharts, getCharts, getChart, cloneChart, getChartLabel, setChartLabel, and updateChartLabel."
+          "description": "Unified and strictly bounded chart API surface: addChart, updateChart, updateChartData, removeChart, clearCharts, getCharts, getChart, and cloneChart."
         },
         {
           "id": 73,

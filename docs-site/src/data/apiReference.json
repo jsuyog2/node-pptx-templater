@@ -2405,19 +2405,27 @@
       {
         "id": "clearcharts",
         "name": "clearCharts",
-        "signature": "ppt.clearCharts()",
+        "signature": "ppt.clearCharts(slideRefOrChartId?)",
         "category": "Charts",
-        "description": "Evacuates all chart graphic frames from targeted slide(s) while strictly preserving layout shapes, tables, and text boxes. Unlinks chart relationships and cleans unreferenced parts and workbooks from the VFS.",
-        "openXmlImpact": "Iterates <p:graphicFrame> elements, unlinks all chart relationships, and cleans orphaned parts from the VFS.",
-        "edgeCases": "Only targets graphicFrames containing <c:chart> or <cx:chart>; tables and smart-art are preserved.",
+        "description": "Evacuates chart graphic frames from targeted slide(s) or removes a specific chart cleanly when given a chart ID. Strictly preserves layout shapes, tables, and text boxes. Unlinks chart relationships and cleans unreferenced parts and workbooks from the VFS.",
+        "openXmlImpact": "Iterates <p:graphicFrame> elements, unlinks chart relationships, and cleans orphaned parts from the VFS.",
+        "edgeCases": "Supports polymorphic arguments: clearCharts() clears active slide, clearCharts(slideIndex) clears designated slide, clearCharts(chartId) removes specific chart without throwing.",
         "isStatic": false,
         "isAsync": false,
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "slideRefOrChartId",
+            "type": "number|string",
+            "required": false,
+            "default": "—",
+            "description": "Optional slide index/tag to clear all charts on that slide, or specific chartId to remove that individual chart."
+          }
+        ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(2).clearCharts();"
+        "exampleCode": "ppt.useSlide(2).clearCharts();\nppt.clearCharts('StandaloneBarChart');"
       },
       {
         "id": "getcharts",
@@ -2507,109 +2515,6 @@
           "description": "this (chainable)."
         },
         "exampleCode": "ppt.useSlide(1).cloneChart('Q1_Chart', 'Q2_Chart', { x: '5.5in', y: '1.5in' });"
-      },
-      {
-        "id": "getchartlabel",
-        "name": "getChartLabel",
-        "signature": "ppt.getChartLabel(chartId, options = {})",
-        "category": "Charts",
-        "description": "Inspects and retrieves data label configurations for a specific chart series, including showVal, showCatName, showPercent, position, and custom point labels.",
-        "openXmlImpact": "Reads <c:dLbls> or <cx:dataLabels> from chart XML.",
-        "edgeCases": "Awaits any pending chart tasks in the serialization queue before inspecting.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "chartId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Chart name or ID."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Options such as `{ series: 0 }`."
-          }
-        ],
-        "returns": {
-          "type": "Promise<Object>",
-          "description": "Current data label settings."
-        },
-        "exampleCode": "const labels = await ppt.getChartLabel('SalesBar', { series: 0 });\nconsole.log(labels.showVal, labels.position);"
-      },
-      {
-        "id": "setchartlabel",
-        "name": "setChartLabel",
-        "signature": "ppt.setChartLabel(chartId, label, options = {})",
-        "category": "Charts",
-        "description": "Sets or toggles data labels on a chart series. Accepts boolean to toggle value visibility, position string (e.g. 'outsideEnd', 'insideEnd', 'center'), or options object.",
-        "openXmlImpact": "Mutates <c:dLbls> in chart XML.",
-        "edgeCases": "Normalizes friendly position names ('outsideEnd' -> 'outEnd', 'center' -> 'ctr').",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "chartId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Chart identifier."
-          },
-          {
-            "name": "label",
-            "type": "boolean|string|Object",
-            "required": true,
-            "default": "—",
-            "description": "Boolean to toggle showVal, string for position, or options object."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Additional label options."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(1).setChartLabel('SalesBar', true, { position: 'outsideEnd' });"
-      },
-      {
-        "id": "updatechartlabel",
-        "name": "updateChartLabel",
-        "signature": "ppt.updateChartLabel(chartId, options = {})",
-        "category": "Charts",
-        "description": "Updates custom data labels, category display, percentage calculations, templated label strings, and position in chart XML and backing embedded workbook.",
-        "openXmlImpact": "Generates point-level <c:dLbl> elements and synchronizes label cells in embedded Excel sheet.",
-        "edgeCases": "Supports dynamic template strings like '{category}: {value} ({percentage}%)'.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "chartId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Chart identifier."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Label options (showVal, showCatName, showPercent, position, labels, template)."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(1).updateChartLabel('SalesBar', {\n  labels: ['Low (42)', 'Mid (85)', 'High (120)'],\n  showCatName: true,\n  position: 'insideEnd'\n});"
       }
     ],
     "Shapes & Geometry": [

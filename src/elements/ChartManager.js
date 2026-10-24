@@ -264,13 +264,33 @@ class ChartManager {
     }
 
     // Pre-cache chart XML in ZipManager before enqueuing task
-    const immediateChartXml = ChartCacheGenerator.generateChartSpaceXml({
+    let immediateChartXml = ChartCacheGenerator.generateChartSpaceXml({
       type: canonicalType,
       data,
       title: options.title,
       options,
       rId: chartWbRelId,
     })
+    const addLabelsConfig = options.labels !== undefined ? options.labels : options.label
+    if (addLabelsConfig !== undefined) {
+      let labelOptions
+      if (typeof addLabelsConfig === 'boolean') {
+        labelOptions = { showVal: addLabelsConfig }
+      } else if (typeof addLabelsConfig === 'string') {
+        labelOptions = { position: addLabelsConfig }
+      } else if (typeof addLabelsConfig === 'object' && !Array.isArray(addLabelsConfig)) {
+        labelOptions = { ...addLabelsConfig }
+      } else {
+        labelOptions = { labels: addLabelsConfig }
+      }
+      immediateChartXml = ChartCacheGenerator.updateDataLabelsInXml(
+        immediateChartXml,
+        labelOptions.series !== undefined ? labelOptions.series : 0,
+        labelOptions,
+        data.categories || [],
+        (data.series && data.series[labelOptions.series || 0]) || {}
+      )
+    }
     this.#zipManager.writeFile(chartZipPath, immediateChartXml)
 
     // Generate and write embedded Excel workbook and chart XML
@@ -286,7 +306,22 @@ class ChartManager {
         options,
         rId: chartWbRelId,
       })
-      this.#zipManager.writeFile(chartZipPath, chartXml)
+      if (addLabelsConfig !== undefined) {
+        let labelOptions
+        if (typeof addLabelsConfig === 'boolean') {
+          labelOptions = { showVal: addLabelsConfig }
+        } else if (typeof addLabelsConfig === 'string') {
+          labelOptions = { position: addLabelsConfig }
+        } else if (typeof addLabelsConfig === 'object' && !Array.isArray(addLabelsConfig)) {
+          labelOptions = { ...addLabelsConfig }
+        } else {
+          labelOptions = { labels: addLabelsConfig }
+        }
+        this.#zipManager.writeFile(chartZipPath, chartXml)
+        await this.updateDataLabelsAsync(chartZipPath, labelOptions, relationshipManager)
+      } else {
+        this.#zipManager.writeFile(chartZipPath, chartXml)
+      }
     })
 
     // 6. Content Types override
@@ -412,6 +447,36 @@ class ChartManager {
       throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
     }
 
+    // Synchronously update cached XML for immediate queries (data labels, titles)
+    const currentXml = this.#zipManager.readCachedFile(chartInfo.zipPath)
+    if (currentXml) {
+      let syncXml = currentXml
+      const labelsConfig = data.labels !== undefined ? data.labels : data.label
+      if (labelsConfig !== undefined) {
+        let labelOptions
+        if (typeof labelsConfig === 'boolean') {
+          labelOptions = { showVal: labelsConfig }
+        } else if (typeof labelsConfig === 'string') {
+          labelOptions = { position: labelsConfig }
+        } else if (typeof labelsConfig === 'object' && !Array.isArray(labelsConfig)) {
+          labelOptions = { ...labelsConfig }
+        } else {
+          labelOptions = { labels: labelsConfig }
+        }
+        syncXml = ChartCacheGenerator.updateDataLabelsInXml(
+          syncXml,
+          labelOptions.series !== undefined ? labelOptions.series : 0,
+          labelOptions
+        )
+      }
+      if (data.title !== undefined && !syncXml.includes('<cx:chartSpace')) {
+        syncXml = ChartCacheGenerator.updateTitle(syncXml, data.title)
+      }
+      if (syncXml !== currentXml) {
+        this.#zipManager.writeFile(chartInfo.zipPath, syncXml)
+      }
+    }
+
     logger.debug(`Updating chart "${chartId}" at ${chartInfo.zipPath}`)
     this.#updateChartXml(
       chartInfo.zipPath,
@@ -506,9 +571,47 @@ class ChartManager {
   }
 
   /**
-   * 5. clearCharts - Evacuates all chart frames from targeted slide(s) while preserving shapes/tables.
+   * 5. clearCharts - Evacuates chart frames from targeted slide(s) or removes a specific chart cleanly.
    */
-  clearCharts(slideIndex, slideManager, relationshipManager, contentTypesManager) {
+  clearCharts(
+    slideIndexOrChartId,
+    slideManager,
+    relationshipManager,
+    contentTypesManager,
+    maybeChartId
+  ) {
+    if (typeof slideIndexOrChartId === 'string' && isNaN(Number(slideIndexOrChartId))) {
+      const chartId = slideIndexOrChartId
+      for (const idx of slideManager.getAllSlideIndices()) {
+        const chartInfo = this.findChartInSlide(idx, chartId, slideManager, relationshipManager)
+        if (chartInfo) {
+          try {
+            this.removeChart(idx, chartId, slideManager, relationshipManager, contentTypesManager)
+            return 1
+          } catch (e) {
+            return 0
+          }
+        }
+      }
+      return 0
+    }
+
+    const slideIndex = Number(slideIndexOrChartId)
+    if (maybeChartId) {
+      try {
+        this.removeChart(
+          slideIndex,
+          maybeChartId,
+          slideManager,
+          relationshipManager,
+          contentTypesManager
+        )
+        return 1
+      } catch (e) {
+        return 0
+      }
+    }
+
     const slideInfo = slideManager.getSlideInfo(slideIndex)
     let slideXml = slideManager.getSlideXml(slideIndex)
 
@@ -655,6 +758,7 @@ class ChartManager {
             /<cx:dataLabels\b[\s\S]*?<\/cx:dataLabels>/.exec(chartXml)
           if (dLblsMatch) {
             const dXml = dLblsMatch[0]
+            const customLabels = ChartCacheGenerator.getDataLabelsFromXml(chartXml, 0)
             dataLabels = {
               showVal: dXml.includes('showVal val="1"') || dXml.includes('showVal val="true"'),
               showCatName:
@@ -665,6 +769,7 @@ class ChartManager {
                 (/<c:dLblPos\b[^>]*\bval="([^"]*)"/.exec(dXml) ||
                   /<cx:dataLabels\b[^>]*\bpos="([^"]*)"/.exec(dXml) ||
                   [])[1] || 'bestFit',
+              labels: customLabels,
             }
           }
         }
@@ -951,89 +1056,6 @@ class ChartManager {
     }
   }
 
-  /**
-   * 9. getChartLabel - Inspects and retrieves data label configurations.
-   */
-  async getChartLabel(slideIndex, chartId, options = {}, slideManager, relationshipManager) {
-    const chartInfo = this.findChartInSlide(slideIndex, chartId, slideManager, relationshipManager)
-    if (!chartInfo) {
-      throw new ChartNotFoundError(`Chart "${chartId}" not found in slide ${slideIndex}`)
-    }
-    const queue = this.#chartQueues.get(chartInfo.zipPath) || Promise.resolve()
-    await queue
-    const xml = await this.#zipManager.readFile(chartInfo.zipPath)
-    if (!xml) throw new ChartNotFoundError(`Chart file not found: ${chartInfo.zipPath}`)
-    const seriesIndex = options && options.series !== undefined ? options.series : 0
-
-    const dLblsMatch = /<c:dLbls\b[\s\S]*?<\/c:dLbls>/.exec(xml)
-    const cxMatch = /<cx:dataLabels\b[\s\S]*?<\/cx:dataLabels>/.exec(xml)
-    const customLabels = ChartCacheGenerator.getDataLabelsFromXml(xml, seriesIndex)
-
-    let showVal = false
-    let showCatName = false
-    let showPercent = false
-    let showLegendKey = false
-    let showSerName = false
-    let position = 'bestFit'
-
-    if (dLblsMatch) {
-      const dXml = dLblsMatch[0]
-      showVal = dXml.includes('showVal val="1"') || dXml.includes('showVal val="true"')
-      showCatName = dXml.includes('showCatName val="1"') || dXml.includes('showCatName val="true"')
-      showPercent = dXml.includes('showPercent val="1"') || dXml.includes('showPercent val="true"')
-      showLegendKey =
-        dXml.includes('showLegendKey val="1"') || dXml.includes('showLegendKey val="true"')
-      showSerName = dXml.includes('showSerName val="1"') || dXml.includes('showSerName val="true"')
-      const posMatch = /<c:dLblPos\b[^>]*\bval="([^"]*)"/.exec(dXml)
-      if (posMatch) position = posMatch[1]
-    } else if (cxMatch) {
-      const dXml = cxMatch[0]
-      showVal = dXml.includes('showVal val="1"')
-      showCatName = dXml.includes('showCatName val="1"')
-      const posMatch = /<cx:dataLabels\b[^>]*\bpos="([^"]*)"/.exec(dXml)
-      if (posMatch) position = posMatch[1]
-    }
-
-    const arr = [...customLabels]
-    arr.series = seriesIndex
-    arr.showVal = showVal
-    arr.showCatName = showCatName
-    arr.showPercent = showPercent
-    arr.showLegendKey = showLegendKey
-    arr.showSerName = showSerName
-    arr.position = position
-    arr.labels = customLabels
-    return arr
-  }
-
-  /**
-   * 10. setChartLabel - Sets or enables chart data labels with presets or options.
-   */
-  setChartLabel(slideIndex, chartId, label, options = {}, slideManager, relationshipManager) {
-    let finalOptions = { ...options }
-    if (typeof label === 'boolean') {
-      finalOptions.showVal = label
-    } else if (typeof label === 'string') {
-      finalOptions.position = label
-    } else if (typeof label === 'object' && label !== null) {
-      finalOptions = { ...finalOptions, ...label }
-    }
-    return this.updateChartLabel(
-      slideIndex,
-      chartId,
-      finalOptions,
-      slideManager,
-      relationshipManager
-    )
-  }
-
-  /**
-   * 11. updateChartLabel - Updates data labels in chart XML and backing workbook.
-   */
-  updateChartLabel(slideIndex, chartId, options = {}, slideManager, relationshipManager) {
-    return this.updateDataLabels(slideIndex, chartId, options, slideManager, relationshipManager)
-  }
-
   #cleanupOrphanedChartPart(chartZipPath, slideManager, relationshipManager, contentTypesManager) {
     if (!chartZipPath) return
 
@@ -1315,7 +1337,7 @@ class ChartManager {
     }
 
     // 4. Find and Update Embedded Workbook
-    if (relationshipManager) {
+    if (relationshipManager && cleanNumericData.series && cleanNumericData.series.length > 0) {
       const rels = relationshipManager.getRelationshipsByType(chartZipPath, REL_TYPES.PACKAGE)
       for (const rel of rels) {
         const xlsxPath = relationshipManager.resolveTarget(chartZipPath, rel.target)
@@ -1341,12 +1363,30 @@ class ChartManager {
       }
     }
 
-    // 5. Apply custom data labels if present or if showSeriesNameInBar is enabled
+    // 5. Apply custom data labels if labels or label option is provided
+    const labelsConfig = data.labels !== undefined ? data.labels : data.label
+    if (labelsConfig !== undefined) {
+      let labelOptions
+      if (typeof labelsConfig === 'boolean') {
+        labelOptions = { showVal: labelsConfig }
+      } else if (typeof labelsConfig === 'string') {
+        labelOptions = { position: labelsConfig }
+      } else if (typeof labelsConfig === 'object' && !Array.isArray(labelsConfig)) {
+        labelOptions = { ...labelsConfig }
+      } else {
+        labelOptions = { labels: labelsConfig }
+      }
+      await this.updateDataLabelsAsync(chartZipPath, labelOptions, relationshipManager)
+    }
+
+    // 6. Apply series-level custom data labels if present or if showSeriesNameInBar is enabled
     for (let i = 0; i < seriesLabels.length; i++) {
       const labels = seriesLabels[i]
       const ser = cleanNumericData.series[i]
       const showSerName =
-        ser.showSeriesNameInBar !== undefined ? ser.showSeriesNameInBar : data.showSeriesNameInBar
+        ser && ser.showSeriesNameInBar !== undefined
+          ? ser.showSeriesNameInBar
+          : data.showSeriesNameInBar
 
       if ((labels && labels.some(l => l !== undefined)) || showSerName) {
         const labelOptions = {

@@ -9,18 +9,15 @@
 - **Protocol**: Concatenate `<a:r>/<a:t>` nodes per paragraph `<a:p>`, match and replace placeholders across the joined string, clone the first run's formatting `<a:rPr>`, and re-emit a consolidated `<a:r>` run.
 
 ## 2. Charts Engine & Excel Dual-Sync
-- **Strict 11-Method Whitelist**:
+- **Strict 8-Method Whitelist**:
   1. `addChart(slideId, chartType, data, options)`
   2. `updateChart(chartId, options)`
   3. `updateChartData(chartId, data)`
   4. `removeChart(chartId)`
-  5. `clearCharts()`
-  6. `getCharts(slideId)`
+  5. `clearCharts([slideRefOrChartId])`
+  6. `getCharts([slideId])`
   7. `getChart(chartId)`
   8. `cloneChart(chartId, clonedChartId, clonedOptions)`
-  9. `getChartLabel(chartId)`
-  10. `setChartLabel(chartId, label, options)`
-  11. `updateChartLabel(chartId, options)`
 - **17 Supported Chart Types**: Column (`column`, `col`), Line (`line`), Pie (`pie`), Bar (`bar`), Area (`area`), XY Scatter (`scatter`, `xy`, `xyScatter`), Map (`map`), Stock (`stock`), Surface (`surface`), Radar (`radar`), Treemap (`treemap`), Sunburst (`sunburst`), Histogram (`histogram`), Box & Whisker (`boxWhisker`, `boxAndWhisker`, `box_and_whisker`), Waterfall (`waterfall`), Funnel (`funnel`), Combo (`combo`).
 - **Dual-Store Architecture**: Synchronize DrawingML visual cache `ppt/charts/chartX.xml` (`<c:chartSpace>`) or extended parts (`<cx:chartSpace>`) and embedded Excel workbook `ppt/embeddings/Microsoft_Excel_WorksheetX.xlsx` concurrently.
 - **Cache Update**: Rewrite `<c:ser>`, `<c:cat>/<c:strRef>/<c:strCache>`, and `<c:val>/<c:numRef>/<c:numCache>`.

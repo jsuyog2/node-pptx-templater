@@ -1,52 +1,62 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.9.8",
-    "category": "Charts Subsystem Engine Fix",
-    "scope": "Resolve PowerPoint Repair Errors Triggered by Multi-Chart Collisions, Shared Resource Overwrites, and Batch Insertion",
+    "version": "3.9.9",
+    "category": "Charts Subsystem Engine Refactor",
+    "scope": "Purge obsolete label functions, consolidate data label manipulation into updateChart, and fix clearCharts parameter handling",
     "testBed": {
         "showcaseScript": "showcase/charts_operations.js",
-        "rule": "Read-only test harness; do NOT modify or add code to showcase/charts_operations.js"
+        "templatePath": "showcase/templates/ChartPowerPointSample.pptx"
     },
+    "approvedChartsWhitelist": [
+        "addChart",
+        "updateChart",
+        "updateChartData",
+        "removeChart",
+        "clearCharts",
+        "getCharts",
+        "getChart",
+        "cloneChart"
+    ],
+    "purgedFunctions": [
+        "getChartLabel",
+        "setChartLabel",
+        "updateChartLabel"
+    ],
     "tasks": [
         {
-            "id": "TASK-MULTI-CHART-001",
-            "title": "Fix Part Naming, Relationship ID Collisions, and Content Types for Multiple Charts",
+            "id": "TASK-CHART-PURGE-LABELS-001",
+            "title": "Purge getChartLabel, setChartLabel, and updateChartLabel Methods",
             "status": "completed",
-            "description": "Fix the root cause where adding more than one chart corrupts the presentation: (1) Ensure each new chart part receives a strictly unique part name across both standard charts (/ppt/charts/chart1.xml, chart2.xml, ...) and Office 2016+ extended charts (/ppt/charts/chartEx1.xml, chartEx2.xml, ...), (2) Ensure each embedded Excel spreadsheet receives a unique part filename (/ppt/embeddings/Microsoft_Excel_Worksheet1.xlsx, Worksheet2.xlsx, ...), (3) Allocate globally unique relationship IDs (rId) in both presentation-level and slide-level .rels files without overwriting prior chart relationships, (4) Register individual <Override> entries in [Content_Types].xml for all added chart parts and spreadsheets without deduplicating or dropping earlier entries.",
+            "description": "Remove getChartLabel, setChartLabel, and updateChartLabel from src/elements/ChartManager.js, src/core/PPTXTemplater.js, and index.d.ts. Verify that all data label functionality (such as showVal, showCatName, showPercent, position, and label formatting) is consolidated and configurable via updateChart(chartId, { labels: { ... } }). Purge references to the deleted label methods from tests, documentation, and showcase files.",
             "deliverables": [
                 "src/elements/ChartManager.js",
-                "src/managers/RelationshipManager.js",
-                "src/managers/ContentTypesManager.js"
+                "src/core/PPTXTemplater.js",
+                "index.d.ts"
             ]
         },
         {
-            "id": "TASK-MULTI-CHART-002",
-            "title": "Fix Shape ID, Non-Visual Properties, and Coordinate Transform Collisions in <p:spTree>",
+            "id": "TASK-CHART-CLEARCHART-FIX-002",
+            "title": "Fix clearCharts Signature and Error Handling When Passing chartId",
             "status": "completed",
-            "description": "Ensure multiple chart graphic frames inserted on the same or sequential slides do not clash: (1) Allocate monotonically increasing unique <p:cNvPr id='...' name='...'> IDs across all slide shapes, (2) Prevent overlapping coordinate collisions by validating bounding transforms (<a:xfrm><a:off x='...' y=''/><a:ext cx='...' cy=''/></a:xfrm>), (3) Correctly append multiple <p:graphicFrame> elements to <p:spTree> sequentially without replacing earlier graphic frames or truncating group shapes.",
+            "description": "Fix clearCharts in ChartManager.js and PPTXTemplater.js to prevent runtime exceptions when an argument is passed: (1) Accept polymorphic parameters clearCharts(slideRefOrChartId), (2) If a specific chartId is supplied, seamlessly delegate to removeChart(chartId) or evacuate that target chart cleanly, (3) If called with no argument or with a slide identifier, evacuate all charts from the target or active slide, (4) Ensure slide graphic frames, slide relationships (.rels), chart XML parts, and embedded workbooks are cleaned up without throwing errors or corrupting presentation state.",
             "deliverables": [
                 "src/elements/ChartManager.js",
-                "src/elements/charts/ChartCacheGenerator.js",
-                "src/elements/charts/ExtendedChartGenerator.js"
+                "src/core/PPTXTemplater.js",
+                "tests/integration/clearChartsFix.test.js"
             ]
         },
         {
-            "id": "TASK-MULTI-CHART-003",
-            "title": "Isolate Dual-Sync Embedded Excel Workbooks Across Concurrent Charts",
+            "id": "TASK-CHART-DOCS-SHOWCASE-003",
+            "title": "Update Documentation, .agent Workspace, and Integration Tests",
             "status": "completed",
-            "description": "Fix src/elements/charts/ChartWorkbookUpdater.js to decouple backing workbooks so multiple charts do not attempt to share or mutate the same /ppt/embeddings/Microsoft_Excel_Worksheet1.xlsx: (1) Generate an isolated .xlsx archive in the Virtual File System for each chart instance, (2) Create an independent ppt/charts/_rels/chartN.xml.rels (or chartExN.xml.rels) targeting its dedicated workbook, (3) Ensure formula strings (<c:f> or <cx:f>) reference the correct isolated worksheet without inter-chart cell collisions.",
+            "description": "Update docs-site/src/data/apiReference.json, docs-site/src/data/features.json, README.md, .agent/rules/features.md, and .agent/project_summary.md to reflect the locked 8-function Charts API whitelist. Update showcase/charts_operations.js and integration test suites to verify that clearCharts works with and without chartId/slide parameters without error.",
             "deliverables": [
-                "src/elements/charts/ChartWorkbookUpdater.js",
-                "src/elements/ChartManager.js"
-            ]
-        },
-        {
-            "id": "TASK-MULTI-CHART-004",
-            "title": "End-to-End Validation with showcase/charts_operations.js and Zero-Repair Verification",
-            "status": "completed",
-            "description": "Execute showcase/charts_operations.js in read-only mode to test batch chart additions. Verify through automated tests and PowerPoint presentation opening that all chart types added consecutively across slides or onto a single slide open cleanly with zero repair prompts or XML corruption warnings.",
-            "deliverables": [
-                "tests/integration/multiChartAdd.test.js"
+                "docs-site/src/data/apiReference.json",
+                "docs-site/src/data/features.json",
+                "README.md",
+                ".agent/rules/features.md",
+                ".agent/project_summary.md",
+                "tests/integration/clearChartsFix.test.js"
             ]
         }
     ]

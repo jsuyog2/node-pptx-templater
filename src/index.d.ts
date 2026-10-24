@@ -62,13 +62,10 @@ export class PPTXTemplater {
   updateChart(chartId: string, options: any): this;
   updateChartData(chartId: string, data: any): this;
   removeChart(chartId: string): this;
-  clearCharts(maybeSlideIndex?: number | string): this;
+  clearCharts(slideRefOrChartId?: number | string): this;
   getCharts(slideId?: number | string): any[];
   getChart(chartId: string): any;
   cloneChart(chartId: string, clonedChartId?: string, clonedOptions?: any): this;
-  getChartLabel(chartId: string, options?: any): Promise<any>;
-  setChartLabel(chartId: string, label: boolean | string | any, options?: any): this;
-  updateChartLabel(chartId: string, options?: any): this;
   applyZOrder(slideNumber: number, zOrderConfig: any[]): this;
   getHyperlinks(slideIndex?: number): any[];
   removeHyperlink(textOrOptions: any): this;

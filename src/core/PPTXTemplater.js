@@ -2796,6 +2796,7 @@ class PPTXTemplater {
    */
   removeChart(chartId) {
     this.#assertLoaded()
+    let removed = false
     const targetIndices = this.#getTargetSlideIndices()
     for (const idx of targetIndices) {
       try {
@@ -2806,8 +2807,25 @@ class PPTXTemplater {
           this.#relationshipManager,
           this.#contentTypesManager
         )
+        removed = true
       } catch (e) {
         // Continue
+      }
+    }
+    if (!removed) {
+      for (const idx of this.#slideManager.getAllSlideIndices()) {
+        try {
+          this.#chartManager.removeChart(
+            idx,
+            chartId,
+            this.#slideManager,
+            this.#relationshipManager,
+            this.#contentTypesManager
+          )
+          break
+        } catch (e) {
+          // Continue
+        }
       }
     }
     return this
@@ -2815,32 +2833,87 @@ class PPTXTemplater {
 
   /**
    * Clears all charts from the selected slide(s) while preserving layout shapes, tables, and text frames.
+   * Supports polymorphic arguments:
+   * - No arguments: Clears all charts on the active slide context (or all slides).
+   * - Slide index (number or numeric string): Clears all charts on the target slide.
+   * - Chart ID (string): Gracefully removes that specific chart without throwing errors.
    *
-   * @param {number|string} [maybeSlideIndex] - Optional 1-based slide index or ID.
+   * @param {number|string} [target] - Optional 1-based slide index, slide tag, or specific chart ID.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
    * ppt.useSlide(1).clearCharts();
    * ppt.clearCharts(2);
+   * ppt.clearCharts('StandaloneBarChart');
    */
-  clearCharts(maybeSlideIndex) {
+  clearCharts(target) {
     this.#assertLoaded()
-    const targetIndices =
-      maybeSlideIndex !== undefined
-        ? [
-            typeof maybeSlideIndex === 'number'
-              ? maybeSlideIndex
-              : this.#slideManager.resolveSlideIndex(maybeSlideIndex),
-          ]
-        : this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
+    if (target === undefined) {
+      const targetIndices = this.#getTargetSlideIndices()
+      for (const idx of targetIndices) {
+        this.#chartManager.clearCharts(
+          idx,
+          this.#slideManager,
+          this.#relationshipManager,
+          this.#contentTypesManager
+        )
+      }
+      return this
+    }
+
+    if (typeof target === 'number') {
       this.#chartManager.clearCharts(
-        idx,
+        target,
         this.#slideManager,
         this.#relationshipManager,
         this.#contentTypesManager
       )
+      return this
     }
+
+    if (typeof target === 'string') {
+      const num = Number(target)
+      if (Number.isInteger(num) && num >= 1 && num <= this.#slideManager.slideCount) {
+        this.#chartManager.clearCharts(
+          num,
+          this.#slideManager,
+          this.#relationshipManager,
+          this.#contentTypesManager
+        )
+        return this
+      }
+
+      // Check if target matches an existing chart on the slide/deck
+      try {
+        const chart = this.getChart(target)
+        if (chart) {
+          return this.removeChart(target)
+        }
+      } catch (e) {
+        // Chart not found
+      }
+
+      // Check if target is a slide tag in slideManager
+      try {
+        const slideIndices = this.#slideManager.resolveSlideRef(target)
+        if (slideIndices && slideIndices.length > 0) {
+          for (const idx of slideIndices) {
+            this.#chartManager.clearCharts(
+              idx,
+              this.#slideManager,
+              this.#relationshipManager,
+              this.#contentTypesManager
+            )
+          }
+          return this
+        }
+      } catch (e) {
+        // Not a slide tag
+      }
+
+      return this.removeChart(target)
+    }
+
     return this
   }
 
@@ -2915,82 +2988,6 @@ class PPTXTemplater {
       }
     }
     throw new ChartNotFoundError(`Chart "${chartId}" not found for cloning`)
-  }
-
-  /**
-   * Retrieves data label configuration for a specific chart series.
-   *
-   * @param {string} chartId - Chart name or shape ID.
-   * @param {Object} [options={}] - Options (e.g., { series: 0 }).
-   * @returns {Promise<Object>} Current data label settings.
-   *
-   * @example
-   * const labels = await ppt.getChartLabel('sales-chart', { series: 0 });
-   * console.log(labels.showVal, labels.position);
-   */
-  async getChartLabel(chartId, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    const idx = targetIndices.length > 0 ? targetIndices[0] : 1
-    return this.#chartManager.getChartLabel(
-      idx,
-      chartId,
-      options,
-      this.#slideManager,
-      this.#relationshipManager
-    )
-  }
-
-  /**
-   * Sets or toggles data labels on a chart.
-   *
-   * @param {string} chartId - Chart name or shape ID.
-   * @param {boolean|string|Object} label - Boolean to toggle showVal, string for position, or options object.
-   * @param {Object} [options={}] - Additional data label options.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.setChartLabel('sales-chart', true, { position: 'bestFit' });
-   */
-  setChartLabel(chartId, label, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#chartManager.setChartLabel(
-        idx,
-        chartId,
-        label,
-        options,
-        this.#slideManager,
-        this.#relationshipManager
-      )
-    }
-    return this
-  }
-
-  /**
-   * Updates data label configurations, custom labels, templates, or styles.
-   *
-   * @param {string} chartId - Chart name or shape ID.
-   * @param {Object} options - Label options (showVal, showCatName, position, style, labels, template).
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.updateChartLabel('sales-chart', { showVal: true, position: 'outEnd' });
-   */
-  updateChartLabel(chartId, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#chartManager.updateChartLabel(
-        idx,
-        chartId,
-        options,
-        this.#slideManager,
-        this.#relationshipManager
-      )
-    }
-    return this
   }
 
   /**

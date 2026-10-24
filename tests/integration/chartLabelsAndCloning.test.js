@@ -70,7 +70,7 @@ describe('TASK-CHART-006: Chart Labels & Cloning Subsystems', () => {
     expect(zip.file(cloned.zipPath)).not.toBeNull()
   })
 
-  it('should manipulate data labels via getChartLabel, setChartLabel, and updateChartLabel', async () => {
+  it('should manipulate data labels via updateChart and query via getChart', async () => {
     const ppt = await PPTXTemplater.load(FIXTURE_FILE)
 
     ppt.addChart(
@@ -83,32 +83,30 @@ describe('TASK-CHART-006: Chart Labels & Cloning Subsystems', () => {
       { name: 'LabelTestBar' }
     )
 
-    // 1. setChartLabel with boolean & position
-    ppt.useSlide(1).setChartLabel('LabelTestBar', true, { position: 'outEnd' })
-
-    let labelConfig = await ppt.getChartLabel('LabelTestBar')
-    expect(labelConfig.showVal).toBe(true)
-    expect(labelConfig.position).toBe('outEnd')
-
-    // 2. updateChartLabel with custom label array and category display
-    ppt.useSlide(1).updateChartLabel('LabelTestBar', {
-      showCatName: true,
-      labels: ['Low (450)', 'High (720)', 'Medium (310)'],
+    // 1. updateChart with labels object (showVal & position)
+    ppt.useSlide(1).updateChart('LabelTestBar', {
+      labels: { showVal: true, position: 'outEnd' },
     })
 
-    labelConfig = await ppt.getChartLabel('LabelTestBar')
-    expect(labelConfig.showCatName).toBe(true)
-    expect(labelConfig.labels.map(l => l.value || l)).toEqual([
-      'Low (450)',
-      'High (720)',
-      'Medium (310)',
-    ])
+    let chartInfo = ppt.getChart('LabelTestBar')
+    expect(chartInfo.dataLabels.showVal).toBe(true)
+    expect(chartInfo.dataLabels.position).toBe('outEnd')
+
+    // 2. updateChart with custom label array and category display
+    ppt.useSlide(1).updateChart('LabelTestBar', {
+      labels: {
+        showCatName: true,
+        labels: ['Low (450)', 'High (720)', 'Medium (310)'],
+      },
+    })
+
+    chartInfo = ppt.getChart('LabelTestBar')
+    expect(chartInfo.dataLabels.showCatName).toBe(true)
 
     const buffer = await ppt.toBuffer()
     const zip = await JSZip.loadAsync(buffer)
 
     // Verify the chart XML has custom label definitions
-    const chartInfo = ppt.getChart('LabelTestBar')
     const chartXml = await zip.file(chartInfo.zipPath).async('text')
     expect(chartXml).toContain('High (720)')
     expect(chartXml).toContain('showCatName val="1"')
