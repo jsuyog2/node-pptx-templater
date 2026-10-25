@@ -115,10 +115,10 @@ const DOMAINS = [
     desc: 'Run-fragment healing engine ensures {{tags}} split across multiple XML nodes are safely replaced.'
   },
   {
-    title: 'Tables & Cell Shapes',
-    count: 11,
+    title: 'Tables',
+    count: 30,
     icon: Table,
-    desc: 'Dynamic rows, rectangular cell span merging, auto-fitting, and cell-anchored shape placements.'
+    desc: 'DrawingML table lifecycle, row/col operations, cell merges, split, data matrix I/O, and multi-tier styling.'
   },
   {
     title: 'Charts',

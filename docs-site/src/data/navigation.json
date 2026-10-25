@@ -74,10 +74,10 @@
           "count": 10
         },
         {
-          "title": "Tables & Cell Shapes",
-          "href": "/api-reference/?category=Tables%20%26%20Cell%20Shapes",
-          "category": "Tables & Cell Shapes",
-          "count": 11
+          "title": "Tables",
+          "href": "/api-reference/?category=Tables",
+          "category": "Tables",
+          "count": 30
         },
         {
           "title": "Charts",

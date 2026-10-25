@@ -43,7 +43,7 @@ const { ValidationEngine } = require('./ValidationEngine.js')
 const { OutputWriter } = require('./OutputWriter.js')
 const { TemplateEngine } = require('./TemplateEngine.js')
 const { createLogger, setGlobalLogLevel } = require('../utils/logger.js')
-const { PPTXError, ChartNotFoundError } = require('../utils/errors.js')
+const { PPTXError, ChartNotFoundError, TableNotFoundError } = require('../utils/errors.js')
 const { performance } = require('perf_hooks')
 
 const logger = createLogger('PPTXTemplater')
@@ -769,96 +769,6 @@ class PPTXTemplater {
     this.#profiler.chartUpdateMs += performance.now() - t0
     logger.debug(`Updated chart "${chartId}" in ${targetIndices.length} slide(s)`)
     return this
-  }
-
-  /**
-   * Replaces table rows with new data in the selected slide(s).
-   * Preserves borders, merged cells, fonts, colors, and alignment from the template.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {string[][]} rows - 2D array of cell values (row × col).
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.updateTable('employees-table', [
-   *   ['Name', 'Role', 'Department'],
-   *   ['John', 'Engineer', 'Platform'],
-   *   ['Jane', 'Designer', 'Product']
-   * ]);
-   */
-  updateTable(tableId, rows) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-
-    for (const slideIndex of targetIndices) {
-      this.#tableManager.updateTable(
-        slideIndex,
-        tableId,
-        rows,
-        this.#slideManager,
-        this.#shapeManager
-      )
-    }
-
-    logger.debug(`Updated table "${tableId}" in ${targetIndices.length} slide(s)`)
-    return this
-  }
-
-  /**
-   * Adds a new table to the active or specified slide(s).
-   *
-   * @param {string|Object} tableIdOrOptions - Table name/ID or configuration options.
-   * @param {Object} [options={}] - Table configuration options if first argument is string.
-   * @param {string} [options.id] - Table name or identifier.
-   * @param {number} [options.x=50] - Horizontal position.
-   * @param {number} [options.y=50] - Vertical position.
-   * @param {number} [options.width=500] - Total table width.
-   * @param {number} [options.height] - Total table height.
-   * @param {number} [options.rows] - Number of rows.
-   * @param {number} [options.columns] - Number of columns.
-   * @param {Array<Array<string|Object>>} [options.data] - 2D array of rows and cells.
-   * @param {number[]} [options.colWidths] - Array of column widths.
-   * @param {number[]} [options.rowHeights] - Array of row heights.
-   * @param {boolean} [options.header=true] - Whether row 0 has header formatting.
-   * @param {boolean} [options.firstRow=true] - Format first row via DrawingML table properties.
-   * @param {boolean} [options.bandRow=true] - Alternate row banding via DrawingML table properties.
-   * @param {string} [options.styleId] - DrawingML table style GUID.
-   * @returns {string} The created table name or ID.
-   *
-   * @example
-   * ppt.addTable({
-   *   id: 'summary-table',
-   *   x: 50,
-   *   y: 100,
-   *   width: 600,
-   *   data: [
-   *     ['Metric', 'Q1', 'Q2', 'Q3'],
-   *     ['Revenue', '$10M', '$12M', '$15M'],
-   *   ]
-   * });
-   */
-  addTable(tableIdOrOptions, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    if (targetIndices.length === 0) {
-      throw new PPTXError('No slide selected to add table')
-    }
-
-    let finalOptions = {}
-    if (typeof tableIdOrOptions === 'string') {
-      finalOptions = { ...options, id: tableIdOrOptions }
-    } else if (Array.isArray(tableIdOrOptions)) {
-      finalOptions = { ...options, rows: tableIdOrOptions }
-    } else if (typeof tableIdOrOptions === 'object' && tableIdOrOptions !== null) {
-      finalOptions = { ...tableIdOrOptions }
-    }
-
-    let createdName = ''
-    for (const slideIndex of targetIndices) {
-      createdName = this.#tableManager.addTable(slideIndex, finalOptions, this.#slideManager)
-    }
-
-    return createdName
   }
 
   /**
@@ -1716,780 +1626,752 @@ class PPTXTemplater {
     return this.#slideManager.getSlideSize()
   }
 
-  // === Table Features ===
-  /**
-   * Extracts table data from the active slide as structured JSON.
-   * The first row of the table is treated as the header row.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {Object} [options] - Extraction options.
-   * @param {boolean} [options.raw=false] - Return `string[][]` instead of object array.
-   * @param {boolean} [options.includeMetadata=false] - Return `{rows, rowCount, columnCount, mergedCells}`.
-   * @returns {Array<Object>|Array<Array<string>>|Object} Extracted table data.
-   *
-   * @example
-   * // Object mode (default)
-   * const rows = await ppt.getTableRows('SalesTable');
-   * // → [{ region: 'North', sales: '1200' }, ...]
-   *
-   * // Raw mode
-   * const raw = await ppt.getTableRows('SalesTable', { raw: true });
-   * // → [['North', '1200'], ...]
-   *
-   * // Metadata mode
-   * const meta = await ppt.getTableRows('SalesTable', { includeMetadata: true });
-   * // → { rows: [...], rowCount: 5, columnCount: 3, mergedCells: [] }
-   */
-  getTableRows(tableId, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    if (targetIndices.length === 0) {
-      throw new PPTXError('No slides active/loaded')
-    }
-    const idx = targetIndices[0]
-    return this.#tableManager.getTableRows(idx, tableId, options, this.#slideManager)
-  }
+  // ==========================================================================
+  // === Tables (Strict 30 Whitelisted Methods) ===============================
+  // ==========================================================================
 
   /**
-   * Appends one or more rows to a table. Supports flat arrays and nested arrays
-   * for rowspan-merged cells.
+   * Adds a new DrawingML table to the active or specified slide.
    *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {Array<string|Array<string>>} rowData - Row data. Nested arrays create rowspan cells.
-   * @param {Object} [options] - Row insertion options.
-   * @param {'rowspan'|'auto'|'none'} [options.mergeStrategy='rowspan'] - How to handle nested arrays.
-   *   `'rowspan'` creates OpenXML vertical spans, `'auto'` merges identical adjacent values,
-   *   `'none'` expands nested arrays into multiple flat rows.
+   * @param {number|string|Object} [slideIdOrOptions] - Target slide number/ID, or table configuration object.
+   * @param {number} [rows] - Number of table rows.
+   * @param {number} [columns] - Number of table columns.
+   * @param {Array<Array<*>>} [data] - 2D matrix of row and cell values.
+   * @param {Object} [options={}] - Geometry, styling, and positioning options (x, y, width, height, colWidths, rowHeights, firstRow, bandRow, styleId).
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * // Simple flat row
-   * ppt.addTableRow('SalesTable', ['North', '1200', '15%']);
-   *
-   * // Nested row with rowspan
-   * ppt.addTableRow('SalesTable', ['Region', ['Q1', 'Q2'], '$5K'], { mergeStrategy: 'rowspan' });
+   * ppt.addTable(1, 3, 3, [['A', 'B', 'C'], ['1', '2', '3']], { x: 100, y: 150, width: 500, height: 200 });
+   * ppt.useSlide(1).addTable(2, 2, [['X', 'Y'], ['Z', 'W']]);
+   * ppt.addTable({ id: 'SummaryTable', rows: 4, columns: 3, data: matrix });
    */
-  addTableRow(tableId, rowData, options = {}) {
+  addTable(slideIdOrOptions, rows, columns, data = [], options = {}) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    let targetSlideId
+    let numRows = rows
+    let numCols = columns
+    let tableData = data
+    let tableOptions = options
+
+    if (
+      typeof slideIdOrOptions === 'object' &&
+      slideIdOrOptions !== null &&
+      !Array.isArray(slideIdOrOptions)
+    ) {
+      const opt = slideIdOrOptions
+      targetSlideId = opt.slideId !== undefined ? opt.slideId : opt.slide
+      numRows = opt.rows !== undefined ? opt.rows : Array.isArray(opt.data) ? opt.data.length : 2
+      numCols =
+        opt.columns !== undefined
+          ? opt.columns
+          : opt.cols !== undefined
+            ? opt.cols
+            : Array.isArray(opt.data) && opt.data[0]
+              ? opt.data[0].length
+              : 2
+      tableData = opt.data || opt.rowsData || []
+      tableOptions = opt
+    } else if (Array.isArray(slideIdOrOptions)) {
+      tableData = slideIdOrOptions
+      tableOptions = typeof rows === 'object' && rows !== null ? rows : {}
+      numRows = tableData.length
+      numCols = tableData[0] ? tableData[0].length : 2
+    } else if (
+      typeof slideIdOrOptions === 'number' &&
+      typeof rows === 'number' &&
+      typeof columns === 'number'
+    ) {
+      targetSlideId = slideIdOrOptions
+    } else if (
+      typeof rows === 'number' &&
+      (typeof columns === 'number' || Array.isArray(columns))
+    ) {
+      numRows = slideIdOrOptions
+      numCols = rows
+      tableData = Array.isArray(columns) ? columns : data
+      tableOptions = typeof data === 'object' && !Array.isArray(data) ? data : options
+    } else if (typeof slideIdOrOptions === 'string' && typeof rows === 'object') {
+      tableOptions = { ...rows, id: slideIdOrOptions }
+      numRows =
+        tableOptions.rows || (Array.isArray(tableOptions.data) ? tableOptions.data.length : 2)
+      numCols =
+        tableOptions.columns ||
+        tableOptions.cols ||
+        (Array.isArray(tableOptions.data) && tableOptions.data[0] ? tableOptions.data[0].length : 2)
+      tableData = tableOptions.data || []
+    }
+
+    const targetIndices =
+      targetSlideId !== undefined
+        ? [
+            typeof targetSlideId === 'number'
+              ? targetSlideId
+              : this.#slideManager.resolveSlideIndex(targetSlideId),
+          ]
+        : this.#getTargetSlideIndices()
+
+    const sIdx = targetIndices.length > 0 ? targetIndices[0] : 1
+    this.#tableManager.addTable(sIdx, numRows, numCols, tableData, tableOptions, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Resolves target slide indices for table operations.
+   * Prioritizes explicitly selected slides; falls back to locating the table across all slides.
+   *
+   * @private
+   * @param {string} tableId - Table name or shape ID.
+   * @returns {Array<number>} Slide indices to target.
+   */
+  #resolveTableTargets(tableId) {
+    if (this.#selectedSlides.length > 0) {
+      return this.#selectedSlides
+    }
+    if (tableId) {
+      const matching = []
+      const allIndices = this.#slideManager.getAllSlideIndices()
+      for (const idx of allIndices) {
+        if (this.#slideManager.getSlideTable(idx, tableId)) {
+          matching.push(idx)
+        }
+      }
+      if (matching.length > 0) {
+        return matching
+      }
+    }
+    return [this.#slideManager.getAllSlideIndices()[0] || 1]
+  }
+
+  /**
+   * Updates table geometry, dimensions, position, properties, or styling.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {Object} options - Updates for position (x, y, width, height), colWidths, rowHeights, or properties.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateTable('SalesTable', { x: 200, y: 150, width: 600, height: 300, firstRow: true });
+   */
+  updateTable(tableId, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
     for (const idx of targetIndices) {
-      this.#tableManager.addTableRow(
-        idx,
-        tableId,
-        rowData,
-        this.#slideManager,
-        this.#shapeManager,
-        options
-      )
+      this.#tableManager.updateTable(tableId, options, idx, this.#slideManager)
     }
     return this
   }
 
   /**
-   * Removes a row from a table by its 0-based row index.
+   * Replaces matrix cell data while preserving existing column widths, cell styling, and row heights.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {Array<Array<*>>} data - 2D matrix of cell values.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateTableData('SalesTable', [['Metric', 'Value'], ['Revenue', '$1.2M']]);
+   */
+  updateTableData(tableId, data = []) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      this.#tableManager.updateTableData(tableId, data, idx, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Removes a table and its container frame from the slide cleanly.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.removeTable('OldTable');
+   */
+  removeTable(tableId) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      this.#tableManager.removeTable(tableId, idx, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Discovers and retrieves metadata for all tables on the specified or active slides.
+   *
+   * @param {number|string} [slideId] - Optional slide number or ID.
+   * @returns {Array<Object>} List of table descriptors.
+   *
+   * @example
+   * const tables = ppt.getTables(1);
+   */
+  getTables(slideId) {
+    this.#assertLoaded()
+    if (slideId !== undefined) {
+      return this.#tableManager.getTables(slideId, this.#slideManager)
+    }
+    const targetIndices = this.#getTargetSlideIndices()
+    const all = []
+    for (const idx of targetIndices) {
+      all.push(...this.#tableManager.getTables(idx, this.#slideManager))
+    }
+    return all
+  }
+
+  /**
+   * Retrieves detailed metadata and metrics for a specific table.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @returns {Object|null} Normalized table metadata object, or null if not found.
+   *
+   * @example
+   * const table = ppt.getTable('SalesTable');
+   */
+  getTable(tableId) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      const found = this.#tableManager.getTable(tableId, idx, this.#slideManager)
+      if (found) return found
+    }
+    return null
+  }
+
+  /**
+   * Deep-clones an existing table, assigning a new identifier and applying overrides.
+   *
+   * @param {string} tableId - Source table name or shape ID.
+   * @param {string} clonedTableId - Unique identifier for the cloned table.
+   * @param {Object} [clonedOptions={}] - Positioning and styling overrides.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.cloneTable('TemplateTable', 'ClonedTable', { y: 350 });
+   */
+  cloneTable(tableId, clonedTableId, clonedOptions = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      this.#tableManager.cloneTable(tableId, clonedTableId, clonedOptions, idx, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Inserts or appends a row to a table with cell values.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number|Array<*>} [rowIndexOrData] - 0-based insertion row index, or row data array if appending.
+   * @param {Array<*>} [data] - Row cell data if rowIndex was specified.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.addTableRow('SalesTable', ['North', '$120K', '8%']);
+   * ppt.addTableRow('SalesTable', 1, ['East', '$100K', '5%']);
+   */
+  addTableRow(tableId, rowIndexOrData, data) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      this.#tableManager.addTableRow(tableId, rowIndexOrData, data, idx, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Inserts or appends a column to a table with cell values.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number|Array<*>} [columnIndexOrData] - 0-based insertion column index, or column data array if appending.
+   * @param {Array<*>} [data] - Column cell data if columnIndex was specified.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.addTableColumn('SalesTable', ['Q4', '$45K', '$50K']);
+   * ppt.addTableColumn('SalesTable', 2, ['Target', '$40K', '$48K']);
+   */
+  addTableColumn(tableId, columnIndexOrData, data) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      this.#tableManager.addTableColumn(tableId, columnIndexOrData, data, idx, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Removes a row from a table by 0-based row index.
    *
    * @param {string} tableId - Table name or shape ID.
    * @param {number} rowIndex - 0-based row index to remove.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.removeTableRow('SalesTable', 2); // Remove the third row (0-based)
+   * ppt.removeTableRow('SalesTable', 2);
    */
   removeTableRow(tableId, rowIndex) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const targetIndices = this.#resolveTableTargets(tableId)
     for (const idx of targetIndices) {
-      this.#tableManager.removeTableRow(
-        idx,
-        tableId,
-        rowIndex,
-        this.#slideManager,
-        this.#shapeManager
-      )
+      this.#tableManager.removeTableRow(tableId, rowIndex, idx, this.#slideManager)
     }
     return this
   }
 
   /**
-   * Inserts a new row at the specified 0-based index, shifting existing rows down.
+   * Removes a column from a table by 0-based column index.
    *
    * @param {string} tableId - Table name or shape ID.
-   * @param {number} rowIndex - 0-based index at which to insert the new row.
-   * @param {Array<string>} rowData - Cell values for the new row.
+   * @param {number} columnIndex - 0-based column index to remove.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.insertTableRow('SalesTable', 1, ['East', '980', '8%']); // Insert at row 1
+   * ppt.removeTableColumn('SalesTable', 1);
    */
-  insertTableRow(tableId, rowIndex, rowData) {
+  removeTableColumn(tableId, columnIndex) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const targetIndices = this.#resolveTableTargets(tableId)
     for (const idx of targetIndices) {
-      this.#tableManager.insertTableRow(
-        idx,
-        tableId,
-        rowIndex,
-        rowData,
-        this.#slideManager,
-        this.#shapeManager
-      )
+      this.#tableManager.removeTableColumn(tableId, columnIndex, idx, this.#slideManager)
     }
     return this
   }
 
   /**
-   * Clones a row and inserts the copy at a target position.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {number} sourceRowIndex - 0-based index of the row to clone.
-   * @param {number} targetRowIndex - 0-based index where the clone is inserted.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.cloneTableRow('SalesTable', 0, 3); // Clone row 0 to position 3
-   */
-  cloneTableRow(tableId, sourceRowIndex, targetRowIndex) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#tableManager.cloneTableRow(
-        idx,
-        tableId,
-        sourceRowIndex,
-        targetRowIndex,
-        this.#slideManager,
-        this.#shapeManager
-      )
-    }
-    return this
-  }
-
-  /**
-   * Updates the text and optional formatting of a single table cell.
+   * Updates cell text values along target row rowIndex.
    *
    * @param {string} tableId - Table name or shape ID.
    * @param {number} rowIndex - 0-based row index.
-   * @param {number} colIndex - 0-based column index.
-   * @param {string} value - New cell text content.
-   * @param {Object} [options] - Cell formatting options.
-   * @param {boolean} [options.bold] - Bold text.
-   * @param {boolean} [options.italic] - Italic text.
-   * @param {number} [options.fontSize] - Font size in points.
-   * @param {'left'|'center'|'right'} [options.align] - Text alignment.
-   * @param {string} [options.fill] - Cell background color (hex, e.g. '#FF0000').
-   * @param {string} [options.color] - Text color (hex).
+   * @param {Array<*>} data - Row cell values.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.updateCell('SalesTable', 1, 2, '$9,800', { bold: true, color: '#10B981' });
+   * ppt.updateRowData('SalesTable', 1, ['Updated Region', '$150K', '12%']);
    */
-  updateCell(tableId, rowIndex, colIndex, value, options = {}) {
+  updateRowData(tableId, rowIndex, data) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const targetIndices = this.#resolveTableTargets(tableId)
     for (const idx of targetIndices) {
-      this.#tableManager.updateCell(
-        idx,
+      this.#tableManager.updateRowData(tableId, rowIndex, data, idx, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Updates cell text values down target column columnIndex.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} columnIndex - 0-based column index.
+   * @param {Array<*>} data - Column cell values down each row.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateColumnData('SalesTable', 1, ['$100', '$200', '$300']);
+   */
+  updateColumnData(tableId, columnIndex, data) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      this.#tableManager.updateColumnData(tableId, columnIndex, data, idx, this.#slideManager)
+    }
+    return this
+  }
+
+  /**
+   * Updates text, typography, alignments, and styling of a single table cell.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} columnIndex - 0-based column index.
+   * @param {string|Object} options - New cell value or formatting object.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.updateTableCell('SalesTable', 1, 2, '$9,800');
+   * ppt.updateTableCell('SalesTable', 0, 0, { text: 'Title', bold: true, fill: '1E3A8A', color: 'FFFFFF' });
+   */
+  updateTableCell(tableId, rowIndex, columnIndex, options = {}) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      this.#tableManager.updateTableCell(
         tableId,
         rowIndex,
-        colIndex,
-        value,
+        columnIndex,
         options,
-        this.#slideManager,
-        this.#shapeManager
+        idx,
+        this.#slideManager
       )
     }
     return this
   }
 
   /**
-   * Adds or appends a column to a table.
+   * Clears text content across rowIndex while preserving cell formatting.
    *
    * @param {string} tableId - Table name or shape ID.
-   * @param {number|Array} colIndexOrData - Column index (0-based) or cell data array.
-   * @param {Array|Object} [colDataOrOptions] - Cell data array or options.
-   * @param {Object} [options={}] - Options if 2nd arg was colIndex.
+   * @param {number} rowIndex - 0-based row index.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.addColumn('SalesTable', ['Q4', '1500', '20%']);
-   * ppt.addColumn('SalesTable', 1, ['Target', '1000', '10%'], { width: 120 });
+   * ppt.clearRowData('SalesTable', 2);
    */
-  addColumn(tableId, colIndexOrData, colDataOrOptions, options = {}) {
+  clearRowData(tableId, rowIndex) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-
-    for (const slideIndex of targetIndices) {
-      this.#tableManager.addColumn(
-        slideIndex,
-        tableId,
-        colIndexOrData,
-        colDataOrOptions,
-        options,
-        this.#slideManager,
-        this.#shapeManager
-      )
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      this.#tableManager.clearRowData(tableId, rowIndex, idx, this.#slideManager)
     }
-
     return this
   }
 
   /**
-   * Deletes a column from a table by 0-based index.
+   * Clears text content down columnIndex while preserving cell formatting.
    *
    * @param {string} tableId - Table name or shape ID.
-   * @param {number} colIndex - 0-based column index.
+   * @param {number} columnIndex - 0-based column index.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.deleteColumn('SalesTable', 2);
+   * ppt.clearColumnData('SalesTable', 1);
    */
-  deleteColumn(tableId, colIndex) {
+  clearColumnData(tableId, columnIndex) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-
-    for (const slideIndex of targetIndices) {
-      this.#tableManager.deleteColumn(
-        slideIndex,
-        tableId,
-        colIndex,
-        this.#slideManager,
-        this.#shapeManager
-      )
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      this.#tableManager.clearColumnData(tableId, columnIndex, idx, this.#slideManager)
     }
-
     return this
   }
 
   /**
-   * Applies alternating row striping to a table.
+   * Purges text content from a single table cell while preserving underlying formatting.
    *
    * @param {string} tableId - Table name or shape ID.
-   * @param {Object} [options={}] - Striping options.
-   * @param {string} [options.evenFill='F2F2F2'] - Background color for even rows.
-   * @param {string} [options.oddFill] - Background color for odd rows.
-   * @param {string} [options.headerFill] - Background color for row 0.
-   * @param {number} [options.startRow=1] - 0-based starting row for striping.
-   * @param {boolean} [options.bandRow] - Enable DrawingML bandRow table property.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} columnIndex - 0-based column index.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.stripeRows('SalesTable', { evenFill: '#F8F9FA', oddFill: '#FFFFFF' });
+   * ppt.clearCellData('SalesTable', 0, 0);
    */
-  stripeRows(tableId, options = {}) {
+  clearCellData(tableId, rowIndex, columnIndex) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-
-    for (const slideIndex of targetIndices) {
-      this.#tableManager.stripeRows(slideIndex, tableId, options, this.#slideManager)
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      this.#tableManager.clearCellData(tableId, rowIndex, columnIndex, idx, this.#slideManager)
     }
-
     return this
   }
 
   /**
-   * Merges a rectangular region of table cells into a single merged cell.
-   * Supports both positional arguments and an options object.
+   * Extracts raw string data from all cells in the table as a 2D array.
    *
-   * @param {string|Object} tableIdOrOptions - Table ID string, or options object with all fields.
+   * @param {string} tableId - Table name or shape ID.
+   * @returns {Array<Array<string>>} 2D array matrix of cell data.
+   *
+   * @example
+   * const matrix = ppt.getTableData('SalesTable');
+   */
+  getTableData(tableId) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      try {
+        return this.#tableManager.getTableData(tableId, idx, this.#slideManager)
+      } catch (err) {
+        if (!(err instanceof TableNotFoundError)) throw err
+      }
+    }
+    return []
+  }
+
+  /**
+   * Returns cell text array down columnIndex.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} columnIndex - 0-based column index.
+   * @returns {Array<string>} Column cell values.
+   *
+   * @example
+   * const values = ppt.getColumnData('SalesTable', 1);
+   */
+  getColumnData(tableId, columnIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      try {
+        return this.#tableManager.getColumnData(tableId, columnIndex, idx, this.#slideManager)
+      } catch (err) {
+        if (!(err instanceof TableNotFoundError)) throw err
+      }
+    }
+    return []
+  }
+
+  /**
+   * Returns cell text array along rowIndex.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @returns {Array<string>} Row cell values.
+   *
+   * @example
+   * const values = ppt.getRowData('SalesTable', 0);
+   */
+  getRowData(tableId, rowIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      try {
+        return this.#tableManager.getRowData(tableId, rowIndex, idx, this.#slideManager)
+      } catch (err) {
+        if (!(err instanceof TableNotFoundError)) throw err
+      }
+    }
+    return []
+  }
+
+  /**
+   * Returns column metadata: index, width, text data, and formatting.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} columnIndex - 0-based column index.
+   * @returns {Object|null} Column descriptor object.
+   *
+   * @example
+   * const col = ppt.getColumn('SalesTable', 0);
+   */
+  getColumn(tableId, columnIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      try {
+        return this.#tableManager.getColumn(tableId, columnIndex, idx, this.#slideManager)
+      } catch (err) {
+        if (!(err instanceof TableNotFoundError)) throw err
+      }
+    }
+    return null
+  }
+
+  /**
+   * Returns row metadata: index, height, text data, and formatting.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @returns {Object|null} Row descriptor object.
+   *
+   * @example
+   * const row = ppt.getRow('SalesTable', 0);
+   */
+  getRow(tableId, rowIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      try {
+        return this.#tableManager.getRow(tableId, rowIndex, idx, this.#slideManager)
+      } catch (err) {
+        if (!(err instanceof TableNotFoundError)) throw err
+      }
+    }
+    return null
+  }
+
+  /**
+   * Returns detailed cell metadata, bounds, borders, fill, and merge state.
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} columnIndex - 0-based column index.
+   * @returns {Object|null} Cell descriptor object.
+   *
+   * @example
+   * const cell = ppt.getCell('SalesTable', 0, 0);
+   */
+  getCell(tableId, rowIndex, columnIndex) {
+    this.#assertLoaded()
+    const targetIndices = this.#resolveTableTargets(tableId)
+    for (const idx of targetIndices) {
+      try {
+        const found = this.#tableManager.getCell(
+          tableId,
+          rowIndex,
+          columnIndex,
+          idx,
+          this.#slideManager
+        )
+        if (found) return found
+      } catch (err) {
+        if (!(err instanceof TableNotFoundError)) throw err
+      }
+    }
+    return null
+  }
+
+  /**
+   * Extracts raw string text from cell at (rowIndex, columnIndex).
+   *
+   * @param {string} tableId - Table name or shape ID.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} columnIndex - 0-based column index.
+   * @returns {string} Cell string value.
+   *
+   * @example
+   * const text = ppt.getCellData('SalesTable', 0, 0);
+   */
+  getCellData(tableId, rowIndex, columnIndex) {
+    this.#assertLoaded()
+    const cell = this.getCell(tableId, rowIndex, columnIndex)
+    return cell ? cell.text : ''
+  }
+
+  /**
+   * Merges a rectangular region of table cells.
+   *
+   * @param {string|Object} tableIdOrOptions - Table ID string, or merge options object.
    * @param {number} [startRow] - 0-based start row.
-   * @param {number} [startCol] - 0-based start column.
-   * @param {number} [endRow] - 0-based end row (inclusive).
-   * @param {number} [endCol] - 0-based end column (inclusive).
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.mergeCells('SalesTable', 0, 0, 0, 2); // Merge first 3 cells of row 0
-   * // Or with options object:
-   * ppt.mergeCells({ tableId: 'SalesTable', startRow: 0, startCol: 0, endRow: 0, endCol: 2 });
-   */
-  mergeCells(tableIdOrOptions, startRow, startCol, endRow, endCol) {
-    this.#assertLoaded()
-    let tableId = tableIdOrOptions
-    let sRow = startRow
-    let sCol = startCol
-    let eRow = endRow
-    let eCol = endCol
-    let targetIndices = this.#getTargetSlideIndices()
-
-    if (tableIdOrOptions && typeof tableIdOrOptions === 'object') {
-      const opt = tableIdOrOptions
-      tableId = opt.tableId
-      sRow = opt.startRow
-      sCol = opt.startCol
-      eRow = opt.endRow
-      eCol = opt.endCol
-      if (opt.slide !== undefined) {
-        targetIndices = [opt.slide]
-      }
-    }
-
-    for (const idx of targetIndices) {
-      this.#tableManager.mergeCells(
-        idx,
-        tableId,
-        sRow,
-        sCol,
-        eRow,
-        eCol,
-        this.#slideManager,
-        this.#shapeManager
-      )
-    }
-    return this
-  }
-
-  /**
-   * Unmerges (splits) a previously merged cell region.
-   * Supports both positional arguments and an options object.
-   *
-   * @param {string|Object} tableIdOrOptions - Table ID string, or options object.
-   * @param {number} [startRow] - 0-based start row of the merged region.
-   * @param {number} [startCol] - 0-based start column.
+   * @param {number} [startColumn] - 0-based start column.
    * @param {number} [endRow] - 0-based end row.
-   * @param {number} [endCol] - 0-based end column.
+   * @param {number} [endColumn] - 0-based end column.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.unmergeCells('SalesTable', 0, 0, 0, 2); // Unmerge region
-   * // Via cell coordinate:
-   * ppt.unmergeCells({ tableId: 'SalesTable', row: 0, col: 0 });
+   * ppt.mergeCells('SalesTable', 0, 0, 0, 2);
    */
-  unmergeCells(tableIdOrOptions, startRow, startCol, endRow, endCol) {
+  mergeCells(tableIdOrOptions, startRow, startColumn, endRow, endColumn) {
     this.#assertLoaded()
     let tableId = tableIdOrOptions
     let sRow = startRow
-    let sCol = startCol
+    let sCol = startColumn
     let eRow = endRow
-    let eCol = endCol
-    let targetIndices = this.#getTargetSlideIndices()
-    let isCellCoord = false
-    let cellRow, cellCol
+    let eCol = endColumn
 
-    if (tableIdOrOptions && typeof tableIdOrOptions === 'object') {
+    if (typeof tableIdOrOptions === 'object' && tableIdOrOptions !== null) {
       const opt = tableIdOrOptions
       tableId = opt.tableId
       sRow = opt.startRow
-      sCol = opt.startCol
+      sCol = opt.startColumn !== undefined ? opt.startColumn : opt.startCol
       eRow = opt.endRow
-      eCol = opt.endCol
-      if (opt.slide !== undefined) {
-        targetIndices = [opt.slide]
-      }
-      if (opt.row !== undefined && opt.col !== undefined) {
-        isCellCoord = true
-        cellRow = opt.row
-        cellCol = opt.col
-      }
+      eCol = opt.endColumn !== undefined ? opt.endColumn : opt.endCol
     }
 
+    const targetIndices = this.#resolveTableTargets(tableId)
     for (const idx of targetIndices) {
-      if (isCellCoord) {
-        this.#tableManager.unmergeCells(
-          idx,
-          tableId,
-          cellRow,
-          cellCol,
-          this.#slideManager,
-          this.#shapeManager
-        )
-      } else {
-        this.#tableManager.unmergeCells(
-          idx,
-          tableId,
-          sRow,
-          sCol,
-          eRow,
-          eCol,
-          this.#slideManager,
-          this.#shapeManager
-        )
-      }
+      this.#tableManager.mergeCells(tableId, sRow, sCol, eRow, eCol, idx, this.#slideManager)
     }
     return this
   }
 
   /**
-   * Returns an array of all merged cell regions in a table.
+   * Splits a previously merged cell region back into independent cells.
    *
-   * @param {string} [tableId] - Table name or shape ID. Defaults to the first table found.
-   * @returns {Array<{startRow: number, startCol: number, endRow: number, endCol: number}>}
-   *
-   * @example
-   * const merges = ppt.getMergedCells('SalesTable');
-   * merges.forEach(m => console.log(`Merged: row ${m.startRow}-${m.endRow}, col ${m.startCol}-${m.endCol}`));
-   */
-  getMergedCells(tableId) {
-    this.#assertLoaded()
-    const slideIndex = this.#getTargetSlideIndices()[0] || 1
-    return this.#tableManager.getMergedCells(slideIndex, tableId || 'first', this.#slideManager)
-  }
-
-  /**
-   * Validates whether a merge region is valid for the given table dimensions.
-   * Checks for overlapping merges, out-of-bounds coordinates, etc.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {number} startRow - 0-based start row.
-   * @param {number} startCol - 0-based start column.
-   * @param {number} endRow - 0-based end row.
-   * @param {number} endCol - 0-based end column.
-   * @returns {{valid: boolean, errors: string[]}} Validation result.
-   *
-   * @example
-   * const result = ppt.validateMergeRegion('SalesTable', 0, 0, 1, 2);
-   * if (!result.valid) console.error(result.errors);
-   */
-  validateMergeRegion(tableId, startRow, startCol, endRow, endCol) {
-    this.#assertLoaded()
-    const slideIndex = this.#getTargetSlideIndices()[0] || 1
-    return this.#tableManager.validateMergeRegion(
-      slideIndex,
-      tableId || 'first',
-      startRow,
-      startCol,
-      endRow,
-      endCol,
-      this.#slideManager
-    )
-  }
-
-  /**
-   * Checks whether a specific table cell is part of a merged region.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {number} row - 0-based row index.
-   * @param {number} col - 0-based column index.
-   * @returns {boolean} `true` if the cell is merged (parent or continuation).
-   *
-   * @example
-   * if (ppt.isMergedCell('SalesTable', 0, 0)) {
-   *   console.log('Cell is part of a merged region');
-   * }
-   */
-  isMergedCell(tableId, row, col) {
-    this.#assertLoaded()
-    const slideIndex = this.#getTargetSlideIndices()[0] || 1
-    return this.#tableManager.isMergedCell(
-      slideIndex,
-      tableId || 'first',
-      row,
-      col,
-      this.#slideManager
-    )
-  }
-
-  /**
-   * Returns the anchor (parent) cell coordinates of a merged region
-   * that contains the given cell.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {number} row - 0-based row index of any cell in the merged region.
-   * @param {number} col - 0-based column index.
-   * @returns {{row: number, col: number}|null} Anchor cell coordinates, or null if not merged.
-   *
-   * @example
-   * const parent = ppt.getMergeParent('SalesTable', 0, 1);
-   * // → { row: 0, col: 0 } if cells (0,0)-(0,2) are merged
-   */
-  getMergeParent(tableId, row, col) {
-    this.#assertLoaded()
-    const slideIndex = this.#getTargetSlideIndices()[0] || 1
-    return this.#tableManager.getMergeParent(
-      slideIndex,
-      tableId || 'first',
-      row,
-      col,
-      this.#slideManager
-    )
-  }
-
-  /**
-   * Returns the full extent of the merged region containing a given cell.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {number} row - 0-based row index of any cell in the merged region.
-   * @param {number} col - 0-based column index.
-   * @returns {{startRow: number, startCol: number, endRow: number, endCol: number}|null}
-   *
-   * @example
-   * const region = ppt.getMergeRegion('SalesTable', 0, 1);
-   * // → { startRow: 0, startCol: 0, endRow: 0, endCol: 2 }
-   */
-  getMergeRegion(tableId, row, col) {
-    this.#assertLoaded()
-    const slideIndex = this.#getTargetSlideIndices()[0] || 1
-    return this.#tableManager.getMergeRegion(
-      slideIndex,
-      tableId || 'first',
-      row,
-      col,
-      this.#slideManager
-    )
-  }
-
-  /**
-   * Splits a previously merged cell region back into individual cells.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {number} row - 0-based row of the merged region anchor.
-   * @param {number} col - 0-based column of the merged region anchor.
+   * @param {string|Object} tableIdOrOptions - Table ID string, or split options object.
+   * @param {number} [rowIndex] - 0-based row index.
+   * @param {number} [columnIndex] - 0-based column index.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.splitMergedRegion('SalesTable', 0, 0); // Split merge starting at row 0, col 0
+   * ppt.splitCell('SalesTable', 0, 0);
    */
-  splitMergedRegion(tableId, row, col) {
+  splitCell(tableIdOrOptions, rowIndex, columnIndex) {
     this.#assertLoaded()
-    const slideIndex = this.#getTargetSlideIndices()[0] || 1
-    this.#tableManager.splitMergedRegion(
-      slideIndex,
-      tableId || 'first',
-      row,
-      col,
-      this.#slideManager
-    )
-    return this
-  }
+    let tableId = tableIdOrOptions
+    let r = rowIndex
+    let c = columnIndex
 
-  /**
-   * Clones an existing merged region to a new anchor position in the table.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {number} row - 0-based row of the source merged region.
-   * @param {number} col - 0-based column of the source merged region.
-   * @param {number} targetRow - 0-based target row.
-   * @param {number} targetCol - 0-based target column.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.cloneMergedRegion('SalesTable', 0, 0, 4, 0);
-   */
-  cloneMergedRegion(tableId, row, col, targetRow, targetCol) {
-    this.#assertLoaded()
-    const slideIndex = this.#getTargetSlideIndices()[0] || 1
-    this.#tableManager.cloneMergedRegion(
-      slideIndex,
-      tableId || 'first',
-      row,
-      col,
-      targetRow,
-      targetCol,
-      this.#slideManager
-    )
-    return this
-  }
+    if (typeof tableIdOrOptions === 'object' && tableIdOrOptions !== null) {
+      const opt = tableIdOrOptions
+      tableId = opt.tableId
+      r = opt.rowIndex !== undefined ? opt.rowIndex : opt.row
+      c = opt.columnIndex !== undefined ? opt.columnIndex : opt.col
+    }
 
-  /**
-   * Automatically adjusts column widths to fit the content of each cell.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.autoFitTable('SalesTable');
-   */
-  autoFitTable(tableId) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const targetIndices = this.#resolveTableTargets(tableId)
     for (const idx of targetIndices) {
-      this.#tableManager.autoFitTable(idx, tableId, this.#slideManager)
+      this.#tableManager.splitCell(tableId, r, c, idx, this.#slideManager)
     }
     return this
   }
 
   /**
-   * Resizes a table to the specified width and height in EMUs.
-   * 1 inch = 914,400 EMUs.
+   * Applies table-wide properties, alternating banding fills, and borders.
    *
    * @param {string} tableId - Table name or shape ID.
-   * @param {number} width - New width in EMUs.
-   * @param {number} height - New height in EMUs.
+   * @param {Object} options - Table styling options (bandRow, bandCol, fill, border, etc.).
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.resizeTable('SalesTable', 6858000, 1371600); // 7.5" wide × 1.5" tall
+   * ppt.styleTable('SalesTable', { bandRow: true, oddFill: 'F8FAFC', evenFill: 'EDF2F7' });
    */
-  resizeTable(tableId, width, height) {
+  styleTable(tableId, options = {}) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const targetIndices = this.#resolveTableTargets(tableId)
     for (const idx of targetIndices) {
-      this.#tableManager.resizeTable(idx, tableId, width, height, this.#slideManager)
+      this.#tableManager.styleTable(tableId, options, idx, this.#slideManager)
     }
     return this
   }
 
   /**
-   * Adjusts table row height(s). Supports direct height values or auto-calculation based on cell content.
+   * Applies fills, typography, and borders down columnIndex.
    *
    * @param {string} tableId - Table name or shape ID.
-   * @param {Object|Array} options - Row adjustment options.
+   * @param {number} columnIndex - 0-based column index.
+   * @param {Object} options - Column styling options.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.adjustTableRow("Table", { row: 2, height: 35 });
-   * ppt.adjustTableRow("Table", { row: 2, auto: true });
+   * ppt.styleColumn('SalesTable', 1, { fill: 'E0E7FF', bold: true });
    */
-  adjustTableRow(tableId, options) {
+  styleColumn(tableId, columnIndex, options = {}) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const targetIndices = this.#resolveTableTargets(tableId)
     for (const idx of targetIndices) {
-      this.#tableManager.adjustTableRow(
-        idx,
-        tableId,
-        options,
-        this.#slideManager,
-        this.#shapeManager
-      )
+      this.#tableManager.styleColumn(tableId, columnIndex, options, idx, this.#slideManager)
     }
     return this
   }
 
   /**
-   * Adjusts table column width(s). Supports direct width values or auto-calculation based on cell content.
+   * Applies fills, typography, height, and borders across rowIndex.
    *
    * @param {string} tableId - Table name or shape ID.
-   * @param {Object|Array} options - Column adjustment options.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {Object} options - Row styling options.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.adjustTableColumn("Table", { column: 3, width: 2.4 });
-   * ppt.adjustTableColumn("Table", { column: 3, auto: true });
+   * ppt.styleRow('SalesTable', 0, { fill: '1E3A8A', color: 'FFFFFF', bold: true });
    */
-  adjustTableColumn(tableId, options) {
+  styleRow(tableId, rowIndex, options = {}) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const targetIndices = this.#resolveTableTargets(tableId)
     for (const idx of targetIndices) {
-      this.#tableManager.adjustTableColumn(
-        idx,
-        tableId,
-        options,
-        this.#slideManager,
-        this.#shapeManager
-      )
+      this.#tableManager.styleRow(tableId, rowIndex, options, idx, this.#slideManager)
     }
     return this
   }
 
   /**
-   * Automatically splits a table across consecutive slides if its height exceeds a specified vertical threshold.
+   * Applies fills, alignments, margins, and borders to cell at (rowIndex, columnIndex).
    *
    * @param {string} tableId - Table name or shape ID.
-   * @param {Object} [options={}] - Options.
-   * @param {number} [options.bottomMargin] - Distance from the bottom of the slide (in inches, pts, px, or EMUs) to use as the limit. Default is 0.5 inches (457200 EMUs).
-   * @param {number} [options.repeatHeaders] - Number of header rows to repeat on duplicated slides. Default is 1.
-   * @param {number} [options.summaryRows] - Number of totals/summary rows to preserve on the final generated slide.
-   * @param {boolean} [options.keepSummaryOnLastSlide] - If true, keeps 1 summary row on the last generated slide.
-   * @returns {Promise<this>}
-   */
-  async splitTableOnOverflow(tableId, options = {}) {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    if (targetIndices.length === 0) return this
-
-    const units = require('../utils/units.js')
-    const bottomMargin =
-      options.bottomMargin !== undefined ? units.toEmu(options.bottomMargin) : 457200
-    const repeatHeaders = options.repeatHeaders !== undefined ? options.repeatHeaders : 1
-    const summaryRows =
-      options.summaryRows !== undefined
-        ? options.summaryRows
-        : options.keepSummaryOnLastSlide
-          ? 1
-          : 0
-
-    const slideSize = this.#slideManager.getSlideSize()
-    const limitY = slideSize.height - bottomMargin
-
-    // Process from last to first to avoid index shifting issues when duplicating slides
-    for (let i = targetIndices.length - 1; i >= 0; i--) {
-      const slideIndex = targetIndices[i]
-      await this.#splitTableRecursive(slideIndex, tableId, limitY, repeatHeaders, summaryRows)
-    }
-
-    return this
-  }
-
-  async #splitTableRecursive(slideIndex, tableId, limitY, repeatHeaders, summaryRows = 0) {
-    const tableRes = this.#slideManager.getSlideTable(slideIndex, tableId)
-    if (!tableRes) return // Table not found on this slide
-
-    const tblObj = tableRes.table
-    const graphicFrame = tableRes.frame
-    const xfrm = graphicFrame?.['p:xfrm']
-    if (!xfrm || !xfrm['a:off'] || !xfrm['a:ext']) return
-
-    const tableY = parseInt(xfrm['a:off']['@_y'] || 0, 10)
-
-    const trs = tblObj['a:tr'] || []
-    const rowHeights = []
-
-    for (let r = 0; r < trs.length; r++) {
-      const bounds = this.#tableManager.getCellBounds(slideIndex, tableId, r, 0, this.#slideManager)
-      const h = bounds ? Math.round(bounds.height * 9525) : parseInt(trs[r]['@_h'] || 0, 10)
-      rowHeights.push(h)
-    }
-
-    let splitRowIndex = -1
-    let currentY = tableY
-
-    for (let r = 0; r < rowHeights.length; r++) {
-      currentY += rowHeights[r]
-      if (currentY > limitY) {
-        // If even the first row (or headers) exceeds the limit, we must split after it to avoid infinite loops
-        splitRowIndex = Math.max(r, repeatHeaders)
-        break
-      }
-    }
-
-    if (summaryRows > 0 && splitRowIndex !== -1) {
-      // Summary rows must only appear on the final generated slide.
-      // Ensure splitRowIndex does not cut into or include summary rows on this intermediate slide.
-      const maxAllowed = trs.length - summaryRows
-      if (splitRowIndex > maxAllowed) {
-        splitRowIndex = Math.max(maxAllowed, repeatHeaders)
-      }
-    }
-
-    if (splitRowIndex !== -1 && splitRowIndex < trs.length) {
-      // Split required
-      // 1. Deep clone the slide directly after current slide
-      const newSlideIndex = slideIndex + 1
-      await this.#slideManager.duplicateSlide(
-        slideIndex,
-        newSlideIndex,
-        this.#relationshipManager,
-        this.#mediaManager
-      )
-
-      // 2. Original slide: remove rows from splitRowIndex to end
-      const rowsToRemove = trs.length - splitRowIndex
-      for (let k = 0; k < rowsToRemove; k++) {
-        this.#tableManager.removeTableRow(slideIndex, tableId, splitRowIndex, this.#slideManager)
-      }
-
-      // 3. New slide: remove rows between headers and splitRowIndex
-      const numToRemoveFromNew = splitRowIndex - repeatHeaders
-      for (let k = 0; k < numToRemoveFromNew; k++) {
-        this.#tableManager.removeTableRow(newSlideIndex, tableId, repeatHeaders, this.#slideManager)
-      }
-
-      // 4. Recurse on the new slide in case it still overflows
-      await this.#splitTableRecursive(newSlideIndex, tableId, limitY, repeatHeaders, summaryRows)
-    }
-  }
-
-  /**
-   * Auto-adjusts or sets table row heights, column widths, and cell layout on targeted slides.
-   *
-   * @param {string} tableId - Name or ID of the table to adjust.
-   * @param {Object} [options] - Adjustment options.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} columnIndex - 0-based column index.
+   * @param {Object} options - Cell styling options.
    * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.styleCell('SalesTable', 0, 0, { fill: '3B82F6', align: 'ctr', verticalAlign: 'ctr' });
    */
-  adjustTable(tableId, options = {}) {
+  styleCell(tableId, rowIndex, columnIndex, options = {}) {
     this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
+    const targetIndices = this.#resolveTableTargets(tableId)
     for (const idx of targetIndices) {
-      this.#tableManager.adjustTable(idx, tableId, options, this.#slideManager)
+      this.#tableManager.styleCell(tableId, rowIndex, columnIndex, options, idx, this.#slideManager)
     }
     return this
   }
@@ -2697,25 +2579,6 @@ class PPTXTemplater {
       this.#slideManager.resizeObject(idx, objectIdOrName, options, this.#tableManager)
     }
     return this
-  }
-
-  /**
-   * Returns metadata for all tables on the targeted slide(s).
-   *
-   * @returns {Array<{name: string, rows: number, cols: number, zipPath: string}>}
-   *
-   * @example
-   * const tables = ppt.getTables();
-   * tables.forEach(t => console.log(`${t.name}: ${t.rows}×${t.cols}`));
-   */
-  getTables() {
-    this.#assertLoaded()
-    const targetIndices = this.#getTargetSlideIndices()
-    const tables = []
-    for (const idx of targetIndices) {
-      tables.push(...this.#tableManager.inspectTables(idx, this.#slideManager))
-    }
-    return tables
   }
 
   // === Chart Features ===
@@ -4038,283 +3901,6 @@ class PPTXTemplater {
       }
     }
     return this
-  }
-
-  /**
-   * Dynamically adds a shape inside a table cell based on cell coordinates.
-   * Cell shapes are overlay graphics anchored independently of the table layout,
-   * and adding a cell shape never modifies row heights, column widths, or table dimensions.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {number} rowIndex - 0-based row index.
-   * @param {number} colIndex - 0-based column index.
-   * @param {Object} options - Shape configuration options.
-   * @returns {this} The chainable presentation templater instance.
-   */
-  async addCellShape(tableId, rowIndex, colIndex, options) {
-    this.#assertLoaded()
-    let row = rowIndex
-    let col = colIndex
-    let opts = options
-    if (rowIndex && typeof rowIndex === 'object') {
-      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col =
-        rowIndex.column !== undefined
-          ? rowIndex.column
-          : rowIndex.col !== undefined
-            ? rowIndex.col
-            : rowIndex.colIndex
-      opts = rowIndex
-    }
-
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#tableManager.addCellShape(
-        idx,
-        tableId,
-        row,
-        col,
-        opts,
-        this.#slideManager,
-        this.#shapeManager
-      )
-    }
-    return this
-  }
-
-  /**
-   * Updates an existing shape inside a table cell.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {number} rowIndex - 0-based row index.
-   * @param {number} colIndex - 0-based column index.
-   * @param {number} shapeIndex - 0-based shape index in the cell.
-   * @param {Object} options - Shape configuration properties to update.
-   * @returns {this} The chainable presentation templater instance.
-   */
-  async updateCellShape(tableId, rowIndex, colIndex, shapeIndex, options) {
-    this.#assertLoaded()
-    let row = rowIndex
-    let col = colIndex
-    let shpIdx = shapeIndex
-    let opts = options
-    if (rowIndex && typeof rowIndex === 'object') {
-      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col =
-        rowIndex.column !== undefined
-          ? rowIndex.column
-          : rowIndex.col !== undefined
-            ? rowIndex.col
-            : rowIndex.colIndex
-      shpIdx =
-        rowIndex.shapeIndex !== undefined
-          ? rowIndex.shapeIndex
-          : rowIndex.shape !== undefined
-            ? rowIndex.shape
-            : colIndex
-      opts = options !== undefined ? options : rowIndex
-    }
-
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#tableManager.updateCellShape(
-        idx,
-        tableId,
-        row,
-        col,
-        shpIdx,
-        opts,
-        this.#slideManager,
-        this.#shapeManager
-      )
-    }
-    return this
-  }
-
-  /**
-   * Removes a shape from a table cell.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {number} rowIndex - 0-based row index.
-   * @param {number} colIndex - 0-based column index.
-   * @param {number} shapeIndex - 0-based shape index in the cell.
-   * @returns {this} The chainable presentation templater instance.
-   */
-  async removeCellShape(tableId, rowIndex, colIndex, shapeIndex) {
-    this.#assertLoaded()
-    let row = rowIndex
-    let col = colIndex
-    let shpIdx = shapeIndex
-    if (rowIndex && typeof rowIndex === 'object') {
-      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col =
-        rowIndex.column !== undefined
-          ? rowIndex.column
-          : rowIndex.col !== undefined
-            ? rowIndex.col
-            : rowIndex.colIndex
-      shpIdx =
-        rowIndex.shapeIndex !== undefined
-          ? rowIndex.shapeIndex
-          : rowIndex.shape !== undefined
-            ? rowIndex.shape
-            : colIndex
-    }
-
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      this.#tableManager.removeCellShape(
-        idx,
-        tableId,
-        row,
-        col,
-        shpIdx,
-        this.#slideManager,
-        this.#shapeManager
-      )
-    }
-    return this
-  }
-
-  /**
-   * Discovers and retrieves details of an existing cell shape on the targeted slide.
-   *
-   * @param {string} tableId - Table name or shape ID.
-   * @param {number} rowIndex - 0-based row index.
-   * @param {number} colIndex - 0-based column index.
-   * @param {number} shapeIndex - 0-based shape index in the cell.
-   * @returns {Object|null} Shape details object, or null if not found.
-   */
-  getCellShape(tableId, rowIndex, colIndex, shapeIndex) {
-    this.#assertLoaded()
-    let row = rowIndex
-    let col = colIndex
-    let shpIdx = shapeIndex
-    if (rowIndex && typeof rowIndex === 'object') {
-      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col =
-        rowIndex.column !== undefined
-          ? rowIndex.column
-          : rowIndex.col !== undefined
-            ? rowIndex.col
-            : rowIndex.colIndex
-      shpIdx =
-        rowIndex.shapeIndex !== undefined
-          ? rowIndex.shapeIndex
-          : rowIndex.shape !== undefined
-            ? rowIndex.shape
-            : colIndex
-    }
-
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      const shape = this.#tableManager.getCellShape(
-        idx,
-        tableId,
-        row,
-        col,
-        shpIdx,
-        this.#slideManager,
-        this.#shapeManager
-      )
-      if (shape) return shape
-    }
-    return null
-  }
-
-  /**
-   * Retrieves final rendered bounds of a table cell in pixels.
-   *
-   * @param {string|Object} tableIdOrObj - Table name, shape ID, or table object.
-   * @param {number} rowIndex - 0-based row index.
-   * @param {number} colIndex - 0-based column index.
-   * @returns {Object|null} Cell bounds { x, y, width, height } in pixels, or null.
-   */
-  getCellBounds(tableIdOrObj, rowIndex, colIndex) {
-    this.#assertLoaded()
-    const tableId =
-      typeof tableIdOrObj === 'object'
-        ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId
-        : tableIdOrObj
-    let row = rowIndex
-    let col = colIndex
-    if (rowIndex && typeof rowIndex === 'object') {
-      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col =
-        rowIndex.column !== undefined
-          ? rowIndex.column
-          : rowIndex.col !== undefined
-            ? rowIndex.col
-            : rowIndex.colIndex
-    }
-
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      try {
-        const bounds = this.#tableManager.getCellBounds(idx, tableId, row, col, this.#slideManager)
-        if (bounds) return bounds
-      } catch (err) {
-        logger.debug(
-          `Could not get cell bounds for table ${tableId} on slide ${idx}: ${err.message}`
-        )
-      }
-    }
-    return null
-  }
-
-  /**
-   * Retrieves final rendered position of a table cell in pixels.
-   * Optionally calculates centered top-left coordinates for a shape of given dimensions.
-   *
-   * @param {string|Object} tableIdOrObj - Table name, shape ID, or table object.
-   * @param {number} rowIndex - 0-based row index.
-   * @param {number} colIndex - 0-based column index.
-   * @param {number|Object} [shapeWidthOrOptions] - Width of the shape in pixels, or options object.
-   * @param {number} [shapeHeight] - Height of the shape in pixels.
-   * @returns {Object|null} Cell position { row, column, x, y, width, height } in pixels, or null.
-   */
-  getCellPosition(tableIdOrObj, rowIndex, colIndex, shapeWidthOrOptions, shapeHeight) {
-    this.#assertLoaded()
-    const tableId =
-      typeof tableIdOrObj === 'object'
-        ? tableIdOrObj.id || tableIdOrObj.name || tableIdOrObj.tableId
-        : tableIdOrObj
-    let row = rowIndex
-    let col = colIndex
-    let widthOrOpts = shapeWidthOrOptions
-    let height = shapeHeight
-    if (rowIndex && typeof rowIndex === 'object') {
-      row = rowIndex.row !== undefined ? rowIndex.row : rowIndex.rowIndex
-      col =
-        rowIndex.column !== undefined
-          ? rowIndex.column
-          : rowIndex.col !== undefined
-            ? rowIndex.col
-            : rowIndex.colIndex
-      widthOrOpts = colIndex
-      height = shapeWidthOrOptions
-    }
-
-    const targetIndices = this.#getTargetSlideIndices()
-    for (const idx of targetIndices) {
-      try {
-        const pos = this.#tableManager.getCellPosition(
-          idx,
-          tableId,
-          row,
-          col,
-          this.#slideManager,
-          widthOrOpts,
-          height
-        )
-        if (pos) return pos
-      } catch (err) {
-        logger.debug(
-          `Could not get cell position for table ${tableId} on slide ${idx}: ${err.message}`
-        )
-      }
-    }
-    return null
   }
 
   // === Images & Media ===

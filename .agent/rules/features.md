@@ -24,12 +24,46 @@
 - **Workbook Update**: Rewrite `xl/worksheets/sheet1.xml` and `xl/sharedStrings.xml`. Purge conflicting `xl/tables/` definitions to eliminate Excel dimension mismatch repair dialogs.
 - **clearCharts Operation**: Evacuates all chart graphic frames from targeted slide(s), unlinks relationship nodes in `ppt/slides/_rels/slideN.xml.rels`, and purges orphaned parts and embedded workbooks while strictly preserving layout shapes, tables, and text frames.
 
-## 3. Table Matrix & Row ID Invariants
-- **Unique `<a16:rowId>`**: Each `<a:tr>` row extension `<a:extLst>/<a:ext uri="{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}">/<a16:rowId>` must contain a unique 32-bit unsigned integer (`0` to `4294967295`). Never copy row IDs when cloning or adding rows.
+## 3. Strict 30-Method Tables Subsystem & Invariants
+- **Strict 30-Method Whitelist**:
+  1. `addTable(slideId, rows, columns, data, options)`
+  2. `updateTable(tableId, options)`
+  3. `updateTableData(tableId, data)`
+  4. `removeTable(tableId)`
+  5. `getTables(slideId)`
+  6. `getTable(tableId)`
+  7. `cloneTable(tableId, clonedTableId, clonedOptions)`
+  8. `addTableRow(tableId, rowIndex, data)`
+  9. `addTableColumn(tableId, columnIndex, data)`
+  10. `removeTableRow(tableId, rowIndex)`
+  11. `removeTableColumn(tableId, columnIndex)`
+  12. `updateRowData(tableId, rowIndex, data)`
+  13. `updateColumnData(tableId, columnIndex, data)`
+  14. `updateTableCell(tableId, rowIndex, columnIndex, options)`
+  15. `clearRowData(tableId, rowIndex)`
+  16. `clearColumnData(tableId, columnIndex)`
+  17. `clearCellData(tableId, rowIndex, columnIndex)`
+  18. `getTableData(tableId)`
+  19. `getColumnData(tableId, columnIndex)`
+  20. `getRowData(tableId, rowIndex)`
+  21. `getColumn(tableId, columnIndex)`
+  22. `getRow(tableId, rowIndex)`
+  23. `getCell(tableId, rowIndex, columnIndex)`
+  24. `getCellData(tableId, rowIndex, columnIndex)`
+  25. `mergeCells(tableId, startRow, startColumn, endRow, endColumn)`
+  26. `splitCell(tableId, rowIndex, columnIndex)`
+  27. `styleTable(tableId, options)`
+  28. `styleColumn(tableId, columnIndex, options)`
+  29. `styleRow(tableId, rowIndex, options)`
+  30. `styleCell(tableId, rowIndex, columnIndex, options)`
+- **Purged Non-Whitelisted Routines**: Methods outside this exact 30-method whitelist (such as `getTableRows`, `autoFitTable`, `splitTableOnOverflow`, `cloneMergedRegion`, `addCellShape`, `updateCellShape`, `removeCellShape`, `getCellShape`, `getCellBounds`, `getCellPosition`, `stripeRows`) are strictly prohibited and purged from the codebase.
+- **Unique `<a16:rowId>`**: Each `<a:tr>` row extension `<a:extLst>/<a:ext uri="{D42A27DB-BD31-4B8C-A354-60D93AC583D0}">/<a16:rowId>` must contain a unique 32-bit unsigned integer (`1` to `2147483647`). Never copy row IDs when cloning or adding rows.
 - **Cell Merging Protocol**:
   - Origin Cell `(startRow, startCol)`: Set `@_gridSpan` (if columns $> 1$), `@_rowSpan` (if rows $> 1$); strip `hMerge`/`vMerge`.
   - Horizontally Shadowed Cells: Set `@_hMerge="1"`; delete `@_gridSpan` and text content.
   - Vertically Shadowed Cells: Set `@_vMerge="1"`; delete `@_rowSpan` and text content.
+- **Cell Splitting Protocol**: Remove `rowSpan`, `gridSpan`, `hMerge`, and `vMerge` attributes across the region, restoring independent cell boundaries. Works whether called on primary anchor or secondary continuation cells.
+- **Fluent Method Chaining**: All table mutation methods must return `this` (or `Promise<PPTXTemplater>` when async).
 
 ## 4. Z-Order & `<p:spTree>` Container Order
 - **ECMA-376 Header Order**: Inside `<p:spTree>` and `<p:grpSp>`, non-visual headers must appear before drawing children:

@@ -29,7 +29,7 @@ Ingestion (PackageLoader, FlatOpcConverter, LegacyConverter)
 - **`TemplateEngine`** (`src/core/TemplateEngine.js`): AST-level text run healing across fragmented `<a:r>`/`<a:t>` tags and native list generation.
 - **`ValidationEngine`** (`src/core/ValidationEngine.js`): XXE defense, entity bomb prevention, and structural package verification.
 - **`SlideManager`** (`src/managers/SlideManager.js`): 1-based slide operations, deep cloning, reordering, layout binding, sections, and comments.
-- **`TableManager`** (`src/elements/TableManager.js`): Dynamic row/column mutations, cell merging (`gridSpan`/`rowSpan`/`hMerge`/`vMerge`), `<a16:rowId>` generation, and auto-pagination (`splitTableOnOverflow`).
+- **`TableManager`** (`src/elements/TableManager.js`): Strict 30-method DrawingML engine for table lifecycle, row/column operations, rectangular cell merges/splits, matrix I/O, and multi-tier styling.
 - **`ChartManager`** (`src/elements/ChartManager.js`): Strict 8-method whitelist supporting all 17 standard (`<c:chartSpace>`) and Office 2016+ extended (`<cx:chartSpace>`) chart types with Dual-Sync updating of embedded Excel workbooks.
 - **`ShapeManager`** (`src/elements/ShapeManager.js`): Vector geometry, fills, borders, text, alignment, and coordinate math.
 - **`TextManager`** (`src/elements/TextManager.js`): Run substitutions, full text box replacement (`replaceTextByTag`), and 31-property DrawingML styling.
@@ -138,7 +138,29 @@ All chart creation, mutation, inspection, cloning, and removal strictly adhere t
 
 ---
 
-## 8. Documentation Portal (`docs-site/`)
+## 8. Strict 30-Method Tables Subsystem Whitelist
+
+All DrawingML table operations strictly adhere to these 30 approved methods (all non-whitelisted routines such as `getTableRows`, `autoFitTable`, `splitTableOnOverflow`, `cloneMergedRegion`, `addCellShape`, `updateCellShape`, `removeCellShape`, `getCellShape`, `getCellBounds`, `getCellPosition`, `stripeRows` are prohibited):
+
+- **Lifecycle & Query (7)**:
+  `ppt.addTable(slideId, rows, columns, data, options)` • `ppt.updateTable(tableId, options)` • `ppt.updateTableData(tableId, data)` • `ppt.removeTable(tableId)` • `ppt.getTables(slideId)` • `ppt.getTable(tableId)` • `ppt.cloneTable(tableId, clonedTableId, clonedOptions)`
+- **Row & Column Operations (6)**:
+  `ppt.addTableRow(tableId, rowIndex, data)` • `ppt.addTableColumn(tableId, columnIndex, data)` • `ppt.removeTableRow(tableId, rowIndex)` • `ppt.removeTableColumn(tableId, columnIndex)` • `ppt.updateRowData(tableId, rowIndex, data)` • `ppt.updateColumnData(tableId, columnIndex, data)`
+- **Cell Operations & Clear (5)**:
+  `ppt.updateTableCell(tableId, rowIndex, columnIndex, options)` • `ppt.clearRowData(tableId, rowIndex)` • `ppt.clearColumnData(tableId, columnIndex)` • `ppt.clearCellData(tableId, rowIndex, columnIndex)` • `ppt.splitCell(tableId, rowIndex, columnIndex)`
+- **Data Accessors & Inspection (8)**:
+  `ppt.getTableData(tableId)` • `ppt.getColumnData(tableId, columnIndex)` • `ppt.getRowData(tableId, rowIndex)` • `ppt.getColumn(tableId, columnIndex)` • `ppt.getRow(tableId, rowIndex)` • `ppt.getCell(tableId, rowIndex, columnIndex)` • `ppt.getCellData(tableId, rowIndex, columnIndex)` • `ppt.mergeCells(tableId, startRow, startColumn, endRow, endColumn)`
+- **Multi-Tier Styling Engine (4)**:
+  `ppt.styleTable(tableId, options)` • `ppt.styleColumn(tableId, columnIndex, options)` • `ppt.styleRow(tableId, rowIndex, options)` • `ppt.styleCell(tableId, rowIndex, columnIndex, options)`
+
+**Core Table Invariants**:
+- **ISO/IEC 29500 DrawingML Invariants**: Every `<a:tr>` generates a unique 32-bit `<a16:rowId>` in `<a:extLst>`. Percentage coordinate resolutions map directly to canvas EMUs.
+- **Merge & Split Subsystem**: Supports rectangular `gridSpan` and `rowSpan` on primary cells and `hMerge="1"` / `vMerge="1"` on secondary covered cells, and bidirectional split restoration.
+- **Multi-Tier Styling**: Clean property mapping to `<a:tblPr>` (properties, styles, alternating row/column bands), `<a:tcPr>` (solid fills, anchors, borders, margins), and `<a:txBody>` (typography, alignments).
+
+---
+
+## 9. Documentation Portal (`docs-site/`)
 
 The documentation site is a static export built with Next.js 14+ App Router (`output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`). All documentation content is driven by decoupled JSON schemas in `docs-site/src/data/` (`apiReference.json`, `features.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`) and verified by `npm run docs:validate`.
 

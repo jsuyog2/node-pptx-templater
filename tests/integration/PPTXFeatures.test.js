@@ -43,7 +43,7 @@ describe('PPTXTemplater - Extended Features & Safety', () => {
       expect(report.errors.length).toBe(0)
     })
 
-    it('should insert, add, clone, and remove rows successfully', async () => {
+    it('should insert, add, and remove rows successfully', async () => {
       ppt.useSlide(3)
       const tableId = 'Table'
 
@@ -53,33 +53,36 @@ describe('PPTXTemplater - Extended Features & Safety', () => {
       const startRows = t ? t.rows : 0
 
       ppt.addTableRow(tableId, ['Added 1', 'Added 2', 'Added 3', 'Added 4', 'Added 5'])
-      ppt.insertTableRow(tableId, 1, [
+      ppt.addTableRow(tableId, 1, [
         'Inserted 1',
         'Inserted 2',
         'Inserted 3',
         'Inserted 4',
         'Inserted 5',
       ])
-      ppt.cloneTableRow(tableId, 0, 2)
-      ppt.removeTableRow(tableId, 3)
+      ppt.removeTableRow(tableId, 1)
 
       tables = ppt.getTables()
       const t2 = tables.find(tbl => tbl.name === tableId || tbl.id === '5')
-      expect(t2.rows).toBe(startRows + 2) // added 1, inserted 1, cloned 1, removed 1 => +2 net
+      expect(t2.rows).toBe(startRows + 1)
 
       const report = await ppt.validatePresentation()
       expect(report.valid).toBe(true)
     })
 
-    it('should merge, unmerge, update cells, autofit, and resize successfully', async () => {
+    it('should merge, split, and update cells successfully', async () => {
       ppt.useSlide(3)
       const tableId = 'Table'
 
-      ppt.updateCell(tableId, 0, 0, 'New Title', { fill: '00FF00', fontSize: 16, align: 'ctr' })
+      ppt.updateTableCell(tableId, 0, 0, {
+        text: 'New Title',
+        fill: '00FF00',
+        fontSize: 16,
+        align: 'ctr',
+      })
       ppt.mergeCells(tableId, 1, 0, 2, 1)
-      ppt.unmergeCells(tableId, 1, 0, 2, 1)
-      ppt.autoFitTable(tableId)
-      ppt.resizeTable(tableId, 8.5, 4.2)
+      ppt.splitCell(tableId, 1, 0)
+      ppt.updateTable(tableId, { width: 8.5, height: 4.2 })
 
       const report = await ppt.validatePresentation()
       expect(report.valid).toBe(true)

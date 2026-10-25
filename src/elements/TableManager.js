@@ -1,68 +1,52 @@
 /**
- * @fileoverview TableManager - Updates table data in PPTX slides.
- *
- * Tables in OpenXML PPTX:
- * ─────────────────────────────────────────────────────────────────
- * Tables are stored as a:tbl inside a p:graphicFrame shape.
- *
- *   <p:graphicFrame>
- *     <p:nvGraphicFramePr>
- *       <p:cNvPr id="6" name="employees-table"/>   ← table name
- *     </p:nvGraphicFramePr>
- *     <a:graphic>
- *       <a:graphicData uri="...table">
- *         <a:tbl>
- *           <a:tblGrid>
- *             <a:gridCol w="2286000"/>    ← column widths
- *           </a:tblGrid>
- *           <a:tr h="370840">             ← row (height in EMUs)
- *             <a:tc>                      ← table cell
- *               <a:txBody>
- *                 <a:p>
- *                   <a:r><a:t>Cell text</a:t></a:r>
- *                 </a:p>
- *               </a:txBody>
- *               <a:tcPr/>                 ← cell properties (borders, fills)
- *             </a:tc>
- *           </a:tr>
- *         </a:tbl>
- *       </a:graphicData>
- *     </a:graphic>
- *   </p:graphicFrame>
- *
- * Key challenge: Preserving cell formatting while replacing text.
- * We ONLY modify the <a:t> text nodes, keeping all <a:tcPr>, <a:rPr>, etc.
- * And critical to avoid PPT corruption: update the val of <a16:rowId> in each cloned row's <a:extLst>.
+ * @fileoverview TableManager - Strict 30-Method DrawingML Tables Subsystem.
+ * ISO/IEC 29500 (ECMA-376) PresentationML & DrawingML compliant.
+ * Pure JavaScript, zero native dependencies, zero repair warnings.
  */
+
+'use strict'
 
 const { createLogger } = require('../utils/logger.js')
 const { TableNotFoundError, PPTXError } = require('../utils/errors.js')
-const { toEmu } = require('../spatial/units.js')
+const { toEmu, emuToPx } = require('../spatial/units.js')
 const { resolveCoordinate, getCanvasDimensions } = require('../utils/coordinateUtils.js')
-const { Z_ORDER_SYMBOL } = require('../parsers/XMLParser.js')
+const { StyleBuilder } = require('../parser/StyleBuilder.js')
 
 const logger = createLogger('TableManager')
 
+const DEFAULT_TABLE_STYLE_ID = '{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}'
+const ROW_ID_URI = '{D42A27DB-BD31-4B8C-A354-60D93AC583D0}'
+const ROW_ID_NS = 'http://schemas.microsoft.com/office/drawing/2014/main'
+
 /**
- * @class TableManager
- * @description Handles table operations in PPTX templates.
+ * Escapes raw strings for XML text nodes.
+ * @param {*} str
+ * @returns {string}
+ */
+function escapeXml(str) {
+  if (str === null || str === undefined) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+/**
+ * Generates an integer in range [1, 2147483647] for a16:rowId.
+ * @returns {number}
+ */
+function generateRowId() {
+  return Math.floor(Math.random() * 2147483640) + 1
+}
+
+/**
+ * TableManager - DrawingML Table Engine adhering strictly to the 30-method whitelist boundary.
  */
 class TableManager {
   /** @private @type {XMLParser} */
   #xmlParser
-
-  /**
-   * In-memory registry mapping cellshape names to their original config.
-   * Used to reposition shapes after table structure mutations (row removal,
-   * insertion, merge, etc.).
-   *
-   * Key:   shape name (e.g. "cellshape_Table_2_5_0")
-   * Value: { slideIndex, resolvedTableId, tableId, rowIndex, colIndex, shapeIndex, config }
-   *
-   * @private
-   * @type {Map<string, {slideIndex: number, resolvedTableId: string, tableId: string, rowIndex: number, colIndex: number, shapeIndex: string|number, config: Object}>}
-   */
-  #cellShapeAnchors = new Map()
 
   /**
    * @param {XMLParser} xmlParser
@@ -71,4057 +55,1686 @@ class TableManager {
     this.#xmlParser = xmlParser
   }
 
+  // ==========================================================================
+  // 1. Lifecycle & Creation
+  // ==========================================================================
+
   /**
-   * Updates a table with new row data.
-   * Finds the table by name/ID and replaces its row content.
-   * Preserves all formatting properties.
+   * 1. addTable(slideId, rows, columns, data, options)
+   * Constructs a valid <p:graphicFrame> enclosing <a:tbl> with <a:tblPr>, <a:tblGrid>, and initial <a:tr> elements.
    *
-   * @param {number} slideIndex - 1-based slide index.
-   * @param {string} tableId - Table name or shape ID.
-   * @param {string[][]} rows - 2D array of cell values [row][col].
-   * @param {SlideManager} slideManager
-   * @throws {TableNotFoundError} If the table is not found.
+   * @param {number|string} slideId - Slide index or ID.
+   * @param {number} rows - Number of rows.
+   * @param {number} columns - Number of columns.
+   * @param {Array<Array<*>>} [data] - Initial 2D table data.
+   * @param {Object} [options] - Geometry, styling, and positioning options.
+   * @param {SlideManager} slideManager - SlideManager instance.
+   * @returns {string} Created table ID/name.
    */
-  updateTable(slideIndex, tableId, data, slideManager, shapeManager) {
-    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
-
-    const trs = tblObj['a:tr'] || []
-    if (trs.length === 0) {
-      logger.warn('No rows found in table XML template')
-      return
+  addTable(slideId, rows, columns, data = [], options = {}, slideManager) {
+    const slideIndex = slideManager.resolveSlideIndex
+      ? slideManager.resolveSlideIndex(slideId)
+      : typeof slideId === 'number'
+        ? slideId
+        : 1
+    const slideObj = slideManager.getSlideObj(slideIndex)
+    if (!slideObj) {
+      throw new PPTXError(`Slide not found for index/ID: ${slideId}`)
     }
 
-    let rowsData = []
-    let templateMerges = []
-    let cellShapes = null
-
-    if (Array.isArray(data)) {
-      rowsData = data
-    } else if (data && typeof data === 'object') {
-      rowsData = data.rows || []
-      templateMerges = data.merge || []
-      cellShapes = data.cellShapes || null
+    const cSld = slideObj['p:sld']?.['p:cSld'] || slideObj['p:sldLayout']?.['p:cSld']
+    const spTree = cSld?.['p:spTree']
+    if (!spTree) {
+      throw new PPTXError(`Invalid slide structure: missing p:spTree on slide ${slideIndex}`)
     }
 
-    const headerTemplate = trs[0]
-    const dataTemplate = trs[1] || trs[0]
+    const canvas = getCanvasDimensions(slideIndex, slideManager)
+    const opt = typeof options === 'object' && options !== null ? options : {}
 
-    const newRows = []
-    const generatedMerges = []
+    // Resolve coordinates (supports percentages, pt, px, in, emu)
+    const x = opt.x !== undefined ? resolveCoordinate(opt.x, canvas.width, opt) : 1524000
+    const y = opt.y !== undefined ? resolveCoordinate(opt.y, canvas.height, opt) : 1397000
+    const width =
+      opt.width !== undefined ? resolveCoordinate(opt.width, canvas.width, opt) : 6096000
+    const height =
+      opt.height !== undefined ? resolveCoordinate(opt.height, canvas.height, opt) : 1828800
 
-    const headerNames = (trs[0]['a:tc'] || []).map(cell => this.#getCellText(cell).trim())
-    const isObjectRows =
-      rowsData.length > 0 && !Array.isArray(rowsData[0]) && typeof rowsData[0] === 'object'
+    const numRows = Math.max(1, Number(rows) || (Array.isArray(data) ? data.length : 2))
+    const numCols = Math.max(
+      1,
+      Number(columns) || (Array.isArray(data) && data[0] ? data[0].length : 2)
+    )
 
-    if (isObjectRows) {
-      // 1. Keep/clone the header row
-      const headerRow = this.#xmlParser.deepClone(headerTemplate)
-      this.#updateRowId(headerRow)
-      newRows.push(headerRow)
+    const shapeId = this.#generateUniqueShapeId(spTree)
+    const tableId = opt.id || opt.name || `Table ${shapeId}`
 
-      // 2. Map objects to data rows
-      for (let i = 0; i < rowsData.length; i++) {
-        const newRow = this.#xmlParser.deepClone(dataTemplate)
-        this.#updateRowId(newRow)
-
-        const tcs = newRow['a:tc'] || []
-        const rowObj = rowsData[i]
-
-        for (let j = 0; j < tcs.length; j++) {
-          const headerName = headerNames[j]
-          let rawCell = undefined
-          if (headerName) {
-            if (rowObj[headerName] !== undefined) {
-              rawCell = rowObj[headerName]
-            } else if (rowObj[headerName.toLowerCase()] !== undefined) {
-              rawCell = rowObj[headerName.toLowerCase()]
-            }
-          }
-          if (rawCell === undefined && rowObj[j] !== undefined) {
-            rawCell = rowObj[j]
-          }
-          if (rawCell === undefined) {
-            rawCell = ''
-          }
-
-          let val = ''
-          let cellOptions = {}
-
-          if (tcs[j]['@_hMerge']) delete tcs[j]['@_hMerge']
-          if (tcs[j]['@_vMerge']) delete tcs[j]['@_vMerge']
-          if (tcs[j]['@_gridSpan']) delete tcs[j]['@_gridSpan']
-          if (tcs[j]['@_rowSpan']) delete tcs[j]['@_rowSpan']
-
-          if (rawCell && typeof rawCell === 'object') {
-            val = rawCell.value !== undefined ? rawCell.value : ''
-            const rowSpan = parseInt(rawCell.rowSpan || 1, 10)
-            const colSpan = parseInt(rawCell.colSpan || rawCell.gridSpan || 1, 10)
-            if (rowSpan > 1 || colSpan > 1) {
-              generatedMerges.push({
-                startRow: i + 1,
-                startCol: j,
-                endRow: i + 1 + rowSpan - 1,
-                endCol: j + colSpan - 1,
-              })
-            }
-            cellOptions = rawCell
-          } else {
-            val = String(rawCell)
-          }
-
-          this.#setCellTextObj(tcs[j], val)
-          this.#applyCellOptions(tcs[j], cellOptions)
-        }
-        newRows.push(newRow)
+    // Calculate grid column widths
+    const gridCols = []
+    const defaultColW = Math.round(width / numCols)
+    for (let c = 0; c < numCols; c++) {
+      let colW = defaultColW
+      if (Array.isArray(opt.colWidths) && opt.colWidths[c] !== undefined) {
+        colW = toEmu(opt.colWidths[c])
       }
-    } else {
-      // 2D array mapping
-      for (let i = 0; i < rowsData.length; i++) {
-        const template = i === 0 ? headerTemplate : trs[i] || dataTemplate
-        const newRow = this.#xmlParser.deepClone(template)
-        this.#updateRowId(newRow)
+      gridCols.push({ '@_w': String(colW) })
+    }
 
-        const tcs = newRow['a:tc'] || []
-        const rowData = rowsData[i]
+    // Build row elements
+    const defaultRowH = Math.round(height / numRows)
+    const trList = []
 
-        for (let j = 0; j < tcs.length; j++) {
-          const rawCell = rowData && rowData[j] !== undefined ? rowData[j] : ''
-          let val = ''
-          let cellOptions = {}
+    for (let r = 0; r < numRows; r++) {
+      let rowH = defaultRowH
+      if (Array.isArray(opt.rowHeights) && opt.rowHeights[r] !== undefined) {
+        rowH = toEmu(opt.rowHeights[r])
+      }
 
-          if (tcs[j]['@_hMerge']) delete tcs[j]['@_hMerge']
-          if (tcs[j]['@_vMerge']) delete tcs[j]['@_vMerge']
-          if (tcs[j]['@_gridSpan']) delete tcs[j]['@_gridSpan']
-          if (tcs[j]['@_rowSpan']) delete tcs[j]['@_rowSpan']
+      const tcList = []
+      for (let c = 0; c < numCols; c++) {
+        let cellVal = ''
+        let cellOpt = {}
 
-          if (rawCell && typeof rawCell === 'object') {
-            val = rawCell.value !== undefined ? rawCell.value : ''
-            const rowSpan = parseInt(rawCell.rowSpan || 1, 10)
-            const colSpan = parseInt(rawCell.colSpan || rawCell.gridSpan || 1, 10)
-            if (rowSpan > 1 || colSpan > 1) {
-              generatedMerges.push({
-                startRow: i,
-                startCol: j,
-                endRow: i + rowSpan - 1,
-                endCol: j + colSpan - 1,
-              })
-            }
-            cellOptions = rawCell
+        if (Array.isArray(data) && data[r] && data[r][c] !== undefined) {
+          const raw = data[r][c]
+          if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
+            cellVal = raw.value !== undefined ? raw.value : raw.text !== undefined ? raw.text : ''
+            cellOpt = raw
           } else {
-            val = String(rawCell)
+            cellVal = String(raw ?? '')
           }
-
-          this.#setCellTextObj(tcs[j], val)
-          this.#applyCellOptions(tcs[j], cellOptions)
         }
-        newRows.push(newRow)
+
+        const tcNode = this.#createCellNode(cellVal, cellOpt)
+        tcList.push(tcNode)
+      }
+
+      const rowNode = {
+        '@_h': String(rowH),
+        'a:tc': tcList,
+        'a:extLst': {
+          'a:ext': {
+            '@_uri': ROW_ID_URI,
+            'a16:rowId': {
+              '@_xmlns:a16': ROW_ID_NS,
+              '@_val': String(generateRowId()),
+            },
+          },
+        },
+      }
+      trList.push(rowNode)
+    }
+
+    // Table Properties <a:tblPr>
+    const tblPr = StyleBuilder.buildTableProperties(
+      {},
+      {
+        firstRow: opt.firstRow !== undefined ? opt.firstRow : true,
+        bandRow: opt.bandRow !== undefined ? opt.bandRow : true,
+        firstCol: opt.firstCol || false,
+        bandCol: opt.bandCol || false,
+        lastRow: opt.lastRow || false,
+        lastCol: opt.lastCol || false,
+        styleId: opt.styleId || DEFAULT_TABLE_STYLE_ID,
+      }
+    )
+
+    // Construct full <p:graphicFrame>
+    const graphicFrame = {
+      'p:nvGraphicFramePr': {
+        'p:cNvPr': {
+          '@_id': String(shapeId),
+          '@_name': tableId,
+        },
+        'p:cNvGraphicFramePr': {
+          'a:graphicFrameLocks': { '@_noGrp': '1' },
+        },
+        'p:nvPr': {},
+      },
+      'p:xfrm': {
+        'a:off': { '@_x': String(x), '@_y': String(y) },
+        'a:ext': { '@_cx': String(width), '@_cy': String(height) },
+      },
+      'a:graphic': {
+        'a:graphicData': {
+          '@_uri': 'http://schemas.openxmlformats.org/drawingml/2006/table',
+          'a:tbl': {
+            'a:tblPr': tblPr,
+            'a:tblGrid': {
+              'a:gridCol': gridCols,
+            },
+            'a:tr': trList,
+          },
+        },
+      },
+    }
+
+    if (!Array.isArray(spTree['p:graphicFrame'])) {
+      if (spTree['p:graphicFrame']) {
+        spTree['p:graphicFrame'] = [spTree['p:graphicFrame']]
+      } else {
+        spTree['p:graphicFrame'] = []
+      }
+    }
+    spTree['p:graphicFrame'].push(graphicFrame)
+
+    this.#markDirty(slideIndex, slideManager)
+    logger.debug(`Created table "${tableId}" on slide ${slideIndex}`)
+    return tableId
+  }
+
+  /**
+   * 2. updateTable(tableId, options)
+   * Updates table geometry, bounds, table properties, and styles.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {Object} options - Updates for position, dimensions, properties, colWidths, rowHeights.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  updateTable(tableId, options = {}, slideIndex, slideManager) {
+    if (Array.isArray(options)) {
+      return this.updateTableData(tableId, options, slideIndex, slideManager)
+    }
+
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
+    const canvas = getCanvasDimensions(resolvedSlideIndex, slideManager)
+
+    const xfrm = frame['p:xfrm'] || (frame['p:xfrm'] = {})
+    const off = xfrm['a:off'] || (xfrm['a:off'] = { '@_x': '0', '@_y': '0' })
+    const ext = xfrm['a:ext'] || (xfrm['a:ext'] = { '@_cx': '0', '@_cy': '0' })
+
+    if (options.x !== undefined) {
+      off['@_x'] = String(resolveCoordinate(options.x, canvas.width, options))
+    }
+    if (options.y !== undefined) {
+      off['@_y'] = String(resolveCoordinate(options.y, canvas.height, options))
+    }
+    if (options.width !== undefined) {
+      ext['@_cx'] = String(resolveCoordinate(options.width, canvas.width, options))
+    }
+    if (options.height !== undefined) {
+      ext['@_cy'] = String(resolveCoordinate(options.height, canvas.height, options))
+    }
+
+    // Table Properties
+    if (tblObj['a:tblPr']) {
+      tblObj['a:tblPr'] = StyleBuilder.buildTableProperties(tblObj['a:tblPr'], options)
+    }
+
+    // Column widths
+    if (Array.isArray(options.colWidths)) {
+      const grid = tblObj['a:tblGrid']?.['a:gridCol'] || []
+      for (let i = 0; i < options.colWidths.length && i < grid.length; i++) {
+        if (options.colWidths[i] !== undefined) {
+          grid[i]['@_w'] = String(toEmu(options.colWidths[i]))
+        }
       }
     }
 
-    tblObj['a:tr'] = newRows
+    // Row heights
+    if (Array.isArray(options.rowHeights)) {
+      const trs = tblObj['a:tr'] || []
+      for (let i = 0; i < options.rowHeights.length && i < trs.length; i++) {
+        if (options.rowHeights[i] !== undefined) {
+          trs[i]['@_h'] = String(toEmu(options.rowHeights[i]))
+        }
+      }
+    }
 
-    slideManager.markSlideObjDirty(slideIndex)
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
+  }
 
-    const finalMerges = [...templateMerges, ...generatedMerges]
-    for (const merge of finalMerges) {
-      this.mergeCells(
+  /**
+   * 3. updateTableData(tableId, data)
+   * Replaces matrix cell data while strictly preserving existing column widths, cell styling, and row heights.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {Array<Array<*>>} data - 2D matrix of cell values.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  updateTableData(tableId, data = [], slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    if (!Array.isArray(data) || data.length === 0) return this
+
+    let trs = tblObj['a:tr']
+    if (!Array.isArray(trs)) {
+      trs = trs ? [trs] : []
+      tblObj['a:tr'] = trs
+    }
+
+    const templateRow = trs[0] || null
+
+    for (let r = 0; r < data.length; r++) {
+      let tr = trs[r]
+      if (!tr) {
+        if (!templateRow) break
+        tr = this.#xmlParser.deepClone(templateRow)
+        this.#updateRowId(tr)
+        trs.push(tr)
+      }
+
+      let tcs = tr['a:tc']
+      if (!Array.isArray(tcs)) {
+        tcs = tcs ? [tcs] : []
+        tr['a:tc'] = tcs
+      }
+
+      const rowValues = Array.isArray(data[r]) ? data[r] : [data[r]]
+      for (let c = 0; c < rowValues.length && c < tcs.length; c++) {
+        const val = rowValues[c]
+        if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+          this.#setCellText(tcs[c], val.value !== undefined ? val.value : val.text, val)
+        } else {
+          this.#setCellText(tcs[c], val)
+        }
+      }
+    }
+
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
+  }
+
+  /**
+   * 4. removeTable(tableId)
+   * Purges the table <p:graphicFrame> from <p:spTree> cleanly without orphaned relationships.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  removeTable(tableId, slideIndex, slideManager) {
+    const { frame, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const slideObj = slideManager.getSlideObj(resolvedSlideIndex)
+    const spTree =
+      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree']
+
+    if (spTree?.['p:graphicFrame']) {
+      if (Array.isArray(spTree['p:graphicFrame'])) {
+        const idx = spTree['p:graphicFrame'].indexOf(frame)
+        if (idx !== -1) {
+          spTree['p:graphicFrame'].splice(idx, 1)
+        }
+      } else if (spTree['p:graphicFrame'] === frame) {
+        delete spTree['p:graphicFrame']
+      }
+    }
+
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    logger.debug(`Removed table "${tableId}" from slide ${resolvedSlideIndex}`)
+    return this
+  }
+
+  /**
+   * 5. getTables(slideId)
+   * Parses DrawingML nodes and returns normalized metadata for tables on the slide.
+   *
+   * @param {number|string} [slideId] - Slide identifier.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {Array<Object>} List of table descriptor objects.
+   */
+  getTables(slideId, slideManager) {
+    const targetIndices =
+      slideId !== undefined
+        ? [
+            slideManager.resolveSlideIndex
+              ? slideManager.resolveSlideIndex(slideId)
+              : Number(slideId),
+          ]
+        : slideManager.getAllSlideIndices()
+
+    const results = []
+    for (const sIdx of targetIndices) {
+      const slideObj = slideManager.getSlideObj(sIdx)
+      if (!slideObj) continue
+
+      const spTree =
+        slideObj['p:sld']?.['p:cSld']?.['p:spTree'] ||
+        slideObj['p:sldLayout']?.['p:cSld']?.['p:spTree']
+      if (!spTree) continue
+
+      const frames = Array.isArray(spTree['p:graphicFrame'])
+        ? spTree['p:graphicFrame']
+        : spTree['p:graphicFrame']
+          ? [spTree['p:graphicFrame']]
+          : []
+
+      for (const frame of frames) {
+        const tbl = frame['a:graphic']?.['a:graphicData']?.['a:tbl']
+        if (!tbl) continue
+
+        const cNvPr = frame['p:nvGraphicFramePr']?.['p:cNvPr'] || {}
+        const xfrm = frame['p:xfrm'] || {}
+        const off = xfrm['a:off'] || {}
+        const ext = xfrm['a:ext'] || {}
+
+        const trs = Array.isArray(tbl['a:tr']) ? tbl['a:tr'] : tbl['a:tr'] ? [tbl['a:tr']] : []
+        const cols = Array.isArray(tbl['a:tblGrid']?.['a:gridCol'])
+          ? tbl['a:tblGrid']['a:gridCol']
+          : tbl['a:tblGrid']?.['a:gridCol']
+            ? [tbl['a:tblGrid']['a:gridCol']]
+            : []
+
+        const xVal = parseInt(off['@_x'] || '0', 10)
+        const yVal = parseInt(off['@_y'] || '0', 10)
+        const cxVal = parseInt(ext['@_cx'] || '0', 10)
+        const cyVal = parseInt(ext['@_cy'] || '0', 10)
+
+        results.push({
+          id: String(cNvPr['@_id'] || ''),
+          name: String(cNvPr['@_name'] || ''),
+          slideIndex: sIdx,
+          rows: trs.length,
+          columns: cols.length,
+          cols: cols.length,
+          x: xVal,
+          y: yVal,
+          width: cxVal,
+          height: cyVal,
+          position: {
+            x: xVal,
+            y: yVal,
+            width: cxVal,
+            height: cyVal,
+          },
+          properties: {
+            firstRow: tbl['a:tblPr']?.['@_firstRow'] === '1',
+            bandRow: tbl['a:tblPr']?.['@_bandRow'] === '1',
+            firstCol: tbl['a:tblPr']?.['@_firstCol'] === '1',
+            bandCol: tbl['a:tblPr']?.['@_bandCol'] === '1',
+            styleId: tbl['a:tblPr']?.['a:tableStyleId'] || null,
+          },
+          firstRow: tbl['a:tblPr']?.['@_firstRow'] === '1',
+          bandRow: tbl['a:tblPr']?.['@_bandRow'] === '1',
+          firstCol: tbl['a:tblPr']?.['@_firstCol'] === '1',
+          bandCol: tbl['a:tblPr']?.['@_bandCol'] === '1',
+          styleId: tbl['a:tblPr']?.['a:tableStyleId'] || null,
+        })
+      }
+    }
+
+    return results
+  }
+
+  /**
+   * 6. getTable(tableId)
+   * Queries and returns normalized table metadata, row/col counts, and position.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {Object|null} Normalized table metadata or null.
+   */
+  getTable(tableId, slideIndex, slideManager) {
+    try {
+      const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
         slideIndex,
         tableId,
-        merge.startRow,
-        merge.startCol,
-        merge.endRow,
-        merge.endCol,
         slideManager
       )
+      const cNvPr = frame['p:nvGraphicFramePr']?.['p:cNvPr'] || {}
+      const xfrm = frame['p:xfrm'] || {}
+      const trs = Array.isArray(tblObj['a:tr'])
+        ? tblObj['a:tr']
+        : tblObj['a:tr']
+          ? [tblObj['a:tr']]
+          : []
+      const cols = Array.isArray(tblObj['a:tblGrid']?.['a:gridCol'])
+        ? tblObj['a:tblGrid']['a:gridCol']
+        : tblObj['a:tblGrid']?.['a:gridCol']
+          ? [tblObj['a:tblGrid']['a:gridCol']]
+          : []
+
+      const xVal = parseInt(xfrm['a:off']?.['@_x'] || '0', 10)
+      const yVal = parseInt(xfrm['a:off']?.['@_y'] || '0', 10)
+      const cxVal = parseInt(xfrm['a:ext']?.['@_cx'] || '0', 10)
+      const cyVal = parseInt(xfrm['a:ext']?.['@_cy'] || '0', 10)
+      const dataMatrix = this.getTableData(tableId, resolvedSlideIndex, slideManager)
+
+      return {
+        id: String(cNvPr['@_id'] || ''),
+        name: String(cNvPr['@_name'] || ''),
+        slideIndex: resolvedSlideIndex,
+        rows: trs.length,
+        columns: cols.length,
+        cols: cols.length,
+        x: xVal,
+        y: yVal,
+        width: cxVal,
+        height: cyVal,
+        position: {
+          x: xVal,
+          y: yVal,
+          width: cxVal,
+          height: cyVal,
+        },
+        properties: {
+          firstRow: tblObj['a:tblPr']?.['@_firstRow'] === '1',
+          bandRow: tblObj['a:tblPr']?.['@_bandRow'] === '1',
+          firstCol: tblObj['a:tblPr']?.['@_firstCol'] === '1',
+          bandCol: tblObj['a:tblPr']?.['@_bandCol'] === '1',
+          styleId: tblObj['a:tblPr']?.['a:tableStyleId'] || null,
+        },
+        firstRow: tblObj['a:tblPr']?.['@_firstRow'] === '1',
+        bandRow: tblObj['a:tblPr']?.['@_bandRow'] === '1',
+        firstCol: tblObj['a:tblPr']?.['@_firstCol'] === '1',
+        bandCol: tblObj['a:tblPr']?.['@_bandCol'] === '1',
+        styleId: tblObj['a:tblPr']?.['a:tableStyleId'] || null,
+        data: dataMatrix,
+        tableData: dataMatrix,
+      }
+    } catch {
+      return null
     }
-
-    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
-
-    if (cellShapes) {
-      this.#processCellShapes(
-        slideIndex,
-        tableId,
-        resolvedTableId,
-        rowsData,
-        isObjectRows,
-        cellShapes,
-        slideManager,
-        shapeManager,
-        tblObj
-      )
-    }
-
-    if (shapeManager) {
-      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
-    }
-
-    logger.debug(
-      `Updated table "${tableId}" with ${rowsData.length} rows and ${finalMerges.length} merges`
-    )
   }
 
   /**
-   * Adds a row at the end of the table.
+   * 7. cloneTable(tableId, clonedTableId, clonedOptions)
+   * Deep-clones an existing table graphic frame, assigns unique shape ID and row IDs, and applies overrides.
    *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {string[]} rowData
-   * @param {SlideManager} slideManager
+   * @param {string} tableId - Source table name or shape ID.
+   * @param {string} clonedTableId - Cloned table identifier.
+   * @param {Object} [clonedOptions] - Position and dimension overrides.
+   * @param {number} [slideIndex] - Target slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
    */
-  addTableRow(slideIndex, tableId, rowData, slideManager, shapeManagerOrOptions, options = {}) {
-    let shapeManager = null
-    let actualOptions = options
-    if (shapeManagerOrOptions && typeof shapeManagerOrOptions.getShapes === 'function') {
-      shapeManager = shapeManagerOrOptions
-    } else if (shapeManagerOrOptions && typeof shapeManagerOrOptions === 'object') {
-      actualOptions = shapeManagerOrOptions
+  cloneTable(tableId, clonedTableId, clonedOptions = {}, slideIndex, slideManager) {
+    const { frame, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const slideObj = slideManager.getSlideObj(resolvedSlideIndex)
+    const spTree =
+      slideObj['p:sld']?.['p:cSld']?.['p:spTree'] ||
+      slideObj['p:sldLayout']?.['p:cSld']?.['p:spTree']
+
+    const clonedFrame = this.#xmlParser.deepClone(frame)
+    const newShapeId = this.#generateUniqueShapeId(spTree)
+    const newName = clonedTableId || `Table ${newShapeId}`
+
+    if (clonedFrame['p:nvGraphicFramePr']?.['p:cNvPr']) {
+      clonedFrame['p:nvGraphicFramePr']['p:cNvPr']['@_id'] = String(newShapeId)
+      clonedFrame['p:nvGraphicFramePr']['p:cNvPr']['@_name'] = newName
     }
 
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
-
-    const trs = tblObj['a:tr'] || []
-    if (trs.length === 0) {
-      throw new PPTXError('No rows to clone from')
-    }
-
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
-
-    const lastRow = trs[trs.length - 1]
-    const numCols = lastRow['a:tc']?.length || 0
-
-    // Compute target generated height
-    const heights = []
-    for (let c = 0; c < numCols; c++) {
-      heights.push(this.#getNestedHeight(rowData[c]))
-    }
-    const targetHeight = Math.max(1, ...heights)
-
-    // Expand each column value to targetHeight
-    const expandedCols = []
-    const strategy = actualOptions.mergeStrategy || 'auto'
-    for (let c = 0; c < numCols; c++) {
-      let colCells = this.#expandCellVal(rowData[c], targetHeight)
-      if (strategy === 'none') {
-        for (let i = 0; i < colCells.length; i++) {
-          if (colCells[i].vMerge) {
-            colCells[i] = { value: '', rowSpan: 1 }
-          } else {
-            colCells[i].rowSpan = 1
-          }
-        }
-      } else if (strategy === 'auto') {
-        colCells = this.#applyAutoMerge(colCells)
+    // Refresh row IDs for all rows in cloned table
+    const clonedTbl = clonedFrame['a:graphic']?.['a:graphicData']?.['a:tbl']
+    if (clonedTbl) {
+      const trs = Array.isArray(clonedTbl['a:tr'])
+        ? clonedTbl['a:tr']
+        : clonedTbl['a:tr']
+          ? [clonedTbl['a:tr']]
+          : []
+      for (const tr of trs) {
+        this.#updateRowId(tr)
       }
-      expandedCols.push(colCells)
     }
 
-    const startRowIndex = trs.length
-    const shapeCellsToCreate = []
-    const isShapeConfig = val => {
-      return val && typeof val === 'object' && typeof val.type === 'string'
+    // Apply coordinate overrides if provided
+    const canvas = getCanvasDimensions(resolvedSlideIndex, slideManager)
+    const xfrm = clonedFrame['p:xfrm'] || (clonedFrame['p:xfrm'] = {})
+    const off = xfrm['a:off'] || (xfrm['a:off'] = { '@_x': '0', '@_y': '0' })
+    const ext = xfrm['a:ext'] || (xfrm['a:ext'] = { '@_cx': '0', '@_cy': '0' })
+
+    if (clonedOptions.x !== undefined) {
+      off['@_x'] = String(resolveCoordinate(clonedOptions.x, canvas.width, clonedOptions))
+    }
+    if (clonedOptions.y !== undefined) {
+      off['@_y'] = String(resolveCoordinate(clonedOptions.y, canvas.height, clonedOptions))
+    }
+    if (clonedOptions.width !== undefined) {
+      ext['@_cx'] = String(resolveCoordinate(clonedOptions.width, canvas.width, clonedOptions))
+    }
+    if (clonedOptions.height !== undefined) {
+      ext['@_cy'] = String(resolveCoordinate(clonedOptions.height, canvas.height, clonedOptions))
     }
 
-    // Clone and append rows
-    for (let r = 0; r < targetHeight; r++) {
-      const newRow = this.#xmlParser.deepClone(lastRow)
+    if (!Array.isArray(spTree['p:graphicFrame'])) {
+      spTree['p:graphicFrame'] = [spTree['p:graphicFrame']]
+    }
+    spTree['p:graphicFrame'].push(clonedFrame)
+
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    logger.debug(`Cloned table "${tableId}" to "${newName}" on slide ${resolvedSlideIndex}`)
+    return this
+  }
+
+  // ==========================================================================
+  // 2. Row & Column Structural Operations
+  // ==========================================================================
+
+  /**
+   * 8. addTableRow(tableId, rowIndex, data)
+   * Inserts or appends a row at rowIndex with cell data, generating unique <a16:rowId>.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number|Array} rowIndex - 0-based insertion row index, or row data array if appending.
+   * @param {Array<*>} [data] - Row cell data.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  addTableRow(tableId, rowIndex, data, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    let trs = tblObj['a:tr']
+    if (!Array.isArray(trs)) {
+      trs = trs ? [trs] : []
+      tblObj['a:tr'] = trs
+    }
+
+    let insertIdx = trs.length
+    let rowValues = []
+
+    if (typeof rowIndex === 'number') {
+      insertIdx = Math.max(0, Math.min(rowIndex, trs.length))
+      rowValues = Array.isArray(data) ? data : []
+    } else if (Array.isArray(rowIndex)) {
+      rowValues = rowIndex
+    } else if (Array.isArray(data)) {
+      rowValues = data
+    }
+
+    const templateRow = trs[Math.min(insertIdx, trs.length - 1)] || trs[0]
+    let newRow
+
+    if (templateRow) {
+      newRow = this.#xmlParser.deepClone(templateRow)
       this.#updateRowId(newRow)
+      const tcs = Array.isArray(newRow['a:tc'])
+        ? newRow['a:tc']
+        : newRow['a:tc']
+          ? [newRow['a:tc']]
+          : []
 
-      const tcs = newRow['a:tc'] || []
-      for (let c = 0; c < numCols; c++) {
-        const cellDef = expandedCols[c][r]
-        const tcObj = tcs[c]
-
-        // Clear any previous merge attributes
-        if (tcObj['@_hMerge']) delete tcObj['@_hMerge']
-        if (tcObj['@_vMerge']) delete tcObj['@_vMerge']
-        if (tcObj['@_gridSpan']) delete tcObj['@_gridSpan']
-        if (tcObj['@_rowSpan']) delete tcObj['@_rowSpan']
-
-        if (cellDef.vMerge) {
-          tcObj['@_vMerge'] = '1'
-          this.#setCellTextObj(tcObj, '')
+      for (let c = 0; c < tcs.length; c++) {
+        delete tcs[c]['@_rowSpan']
+        delete tcs[c]['@_gridSpan']
+        delete tcs[c]['@_hMerge']
+        delete tcs[c]['@_vMerge']
+        const val = rowValues[c] !== undefined ? rowValues[c] : ''
+        if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+          this.#setCellText(tcs[c], val.value !== undefined ? val.value : val.text, val)
         } else {
-          let text = cellDef.value
-          let cellOpts = {}
-
-          if (isShapeConfig(cellDef.value)) {
-            const config = cellDef.value
-            const globalRowIndex = startRowIndex + r
-
-            const isStandardShape = [
-              'circle',
-              'square',
-              'rectangle',
-              'triangle',
-              'diamond',
-              'hexagon',
-              'line',
-            ].includes(config.type)
-
-            const shapeConfig = { ...config }
-
-            if (isStandardShape) {
-              text =
-                config.text !== undefined
-                  ? config.text
-                  : config.value !== undefined
-                    ? config.value
-                    : ''
-              delete shapeConfig.text // DO NOT render text inside the shape overlay!
-            } else {
-              text = '' // for badges/icons/progressBars, cell text is empty!
-            }
-
-            shapeCellsToCreate.push({
-              rowIndex: globalRowIndex,
-              colIndex: c,
-              config: shapeConfig,
-            })
-
-            cellOpts = {}
-            if (config.cellFill) cellOpts.fill = config.cellFill
-            if (config.cellAlign) cellOpts.align = config.cellAlign
-
-            // Estimate shape dimensions to set margins
-            const colWidth_emu = colWidths[c] || 0
-            const colWidth_px = colWidth_emu / 9525
-
-            const parseLength = (val, maxVal) => {
-              if (typeof val === 'string' && val.endsWith('%')) {
-                return (parseFloat(val) / 100) * maxVal
-              }
-              return val !== undefined ? parseFloat(val) : undefined
-            }
-
-            let shapeWidth = 12
-            let shapeHeight = 12
-
-            if (config.width !== undefined) {
-              shapeWidth = parseLength(config.width, colWidth_px) || 12
-            } else if (config.size !== undefined) {
-              shapeWidth = parseLength(config.size, colWidth_px) || 12
-            } else if (config.radius !== undefined) {
-              shapeWidth = (parseLength(config.radius, colWidth_px) || 6) * 2
-            }
-
-            if (config.height !== undefined) {
-              shapeHeight = parseLength(config.height, 50) || 12
-            } else if (config.size !== undefined) {
-              shapeHeight = parseLength(config.size, 50) || 12
-            } else if (config.radius !== undefined) {
-              shapeHeight = (parseLength(config.radius, 25) || 6) * 2
-            }
-
-            if (isStandardShape && text !== '') {
-              const position = config.position || (config.text ? 'left' : 'center')
-              const tcPr = tcObj['a:tcPr'] || {}
-              const currentMarL =
-                tcPr['@_marL'] !== undefined ? parseInt(tcPr['@_marL'], 10) : 91440
-              const currentMarR =
-                tcPr['@_marR'] !== undefined ? parseInt(tcPr['@_marR'], 10) : 91440
-              const currentMarT =
-                tcPr['@_marT'] !== undefined ? parseInt(tcPr['@_marT'], 10) : 45720
-              const currentMarB =
-                tcPr['@_marB'] !== undefined ? parseInt(tcPr['@_marB'], 10) : 45720
-
-              tcObj['a:tcPr'] = tcObj['a:tcPr'] || {}
-
-              const isLeft = position.includes('left') || position === 'left'
-              const isRight = position.includes('right') || position === 'right'
-              const isTop = position === 'top' || position.startsWith('top-')
-              const isBottom = position === 'bottom' || position.startsWith('bottom-')
-
-              if (isLeft) {
-                tcObj['a:tcPr']['@_marL'] = String(
-                  currentMarL + Math.round(shapeWidth * 9525) + 57150
-                )
-              } else if (isRight) {
-                tcObj['a:tcPr']['@_marR'] = String(
-                  currentMarR + Math.round(shapeWidth * 9525) + 57150
-                )
-              } else if (isTop) {
-                tcObj['a:tcPr']['@_marT'] = String(
-                  currentMarT + Math.round(shapeHeight * 9525) + 57150
-                )
-              } else if (isBottom) {
-                tcObj['a:tcPr']['@_marB'] = String(
-                  currentMarB + Math.round(shapeHeight * 9525) + 57150
-                )
-              }
-            }
-          } else if (cellDef.value && typeof cellDef.value === 'object') {
-            text = cellDef.value.value !== undefined ? cellDef.value.value : ''
-            cellOpts = cellDef.value
-          }
-
-          this.#setCellTextObj(tcObj, text)
-          if (cellDef.rowSpan && cellDef.rowSpan > 1 && strategy !== 'none') {
-            tcObj['@_rowSpan'] = String(cellDef.rowSpan)
-          }
-          this.#applyCellOptions(tcObj, cellOpts)
+          this.#setCellText(tcs[c], val)
         }
       }
-      trs.push(newRow)
-    }
-
-    slideManager.markSlideObjDirty(slideIndex)
-
-    if (shapeCellsToCreate.length > 0 && shapeManager) {
-      for (const item of shapeCellsToCreate) {
-        const resolvedConfig = { ...item.config }
-        if (!resolvedConfig.position) {
-          resolvedConfig.position = resolvedConfig.text ? 'left' : 'center'
-        }
-
-        this.addCellShape(
-          slideIndex,
-          tableId,
-          item.rowIndex,
-          item.colIndex,
-          resolvedConfig,
-          slideManager,
-          shapeManager
-        )
+    } else {
+      const cols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+      const colCount = Array.isArray(cols) ? cols.length : 1
+      const tcList = []
+      for (let c = 0; c < colCount; c++) {
+        tcList.push(this.#createCellNode(rowValues[c] ?? ''))
+      }
+      newRow = {
+        '@_h': '370840',
+        'a:tc': tcList,
+        'a:extLst': {
+          'a:ext': {
+            '@_uri': ROW_ID_URI,
+            'a16:rowId': {
+              '@_xmlns:a16': ROW_ID_NS,
+              '@_val': String(generateRowId()),
+            },
+          },
+        },
       }
     }
 
-    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
-
-    if (shapeManager) {
-      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
-    }
+    trs.splice(insertIdx, 0, newRow)
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
   }
 
   /**
-   * Removes a table row by index.
+   * 9. addTableColumn(tableId, columnIndex, data)
+   * Inserts or appends a column in <a:tblGrid> and creates corresponding <a:tc> cells across all rows.
    *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {number} rowIndex - 0-based row index.
-   * @param {SlideManager} slideManager
+   * @param {string} tableId - Table identifier.
+   * @param {number|Array} columnIndex - 0-based column index, or column data array if appending.
+   * @param {Array<*>} [data] - Column data down each row.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
    */
-  removeTableRow(slideIndex, tableId, rowIndex, slideManager, shapeManager = null) {
-    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
+  addTableColumn(tableId, columnIndex, data, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    let gridCols = tblObj['a:tblGrid']?.['a:gridCol']
+    if (!Array.isArray(gridCols)) {
+      gridCols = gridCols ? [gridCols] : []
+      if (!tblObj['a:tblGrid']) tblObj['a:tblGrid'] = {}
+      tblObj['a:tblGrid']['a:gridCol'] = gridCols
+    }
 
-    const trs = tblObj['a:tr'] || []
+    let insertIdx = gridCols.length
+    let colValues = []
+
+    if (typeof columnIndex === 'number') {
+      insertIdx = Math.max(0, Math.min(columnIndex, gridCols.length))
+      colValues = Array.isArray(data) ? data : []
+    } else if (Array.isArray(columnIndex)) {
+      colValues = columnIndex
+    } else if (Array.isArray(data)) {
+      colValues = data
+    }
+
+    const defaultW = gridCols.length > 0 ? gridCols[0]['@_w'] || '2032000' : '2032000'
+    gridCols.splice(insertIdx, 0, { '@_w': defaultW })
+
+    const trs = Array.isArray(tblObj['a:tr'])
+      ? tblObj['a:tr']
+      : tblObj['a:tr']
+        ? [tblObj['a:tr']]
+        : []
+
+    for (let r = 0; r < trs.length; r++) {
+      let tcs = trs[r]['a:tc']
+      if (!Array.isArray(tcs)) {
+        tcs = tcs ? [tcs] : []
+        trs[r]['a:tc'] = tcs
+      }
+      const val = colValues[r] !== undefined ? colValues[r] : ''
+      const templateCell = tcs[Math.min(insertIdx, tcs.length - 1)] || tcs[0]
+      let newCell
+
+      if (templateCell) {
+        newCell = this.#xmlParser.deepClone(templateCell)
+        delete newCell['@_rowSpan']
+        delete newCell['@_gridSpan']
+        delete newCell['@_hMerge']
+        delete newCell['@_vMerge']
+        if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+          this.#setCellText(newCell, val.value !== undefined ? val.value : val.text, val)
+        } else {
+          this.#setCellText(newCell, val)
+        }
+      } else {
+        newCell = this.#createCellNode(val)
+      }
+
+      tcs.splice(insertIdx, 0, newCell)
+    }
+
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
+  }
+
+  /**
+   * 10. removeTableRow(tableId, rowIndex)
+   * Purges <a:tr> element at rowIndex.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  removeTableRow(tableId, rowIndex, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
+    if (rowIndex < 0 || rowIndex >= trs.length) {
+      throw new PPTXError(`Row index ${rowIndex} out of bounds (table has ${trs.length} rows)`)
+    }
+
+    trs.splice(rowIndex, 1)
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
+  }
+
+  /**
+   * 11. removeTableColumn(tableId, columnIndex)
+   * Purges column at columnIndex from <a:tblGrid> and <a:tc> from each row.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} columnIndex - 0-based column index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  removeTableColumn(tableId, columnIndex, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol']
+    if (Array.isArray(gridCols)) {
+      if (columnIndex < 0 || columnIndex >= gridCols.length) {
+        throw new PPTXError(`Column index ${columnIndex} out of bounds`)
+      }
+      gridCols.splice(columnIndex, 1)
+    }
+
+    const trs = Array.isArray(tblObj['a:tr'])
+      ? tblObj['a:tr']
+      : tblObj['a:tr']
+        ? [tblObj['a:tr']]
+        : []
+    for (const tr of trs) {
+      if (Array.isArray(tr['a:tc']) && columnIndex >= 0 && columnIndex < tr['a:tc'].length) {
+        tr['a:tc'].splice(columnIndex, 1)
+      }
+    }
+
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
+  }
+
+  /**
+   * 12. updateRowData(tableId, rowIndex, data)
+   * Updates cell text values along target row rowIndex.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {Array<*>} data - Row cell values.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  updateRowData(tableId, rowIndex, data, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
     if (rowIndex < 0 || rowIndex >= trs.length) {
       throw new PPTXError(`Row index ${rowIndex} out of bounds`)
     }
 
-    trs.splice(rowIndex, 1)
-
-    slideManager.markSlideObjDirty(slideIndex)
-
-    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
-
-    if (shapeManager) {
-      this.#adjustCellShapesAfterRowShift(
-        slideIndex,
-        resolvedTableId,
-        tableId,
-        rowIndex,
-        -1,
-        slideManager,
-        shapeManager
-      )
-    }
-  }
-
-  /**
-   * Inserts a table row at a specific index.
-   *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {number} rowIndex
-   * @param {string[]} rowData
-   * @param {SlideManager} slideManager
-   */
-  insertTableRow(slideIndex, tableId, rowIndex, rowData, slideManager, shapeManager = null) {
-    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
-
-    const trs = tblObj['a:tr'] || []
-    if (rowIndex < 0 || rowIndex > trs.length) {
-      throw new PPTXError(`Row index ${rowIndex} out of bounds`)
-    }
-
-    // Use row above or first row as template
-    const templateIndex = Math.max(0, rowIndex - 1)
-    const template = trs[templateIndex] || trs[0]
-    if (!template) {
-      throw new PPTXError('No rows to insert and copy from')
-    }
-
-    const newRow = this.#xmlParser.deepClone(template)
-    this.#updateRowId(newRow)
-
-    const tcs = newRow['a:tc'] || []
-    for (let j = 0; j < tcs.length; j++) {
-      this.#setCellTextObj(tcs[j], rowData[j] !== undefined ? rowData[j] : '')
-      if (tcs[j]['@_hMerge']) delete tcs[j]['@_hMerge']
-      if (tcs[j]['@_vMerge']) delete tcs[j]['@_vMerge']
-    }
-
-    trs.splice(rowIndex, 0, newRow)
-
-    slideManager.markSlideObjDirty(slideIndex)
-
-    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
-
-    if (shapeManager) {
-      this.#adjustCellShapesAfterRowShift(
-        slideIndex,
-        resolvedTableId,
-        tableId,
-        rowIndex,
-        +1,
-        slideManager,
-        shapeManager
-      )
-    }
-  }
-
-  /**
-   * Clones a row and inserts it at another index.
-   *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {number} sourceRowIndex
-   * @param {number} targetRowIndex
-   * @param {SlideManager} slideManager
-   */
-  cloneTableRow(
-    slideIndex,
-    tableId,
-    sourceRowIndex,
-    targetRowIndex,
-    slideManager,
-    shapeManager = null
-  ) {
-    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
-
-    const trs = tblObj['a:tr'] || []
-    if (sourceRowIndex < 0 || sourceRowIndex >= trs.length) {
-      throw new PPTXError(`Source row index ${sourceRowIndex} out of bounds`)
-    }
-    if (targetRowIndex < 0 || targetRowIndex > trs.length) {
-      throw new PPTXError(`Target row index ${targetRowIndex} out of bounds`)
-    }
-
-    const template = trs[sourceRowIndex]
-    const newRow = this.#xmlParser.deepClone(template)
-    this.#updateRowId(newRow)
-
-    trs.splice(targetRowIndex, 0, newRow)
-
-    slideManager.markSlideObjDirty(slideIndex)
-
-    if (shapeManager) {
-      this.#adjustCellShapesAfterRowShift(
-        slideIndex,
-        resolvedTableId,
-        tableId,
-        targetRowIndex,
-        +1,
-        slideManager,
-        shapeManager
-      )
-    }
-  }
-
-  /**
-   * Updates a single cell text and formatting.
-   *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {number} rowIndex
-   * @param {number} colIndex
-   * @param {string} value
-   * @param {Object} options
-   * @param {SlideManager} slideManager
-   */
-  updateCell(
-    slideIndex,
-    tableId,
-    rowIndex,
-    colIndex,
-    value,
-    options = {},
-    slideManager,
-    shapeManager = null
-  ) {
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
-
-    const row = tblObj['a:tr']?.[rowIndex]
-    if (!row) {
-      throw new PPTXError(`Row index ${rowIndex} out of bounds`)
-    }
-
-    const cell = row['a:tc']?.[colIndex]
-    if (!cell) {
-      throw new PPTXError(`Column index ${colIndex} out of bounds`)
-    }
-
-    this.#setCellTextObj(cell, value)
-
-    if (options.fill) {
-      if (!cell['a:tcPr']) cell['a:tcPr'] = {}
-      cell['a:tcPr']['a:solidFill'] = {
-        'a:srgbClr': { '@_val': options.fill },
-      }
-    }
-
-    if (options.align) {
-      const txBody = cell['a:txBody']
-      if (txBody && txBody['a:p']) {
-        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-        for (const p of paras) {
-          if (!p['a:pPr']) p['a:pPr'] = {}
-          p['a:pPr']['@_algn'] = options.align
-        }
-      }
-    }
-
-    if (options.fontSize) {
-      const sizeVal = options.fontSize * 100
-      const txBody = cell['a:txBody']
-      if (txBody && txBody['a:p']) {
-        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-        for (const p of paras) {
-          if (p['a:r']) {
-            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-            for (const r of runs) {
-              if (!r['a:rPr']) r['a:rPr'] = {}
-              r['a:rPr']['@_sz'] = String(sizeVal)
-            }
-          }
-        }
-      }
-    }
-
-    if (
-      options.bold !== undefined ||
-      options.italic !== undefined ||
-      options.color ||
-      options.fontFamily
-    ) {
-      const txBody = cell['a:txBody']
-      if (txBody && txBody['a:p']) {
-        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-        for (const p of paras) {
-          if (p['a:r']) {
-            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-            for (const r of runs) {
-              if (!r['a:rPr']) r['a:rPr'] = {}
-              if (options.bold !== undefined) r['a:rPr']['@_b'] = options.bold ? '1' : '0'
-              if (options.italic !== undefined) r['a:rPr']['@_i'] = options.italic ? '1' : '0'
-              if (options.color) {
-                const hex = options.color.replace('#', '').toUpperCase()
-                r['a:rPr']['a:solidFill'] = { 'a:srgbClr': { '@_val': hex } }
-              }
-              if (options.fontFamily) {
-                r['a:rPr']['a:latin'] = { '@_typeface': options.fontFamily }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (options.border) {
-      if (!cell['a:tcPr']) cell['a:tcPr'] = {}
-      const applyBorderSide = (sideKey, lnTag) => {
-        const side =
-          typeof options.border === 'object' && options.border[sideKey] !== undefined
-            ? options.border[sideKey]
-            : options.border
-        if (side === false || side === null) {
-          cell['a:tcPr'][lnTag] = { 'a:noFill': {} }
-          return
-        }
-        if (!side) return
-        const bColor = (side.color || options.border.color || '000000')
-          .replace('#', '')
-          .toUpperCase()
-        const bWidth =
-          side.width !== undefined
-            ? Math.round(side.width * 12700)
-            : options.border.width !== undefined
-              ? Math.round(options.border.width * 12700)
-              : 12700
-        cell['a:tcPr'][lnTag] = {
-          '@_w': String(bWidth),
-          '@_cmpd': 'sng',
-          'a:solidFill': { 'a:srgbClr': { '@_val': bColor } },
-        }
-      }
-      applyBorderSide('left', 'a:lnL')
-      applyBorderSide('right', 'a:lnR')
-      applyBorderSide('top', 'a:lnT')
-      applyBorderSide('bottom', 'a:lnB')
-    }
-
-    slideManager.markSlideObjDirty(slideIndex)
-
-    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
-
-    if (shapeManager) {
-      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
-    }
-  }
-
-  /**
-   * Adds a new table to a slide.
-   *
-   * @param {number} slideIndex - 1-based slide index.
-   * @param {Object} options - Table configuration.
-   * @param {string} [options.id] - Table identifier or name.
-   * @param {string} [options.name] - Alternative table name.
-   * @param {number} [options.x=50] - Horizontal position.
-   * @param {number} [options.y=50] - Vertical position.
-   * @param {number} [options.width=500] - Total table width.
-   * @param {number} [options.height] - Total table height.
-   * @param {number} [options.rows] - Number of rows.
-   * @param {number} [options.columns] - Number of columns.
-   * @param {Array<Array<string|Object>>} [options.data] - 2D array of rows and cells.
-   * @param {number[]} [options.colWidths] - Array of column widths.
-   * @param {number[]} [options.rowHeights] - Array of row heights.
-   * @param {boolean} [options.header=true] - Whether row 0 has header formatting.
-   * @param {boolean} [options.firstRow=true] - Format first row via DrawingML table properties.
-   * @param {boolean} [options.bandRow=true] - Alternate row banding via DrawingML table properties.
-   * @param {string} [options.styleId] - DrawingML table style GUID.
-   * @param {SlideManager} slideManager - SlideManager instance.
-   * @returns {string} The ID/name of the created table.
-   */
-  addTable(slideIndex, options = {}, slideManager) {
-    const slideObj = slideManager.getSlideObj(slideIndex)
-    const spTree =
-      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
-      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
-      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
-
-    if (!spTree) {
-      throw new PPTXError(`Invalid slide structure for slide ${slideIndex}`)
-    }
-
-    const existingIds = this.#getAllShapeIds(spTree)
-    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 1000
-    const newId = maxId + 1
-
-    const name = options.id || options.name || `Table ${newId}`
-
-    const rawData = Array.isArray(options.data)
-      ? options.data
-      : Array.isArray(options.rows)
-        ? options.rows
-        : null
-
-    let numRows = 2
-    if (typeof options.rows === 'number') {
-      numRows = options.rows
-    } else if (rawData) {
-      numRows = rawData.length
-    } else if (options.rows !== undefined && !isNaN(parseInt(options.rows, 10))) {
-      numRows = parseInt(options.rows, 10)
-    }
-    if (rawData && rawData.length > numRows) numRows = rawData.length
-    if (numRows < 1) numRows = 1
-
-    let numCols = options.columns || options.cols
-    if (numCols !== undefined) {
-      numCols = parseInt(numCols, 10)
-    } else if (rawData && rawData.length > 0) {
-      numCols = Math.max(...rawData.map(r => (Array.isArray(r) ? r.length : 1)))
-    } else {
-      numCols = 2
-    }
-    if (numCols < 1) numCols = 1
-
-    const dims = getCanvasDimensions(slideManager)
-    const canvasWidth = dims.width
-    const canvasHeight = dims.height
-
-    const xEmu = resolveCoordinate(options.x !== undefined ? options.x : 50, canvasWidth, options)
-    const yEmu = resolveCoordinate(options.y !== undefined ? options.y : 50, canvasHeight, options)
-
-    const totalWidthEmu = resolveCoordinate(
-      options.width !== undefined ? options.width : options.w !== undefined ? options.w : 500,
-      canvasWidth,
-      options
-    )
-
-    let colWidthsEmu = []
-    if (Array.isArray(options.colWidths) && options.colWidths.length > 0) {
-      colWidthsEmu = options.colWidths.map(w => resolveCoordinate(w, totalWidthEmu, options))
-      while (colWidthsEmu.length < numCols) {
-        colWidthsEmu.push(colWidthsEmu[colWidthsEmu.length - 1] || 1905000)
-      }
-    } else {
-      const colW = Math.round(totalWidthEmu / numCols)
-      colWidthsEmu = Array(numCols).fill(colW)
-    }
-    const totalW = colWidthsEmu.reduce((sum, w) => sum + w, 0)
-
-    let rowHeightsEmu = []
-    if (Array.isArray(options.rowHeights) && options.rowHeights.length > 0) {
-      rowHeightsEmu = options.rowHeights.map(h => resolveCoordinate(h, canvasHeight, options))
-      while (rowHeightsEmu.length < numRows) {
-        rowHeightsEmu.push(rowHeightsEmu[rowHeightsEmu.length - 1] || 370840)
-      }
-    } else if (options.height !== undefined || options.h !== undefined) {
-      const totalHeightEmu = resolveCoordinate(
-        options.height !== undefined ? options.height : options.h,
-        canvasHeight,
-        options
-      )
-      const rowH = Math.round(totalHeightEmu / numRows)
-      rowHeightsEmu = Array(numRows).fill(rowH)
-    } else {
-      rowHeightsEmu = Array(numRows).fill(370840)
-    }
-    const totalH = rowHeightsEmu.reduce((sum, h) => sum + h, 0)
-
-    const isHeaderRow =
-      options.firstRow !== undefined ? !!options.firstRow : options.header !== false
-    const isBandRow = options.bandRow !== undefined ? !!options.bandRow : true
-    const styleId = options.styleId || '{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}'
-
-    // Build grid cols XML
-    const gridColsXml = colWidthsEmu.map(w => `<a:gridCol w="${w}"/>`).join('')
-
-    // Build rows and cells XML
-    let rowsXml = ''
-    for (let r = 0; r < numRows; r++) {
-      const rH = rowHeightsEmu[r] || 370840
-      const isHeader = r === 0 && isHeaderRow
-      let cellsXml = ''
-
-      for (let c = 0; c < numCols; c++) {
-        let cellVal = ''
-        if (rawData && rawData[r] && rawData[r][c] !== undefined) {
-          cellVal = rawData[r][c]
-        }
-
-        let text = ''
-        let cellFillXml = ''
-        let bordersXml = ''
-        let algnAttr = ''
-        let boldAttr = isHeader ? ' b="1"' : ''
-        let italicAttr = ''
-        let szAttr = isHeader ? ' sz="1200"' : ' sz="1100"'
-        let clrXml = ''
-        let fontXml = ''
-
-        if (cellVal && typeof cellVal === 'object') {
-          text = cellVal.value !== undefined ? String(cellVal.value) : ''
-          if (cellVal.bold !== undefined) boldAttr = cellVal.bold ? ' b="1"' : ' b="0"'
-          if (cellVal.italic !== undefined) italicAttr = cellVal.italic ? ' i="1"' : ' i="0"'
-          if (cellVal.fontSize) szAttr = ` sz="${cellVal.fontSize * 100}"`
-          if (cellVal.align) algnAttr = ` algn="${cellVal.align}"`
-          if (cellVal.fill) {
-            cellFillXml = `<a:solidFill><a:srgbClr val="${String(cellVal.fill).replace('#', '').toUpperCase()}"/></a:solidFill>`
-          }
-          if (cellVal.color) {
-            clrXml = `<a:solidFill><a:srgbClr val="${String(cellVal.color).replace('#', '').toUpperCase()}"/></a:solidFill>`
-          }
-          if (cellVal.fontFamily) {
-            fontXml = `<a:latin typeface="${escapeXml(cellVal.fontFamily)}"/>`
-          }
-          if (cellVal.border) {
-            const sides = [
-              { key: 'left', tag: 'a:lnL' },
-              { key: 'right', tag: 'a:lnR' },
-              { key: 'top', tag: 'a:lnT' },
-              { key: 'bottom', tag: 'a:lnB' },
-            ]
-            for (const { key, tag } of sides) {
-              const bSide =
-                typeof cellVal.border === 'object' && cellVal.border[key] !== undefined
-                  ? cellVal.border[key]
-                  : cellVal.border
-              if (bSide === false || bSide === null) {
-                bordersXml += `<${tag}><a:noFill/></${tag}>`
-              } else if (bSide) {
-                const bCol = (bSide.color || cellVal.border.color || '000000')
-                  .replace('#', '')
-                  .toUpperCase()
-                const bW = Math.round(
-                  (bSide.width !== undefined ? bSide.width : cellVal.border.width || 1) * 12700
-                )
-                bordersXml += `<${tag} w="${bW}" cmpd="sng"><a:solidFill><a:srgbClr val="${bCol}"/></a:solidFill></${tag}>`
-              }
-            }
-          }
-        } else if (cellVal !== undefined && cellVal !== null) {
-          text = String(cellVal)
-        }
-
-        const pPr = algnAttr ? `<a:pPr${algnAttr}/>` : ''
-        const rPr = `<a:rPr lang="en-US"${szAttr}${boldAttr}${italicAttr}>${clrXml}${fontXml}</a:rPr>`
-        const contentXml =
-          text !== ''
-            ? `<a:r>${rPr}<a:t>${escapeXml(text)}</a:t></a:r>`
-            : `<a:endParaRPr lang="en-US"${szAttr}${boldAttr}/>`
-
-        cellsXml += `<a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p>${pPr}${contentXml}</a:p></a:txBody><a:tcPr>${cellFillXml}${bordersXml}</a:tcPr></a:tc>`
-      }
-
-      rowsXml += `<a:tr h="${rH}">${cellsXml}</a:tr>`
-    }
-
-    const frameXml = `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${newId}" name="${escapeXml(name)}"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="${xEmu}" y="${yEmu}"/><a:ext cx="${totalW}" cy="${totalH}"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="${isHeaderRow ? '1' : '0'}" bandRow="${isBandRow ? '1' : '0'}"><a:tableStyleId>${styleId}</a:tableStyleId></a:tblPr><a:tblGrid>${gridColsXml}</a:tblGrid>${rowsXml}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`
-
-    const parsed = this.#xmlParser.parse(frameXml, 'frame.xml')['p:graphicFrame']
-    const frameObj = Array.isArray(parsed) ? parsed[0] : parsed
-
-    if (!spTree['p:graphicFrame']) {
-      spTree['p:graphicFrame'] = []
-    } else if (!Array.isArray(spTree['p:graphicFrame'])) {
-      spTree['p:graphicFrame'] = [spTree['p:graphicFrame']]
-    }
-    spTree['p:graphicFrame'].push(frameObj)
-
-    if (spTree[Z_ORDER_SYMBOL] && !spTree[Z_ORDER_SYMBOL].includes(String(newId))) {
-      spTree[Z_ORDER_SYMBOL].push(String(newId))
-    }
-
-    slideManager.markSlideObjDirty(slideIndex)
-    logger.debug(`Added table "${name}" with ID ${newId} to slide ${slideIndex}`)
-    return name
-  }
-
-  /**
-   * Adds or appends a column to a table.
-   *
-   * @param {number} slideIndex - 1-based slide index.
-   * @param {string} tableId - Table name or ID.
-   * @param {number|Array} colIndexOrData - Column index (0-based) or cell data array.
-   * @param {Array|Object} [colDataOrOptions] - Cell data array or options.
-   * @param {Object} [options={}] - Options if 3rd arg is colIndex.
-   * @param {SlideManager} slideManager
-   * @param {ShapeManager} [shapeManager=null]
-   */
-  addColumn(
-    slideIndex,
-    tableId,
-    colIndexOrData,
-    colDataOrOptions = [],
-    options = {},
-    slideManager,
-    shapeManager = null
-  ) {
-    let colIndex = -1
-    let colData = []
-    let opts = {}
-
-    if (typeof colIndexOrData === 'number') {
-      colIndex = colIndexOrData
-      colData = Array.isArray(colDataOrOptions) ? colDataOrOptions : []
-      opts = typeof options === 'object' && options !== null ? options : {}
-    } else if (Array.isArray(colIndexOrData)) {
-      colData = colIndexOrData
-      opts =
-        typeof colDataOrOptions === 'object' && colDataOrOptions !== null ? colDataOrOptions : {}
-    } else if (typeof colIndexOrData === 'object' && colIndexOrData !== null) {
-      opts = colIndexOrData
-      colData = opts.data || []
-      colIndex = opts.index !== undefined ? opts.index : -1
-    }
-
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
-      slideIndex,
-      tableId,
-      slideManager
-    )
-
-    const grid = tblObj['a:tblGrid'] || {}
-    let gridCols = grid['a:gridCol'] || []
-    if (!Array.isArray(gridCols)) gridCols = [gridCols]
-
-    const numCols = gridCols.length
-    const targetIndex = colIndex < 0 || colIndex > numCols ? numCols : colIndex
-
-    // Determine new column width
-    let colWidthEmu = 0
-    if (opts.width !== undefined) {
-      colWidthEmu = toEmu(opts.width)
-    } else if (numCols > 0) {
-      const totalGridW = gridCols.reduce((sum, c) => sum + parseInt(c['@_w'] || 0, 10), 0)
-      colWidthEmu = Math.round(totalGridW / numCols)
-    } else {
-      colWidthEmu = 1905000 // 2 inches default
-    }
-
-    // Insert gridCol
-    const newGridCol = { '@_w': String(colWidthEmu) }
-    gridCols.splice(targetIndex, 0, newGridCol)
-    tblObj['a:tblGrid']['a:gridCol'] = gridCols
-
-    // Adjust frame width
-    const xfrm = frameObj?.['p:xfrm']
-    if (xfrm && xfrm['a:ext']) {
-      const currentCx = parseInt(xfrm['a:ext']['@_cx'] || 0, 10)
-      xfrm['a:ext']['@_cx'] = String(currentCx + colWidthEmu)
-    }
-
-    // Insert cells in each row
-    const trs = tblObj['a:tr'] || []
-    for (let r = 0; r < trs.length; r++) {
-      const row = trs[r]
-      let tcs = row['a:tc'] || []
-      if (!Array.isArray(tcs)) tcs = [tcs]
-
-      const templateCell = tcs[targetIndex > 0 ? targetIndex - 1 : 0]
-      const newCell = templateCell
-        ? this.#xmlParser.deepClone(templateCell)
-        : {
-            'a:txBody': {
-              'a:bodyPr': '',
-              'a:lstStyle': '',
-              'a:p': { 'a:r': { 'a:t': '' } },
-            },
-            'a:tcPr': {},
-          }
-
-      // Clear previous merges
-      if (newCell['@_hMerge']) delete newCell['@_hMerge']
-      if (newCell['@_vMerge']) delete newCell['@_vMerge']
-      if (newCell['@_gridSpan']) delete newCell['@_gridSpan']
-      if (newCell['@_rowSpan']) delete newCell['@_rowSpan']
-
-      const val = colData[r] !== undefined ? colData[r] : ''
-      let text = ''
-      let cellOpts = {}
-
-      if (val && typeof val === 'object') {
-        text = val.value !== undefined ? String(val.value) : ''
-        cellOpts = val
+    const tcs = Array.isArray(trs[rowIndex]['a:tc'])
+      ? trs[rowIndex]['a:tc']
+      : [trs[rowIndex]['a:tc']]
+    const vals = Array.isArray(data) ? data : [data]
+
+    for (let c = 0; c < vals.length && c < tcs.length; c++) {
+      const v = vals[c]
+      if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+        this.#setCellText(tcs[c], v.value !== undefined ? v.value : v.text, v)
       } else {
-        text = String(val)
-      }
-
-      this.#setCellTextObj(newCell, text)
-      this.#applyCellOptions(newCell, cellOpts)
-
-      tcs.splice(targetIndex, 0, newCell)
-      row['a:tc'] = tcs
-    }
-
-    // Shift cellshape anchors
-    for (const [, anchor] of this.#cellShapeAnchors.entries()) {
-      if (
-        anchor.slideIndex === slideIndex &&
-        (anchor.resolvedTableId === resolvedTableId || anchor.tableId === tableId) &&
-        anchor.colIndex >= targetIndex
-      ) {
-        anchor.colIndex += 1
+        this.#setCellText(tcs[c], v)
       }
     }
 
-    slideManager.markSlideObjDirty(slideIndex)
-    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
-
-    if (shapeManager) {
-      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
-    }
-
-    logger.debug(
-      `Added column at index ${targetIndex} to table "${tableId}" in slide ${slideIndex}`
-    )
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
   }
 
   /**
-   * Deletes a column from a table by 0-based index.
+   * 13. updateColumnData(tableId, columnIndex, data)
+   * Updates cell text values down target column columnIndex.
    *
-   * @param {number} slideIndex - 1-based slide index.
-   * @param {string} tableId - Table name or ID.
-   * @param {number} colIndex - 0-based column index.
-   * @param {SlideManager} slideManager
-   * @param {ShapeManager} [shapeManager=null]
+   * @param {string} tableId - Table identifier.
+   * @param {number} columnIndex - 0-based column index.
+   * @param {Array<*>} data - Column cell values.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
    */
-  deleteColumn(slideIndex, tableId, colIndex, slideManager, shapeManager = null) {
-    const { tblObj, frameObj, resolvedTableId } = this.#getTableContext(
-      slideIndex,
-      tableId,
-      slideManager
-    )
+  updateColumnData(tableId, columnIndex, data, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr'])
+      ? tblObj['a:tr']
+      : tblObj['a:tr']
+        ? [tblObj['a:tr']]
+        : []
+    const vals = Array.isArray(data) ? data : [data]
 
-    const grid = tblObj['a:tblGrid'] || {}
-    let gridCols = grid['a:gridCol'] || []
-    if (!Array.isArray(gridCols)) gridCols = [gridCols]
-
-    if (colIndex < 0 || colIndex >= gridCols.length) {
-      throw new PPTXError(
-        `Column index ${colIndex} out of bounds (table has ${gridCols.length} columns)`
-      )
-    }
-
-    if (gridCols.length <= 1) {
-      throw new PPTXError('Cannot delete the only column in the table')
-    }
-
-    const removedColWidth = parseInt(gridCols[colIndex]['@_w'] || 0, 10)
-    gridCols.splice(colIndex, 1)
-    tblObj['a:tblGrid']['a:gridCol'] = gridCols
-
-    // Adjust frame width
-    const xfrm = frameObj?.['p:xfrm']
-    if (xfrm && xfrm['a:ext']) {
-      const currentCx = parseInt(xfrm['a:ext']['@_cx'] || 0, 10)
-      xfrm['a:ext']['@_cx'] = String(Math.max(0, currentCx - removedColWidth))
-    }
-
-    // Remove cell from each row
-    const trs = tblObj['a:tr'] || []
-    for (let r = 0; r < trs.length; r++) {
-      const row = trs[r]
-      let tcs = row['a:tc'] || []
-      if (!Array.isArray(tcs)) tcs = [tcs]
-
-      if (colIndex < tcs.length) {
-        tcs.splice(colIndex, 1)
-      }
-      row['a:tc'] = tcs
-    }
-
-    // Shift or delete cellshape anchors
-    for (const [key, anchor] of this.#cellShapeAnchors.entries()) {
-      if (
-        anchor.slideIndex === slideIndex &&
-        (anchor.resolvedTableId === resolvedTableId || anchor.tableId === tableId)
-      ) {
-        if (anchor.colIndex === colIndex) {
-          if (shapeManager) {
-            this.removeCellShape(
-              slideIndex,
-              tableId,
-              anchor.rowIndex,
-              anchor.colIndex,
-              slideManager,
-              shapeManager
-            )
-          }
-          this.#cellShapeAnchors.delete(key)
-        } else if (anchor.colIndex > colIndex) {
-          anchor.colIndex -= 1
+    for (let r = 0; r < vals.length && r < trs.length; r++) {
+      const tcs = Array.isArray(trs[r]['a:tc']) ? trs[r]['a:tc'] : [trs[r]['a:tc']]
+      if (columnIndex >= 0 && columnIndex < tcs.length) {
+        const v = vals[r]
+        if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+          this.#setCellText(tcs[columnIndex], v.value !== undefined ? v.value : v.text, v)
+        } else {
+          this.#setCellText(tcs[columnIndex], v)
         }
       }
     }
 
-    slideManager.markSlideObjDirty(slideIndex)
-    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
+  }
 
-    if (shapeManager) {
-      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
+  // ==========================================================================
+  // 3. Cell-Level Operations & Clear Handlers
+  // ==========================================================================
+
+  /**
+   * 14. updateTableCell(tableId, rowIndex, columnIndex, options)
+   * Updates cell text, typography, alignments, and background fills.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} columnIndex - 0-based col index.
+   * @param {string|Object} options - Cell value or formatting object.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  updateTableCell(tableId, rowIndex, columnIndex, options = {}, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
+    if (rowIndex < 0 || rowIndex >= trs.length) {
+      throw new PPTXError(`Row index ${rowIndex} out of bounds`)
     }
 
-    logger.debug(`Deleted column ${colIndex} from table "${tableId}" in slide ${slideIndex}`)
+    const tcs = Array.isArray(trs[rowIndex]['a:tc'])
+      ? trs[rowIndex]['a:tc']
+      : [trs[rowIndex]['a:tc']]
+    if (columnIndex < 0 || columnIndex >= tcs.length) {
+      throw new PPTXError(`Column index ${columnIndex} out of bounds`)
+    }
+
+    const cell = tcs[columnIndex]
+    if (typeof options === 'string' || typeof options === 'number') {
+      this.#setCellText(cell, options)
+    } else if (typeof options === 'object' && options !== null) {
+      const textVal =
+        options.text !== undefined
+          ? options.text
+          : options.value !== undefined
+            ? options.value
+            : undefined
+
+      if (textVal !== undefined) {
+        this.#setCellText(cell, textVal, options)
+      } else if (
+        Object.keys(options).some(k =>
+          ['bold', 'italic', 'fontSize', 'color', 'fontFace', 'align'].includes(k)
+        )
+      ) {
+        this.#applyTypography(cell, options)
+      }
+
+      // Cell properties (fill, border, margins, vertical alignment)
+      cell['a:tcPr'] = StyleBuilder.buildCellProperties(cell['a:tcPr'], options)
+    }
+
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
   }
 
   /**
-   * Applies alternating row striping to a table.
+   * 15. clearRowData(tableId, rowIndex)
+   * Purges text content from all cells across rowIndex while preserving formatting.
    *
-   * @param {number} slideIndex - 1-based slide index.
-   * @param {string} tableId - Table name or ID.
-   * @param {Object} [options={}] - Striping options.
-   * @param {string} [options.evenFill='F2F2F2'] - Background color for even rows.
-   * @param {string} [options.oddFill] - Background color for odd rows.
-   * @param {string} [options.headerFill] - Background color for row 0.
-   * @param {number} [options.startRow=1] - 0-based starting row for striping.
-   * @param {boolean} [options.bandRow] - Enable DrawingML bandRow table property.
-   * @param {SlideManager} slideManager
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
    */
-  stripeRows(slideIndex, tableId, options = {}, slideManager) {
+  clearRowData(tableId, rowIndex, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
+    if (rowIndex >= 0 && rowIndex < trs.length) {
+      const tcs = Array.isArray(trs[rowIndex]['a:tc'])
+        ? trs[rowIndex]['a:tc']
+        : [trs[rowIndex]['a:tc']]
+      for (const tc of tcs) {
+        this.#setCellText(tc, '')
+      }
+    }
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
+  }
+
+  /**
+   * 16. clearColumnData(tableId, columnIndex)
+   * Purges text content from all cells down columnIndex while preserving formatting.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} columnIndex - 0-based col index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  clearColumnData(tableId, columnIndex, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr'])
+      ? tblObj['a:tr']
+      : tblObj['a:tr']
+        ? [tblObj['a:tr']]
+        : []
+    for (const tr of trs) {
+      const tcs = Array.isArray(tr['a:tc']) ? tr['a:tc'] : [tr['a:tc']]
+      if (columnIndex >= 0 && columnIndex < tcs.length) {
+        this.#setCellText(tcs[columnIndex], '')
+      }
+    }
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
+  }
+
+  /**
+   * 17. clearCellData(tableId, rowIndex, columnIndex)
+   * Purges text content from a single cell while preserving cell properties <a:tcPr>.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} columnIndex - 0-based col index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  clearCellData(tableId, rowIndex, columnIndex, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
+    if (rowIndex >= 0 && rowIndex < trs.length) {
+      const tcs = Array.isArray(trs[rowIndex]['a:tc'])
+        ? trs[rowIndex]['a:tc']
+        : [trs[rowIndex]['a:tc']]
+      if (columnIndex >= 0 && columnIndex < tcs.length) {
+        this.#setCellText(tcs[columnIndex], '')
+      }
+    }
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
+  }
+
+  /**
+   * 18. getTableData(tableId)
+   * Extracts raw string data from all cells as a 2D array.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {Array<Array<string>>} 2D array of cell values.
+   */
+  getTableData(tableId, slideIndex, slideManager) {
     const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr'])
+      ? tblObj['a:tr']
+      : tblObj['a:tr']
+        ? [tblObj['a:tr']]
+        : []
 
-    const evenFill = (options.evenFill || 'F2F2F2').replace('#', '').toUpperCase()
-    const oddFill = options.oddFill ? options.oddFill.replace('#', '').toUpperCase() : null
-    const headerFill = options.headerFill ? options.headerFill.replace('#', '').toUpperCase() : null
-    const startRow = options.startRow !== undefined ? options.startRow : 1
-
-    const trs = tblObj['a:tr'] || []
-    for (let r = 0; r < trs.length; r++) {
-      const row = trs[r]
-      const tcs = row['a:tc'] || []
-      let fill = null
-
-      if (r === 0 && headerFill) {
-        fill = headerFill
-      } else if (r >= startRow) {
-        const isEven = (r - startRow) % 2 === 0
-        fill = isEven ? evenFill : oddFill
+    const matrix = []
+    for (const tr of trs) {
+      const tcs = Array.isArray(tr['a:tc']) ? tr['a:tc'] : tr['a:tc'] ? [tr['a:tc']] : []
+      const row = []
+      for (const tc of tcs) {
+        row.push(this.#getCellText(tc))
       }
-
-      if (fill) {
-        for (const cell of tcs) {
-          if (!cell['a:tcPr']) cell['a:tcPr'] = {}
-          cell['a:tcPr']['a:solidFill'] = {
-            'a:srgbClr': { '@_val': fill },
-          }
-        }
-      }
+      matrix.push(row)
     }
-
-    if (options.bandRow !== undefined) {
-      if (!tblObj['a:tblPr']) tblObj['a:tblPr'] = {}
-      tblObj['a:tblPr']['@_bandRow'] = options.bandRow ? '1' : '0'
-    }
-
-    slideManager.markSlideObjDirty(slideIndex)
-    logger.debug(`Applied row striping to table "${tableId}" in slide ${slideIndex}`)
+    return matrix
   }
 
   /**
-   * Validates if a merge region can be applied to the table.
+   * 19. getColumnData(tableId, columnIndex)
+   * Returns cell text array down columnIndex.
    *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {number} startRow
-   * @param {number} startCol
-   * @param {number} endRow
-   * @param {number} endCol
-   * @param {SlideManager} slideManager
-   * @returns {Object} Validation report { valid: boolean, errors: string[] }
+   * @param {string} tableId - Table identifier.
+   * @param {number} columnIndex - 0-based col index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {Array<string>} Column text values.
    */
-  validateMergeRegion(slideIndex, tableId, startRow, startCol, endRow, endCol, slideManager) {
-    const errors = []
-    const slideObj = slideManager.getSlideObj(slideIndex)
-    const tblObj = this.#findTableObj(slideObj, tableId, slideManager, slideIndex)
-    if (!tblObj) {
-      errors.push(`Table "${tableId}" not found in slide ${slideIndex}`)
-      return { valid: false, errors }
-    }
+  getColumnData(tableId, columnIndex, slideIndex, slideManager) {
+    const matrix = this.getTableData(tableId, slideIndex, slideManager)
+    return matrix.map(row => row[columnIndex] ?? '')
+  }
 
-    const trs = tblObj['a:tr'] || []
-    const numRows = trs.length
-    const numCols = trs[0]?.['a:tc']?.length || 0
+  /**
+   * 20. getRowData(tableId, rowIndex)
+   * Returns cell text array along rowIndex.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {Array<string>} Row text values.
+   */
+  getRowData(tableId, rowIndex, slideIndex, slideManager) {
+    const matrix = this.getTableData(tableId, slideIndex, slideManager)
+    return matrix[rowIndex] || []
+  }
 
-    if (startRow < 0 || startRow >= numRows) {
-      errors.push(`startRow ${startRow} is out of bounds (table has ${numRows} rows)`)
-    }
-    if (endRow < 0 || endRow >= numRows) {
-      errors.push(`endRow ${endRow} is out of bounds (table has ${numRows} rows)`)
-    }
-    if (startCol < 0 || startCol >= numCols) {
-      errors.push(`startCol ${startCol} is out of bounds (table has ${numCols} cols)`)
-    }
-    if (endCol < 0 || endCol >= numCols) {
-      errors.push(`endCol ${endCol} is out of bounds (table has ${numCols} cols)`)
-    }
-
-    if (errors.length > 0) {
-      return { valid: false, errors }
-    }
-
-    if (endRow < startRow) {
-      errors.push(`endRow (${endRow}) cannot be less than startRow (${startRow})`)
-    }
-    if (endCol < startCol) {
-      errors.push(`endCol (${endCol}) cannot be less than startCol (${startCol})`)
-    }
-
-    if (errors.length > 0) {
-      return { valid: false, errors }
-    }
-
-    const existingMerges = this.getMergedCells(slideIndex, tableId, slideManager)
-    for (const R of existingMerges) {
-      const overlap =
-        startRow <= R.endRow && endRow >= R.startRow && startCol <= R.endCol && endCol >= R.startCol
-      if (overlap) {
-        errors.push(
-          `Requested merge region (${startRow}, ${startCol}) to (${endRow}, ${endCol}) overlaps with existing merged region (${R.startRow}, ${R.startCol}) to (${R.endRow}, ${R.endCol})`
-        )
-      }
-    }
+  /**
+   * 21. getColumn(tableId, columnIndex)
+   * Returns column metadata: index, width, text data, and formatting.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} columnIndex - 0-based col index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {Object} Column descriptor object.
+   */
+  getColumn(tableId, columnIndex, slideIndex, slideManager) {
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
+    const cols = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const colNode = cols[columnIndex] || {}
+    const width = parseInt(colNode['@_w'] || '0', 10)
 
     return {
-      valid: errors.length === 0,
-      errors,
+      index: columnIndex,
+      width,
+      widthPx: Math.round(emuToPx(width)),
+      data: this.getColumnData(tableId, columnIndex, slideIndex, slideManager),
     }
   }
 
   /**
-   * Merges cells in a table.
+   * 22. getRow(tableId, rowIndex)
+   * Returns row metadata: index, height, text data, and formatting.
    *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {number} startRow
-   * @param {number} startCol
-   * @param {number} endRow
-   * @param {number} endCol
-   * @param {SlideManager} slideManager
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {Object} Row descriptor object.
    */
-  mergeCells(
-    slideIndex,
-    tableId,
-    startRow,
-    startCol,
-    endRow,
-    endCol,
-    slideManager,
-    shapeManager = null
-  ) {
-    const validation = this.validateMergeRegion(
-      slideIndex,
-      tableId,
-      startRow,
-      startCol,
-      endRow,
-      endCol,
-      slideManager
-    )
-    if (!validation.valid) {
-      throw new PPTXError(`Invalid merge region: ${validation.errors.join('; ')}`)
-    }
-
-    const { tblObj, resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
-    const trs = tblObj['a:tr'] || []
-
-    const allTexts = []
-
-    for (let r = startRow; r <= endRow; r++) {
-      const row = trs[r]
-      if (!row) continue
-      const tcs = row['a:tc'] || []
-
-      for (let c = startCol; c <= endCol; c++) {
-        const cell = tcs[c]
-        if (!cell) continue
-
-        if (r === startRow && c === startCol) {
-          const text = this.#getCellText(cell)
-          if (text) allTexts.push(text)
-          if (cell['@_hMerge'] !== undefined) delete cell['@_hMerge']
-          if (cell['@_vMerge'] !== undefined) delete cell['@_vMerge']
-        } else {
-          const text = this.#getCellText(cell)
-          if (text) allTexts.push(text)
-
-          if (cell['@_gridSpan'] !== undefined) delete cell['@_gridSpan']
-          if (cell['@_rowSpan'] !== undefined) delete cell['@_rowSpan']
-
-          if (r === startRow) {
-            cell['@_hMerge'] = '1'
-            if (cell['@_vMerge'] !== undefined) delete cell['@_vMerge']
-          } else if (c === startCol) {
-            cell['@_vMerge'] = '1'
-            if (cell['@_hMerge'] !== undefined) delete cell['@_hMerge']
-          } else {
-            cell['@_hMerge'] = '1'
-            cell['@_vMerge'] = '1'
-          }
-          this.#setCellTextObj(cell, '')
-        }
-      }
-    }
-
-    const originCell = trs[startRow]['a:tc'][startCol]
-    if (endCol > startCol) {
-      originCell['@_gridSpan'] = String(endCol - startCol + 1)
-    }
-    if (endRow > startRow) {
-      originCell['@_rowSpan'] = String(endRow - startRow + 1)
-    }
-
-    const combinedText = allTexts.filter(t => t.trim() !== '').join('\n')
-    this.#setCellTextObj(originCell, combinedText)
-
-    slideManager.markSlideObjDirty(slideIndex)
-
-    this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, true)
-    this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, true)
-
-    if (shapeManager) {
-      this.#repositionCellShapesInRegion(
-        slideIndex,
-        tableId,
-        resolvedTableId,
-        startRow,
-        startCol,
-        endRow,
-        endCol,
-        slideManager,
-        shapeManager
-      )
-      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
-    }
-  }
-
-  /**
-   * Unmerges cells in a table.
-   *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {number} startRow
-   * @param {number} startCol
-   * @param {number} endRow
-   * @param {number} endCol
-   * @param {SlideManager} slideManager
-   */
-  unmergeCells(
-    slideIndex,
-    tableId,
-    startRow,
-    startCol,
-    endRow,
-    endCol,
-    slideManager,
-    shapeManager = null
-  ) {
-    let actualSlideManager = slideManager
-    let actualEndRow = endRow
-    let actualEndCol = endCol
-
-    if (typeof endRow === 'object' && endRow.getSlideXml) {
-      actualSlideManager = endRow
-      actualEndRow = undefined
-      actualEndCol = undefined
-    }
-
-    const slideObj = actualSlideManager.getSlideObj(slideIndex)
-    const tblObj = this.#findTableObj(slideObj, tableId, actualSlideManager, slideIndex)
-    if (!tblObj) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
-    }
-
-    const trs = tblObj['a:tr'] || []
-
-    if (actualEndRow === undefined || actualEndCol === undefined) {
-      const R = this.getMergeRegion(slideIndex, tableId, startRow, startCol, actualSlideManager)
-      if (!R) return
-
-      for (let r = R.startRow; r <= R.endRow; r++) {
-        const rowObj = trs[r]
-        if (!rowObj) continue
-        const tcs = rowObj['a:tc'] || []
-        for (let c = R.startCol; c <= R.endCol; c++) {
-          const cell = tcs[c]
-          if (!cell) continue
-          if (cell['@_hMerge'] !== undefined) delete cell['@_hMerge']
-          if (cell['@_vMerge'] !== undefined) delete cell['@_vMerge']
-          if (cell['@_gridSpan'] !== undefined) delete cell['@_gridSpan']
-          if (cell['@_rowSpan'] !== undefined) delete cell['@_rowSpan']
-        }
-      }
-
-      if (shapeManager) {
-        const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, actualSlideManager)
-        this.#repositionCellShapesInRegion(
-          slideIndex,
-          tableId,
-          resolvedTableId,
-          R.startRow,
-          R.startCol,
-          R.endRow,
-          R.endCol,
-          actualSlideManager,
-          shapeManager
-        )
-      }
-    } else {
-      for (let r = startRow; r <= actualEndRow; r++) {
-        const rowObj = trs[r]
-        if (!rowObj) continue
-        const tcs = rowObj['a:tc'] || []
-        for (let c = startCol; c <= actualEndCol; c++) {
-          const cell = tcs[c]
-          if (!cell) continue
-          if (cell['@_hMerge'] !== undefined) delete cell['@_hMerge']
-          if (cell['@_vMerge'] !== undefined) delete cell['@_vMerge']
-          if (cell['@_gridSpan'] !== undefined) delete cell['@_gridSpan']
-          if (cell['@_rowSpan'] !== undefined) delete cell['@_rowSpan']
-        }
-      }
-
-      if (shapeManager) {
-        const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, actualSlideManager)
-        this.#repositionCellShapesInRegion(
-          slideIndex,
-          tableId,
-          resolvedTableId,
-          startRow,
-          startCol,
-          actualEndRow,
-          actualEndCol,
-          actualSlideManager,
-          shapeManager
-        )
-      }
-    }
-
-    this.#calculateColumnWidths(slideIndex, tableId, actualSlideManager, tblObj, true)
-    this.#calculateRowHeights(slideIndex, tableId, actualSlideManager, tblObj, true)
-
-    if (shapeManager) {
-      this.#repositionAllTableCellShapes(slideIndex, tableId, actualSlideManager, shapeManager)
-    }
-
-    actualSlideManager.markSlideObjDirty(slideIndex)
-  }
-
-  /**
-   * Scans the table grid and returns all merged regions.
-   *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {SlideManager} slideManager
-   * @returns {Array<Object>} List of merged region coordinates
-   */
-  getMergedCells(slideIndex, tableId, slideManager) {
-    const slideObj = slideManager.getSlideObj(slideIndex)
-    const tblObj = this.#findTableObj(slideObj, tableId, slideManager, slideIndex)
-    if (!tblObj) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
-    }
-
-    const trs = tblObj['a:tr'] || []
-    const numRows = trs.length
-    if (numRows === 0) return []
-    const numCols = trs[0]['a:tc']?.length || 0
-
-    const merged = []
-    const visited = Array.from({ length: numRows }, () => Array(numCols).fill(false))
-
-    for (let r = 0; r < numRows; r++) {
-      const row = trs[r]
-      const tcs = row['a:tc'] || []
-      for (let c = 0; c < tcs.length; c++) {
-        if (visited[r][c]) continue
-        const cell = tcs[c]
-        if (!cell) continue
-
-        const isVMerged =
-          cell['@_vMerge'] === '1' || cell['@_vMerge'] === 'true' || cell['@_vMerge'] === true
-        const isHMerged =
-          cell['@_hMerge'] === '1' || cell['@_hMerge'] === 'true' || cell['@_hMerge'] === true
-
-        if (isVMerged || isHMerged) {
-          continue
-        }
-
-        // Determine colSpan
-        let colSpan = 1
-        if (cell['@_gridSpan'] !== undefined) {
-          colSpan = parseInt(cell['@_gridSpan'], 10)
-        } else {
-          let nextCol = c + 1
-          while (nextCol < numCols) {
-            const nextCell = tcs[nextCol]
-            if (
-              nextCell &&
-              (nextCell['@_hMerge'] === '1' ||
-                nextCell['@_hMerge'] === 'true' ||
-                nextCell['@_hMerge'] === true)
-            ) {
-              colSpan++
-              nextCol++
-            } else {
-              break
-            }
-          }
-        }
-
-        // Determine rowSpan
-        let rowSpan = 1
-        if (cell['@_rowSpan'] !== undefined) {
-          rowSpan = parseInt(cell['@_rowSpan'], 10)
-        } else {
-          let nextRow = r + 1
-          while (nextRow < numRows) {
-            const nextCell = trs[nextRow]['a:tc']?.[c]
-            if (
-              nextCell &&
-              (nextCell['@_vMerge'] === '1' ||
-                nextCell['@_vMerge'] === 'true' ||
-                nextCell['@_vMerge'] === true)
-            ) {
-              rowSpan++
-              nextRow++
-            } else {
-              break
-            }
-          }
-        }
-
-        if (colSpan > 1 || rowSpan > 1) {
-          merged.push({
-            startRow: r,
-            startCol: c,
-            endRow: r + rowSpan - 1,
-            endCol: c + colSpan - 1,
-          })
-
-          for (let i = r; i < r + rowSpan; i++) {
-            for (let j = c; j < c + colSpan; j++) {
-              if (i < numRows && j < numCols) {
-                visited[i][j] = true
-              }
-            }
-          }
-        }
-      }
-    }
-    return merged
-  }
-
-  /**
-   * Helper to get clean string content of a cell.
-   */
-  #getCellText(cellObj) {
-    const txBody = cellObj?.['a:txBody']
-    if (!txBody) return ''
-    const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-    const text = []
-    for (const p of paras) {
-      let pText = ''
-      if (p['a:r']) {
-        const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-        for (const r of runs) {
-          if (r['a:t']) {
-            pText += String(r['a:t'])
-          }
-        }
-      }
-      text.push(pText)
-    }
-    return text.join('\n')
-  }
-
-  /**
-   * Returns true if the cell is part of any merged region.
-   */
-  isMergedCell(slideIndex, tableId, row, col, slideManager) {
-    return this.getMergeRegion(slideIndex, tableId, row, col, slideManager) !== null
-  }
-
-  /**
-   * Returns the region coordinate containing cell (row, col).
-   */
-  getMergeRegion(slideIndex, tableId, row, col, slideManager) {
-    const merges = this.getMergedCells(slideIndex, tableId, slideManager)
-    for (const R of merges) {
-      if (row >= R.startRow && row <= R.endRow && col >= R.startCol && col <= R.endCol) {
-        return R
-      }
-    }
-    return null
-  }
-
-  /**
-   * Returns origin cell coordinates.
-   */
-  getMergeParent(slideIndex, tableId, row, col, slideManager) {
-    const R = this.getMergeRegion(slideIndex, tableId, row, col, slideManager)
-    if (R) {
-      return { row: R.startRow, col: R.startCol }
-    }
-    return { row, col }
-  }
-
-  getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager) {
-    const { tblObj, frameObj } = this.#getTableContext(slideIndex, tableId, slideManager)
-
-    const xfrm = frameObj['p:xfrm']
-    const tableX = xfrm?.['a:off']?.['@_x'] ? parseInt(xfrm['a:off']['@_x'], 10) : 0
-    const tableY = xfrm?.['a:off']?.['@_y'] ? parseInt(xfrm['a:off']['@_y'], 10) : 0
-
-    const colWidths = this.#calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, false)
-    const rowHeights = this.#calculateRowHeights(slideIndex, tableId, slideManager, tblObj, false)
-
-    const R = this.getMergeRegion(slideIndex, tableId, rowIndex, colIndex, slideManager)
-    let pr = rowIndex
-    let pc = colIndex
-    let gridSpan = 1
-    let rowSpan = 1
-
-    if (R) {
-      pr = R.startRow
-      pc = R.startCol
-      gridSpan = R.endCol - R.startCol + 1
-      rowSpan = R.endRow - R.startRow + 1
-    }
-
-    let cellLeft = tableX
-    for (let idx = 0; idx < pc; idx++) {
-      cellLeft += colWidths[idx] || 0
-    }
-
-    let cellTop = tableY
-    for (let idx = 0; idx < pr; idx++) {
-      cellTop += rowHeights[idx] || 0
-    }
-
-    let cellWidth = 0
-    for (let idx = 0; idx < gridSpan; idx++) {
-      cellWidth += colWidths[pc + idx] || 0
-    }
-
-    let cellHeight = 0
-    for (let idx = 0; idx < rowSpan; idx++) {
-      cellHeight += rowHeights[pr + idx] || 0
-    }
+  getRow(tableId, rowIndex, slideIndex, slideManager) {
+    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
+    const rowNode = trs[rowIndex] || {}
+    const height = parseInt(rowNode['@_h'] || '0', 10)
 
     return {
-      x: Math.round(cellLeft / 9525),
-      y: Math.round(cellTop / 9525),
-      width: Math.round(cellWidth / 9525),
-      height: Math.round(cellHeight / 9525),
+      index: rowIndex,
+      height,
+      heightPx: Math.round(emuToPx(height)),
+      data: this.getRowData(tableId, rowIndex, slideIndex, slideManager),
     }
   }
 
-  getCellPosition(
-    slideIndex,
-    tableId,
-    rowIndex,
-    colIndex,
-    slideManager,
-    shapeWidthOrOptions,
-    shapeHeight
-  ) {
-    const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
-    if (!bounds) return null
+  /**
+   * 23. getCell(tableId, rowIndex, columnIndex)
+   * Returns detailed cell metadata, bounds, borders, fill, and merge state.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} columnIndex - 0-based col index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {Object} Cell descriptor object.
+   */
+  getCell(tableId, rowIndex, columnIndex, slideIndex, slideManager) {
+    const { frame, tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
+    const tr = trs[rowIndex]
+    if (!tr) return null
 
-    let shapeWidth
-    let shapeHeightVal
+    const tcs = Array.isArray(tr['a:tc']) ? tr['a:tc'] : [tr['a:tc']]
+    const tc = tcs[columnIndex]
+    if (!tc) return null
 
-    if (shapeWidthOrOptions && typeof shapeWidthOrOptions === 'object') {
-      shapeWidth =
-        shapeWidthOrOptions.width !== undefined
-          ? shapeWidthOrOptions.width
-          : shapeWidthOrOptions.shapeWidth
-      shapeHeightVal =
-        shapeWidthOrOptions.height !== undefined
-          ? shapeWidthOrOptions.height
-          : shapeWidthOrOptions.shapeHeight
-    } else {
-      shapeWidth = shapeWidthOrOptions
-      shapeHeightVal = shapeHeight
-    }
+    const text = this.#getCellText(tc)
+    const tcPr = tc['a:tcPr'] || {}
+    const fillClr = tcPr['a:solidFill']?.['a:srgbClr']?.['@_val'] || null
 
-    let x = bounds.x
-    let y = bounds.y
-
-    if (shapeWidth !== undefined && shapeHeightVal !== undefined) {
-      x = Math.round(bounds.x + (bounds.width - shapeWidth) / 2)
-      y = Math.round(bounds.y + (bounds.height - shapeHeightVal) / 2)
-    }
+    // Compute cell bounding coordinates
+    const bounds = this.#calculateCellBounds(frame, tblObj, rowIndex, columnIndex)
 
     return {
       row: rowIndex,
-      column: colIndex,
-      x,
-      y,
-      width: bounds.width,
-      height: bounds.height,
+      column: columnIndex,
+      text,
+      fill: fillClr,
+      anchor: tcPr['@_anchor'] || null,
+      rowSpan: parseInt(tc['@_rowSpan'] || '1', 10),
+      gridSpan: parseInt(tc['@_gridSpan'] || '1', 10),
+      hMerge: tc['@_hMerge'] === '1',
+      vMerge: tc['@_vMerge'] === '1',
+      isMerged:
+        tc['@_hMerge'] === '1' ||
+        tc['@_vMerge'] === '1' ||
+        parseInt(tc['@_rowSpan'] || '1', 10) > 1 ||
+        parseInt(tc['@_gridSpan'] || '1', 10) > 1,
+      bounds,
     }
   }
 
   /**
-   * Splits a merged region containing cell (row, col).
-   */
-  splitMergedRegion(slideIndex, tableId, row, col, slideManager) {
-    this.unmergeCells(slideIndex, tableId, row, col, slideManager)
-  }
-
-  /**
-   * Clones a merged region.
-   */
-  cloneMergedRegion(slideIndex, tableId, row, col, targetRow, targetCol, slideManager) {
-    const R = this.getMergeRegion(slideIndex, tableId, row, col, slideManager)
-    if (!R) return
-
-    const rowSpan = R.endRow - R.startRow + 1
-    const colSpan = R.endCol - R.startCol + 1
-
-    const targetEndRow = targetRow + rowSpan - 1
-    const targetEndCol = targetCol + colSpan - 1
-
-    this.mergeCells(
-      slideIndex,
-      tableId,
-      targetRow,
-      targetCol,
-      targetEndRow,
-      targetEndCol,
-      slideManager
-    )
-
-    const slideObj = slideManager.getSlideObj(slideIndex)
-    const tblObj = this.#findTableObj(slideObj, tableId, slideManager, slideIndex)
-    if (!tblObj) return
-
-    const trs = tblObj['a:tr'] || []
-    const srcCell = trs[R.startRow]?.['a:tc']?.[R.startCol]
-    const destCell = trs[targetRow]?.['a:tc']?.[targetCol]
-
-    if (srcCell && destCell) {
-      if (srcCell['a:tcPr']) {
-        destCell['a:tcPr'] = this.#xmlParser.deepClone(srcCell['a:tcPr'])
-      }
-      if (srcCell['a:txBody']) {
-        destCell['a:txBody'] = this.#xmlParser.deepClone(srcCell['a:txBody'])
-      }
-    }
-
-    slideManager.markSlideObjDirty(slideIndex)
-  }
-
-  /**
-   * Auto-fits table columns based on text length.
+   * 24. getCellData(tableId, rowIndex, columnIndex)
+   * Extracts raw string text from cell at (rowIndex, columnIndex).
    *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {SlideManager} slideManager
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} columnIndex - 0-based col index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {string} Cell string value.
    */
-  autoFitTable(slideIndex, tableId, slideManager) {
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+  getCellData(tableId, rowIndex, columnIndex, slideIndex, slideManager) {
+    const cell = this.getCell(tableId, rowIndex, columnIndex, slideIndex, slideManager)
+    return cell ? cell.text : ''
+  }
 
-    const trs = tblObj['a:tr'] || []
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol']
-    if (!gridCols || trs.length === 0) return
+  // ==========================================================================
+  // 4. Merging & Splitting
+  // ==========================================================================
 
-    const numCols = gridCols.length
-    const maxLens = new Array(numCols).fill(0)
+  /**
+   * 25. mergeCells(tableId, startRow, startColumn, endRow, endColumn)
+   * Applies rowSpan, gridSpan, hMerge, and vMerge to define a rectangular merged region.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} startRow - Start row index.
+   * @param {number} startColumn - Start column index.
+   * @param {number} endRow - End row index.
+   * @param {number} endColumn - End column index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  mergeCells(tableId, startRow, startColumn, endRow, endColumn, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
 
-    for (const row of trs) {
-      const tcs = row['a:tc'] || []
-      for (let c = 0; c < numCols; c++) {
+    const minR = Math.min(startRow, endRow)
+    const maxR = Math.max(startRow, endRow)
+    const minC = Math.min(startColumn, endColumn)
+    const maxC = Math.max(startColumn, endColumn)
+
+    const rowSpan = maxR - minR + 1
+    const gridSpan = maxC - minC + 1
+
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
+
+    for (let r = minR; r <= maxR; r++) {
+      if (!trs[r]) continue
+      const tcs = Array.isArray(trs[r]['a:tc']) ? trs[r]['a:tc'] : [trs[r]['a:tc']]
+
+      for (let c = minC; c <= maxC; c++) {
+        if (!tcs[c]) continue
         const cell = tcs[c]
-        if (!cell || cell['@_hMerge'] || cell['@_vMerge']) continue
 
-        const txBody = cell['a:txBody']
-        if (txBody) {
-          const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-          let len = 0
-          for (const p of paras) {
-            if (p['a:r']) {
-              const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-              for (const r of runs) {
-                if (r['a:t']) {
-                  len += String(r['a:t']).length
-                }
-              }
+        if (r === minR && c === minC) {
+          // Primary anchor cell
+          if (rowSpan > 1) cell['@_rowSpan'] = String(rowSpan)
+          if (gridSpan > 1) cell['@_gridSpan'] = String(gridSpan)
+          delete cell['@_hMerge']
+          delete cell['@_vMerge']
+        } else {
+          // Secondary covered cells
+          delete cell['@_rowSpan']
+          delete cell['@_gridSpan']
+
+          if (r === minR) {
+            // Horizontal merge on the anchor row
+            cell['@_hMerge'] = '1'
+            delete cell['@_vMerge']
+          } else {
+            // Vertical merge continuation
+            cell['@_vMerge'] = '1'
+            if (c > minC) {
+              cell['@_hMerge'] = '1'
+            } else {
+              delete cell['@_hMerge']
             }
           }
-          if (len > maxLens[c]) {
-            maxLens[c] = len
+
+          // Clear text in covered cells to prevent duplicate content rendering
+          this.#setCellText(cell, '')
+        }
+      }
+    }
+
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
+  }
+
+  /**
+   * 26. splitCell(tableId, rowIndex, columnIndex)
+   * Restores independent cell boundaries by clearing rowSpan, gridSpan, hMerge, and vMerge.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - Row index of any cell in the merged region.
+   * @param {number} columnIndex - Col index of any cell in the merged region.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
+   */
+  splitCell(tableId, rowIndex, columnIndex, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
+
+    // Find anchor cell coordinates
+    let anchorR = rowIndex
+    let anchorC = columnIndex
+
+    // Check if current cell is continuation
+    const currentCell = trs[rowIndex]?.['a:tc']?.[columnIndex]
+    if (currentCell) {
+      if (currentCell['@_vMerge'] === '1' || currentCell['@_hMerge'] === '1') {
+        // Trace back to anchor cell
+        for (let r = rowIndex; r >= 0; r--) {
+          const tc = trs[r]?.['a:tc']?.[columnIndex]
+          if (tc && tc['@_vMerge'] !== '1') {
+            anchorR = r
+            break
+          }
+        }
+        for (let c = columnIndex; c >= 0; c--) {
+          const tc = trs[anchorR]?.['a:tc']?.[c]
+          if (tc && tc['@_hMerge'] !== '1') {
+            anchorC = c
+            break
           }
         }
       }
     }
 
-    for (let c = 0; c < numCols; c++) {
-      const width = Math.max(1000000, maxLens[c] * 120000)
-      gridCols[c]['@_w'] = String(width)
+    const anchorCell = trs[anchorR]?.['a:tc']?.[anchorC]
+    const rowSpan = anchorCell ? parseInt(anchorCell['@_rowSpan'] || '1', 10) : 1
+    const gridSpan = anchorCell ? parseInt(anchorCell['@_gridSpan'] || '1', 10) : 1
+
+    const maxR = anchorR + rowSpan - 1
+    const maxC = anchorC + gridSpan - 1
+
+    for (let r = anchorR; r <= maxR && r < trs.length; r++) {
+      const tcs = Array.isArray(trs[r]['a:tc']) ? trs[r]['a:tc'] : [trs[r]['a:tc']]
+      for (let c = anchorC; c <= maxC && c < tcs.length; c++) {
+        delete tcs[c]['@_rowSpan']
+        delete tcs[c]['@_gridSpan']
+        delete tcs[c]['@_hMerge']
+        delete tcs[c]['@_vMerge']
+      }
     }
 
-    slideManager.markSlideObjDirty(slideIndex)
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
   }
 
+  // ==========================================================================
+  // 5. Multi-Tier Styling Engine
+  // ==========================================================================
+
   /**
-   * Resizes the table width and height.
+   * 27. styleTable(tableId, options)
+   * Applies table-wide properties, alternating banding fills, styles, and borders.
    *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {number} width - New width in EMUs or inches.
-   * @param {number} height - New height in EMUs or inches.
-   * @param {SlideManager} slideManager
+   * @param {string} tableId - Table identifier.
+   * @param {Object} options - Table styling options (bandRow, bandCol, fill, border, etc.).
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
    */
-  resizeTable(slideIndex, tableId, width, height, slideManager) {
-    const slideObj = slideManager.getSlideObj(slideIndex)
+  styleTable(tableId, options = {}, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
 
-    const spTree =
-      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
-      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
-      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
-    if (!spTree) return
+    // Table properties
+    if (tblObj['a:tblPr']) {
+      tblObj['a:tblPr'] = StyleBuilder.buildTableProperties(tblObj['a:tblPr'], options)
+    }
 
-    let frames = spTree['p:graphicFrame'] || []
-    if (!Array.isArray(frames)) frames = [frames]
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
 
-    let targetFrame = null
-    let tbl = null
+    for (let r = 0; r < trs.length; r++) {
+      const isHeader = r === 0
+      const isEven = r % 2 === 0
+      const tcs = Array.isArray(trs[r]['a:tc']) ? trs[r]['a:tc'] : [trs[r]['a:tc']]
 
-    for (const frame of frames) {
-      tbl = frame?.['a:graphic']?.['a:graphicData']?.['a:tbl']
-      if (!tbl) continue
+      for (let c = 0; c < tcs.length; c++) {
+        const cell = tcs[c]
+        let fill = options.fill
 
-      const cNvPr = frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
-      if (!cNvPr) continue
+        if (isHeader && options.headerFill) {
+          fill = options.headerFill
+        } else if (!isHeader) {
+          if (isEven && options.evenFill) fill = options.evenFill
+          else if (!isEven && options.oddFill) fill = options.oddFill
+        }
 
-      const name = cNvPr['@_name']
-      const id = String(cNvPr['@_id'])
+        const cellOpts = { ...options }
+        if (fill !== undefined) cellOpts.fill = fill
 
-      if (tableId === 'first' || name === tableId || id === tableId) {
-        targetFrame = frame
-        break
+        cell['a:tcPr'] = StyleBuilder.buildCellProperties(cell['a:tcPr'], cellOpts)
+        this.#applyTypography(cell, options)
       }
     }
 
-    if (!targetFrame || !tbl) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
-    }
-
-    const emuWidth = width < 100 ? Math.round(width * 914400) : Math.round(width)
-    const emuHeight = height < 100 ? Math.round(height * 914400) : Math.round(height)
-
-    if (!targetFrame['p:xfrm']) targetFrame['p:xfrm'] = {}
-    if (!targetFrame['p:xfrm']['a:ext']) targetFrame['p:xfrm']['a:ext'] = {}
-    targetFrame['p:xfrm']['a:ext']['@_cx'] = String(emuWidth)
-    targetFrame['p:xfrm']['a:ext']['@_cy'] = String(emuHeight)
-
-    const gridCols = tbl['a:tblGrid']?.['a:gridCol']
-    if (gridCols && gridCols.length > 0) {
-      let currentTotalWidth = 0
-      for (const col of gridCols) {
-        currentTotalWidth += parseInt(col['@_w'] || 0, 10)
-      }
-
-      if (currentTotalWidth > 0) {
-        const ratio = emuWidth / currentTotalWidth
-        for (const col of gridCols) {
-          const w = parseInt(col['@_w'] || 0, 10)
-          col['@_w'] = String(Math.round(w * ratio))
-        }
-      } else {
-        const evenWidth = Math.round(emuWidth / gridCols.length)
-        for (const col of gridCols) {
-          col['@_w'] = String(evenWidth)
-        }
-      }
-    }
-
-    const trs = tbl['a:tr'] || []
-    if (trs.length > 0) {
-      let currentTotalHeight = 0
-      for (const row of trs) {
-        currentTotalHeight += parseInt(row['@_h'] || 0, 10)
-      }
-
-      if (currentTotalHeight > 0) {
-        const ratio = emuHeight / currentTotalHeight
-        for (const row of trs) {
-          const h = parseInt(row['@_h'] || 0, 10)
-          row['@_h'] = String(Math.round(h * ratio))
-        }
-      } else {
-        const evenHeight = Math.round(emuHeight / trs.length)
-        for (const row of trs) {
-          row['@_h'] = String(evenHeight)
-        }
-      }
-    }
-
-    slideManager.markSlideObjDirty(slideIndex)
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
   }
 
   /**
-   * Converts various measurement unit representations to EMUs.
+   * 28. styleColumn(tableId, columnIndex, options)
+   * Applies fills, typography, and borders down columnIndex.
    *
-   * @param {number|string} val
-   * @returns {number|'auto'}
+   * @param {string} tableId - Table identifier.
+   * @param {number} columnIndex - 0-based col index.
+   * @param {Object} options - Column styling options.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
    */
-  #toEMU(val) {
-    if (val === undefined || val === null || val === 'auto') return 'auto'
-    if (typeof val === 'number') {
-      if (val < 10) return Math.round(val * 914400)
-      if (val <= 10000) return Math.round(val * 12700)
-      return Math.round(val)
-    }
-    if (typeof val === 'string') {
-      const str = val.trim().toLowerCase()
-      if (str === 'auto') return 'auto'
-      if (str.endsWith('in')) return Math.round(parseFloat(str) * 914400)
-      if (str.endsWith('pt')) return Math.round(parseFloat(str) * 12700)
-      if (str.endsWith('px')) return Math.round(parseFloat(str) * 9525)
-      if (str.endsWith('emu')) return Math.round(parseFloat(str))
-      const num = parseFloat(str)
-      if (!isNaN(num)) {
-        if (num < 10) return Math.round(num * 914400)
-        if (num <= 10000) return Math.round(num * 12700)
-        return Math.round(num)
+  styleColumn(tableId, columnIndex, options = {}, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr'])
+      ? tblObj['a:tr']
+      : tblObj['a:tr']
+        ? [tblObj['a:tr']]
+        : []
+
+    for (const tr of trs) {
+      const tcs = Array.isArray(tr['a:tc']) ? tr['a:tc'] : [tr['a:tc']]
+      if (columnIndex >= 0 && columnIndex < tcs.length) {
+        const cell = tcs[columnIndex]
+        cell['a:tcPr'] = StyleBuilder.buildCellProperties(cell['a:tcPr'], options)
+        this.#applyTypography(cell, options)
       }
     }
-    return 'auto'
+
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
   }
 
   /**
-   * Adjusts one or more row heights in a table (fixed height or auto calculated).
+   * 29. styleRow(tableId, rowIndex, options)
+   * Applies fills, typography, height, and borders across rowIndex.
    *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {Object|Array} options
-   * @param {SlideManager} slideManager
-   * @param {ShapeManager} [shapeManager=null]
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {Object} options - Row styling options.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
    */
-  adjustTableRow(slideIndex, tableId, options, slideManager, shapeManager = null) {
-    const { tblObj, frameObj } = this.#getTableContext(slideIndex, tableId, slideManager)
-    const trsArr = tblObj['a:tr'] || []
-    if (trsArr.length === 0) return
-
-    const calculatedHeights = this.#calculateRowHeights(
-      slideIndex,
-      tableId,
-      slideManager,
-      tblObj,
-      false
-    )
-
-    let specs = []
-    if (Array.isArray(options)) {
-      specs = options
-    } else if (options && typeof options === 'object') {
-      if (options.rows && Array.isArray(options.rows)) {
-        specs = options.rows
-      } else {
-        specs = [options]
-      }
+  styleRow(tableId, rowIndex, options = {}, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
+    if (rowIndex < 0 || rowIndex >= trs.length) {
+      throw new PPTXError(`Row index ${rowIndex} out of bounds`)
     }
 
-    for (const spec of specs) {
-      if (!spec || typeof spec !== 'object') continue
-      if (spec.auto === true && spec.row === undefined && spec.rowIndex === undefined) {
-        for (let r = 0; r < trsArr.length; r++) {
-          trsArr[r]['@_h'] = String(calculatedHeights[r])
-        }
-        break
-      }
-
-      const rIdx = spec.row !== undefined ? spec.row : spec.rowIndex
-      if (rIdx !== undefined && rIdx >= 0 && rIdx < trsArr.length) {
-        if (spec.auto) {
-          trsArr[rIdx]['@_h'] = String(calculatedHeights[rIdx])
-        } else if (spec.height !== undefined) {
-          const emuH = this.#toEMU(spec.height)
-          if (typeof emuH === 'number') {
-            trsArr[rIdx]['@_h'] = String(emuH)
-          }
-        }
-      }
+    const tr = trs[rowIndex]
+    if (options.height !== undefined) {
+      tr['@_h'] = String(toEmu(options.height))
     }
 
-    let totalHeight = 0
-    for (const row of trsArr) {
-      totalHeight += parseInt(row['@_h'] || 0, 10)
+    const tcs = Array.isArray(tr['a:tc']) ? tr['a:tc'] : [tr['a:tc']]
+    for (const cell of tcs) {
+      cell['a:tcPr'] = StyleBuilder.buildCellProperties(cell['a:tcPr'], options)
+      this.#applyTypography(cell, options)
     }
 
-    if (!frameObj['p:xfrm']) frameObj['p:xfrm'] = {}
-    if (!frameObj['p:xfrm']['a:ext']) frameObj['p:xfrm']['a:ext'] = {}
-    frameObj['p:xfrm']['a:ext']['@_cy'] = String(totalHeight)
-
-    if (shapeManager) {
-      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
-    }
-    slideManager.markSlideObjDirty(slideIndex)
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
   }
 
   /**
-   * Adjusts one or more column widths in a table (fixed width or auto calculated).
+   * 30. styleCell(tableId, rowIndex, columnIndex, options)
+   * Applies fills, alignments, margins, and borders to cell at (rowIndex, columnIndex).
    *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {Object|Array} options
-   * @param {SlideManager} slideManager
-   * @param {ShapeManager} [shapeManager=null]
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} columnIndex - 0-based col index.
+   * @param {Object} options - Cell styling options.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager.
+   * @returns {TableManager} this
    */
-  adjustTableColumn(slideIndex, tableId, options, slideManager, shapeManager = null) {
-    const { tblObj, frameObj } = this.#getTableContext(slideIndex, tableId, slideManager)
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    if (gridColsArr.length === 0) return
-
-    const calculatedWidths = this.#calculateColumnWidths(
-      slideIndex,
-      tableId,
-      slideManager,
-      tblObj,
-      false
-    )
-
-    let specs = []
-    if (Array.isArray(options)) {
-      specs = options
-    } else if (options && typeof options === 'object') {
-      if (options.columns && Array.isArray(options.columns)) {
-        specs = options.columns
-      } else {
-        specs = [options]
-      }
+  styleCell(tableId, rowIndex, columnIndex, options = {}, slideIndex, slideManager) {
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
+    if (rowIndex < 0 || rowIndex >= trs.length) {
+      throw new PPTXError(`Row index ${rowIndex} out of bounds`)
     }
 
-    for (const spec of specs) {
-      if (!spec || typeof spec !== 'object') continue
-      if (spec.auto === true && spec.column === undefined && spec.colIndex === undefined) {
-        for (let c = 0; c < gridColsArr.length; c++) {
-          gridColsArr[c]['@_w'] = String(calculatedWidths[c])
-        }
-        break
-      }
-
-      const cIdx = spec.column !== undefined ? spec.column : spec.colIndex
-      if (cIdx !== undefined && cIdx >= 0 && cIdx < gridColsArr.length) {
-        if (spec.auto) {
-          gridColsArr[cIdx]['@_w'] = String(calculatedWidths[cIdx])
-        } else if (spec.width !== undefined) {
-          const emuW = this.#toEMU(spec.width)
-          if (typeof emuW === 'number') {
-            gridColsArr[cIdx]['@_w'] = String(emuW)
-          }
-        }
-      }
+    const tcs = Array.isArray(trs[rowIndex]['a:tc'])
+      ? trs[rowIndex]['a:tc']
+      : [trs[rowIndex]['a:tc']]
+    if (columnIndex < 0 || columnIndex >= tcs.length) {
+      throw new PPTXError(`Column index ${columnIndex} out of bounds`)
     }
 
-    let totalWidth = 0
-    for (const col of gridColsArr) {
-      totalWidth += parseInt(col['@_w'] || 0, 10)
-    }
+    const cell = tcs[columnIndex]
+    cell['a:tcPr'] = StyleBuilder.buildCellProperties(cell['a:tcPr'], options)
+    this.#applyTypography(cell, options)
 
-    if (!frameObj['p:xfrm']) frameObj['p:xfrm'] = {}
-    if (!frameObj['p:xfrm']['a:ext']) frameObj['p:xfrm']['a:ext'] = {}
-    frameObj['p:xfrm']['a:ext']['@_cx'] = String(totalWidth)
-
-    if (shapeManager) {
-      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
-    }
-    slideManager.markSlideObjDirty(slideIndex)
+    this.#markDirty(resolvedSlideIndex, slideManager)
+    return this
   }
 
   /**
-   * Resizes the table by adjusting both row heights and column widths.
-   *
-   * @param {number} slideIndex
-   * @param {string} tableId
-   * @param {Object} options
-   * @param {SlideManager} slideManager
-   * @param {ShapeManager} [shapeManager=null]
-   */
-  adjustTable(slideIndex, tableId, options = {}, slideManager, shapeManager = null) {
-    let colOpts = null
-    let rowOpts = null
-
-    if (options.auto === true || options === 'auto') {
-      colOpts = { auto: true }
-      rowOpts = { auto: true }
-    } else {
-      if (options.columns !== undefined) {
-        colOpts = options.columns === 'auto' ? { auto: true } : options.columns
-      }
-      if (options.rows !== undefined) {
-        rowOpts = options.rows === 'auto' ? { auto: true } : options.rows
-      }
-    }
-
-    if (colOpts) {
-      this.adjustTableColumn(slideIndex, tableId, colOpts, slideManager, shapeManager)
-    }
-    if (rowOpts) {
-      this.adjustTableRow(slideIndex, tableId, rowOpts, slideManager, shapeManager)
-    }
-
-    if (!colOpts && !rowOpts) {
-      this.adjustTableColumn(slideIndex, tableId, { auto: true }, slideManager, shapeManager)
-      this.adjustTableRow(slideIndex, tableId, { auto: true }, slideManager, shapeManager)
-    }
-
-    if (shapeManager) {
-      this.#repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager)
-    }
-    slideManager.markSlideObjDirty(slideIndex)
-  }
-
-  /**
-   * Inspects all tables in a slide.
-   *
+   * Internal helper for slide inspection and validation.
    * @param {number} slideIndex
    * @param {SlideManager} slideManager
-   * @returns {Array<{name: string, id: string, rows: number, cols: number}>}
+   * @returns {Array<Object>}
    */
   inspectTables(slideIndex, slideManager) {
-    const slideObj = slideManager.getSlideObj(slideIndex)
-    const tables = []
+    return this.getTables(slideIndex, slideManager)
+  }
 
-    const spTree =
-      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
-      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
-      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
-    if (!spTree) return []
+  // ==========================================================================
+  // Private Helpers
+  // ==========================================================================
 
-    let frames = spTree['p:graphicFrame'] || []
-    if (!Array.isArray(frames)) frames = [frames]
+  /**
+   * Resolves table context across active slide or all slides.
+   * @private
+   */
+  #getTableContext(slideIndex, tableId, slideManager) {
+    let resolvedSlideIndex = slideIndex
 
-    for (const frame of frames) {
-      const tbl = frame?.['a:graphic']?.['a:graphicData']?.['a:tbl']
-      if (!tbl) continue
-
-      const cNvPr = frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
-      const name = cNvPr ? cNvPr['@_name'] : 'unnamed'
-      const id = cNvPr ? String(cNvPr['@_id']) : 'unknown'
-
-      const trs = tbl['a:tr'] || []
-      const cols = trs[0]?.['a:tc']?.length || 0
-
-      tables.push({
-        name,
-        id,
-        rows: trs.length,
-        cols,
-      })
+    if (resolvedSlideIndex === undefined) {
+      const allSlides = slideManager.getAllSlideIndices()
+      for (const idx of allSlides) {
+        const found = slideManager.getSlideTable(idx, tableId)
+        if (found) {
+          resolvedSlideIndex = idx
+          break
+        }
+      }
+      if (resolvedSlideIndex === undefined) {
+        resolvedSlideIndex = allSlides[0] || 1
+      }
     }
 
-    return tables
+    const tableRes = slideManager.getSlideTable(resolvedSlideIndex, tableId)
+    if (!tableRes) {
+      throw new TableNotFoundError(tableId)
+    }
+
+    return {
+      frame: tableRes.frame,
+      tblObj: tableRes.table,
+      resolvedSlideIndex,
+    }
   }
 
   /**
-   * Helper to set cell text in parsed object structure.
+   * Marks slide dirty and re-indexes tableMap.
+   * @private
    */
-  #setCellTextObj(cellObj, text) {
-    const val = text === undefined || text === null ? '' : String(text)
+  #markDirty(slideIndex, slideManager) {
+    slideManager.markSlideObjDirty(slideIndex)
+  }
 
+  /**
+   * Generates a unique numeric shape ID.
+   * @private
+   */
+  #generateUniqueShapeId(container) {
+    let maxId = 1
+    const scan = obj => {
+      if (!obj || typeof obj !== 'object') return
+      for (const [k, v] of Object.entries(obj)) {
+        if (k === 'p:cNvPr' && v && v['@_id']) {
+          const id = parseInt(v['@_id'], 10)
+          if (!isNaN(id) && id > maxId) maxId = id
+        } else if (typeof v === 'object') {
+          scan(v)
+        }
+      }
+    }
+    scan(container)
+    return maxId + 1
+  }
+
+  /**
+   * Generates a fresh a16:rowId on row AST node.
+   * @private
+   */
+  #updateRowId(rowObj) {
+    if (!rowObj['a:extLst']) {
+      rowObj['a:extLst'] = {}
+    }
+    rowObj['a:extLst']['a:ext'] = {
+      '@_uri': ROW_ID_URI,
+      'a16:rowId': {
+        '@_xmlns:a16': ROW_ID_NS,
+        '@_val': String(generateRowId()),
+      },
+    }
+  }
+
+  /**
+   * Extracts clean text content from a cell node.
+   * @private
+   */
+  #getCellText(cellObj) {
+    if (!cellObj || !cellObj['a:txBody']) return ''
+    const paragraphs = Array.isArray(cellObj['a:txBody']['a:p'])
+      ? cellObj['a:txBody']['a:p']
+      : cellObj['a:txBody']['a:p']
+        ? [cellObj['a:txBody']['a:p']]
+        : []
+
+    const textParts = []
+    for (const p of paragraphs) {
+      const runs = Array.isArray(p['a:r']) ? p['a:r'] : p['a:r'] ? [p['a:r']] : []
+      for (const r of runs) {
+        if (r['a:t'] !== undefined) {
+          textParts.push(typeof r['a:t'] === 'object' ? r['a:t']['#text'] || '' : r['a:t'])
+        }
+      }
+    }
+    return textParts.join('')
+  }
+
+  /**
+   * Sets text content in a cell node without destroying existing formatting nodes.
+   * @private
+   */
+  #setCellText(cellObj, text, options = {}) {
     if (!cellObj['a:txBody']) {
       cellObj['a:txBody'] = {
         'a:bodyPr': {},
         'a:lstStyle': {},
-        'a:p': [],
+        'a:p': {
+          'a:r': {
+            'a:rPr': {},
+            'a:t': escapeXml(text),
+          },
+        },
       }
+      return
     }
 
     const txBody = cellObj['a:txBody']
-
-    if (!txBody['a:p']) {
-      txBody['a:p'] = []
-    }
-    if (!Array.isArray(txBody['a:p'])) {
-      txBody['a:p'] = [txBody['a:p']]
-    }
-    if (txBody['a:p'].length === 0) {
-      txBody['a:p'].push({})
+    let pList = txBody['a:p']
+    if (!Array.isArray(pList)) {
+      pList = pList ? [pList] : [{}]
+      txBody['a:p'] = pList
     }
 
-    const lines = val.split(/\r?\n/)
-    const templatePara = txBody['a:p'][0]
-    const newParas = []
-
-    for (const line of lines) {
-      const p = this.#xmlParser.deepClone(templatePara)
-
-      if (!p['a:r']) {
-        p['a:r'] = []
-      }
-      if (!Array.isArray(p['a:r'])) {
-        p['a:r'] = [p['a:r']]
-      }
-
-      if (p['a:r'].length === 0) {
-        p['a:r'].push({ 'a:t': line })
-      } else {
-        const firstRun = p['a:r'][0]
-        firstRun['a:t'] = line
-        p['a:r'] = [firstRun]
-      }
-
-      // Ensure strict schema ordering for DrawingML paragraph elements:
-      // 1. a:pPr (paragraph properties)
-      // 2. a:r / a:br / a:fld (text runs, breaks, fields)
-      // 3. a:endParaRPr (end paragraph run properties)
-      const pOrdered = {}
-      if (p['a:pPr'] !== undefined) {
-        pOrdered['a:pPr'] = p['a:pPr']
-      }
-      if (p['a:r'] !== undefined) {
-        pOrdered['a:r'] = p['a:r']
-      }
-      if (p['a:br'] !== undefined) {
-        pOrdered['a:br'] = p['a:br']
-      }
-      if (p['a:fld'] !== undefined) {
-        pOrdered['a:fld'] = p['a:fld']
-      }
-      for (const key of Object.keys(p)) {
-        if (
-          key !== 'a:pPr' &&
-          key !== 'a:r' &&
-          key !== 'a:br' &&
-          key !== 'a:fld' &&
-          key !== 'a:endParaRPr'
-        ) {
-          pOrdered[key] = p[key]
-        }
-      }
-      if (p['a:endParaRPr'] !== undefined) {
-        pOrdered['a:endParaRPr'] = p['a:endParaRPr']
-      }
-
-      newParas.push(pOrdered)
+    const firstP = pList[0] || (pList[0] = {})
+    let rList = firstP['a:r']
+    if (!Array.isArray(rList)) {
+      rList = rList ? [rList] : [{}]
+      firstP['a:r'] = rList
     }
 
-    txBody['a:p'] = newParas
-  }
+    const firstR = rList[0] || (rList[0] = {})
+    firstR['a:t'] = escapeXml(text ?? '')
 
-  #getAllShapeIds(container) {
-    const ids = []
-    if (!container) return ids
-
-    let shapes = container['p:sp'] || []
-    if (!Array.isArray(shapes)) shapes = [shapes]
-    for (const s of shapes) {
-      const id = parseInt(s?.['p:nvSpPr']?.['p:cNvPr']?.['@_id'], 10)
-      if (!isNaN(id)) ids.push(id)
+    // Remove secondary runs in the first paragraph to maintain clean single text run
+    if (rList.length > 1) {
+      rList.splice(1)
     }
 
-    let pics = container['p:pic'] || []
-    if (!Array.isArray(pics)) pics = [pics]
-    for (const p of pics) {
-      const id = parseInt(p?.['p:nvPicPr']?.['p:cNvPr']?.['@_id'], 10)
-      if (!isNaN(id)) ids.push(id)
+    if (Object.keys(options).length > 0) {
+      this.#applyTypography(cellObj, options)
     }
-
-    let frames = container['p:graphicFrame'] || []
-    if (!Array.isArray(frames)) frames = [frames]
-    for (const f of frames) {
-      const id = parseInt(f?.['p:nvGraphicFramePr']?.['p:cNvPr']?.['@_id'], 10)
-      if (!isNaN(id)) ids.push(id)
-    }
-
-    let groups = container['p:grpSp'] || []
-    if (!Array.isArray(groups)) groups = [groups]
-    for (const g of groups) {
-      const id = parseInt(g?.['p:nvGrpSpPr']?.['p:cNvPr']?.['@_id'], 10)
-      if (!isNaN(id)) ids.push(id)
-      ids.push(...this.#getAllShapeIds(g))
-    }
-
-    return ids
   }
 
   /**
-   * Helper to find a table element inside a slide parsed object.
+   * Constructs an initial cell AST node.
+   * @private
    */
-  #findTableObj(slideObj, tableId, slideManager, slideIndex) {
-    if (slideManager && slideIndex !== undefined) {
-      const res = slideManager.getSlideTable(slideIndex, tableId)
-      return res ? res.table : null
-    }
+  #createCellNode(text = '', options = {}) {
+    const rPr = StyleBuilder.buildRunProperties({}, options)
+    const pPr = StyleBuilder.buildParagraphProperties({}, options)
+    const tcPr = StyleBuilder.buildCellProperties({}, options)
 
-    const spTree =
-      slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
-      slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree'] ||
-      slideObj?.['p:sldMaster']?.['p:cSld']?.['p:spTree']
-    if (!spTree) return null
-
-    let frames = spTree['p:graphicFrame'] || []
-    if (!Array.isArray(frames)) frames = [frames]
-
-    for (const frame of frames) {
-      const tbl = frame?.['a:graphic']?.['a:graphicData']?.['a:tbl']
-      if (!tbl) continue
-
-      const cNvPr = frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
-      if (!cNvPr) continue
-
-      const name = cNvPr['@_name']
-      const id = String(cNvPr['@_id'])
-
-      if (tableId === 'first' || name === tableId || id === tableId) {
-        return tbl
-      }
-    }
-
-    return null
-  }
-
-  #getTableContext(slideIndex, tableId, slideManager) {
-    const slideObj = slideManager.getSlideObj(slideIndex)
-    const res = slideManager.getSlideTable(slideIndex, tableId)
-    if (!res || !res.table) {
-      throw new TableNotFoundError(`Table "${tableId}" not found in slide ${slideIndex}`)
-    }
-    const cNvPr = res.frame?.['p:nvGraphicFramePr']?.['p:cNvPr']
-    const resolvedTableId = cNvPr ? cNvPr['@_name'] || String(cNvPr['@_id']) : tableId
-    return { slideObj, tblObj: res.table, frameObj: res.frame, resolvedTableId }
-  }
-
-  #applyCellOptions(cellObj, cellOptions) {
-    if (cellOptions.fill) {
-      if (!cellObj['a:tcPr']) cellObj['a:tcPr'] = {}
-      const fillHex = String(cellOptions.fill).replace('#', '').toUpperCase()
-      cellObj['a:tcPr']['a:solidFill'] = {
-        'a:srgbClr': { '@_val': fillHex },
-      }
-    }
-
-    if (cellOptions.align) {
-      const txBody = cellObj['a:txBody']
-      if (txBody && txBody['a:p']) {
-        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-        for (const p of paras) {
-          if (!p['a:pPr']) p['a:pPr'] = {}
-          p['a:pPr']['@_algn'] = cellOptions.align
-        }
-      }
-    }
-
-    if (cellOptions.fontSize) {
-      const sizeVal = cellOptions.fontSize * 100
-      const txBody = cellObj['a:txBody']
-      if (txBody && txBody['a:p']) {
-        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-        for (const p of paras) {
-          if (p['a:r']) {
-            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-            for (const r of runs) {
-              if (!r['a:rPr']) r['a:rPr'] = {}
-              r['a:rPr']['@_sz'] = String(sizeVal)
-            }
-          }
-        }
-      }
-    }
-
-    if (
-      cellOptions.bold !== undefined ||
-      cellOptions.italic !== undefined ||
-      cellOptions.color ||
-      cellOptions.fontFamily
-    ) {
-      const txBody = cellObj['a:txBody']
-      if (txBody && txBody['a:p']) {
-        const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-        for (const p of paras) {
-          if (p['a:r']) {
-            const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-            for (const r of runs) {
-              if (!r['a:rPr']) r['a:rPr'] = {}
-              if (cellOptions.bold !== undefined) r['a:rPr']['@_b'] = cellOptions.bold ? '1' : '0'
-              if (cellOptions.italic !== undefined)
-                r['a:rPr']['@_i'] = cellOptions.italic ? '1' : '0'
-              if (cellOptions.color) {
-                const hex = String(cellOptions.color).replace('#', '').toUpperCase()
-                r['a:rPr']['a:solidFill'] = { 'a:srgbClr': { '@_val': hex } }
-              }
-              if (cellOptions.fontFamily) {
-                r['a:rPr']['a:latin'] = { '@_typeface': cellOptions.fontFamily }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (cellOptions.border) {
-      if (!cellObj['a:tcPr']) cellObj['a:tcPr'] = {}
-      const applyBorderSide = (sideKey, lnTag) => {
-        const side =
-          typeof cellOptions.border === 'object' && cellOptions.border[sideKey] !== undefined
-            ? cellOptions.border[sideKey]
-            : cellOptions.border
-        if (side === false || side === null) {
-          cellObj['a:tcPr'][lnTag] = { 'a:noFill': {} }
-          return
-        }
-        if (!side) return
-        const bColor = (side.color || cellOptions.border.color || '000000')
-          .replace('#', '')
-          .toUpperCase()
-        const bWidth =
-          side.width !== undefined
-            ? Math.round(side.width * 12700)
-            : cellOptions.border.width !== undefined
-              ? Math.round(cellOptions.border.width * 12700)
-              : 12700
-        cellObj['a:tcPr'][lnTag] = {
-          '@_w': String(bWidth),
-          '@_cmpd': 'sng',
-          'a:solidFill': { 'a:srgbClr': { '@_val': bColor } },
-        }
-      }
-      applyBorderSide('left', 'a:lnL')
-      applyBorderSide('right', 'a:lnR')
-      applyBorderSide('top', 'a:lnT')
-      applyBorderSide('bottom', 'a:lnB')
-    }
-  }
-
-  #expandCellShape(config, cellBounds) {
-    const cellLeft_px = cellBounds.x
-    const cellTop_px = cellBounds.y
-    const cellWidth_px = cellBounds.width
-    const cellHeight_px = cellBounds.height
-
-    const parseLength = (val, maxVal) => {
-      if (typeof val === 'string' && val.endsWith('%')) {
-        return (parseFloat(val) / 100) * maxVal
-      }
-      return val !== undefined ? parseFloat(val) : undefined
-    }
-
-    const isCellAnchored = config.anchor !== 'slide'
-
-    // 1. Determine bounding box width and height
-    let shapeWidth
-    let shapeHeight
-
-    if (config.type === 'progressBar') {
-      shapeHeight = parseLength(config.height !== undefined ? config.height : 8, cellHeight_px)
-      shapeWidth = parseLength(
-        config.width !== undefined ? config.width : cellWidth_px - 10,
-        cellWidth_px
-      )
-    } else if (config.type === 'badge') {
-      const text = String(config.text !== undefined ? config.text : '')
-      const fontSize = config.textStyle?.fontSize || 10
-      const textWidth = text.length * fontSize * 0.6
-      const paddingX = 12
-      shapeWidth =
-        parseLength(config.width, cellWidth_px) !== undefined
-          ? parseLength(config.width, cellWidth_px)
-          : textWidth + paddingX * 2
-      shapeHeight =
-        parseLength(config.height, cellHeight_px) !== undefined
-          ? parseLength(config.height, cellHeight_px)
-          : fontSize + 12
-    } else if (config.type === 'icon') {
-      const size = parseLength(
-        config.size !== undefined ? config.size : 16,
-        Math.min(cellWidth_px, cellHeight_px)
-      )
-      shapeWidth = size
-      shapeHeight = size
-    } else {
-      shapeWidth = parseLength(config.width, cellWidth_px)
-      if (shapeWidth === undefined) {
-        const sizeVal = parseLength(config.size, Math.min(cellWidth_px, cellHeight_px))
-        if (sizeVal !== undefined) {
-          shapeWidth = sizeVal
-        } else {
-          const radiusVal = parseLength(config.radius, Math.min(cellWidth_px, cellHeight_px) / 2)
-          if (radiusVal !== undefined) {
-            shapeWidth = radiusVal * 2
-          } else {
-            shapeWidth = 12 // default
-          }
-        }
-      }
-
-      shapeHeight = parseLength(config.height, cellHeight_px)
-      if (shapeHeight === undefined) {
-        const sizeVal = parseLength(config.size, Math.min(cellWidth_px, cellHeight_px))
-        if (sizeVal !== undefined) {
-          shapeHeight = sizeVal
-        } else {
-          const radiusVal = parseLength(config.radius, Math.min(cellWidth_px, cellHeight_px) / 2)
-          if (radiusVal !== undefined) {
-            shapeHeight = radiusVal * 2
-          } else {
-            shapeHeight = 12 // default
-          }
-        }
-      }
-    }
-
-    // Scale shape down proportionally to fit inside the cell if it exceeds the cell dimensions
-    if (shapeWidth > cellWidth_px || shapeHeight > cellHeight_px) {
-      logger.warn(
-        `Shape width (${shapeWidth}px) or height (${shapeHeight}px) exceeds cell dimensions (${cellWidth_px}px x ${cellHeight_px}px). Scaling shape to fit.`
-      )
-      const scale = Math.min(cellWidth_px / shapeWidth, cellHeight_px / shapeHeight)
-      shapeWidth = Math.max(1, Math.floor(shapeWidth * scale))
-      shapeHeight = Math.max(1, Math.floor(shapeHeight * scale))
-    }
-
-    // 2. Determine alignment settings
-    let alignX = config.alignX
-    let alignY = config.alignY
-
-    if (config.position) {
-      switch (config.position) {
-        case 'top-left':
-          if (!alignX) alignX = 'left'
-          if (!alignY) alignY = 'top'
-          break
-        case 'top-center':
-        case 'top':
-          if (!alignX) alignX = 'center'
-          if (!alignY) alignY = 'top'
-          break
-        case 'top-right':
-          if (!alignX) alignX = 'right'
-          if (!alignY) alignY = 'top'
-          break
-        case 'middle-left':
-        case 'left':
-          if (!alignX) alignX = 'left'
-          if (!alignY) alignY = 'middle'
-          break
-        case 'center':
-        case 'middle-center':
-          if (!alignX) alignX = 'center'
-          if (!alignY) alignY = 'middle'
-          break
-        case 'middle-right':
-        case 'right':
-          if (!alignX) alignX = 'right'
-          if (!alignY) alignY = 'middle'
-          break
-        case 'bottom-left':
-          if (!alignX) alignX = 'left'
-          if (!alignY) alignY = 'bottom'
-          break
-        case 'bottom-center':
-        case 'bottom':
-          if (!alignX) alignX = 'center'
-          if (!alignY) alignY = 'bottom'
-          break
-        case 'bottom-right':
-          if (!alignX) alignX = 'right'
-          if (!alignY) alignY = 'bottom'
-          break
-      }
-    }
-
-    if (!alignX) {
-      const ax = config.alignX || config.horizontal
-      if (ax) {
-        alignX = String(ax).toLowerCase().trim()
-        if (alignX === 'middle') alignX = 'center'
-      }
-    }
-    if (!alignY) {
-      const ay = config.alignY || config.vertical
-      if (ay) {
-        alignY = String(ay).toLowerCase().trim()
-        if (alignY === 'center') alignY = 'middle'
-      }
-    }
-
-    if (!alignX && !alignY) {
-      if (config.x !== undefined || config.y !== undefined) {
-        alignX = 'left'
-        alignY = 'top'
-      } else {
-        alignX = 'center'
-        alignY = 'middle'
-      }
-    } else if (alignX && !alignY) {
-      alignY = 'middle'
-    } else if (alignY && !alignX) {
-      alignX = 'center'
-    }
-
-    // 3. Compute coordinates
-    let shapeLeft = cellLeft_px
-    let shapeTop = cellTop_px
-
-    if (isCellAnchored) {
-      let dx = 0
-      const hasOffsetValX =
-        config.offsetX !== undefined || config.xOffset !== undefined || config.x !== undefined
-      if (config.offsetX !== undefined) dx = parseFloat(config.offsetX)
-      else if (config.xOffset !== undefined) dx = parseFloat(config.xOffset)
-      else if (config.x !== undefined) dx = parseFloat(config.x)
-
-      let dy = 0
-      const hasOffsetValY =
-        config.offsetY !== undefined || config.yOffset !== undefined || config.y !== undefined
-      if (config.offsetY !== undefined) dy = parseFloat(config.offsetY)
-      else if (config.yOffset !== undefined) dy = parseFloat(config.yOffset)
-      else if (config.y !== undefined) dy = parseFloat(config.y)
-
-      shapeLeft = cellLeft_px
-      if (alignX === 'left') {
-        const padding = hasOffsetValX ? dx : 5
-        shapeLeft = cellLeft_px + padding
-      } else if (alignX === 'center') {
-        shapeLeft = cellLeft_px + (cellWidth_px - shapeWidth) / 2 + dx
-      } else if (alignX === 'right') {
-        const padding = hasOffsetValX ? dx : 5
-        shapeLeft = cellLeft_px + cellWidth_px - shapeWidth - padding
-      }
-
-      shapeTop = cellTop_px
-      if (alignY === 'top') {
-        const padding = hasOffsetValY ? dy : 5
-        shapeTop = cellTop_px + padding
-      } else if (alignY === 'middle') {
-        shapeTop = cellTop_px + (cellHeight_px - shapeHeight) / 2 + dy
-      } else if (alignY === 'bottom') {
-        const padding = hasOffsetValY ? dy : 5
-        shapeTop = cellTop_px + cellHeight_px - shapeHeight - padding
-      }
-
-      // 4. Boundary Constraints Validation/Enforcement
-      shapeLeft = Math.max(
-        cellLeft_px,
-        Math.min(shapeLeft, cellLeft_px + cellWidth_px - shapeWidth)
-      )
-      shapeTop = Math.max(cellTop_px, Math.min(shapeTop, cellTop_px + cellHeight_px - shapeHeight))
-    } else {
-      shapeLeft = config.x || 0
-      shapeTop = config.y || 0
-    }
-
-    // 5. Expand individual sub-elements / custom shapes
-    if (config.type === 'progressBar') {
-      const value = config.value !== undefined ? config.value : 0
-      const max = config.max !== undefined ? config.max : 100
-      const fill = config.fill || '#3B82F6'
-      const bgFill = config.backgroundFill || '#E5E7EB'
-
-      const shapes = []
-      shapes.push({
-        type: 'roundedRectangle',
-        fill: bgFill,
-        x: shapeLeft,
-        y: shapeTop,
-        width: shapeWidth,
-        height: shapeHeight,
-        borderRadius: shapeHeight / 2,
-        zIndex: config.zIndex,
-      })
-
-      const pct = Math.min(1, Math.max(0, value / max))
-      if (pct > 0) {
-        const filledWidth = shapeWidth * pct
-        shapes.push({
-          type: 'roundedRectangle',
-          fill: fill,
-          x: shapeLeft,
-          y: shapeTop,
-          width: filledWidth,
-          height: shapeHeight,
-          borderRadius: shapeHeight / 2,
-          zIndex: (config.zIndex || 0) + 1,
-        })
-      }
-      return shapes
-    }
-
-    if (config.type === 'badge') {
-      const text = String(config.text !== undefined ? config.text : '')
-      const fontSize = config.textStyle?.fontSize || 10
-      return [
-        {
-          type: 'roundedRectangle',
-          fill: config.fill || '#10B981',
-          borderRadius: shapeHeight / 2,
-          x: shapeLeft,
-          y: shapeTop,
-          width: shapeWidth,
-          height: shapeHeight,
-          text: text,
-          textStyle: {
-            color: config.textStyle?.color || '#FFFFFF',
-            fontSize: fontSize,
-            bold: config.textStyle?.bold !== undefined ? config.textStyle.bold : true,
-            align: 'center',
+    return {
+      'a:txBody': {
+        'a:bodyPr': {},
+        'a:lstStyle': {},
+        'a:p': {
+          ...(Object.keys(pPr).length > 0 ? { 'a:pPr': pPr } : {}),
+          'a:r': {
+            ...(Object.keys(rPr).length > 0 ? { 'a:rPr': rPr } : {}),
+            'a:t': escapeXml(text),
           },
-          border: config.border,
-          transparency: config.transparency,
-          shadow: config.shadow,
-          rotation: config.rotation,
-          zIndex: config.zIndex,
         },
-      ]
+      },
+      'a:tcPr': tcPr,
     }
-
-    if (config.type === 'icon') {
-      const iconFill = config.fill
-      const fontSize = Math.round(shapeWidth * 0.8)
-
-      let baseConfig = null
-      switch (config.icon) {
-        case 'check':
-          baseConfig = {
-            type: 'rectangle',
-            fill: 'none',
-            border: null,
-            width: shapeWidth,
-            height: shapeHeight,
-            text: '✔',
-            textStyle: {
-              color: iconFill || '#10B981',
-              bold: true,
-              fontSize: fontSize,
-              align: 'center',
-            },
-          }
-          break
-        case 'cross':
-          baseConfig = {
-            type: 'rectangle',
-            fill: 'none',
-            border: null,
-            width: shapeWidth,
-            height: shapeHeight,
-            text: '✘',
-            textStyle: {
-              color: iconFill || '#EF4444',
-              bold: true,
-              fontSize: fontSize,
-              align: 'center',
-            },
-          }
-          break
-        case 'warning':
-          baseConfig = {
-            type: 'triangle',
-            fill: iconFill || '#F59E0B',
-            border: null,
-            width: shapeWidth,
-            height: shapeHeight,
-            text: '!',
-            textStyle: {
-              color: '#FFFFFF',
-              bold: true,
-              fontSize: Math.round(fontSize * 0.7),
-              align: 'center',
-            },
-          }
-          break
-        case 'info':
-          baseConfig = {
-            type: 'circle',
-            fill: iconFill || '#3B82F6',
-            border: null,
-            radius: shapeWidth / 2,
-            text: 'i',
-            textStyle: {
-              color: '#FFFFFF',
-              bold: true,
-              fontSize: Math.round(fontSize * 0.7),
-              align: 'center',
-            },
-          }
-          break
-        case 'star':
-          baseConfig = {
-            type: 'star5',
-            fill: iconFill || '#FBBF24',
-            border: null,
-            width: shapeWidth,
-            height: shapeHeight,
-          }
-          break
-        case 'up':
-          baseConfig = {
-            type: 'upArrow',
-            fill: iconFill || '#10B981',
-            border: null,
-            width: shapeWidth,
-            height: shapeHeight,
-          }
-          break
-        case 'down':
-          baseConfig = {
-            type: 'downArrow',
-            fill: iconFill || '#EF4444',
-            border: null,
-            width: shapeWidth,
-            height: shapeHeight,
-          }
-          break
-        case 'arrow-right':
-          baseConfig = {
-            type: 'rightArrow',
-            fill: iconFill || '#3B82F6',
-            border: null,
-            width: shapeWidth,
-            height: shapeHeight,
-          }
-          break
-        case 'arrow-left':
-          baseConfig = {
-            type: 'leftArrow',
-            fill: iconFill || '#3B82F6',
-            border: null,
-            width: shapeWidth,
-            height: shapeHeight,
-          }
-          break
-        default:
-          return []
-      }
-
-      baseConfig.x = shapeLeft
-      baseConfig.y = shapeTop
-      baseConfig.zIndex = config.zIndex
-      if (config.border) baseConfig.border = config.border
-      if (config.transparency !== undefined) baseConfig.transparency = config.transparency
-      if (config.shadow !== undefined) baseConfig.shadow = config.shadow
-      if (config.rotation !== undefined) baseConfig.rotation = config.rotation
-
-      return [baseConfig]
-    }
-
-    const expanded = Object.assign({}, config, {
-      x: shapeLeft,
-      y: shapeTop,
-      width: shapeWidth,
-      height: shapeHeight,
-    })
-
-    if (expanded.type === 'circle' && expanded.radius === undefined) {
-      expanded.radius = shapeWidth / 2
-    }
-    if (expanded.type === 'square' && expanded.size === undefined) {
-      expanded.size = shapeWidth
-    }
-
-    return [expanded]
   }
 
-  #processCellShapes(
-    slideIndex,
-    tableId,
-    resolvedTableId,
-    rowsData,
-    isObjectRows,
-    cellShapes,
-    slideManager,
-    shapeManager,
-    tblObj
-  ) {
-    if (!cellShapes || !shapeManager) return
-
-    const shapes = shapeManager.getShapes(slideIndex, slideManager)
-    const prefixToDelete = `cellshape_${resolvedTableId}_`
-    const existingNames = shapes
-      .map(s => s.name)
-      .filter(name => name && name.startsWith(prefixToDelete))
-
-    for (const name of existingNames) {
-      try {
-        shapeManager.removeShape(slideIndex, name, slideManager)
-      } catch (err) {
-        logger.warn(`Failed to delete existing cell shape "${name}": ${err.message}`)
-      }
-    }
-
-    const shapesToCreate = []
-    const headerNames = (tblObj['a:tr']?.[0]?.['a:tc'] || []).map(cell =>
-      this.#getCellText(cell).trim()
-    )
-
-    for (let i = 0; i < rowsData.length; i++) {
-      const rowData = rowsData[i]
-      const finalRowIndex = isObjectRows ? i + 1 : i
-
-      const numCols = tblObj['a:tr']?.[finalRowIndex]?.['a:tc']?.length || 0
-      for (let j = 0; j < numCols; j++) {
-        const headerName = headerNames[j]
-        let shapeFn = null
-
-        if (headerName) {
-          shapeFn = cellShapes[headerName] || cellShapes[headerName.toLowerCase()]
-        }
-        if (!shapeFn) {
-          shapeFn = cellShapes[j]
-        }
-
-        if (typeof shapeFn !== 'function') continue
-
-        let configs = shapeFn(rowData, i)
-        if (!configs) continue
-
-        if (!Array.isArray(configs)) {
-          configs = [configs]
-        }
-
-        configs.forEach((config, shapeIdx) => {
-          shapesToCreate.push({
-            config,
-            rowIndex: finalRowIndex,
-            colIndex: j,
-            shapeIndex: shapeIdx,
-          })
-        })
-      }
-    }
-
-    shapesToCreate.sort((a, b) => (a.config.zIndex || 0) - (b.config.zIndex || 0))
-
-    shapesToCreate.forEach(item => {
-      const bounds = this.getCellBounds(
-        slideIndex,
-        tableId,
-        item.rowIndex,
-        item.colIndex,
-        slideManager
-      )
-      if (bounds) {
-        const expandedConfigs = this.#expandCellShape(item.config, bounds)
-
-        expandedConfigs.forEach((expandedConfig, expIdx) => {
-          const finalShapeIndex =
-            expandedConfigs.length > 1 ? `${item.shapeIndex}_${expIdx}` : item.shapeIndex
-          expandedConfig.id = `cellshape_${resolvedTableId}_${item.rowIndex}_${item.colIndex}_${finalShapeIndex}`
-
-          shapeManager.addShape(slideIndex, expandedConfig, slideManager)
-        })
-      }
-    })
-  }
-
-  getTableRows(slideIndex, tableId, options = {}, slideManager) {
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
-    const trs = tblObj['a:tr'] || []
-    if (trs.length === 0) {
-      return options.includeMetadata
-        ? { rows: [], rowCount: 0, columnCount: 0, mergedCells: [] }
+  /**
+   * Applies typography and alignment to cell AST paragraphs and runs.
+   * @private
+   */
+  #applyTypography(cellObj, options = {}) {
+    if (!cellObj['a:txBody']) return
+    const paragraphs = Array.isArray(cellObj['a:txBody']['a:p'])
+      ? cellObj['a:txBody']['a:p']
+      : cellObj['a:txBody']['a:p']
+        ? [cellObj['a:txBody']['a:p']]
         : []
-    }
 
-    const numRows = trs.length
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const numCols = gridColsArr.length
-
-    // Extract all raw cell text, resolving merges to their parent's text
-    const matrix = []
-    for (let r = 0; r < numRows; r++) {
-      const rowCells = []
-      for (let c = 0; c < numCols; c++) {
-        const parent = this.getMergeParent(slideIndex, tableId, r, c, slideManager)
-        const cell = trs[parent.row]?.['a:tc']?.[parent.col]
-        const text = cell ? this.#getCellText(cell) : ''
-        rowCells.push(text)
-      }
-      matrix.push(rowCells)
-    }
-
-    // Header names are extracted from the first row (index 0)
-    const headerNames = matrix[0].map((hText, cIdx) => {
-      const cleaned = hText.trim()
-      return cleaned || `column${cIdx + 1}`
-    })
-
-    // Compute the data rows (excluding the header row at index 0)
-    const dataRows = matrix.slice(1)
-
-    let rowsResult = []
-    if (options.raw) {
-      rowsResult = dataRows
-    } else {
-      for (const rowCells of dataRows) {
-        const rowObj = {}
-        for (let c = 0; c < numCols; c++) {
-          const key = headerNames[c]
-          rowObj[key] = rowCells[c] || ''
-        }
-        rowsResult.push(rowObj)
+    for (const p of paragraphs) {
+      p['a:pPr'] = StyleBuilder.buildParagraphProperties(p['a:pPr'], options)
+      const runs = Array.isArray(p['a:r']) ? p['a:r'] : p['a:r'] ? [p['a:r']] : []
+      for (const r of runs) {
+        r['a:rPr'] = StyleBuilder.buildRunProperties(r['a:rPr'], options)
       }
     }
-
-    if (options.includeMetadata) {
-      const mergedCells = this.getMergedCells(slideIndex, tableId, slideManager)
-      return {
-        rows: rowsResult,
-        rowCount: numRows,
-        columnCount: numCols,
-        mergedCells,
-      }
-    }
-
-    return rowsResult
-  }
-
-  addCellShape(slideIndex, tableId, rowIndex, colIndex, options, slideManager, shapeManager) {
-    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
-
-    const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
-    if (!bounds) {
-      throw new PPTXError(`Could not calculate bounds for cell (${rowIndex}, ${colIndex})`)
-    }
-
-    const shapes = shapeManager.getShapes(slideIndex, slideManager)
-    const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_`
-    let maxShapeIndex = -1
-    for (const s of shapes) {
-      if (s.name && s.name.startsWith(prefix)) {
-        const remaining = s.name.slice(prefix.length)
-        const parts = remaining.split('_')
-        const idxVal = parseInt(parts[0], 10)
-        if (!isNaN(idxVal) && idxVal > maxShapeIndex) {
-          maxShapeIndex = idxVal
-        }
-      }
-    }
-    const nextShapeIndex = maxShapeIndex + 1
-
-    const expandedConfigs = this.#expandCellShape(options, bounds)
-
-    expandedConfigs.forEach((expandedConfig, expIdx) => {
-      const finalShapeIndex =
-        expandedConfigs.length > 1 ? `${nextShapeIndex}_${expIdx}` : nextShapeIndex
-      expandedConfig.id = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${finalShapeIndex}`
-
-      shapeManager.addShape(slideIndex, expandedConfig, slideManager)
-
-      // Register this shape's original config so it can be repositioned after
-      // any subsequent table mutations (row removal, insertion, merge, etc.)
-      this.#cellShapeAnchors.set(expandedConfig.id, {
-        slideIndex,
-        resolvedTableId,
-        tableId,
-        rowIndex,
-        colIndex,
-        shapeIndex: finalShapeIndex,
-        config: { ...options },
-      })
-    })
-  }
-
-  updateCellShape(
-    slideIndex,
-    tableId,
-    rowIndex,
-    colIndex,
-    shapeIndex,
-    options,
-    slideManager,
-    shapeManager
-  ) {
-    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
-
-    const shapes = shapeManager.getShapes(slideIndex, slideManager)
-    const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
-    const matchingShapes = shapes.filter(
-      s => s.name && (s.name === prefix || s.name.startsWith(prefix + '_'))
-    )
-
-    if (matchingShapes.length === 0) {
-      throw new PPTXError(`Cell shape "${shapeIndex}" not found in cell (${rowIndex}, ${colIndex})`)
-    }
-
-    const anchorKey = matchingShapes[0].name || matchingShapes[0].id
-    const existingAnchor = this.#cellShapeAnchors.get(anchorKey)
-    const existingConfig = existingAnchor?.config || {}
-    const existingShape = matchingShapes[0] || {}
-
-    // Merge options non-destructively: preserve existing fill, border, type, etc.
-    const mergedOptions = {
-      type:
-        options.type !== undefined
-          ? options.type
-          : existingConfig.type !== undefined
-            ? existingConfig.type
-            : existingShape.type,
-      fill:
-        options.fill !== undefined
-          ? options.fill
-          : existingConfig.fill !== undefined
-            ? existingConfig.fill
-            : existingShape.fill,
-      border:
-        options.border !== undefined
-          ? options.border
-          : existingConfig.border !== undefined
-            ? existingConfig.border
-            : existingShape.border,
-      stroke:
-        options.stroke !== undefined
-          ? options.stroke
-          : existingConfig.stroke !== undefined
-            ? existingConfig.stroke
-            : existingShape.stroke,
-      transparency:
-        options.transparency !== undefined
-          ? options.transparency
-          : existingConfig.transparency !== undefined
-            ? existingConfig.transparency
-            : existingShape.transparency,
-      rotation:
-        options.rotation !== undefined
-          ? options.rotation
-          : existingConfig.rotation !== undefined
-            ? existingConfig.rotation
-            : existingShape.rotation,
-      shadow: options.shadow !== undefined ? options.shadow : existingConfig.shadow,
-      ...existingConfig,
-      ...options,
-    }
-
-    for (const s of matchingShapes) {
-      shapeManager.removeShape(slideIndex, s.name, slideManager)
-    }
-
-    const bounds = this.getCellBounds(slideIndex, tableId, rowIndex, colIndex, slideManager)
-    if (!bounds) {
-      throw new PPTXError(`Could not calculate bounds for cell (${rowIndex}, ${colIndex})`)
-    }
-
-    const expandedConfigs = this.#expandCellShape(mergedOptions, bounds)
-
-    expandedConfigs.forEach((expandedConfig, expIdx) => {
-      const finalShapeIndex = expandedConfigs.length > 1 ? `${shapeIndex}_${expIdx}` : shapeIndex
-      expandedConfig.id = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${finalShapeIndex}`
-
-      shapeManager.addShape(slideIndex, expandedConfig, slideManager)
-
-      this.#cellShapeAnchors.set(expandedConfig.id, {
-        slideIndex,
-        resolvedTableId,
-        tableId,
-        rowIndex,
-        colIndex,
-        shapeIndex: finalShapeIndex,
-        config: { ...mergedOptions },
-      })
-    })
-  }
-
-  removeCellShape(slideIndex, tableId, rowIndex, colIndex, shapeIndex, slideManager, shapeManager) {
-    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
-
-    const shapes = shapeManager.getShapes(slideIndex, slideManager)
-    const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
-    const matchingShapes = shapes.filter(
-      s => s.name && (s.name === prefix || s.name.startsWith(prefix + '_'))
-    )
-
-    if (matchingShapes.length === 0) {
-      throw new PPTXError(`Cell shape "${shapeIndex}" not found in cell (${rowIndex}, ${colIndex})`)
-    }
-
-    for (const s of matchingShapes) {
-      shapeManager.removeShape(slideIndex, s.name, slideManager)
-      // Deregister from anchor registry
-      this.#cellShapeAnchors.delete(s.name)
-    }
-  }
-
-  getCellShape(slideIndex, tableId, rowIndex, colIndex, shapeIndex, slideManager, shapeManager) {
-    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
-
-    const prefix = `cellshape_${resolvedTableId}_${rowIndex}_${colIndex}_${shapeIndex}`
-    const shapes = shapeManager.getShapes(slideIndex, slideManager)
-    const primaryShape = shapes.find(
-      s => s.name === prefix || s.name === `${prefix}_0` || s.name === `${prefix}_1`
-    )
-
-    if (!primaryShape) return null
-
-    return shapeManager.getShape(slideIndex, primaryShape.name, slideManager)
   }
 
   /**
-   * Adjusts all registered cell shapes for a table after a row is removed (delta=-1)
-   * or inserted (delta=+1) at `pivotRowIndex`.
-   *
-   * - For delta=-1 and shapes at pivotRowIndex: the shape is deleted (its row is gone).
-   * - For shapes at rows that shifted: delete the old shape and re-add it at the new
-   *   row index so that `getCellBounds` can compute correct coordinates from the
-   *   updated table layout.
-   *
+   * Calculates rendered cell bounding coordinates.
    * @private
    */
-  #adjustCellShapesAfterRowShift(
-    slideIndex,
-    resolvedTableId,
-    tableId,
-    pivotRowIndex,
-    delta,
-    slideManager,
-    shapeManager
-  ) {
-    if (!shapeManager) return
-
-    // Collect entries first (avoid mutating map while iterating)
-    const toDelete = []
-    const toReindex = []
-
-    for (const [name, anchor] of this.#cellShapeAnchors) {
-      if (anchor.slideIndex !== slideIndex || anchor.resolvedTableId !== resolvedTableId) continue
-
-      if (delta < 0 && anchor.rowIndex === pivotRowIndex) {
-        // Row was removed — delete the shape
-        toDelete.push(name)
-      } else if (delta < 0 && anchor.rowIndex > pivotRowIndex) {
-        // Row shifted up (removal below pivot)
-        toReindex.push({ name, anchor, newRowIndex: anchor.rowIndex + delta })
-      } else if (delta > 0 && anchor.rowIndex >= pivotRowIndex) {
-        // Row shifted down (insertion at or above this row)
-        toReindex.push({ name, anchor, newRowIndex: anchor.rowIndex + delta })
-      }
-    }
-
-    // Delete shapes for the removed row
-    for (const name of toDelete) {
-      try {
-        shapeManager.removeShape(slideIndex, name, slideManager)
-      } catch (e) {
-        logger.warn(`Failed to delete cell shape "${name}": ${e.message}`)
-      }
-      this.#cellShapeAnchors.delete(name)
-    }
-
-    // Sort toReindex: first by newRowIndex, then by colIndex, then by shapeIndex (base index)
-    toReindex.sort((a, b) => {
-      if (a.newRowIndex !== b.newRowIndex) {
-        return a.newRowIndex - b.newRowIndex
-      }
-      if (a.anchor.colIndex !== b.anchor.colIndex) {
-        return a.anchor.colIndex - b.anchor.colIndex
-      }
-      const aBase =
-        typeof a.anchor.shapeIndex === 'string'
-          ? parseInt(a.anchor.shapeIndex.split('_')[0], 10)
-          : a.anchor.shapeIndex
-      const bBase =
-        typeof b.anchor.shapeIndex === 'string'
-          ? parseInt(b.anchor.shapeIndex.split('_')[0], 10)
-          : b.anchor.shapeIndex
-      return aBase - bBase
-    })
-
-    // Phase 1: delete all old shapes to prevent collisions when re-adding
-    for (const { name } of toReindex) {
-      try {
-        shapeManager.removeShape(slideIndex, name, slideManager)
-      } catch (e) {
-        logger.warn(`Failed to delete cell shape "${name}" during reindex: ${e.message}`)
-      }
-      this.#cellShapeAnchors.delete(name)
-    }
-
-    // Phase 2: re-add all shapes at their newRowIndex
-    for (const { anchor, newRowIndex } of toReindex) {
-      try {
-        this.addCellShape(
-          slideIndex,
-          anchor.tableId,
-          newRowIndex,
-          anchor.colIndex,
-          anchor.config,
-          slideManager,
-          shapeManager
-        )
-      } catch (e) {
-        logger.warn(
-          `Failed to re-add cell shape for (${newRowIndex}, ${anchor.colIndex}): ${e.message}`
-        )
-      }
-    }
-  }
-
-  /**
-   * Repositions all registered cell shapes that fall within a table region
-   * (e.g. after a merge or unmerge). Shapes in the region are deleted and
-   * re-added targeting `(startRow, startCol)` so their coordinates are
-   * recomputed against the merged cell's full bounding box.
-   *
-   * @private
-   */
-  #repositionCellShapesInRegion(
-    slideIndex,
-    tableId,
-    resolvedTableId,
-    startRow,
-    startCol,
-    endRow,
-    endCol,
-    slideManager,
-    shapeManager
-  ) {
-    if (!shapeManager) return
-
-    const toReposition = []
-
-    for (const [name, anchor] of this.#cellShapeAnchors) {
-      if (anchor.slideIndex !== slideIndex || anchor.resolvedTableId !== resolvedTableId) continue
-      if (
-        anchor.rowIndex >= startRow &&
-        anchor.rowIndex <= endRow &&
-        anchor.colIndex >= startCol &&
-        anchor.colIndex <= endCol
-      ) {
-        toReposition.push({ name, anchor })
-      }
-    }
-
-    // Sort toReposition: first by original rowIndex, then by colIndex, then by shapeIndex (base index)
-    toReposition.sort((a, b) => {
-      if (a.anchor.rowIndex !== b.anchor.rowIndex) {
-        return a.anchor.rowIndex - b.anchor.rowIndex
-      }
-      if (a.anchor.colIndex !== b.anchor.colIndex) {
-        return a.anchor.colIndex - b.anchor.colIndex
-      }
-      const aBase =
-        typeof a.anchor.shapeIndex === 'string'
-          ? parseInt(a.anchor.shapeIndex.split('_')[0], 10)
-          : a.anchor.shapeIndex
-      const bBase =
-        typeof b.anchor.shapeIndex === 'string'
-          ? parseInt(b.anchor.shapeIndex.split('_')[0], 10)
-          : b.anchor.shapeIndex
-      return aBase - bBase
-    })
-
-    // Phase 1: delete all old shapes first
-    for (const { name } of toReposition) {
-      try {
-        shapeManager.removeShape(slideIndex, name, slideManager)
-      } catch (e) {
-        logger.warn(`Failed to delete cell shape "${name}" during reposition: ${e.message}`)
-      }
-      this.#cellShapeAnchors.delete(name)
-    }
-
-    // Phase 2: re-add all shapes targeting startRow, startCol
-    for (const { anchor } of toReposition) {
-      try {
-        this.addCellShape(
-          slideIndex,
-          anchor.tableId,
-          startRow,
-          startCol,
-          anchor.config,
-          slideManager,
-          shapeManager
-        )
-      } catch (e) {
-        logger.warn(`Failed to reposition cell shape for (${startRow}, ${startCol}): ${e.message}`)
-      }
-    }
-  }
-
-  #calculateColumnWidths(slideIndex, tableId, slideManager, tblObj, writeToXml = true) {
-    const trsArr = tblObj['a:tr'] || []
-    if (trsArr.length === 0) return []
+  #calculateCellBounds(frame, tblObj, targetRow, targetCol) {
+    const xfrm = frame['p:xfrm'] || {}
+    const off = xfrm['a:off'] || {}
+    const startX = parseInt(off['@_x'] || '0', 10)
+    const startY = parseInt(off['@_y'] || '0', 10)
 
     const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const originalWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
-    const totalTableWidth = originalWidths.reduce((sum, w) => sum + w, 0)
-    const numCols = originalWidths.length
-    if (numCols === 0) return []
+    const cols = Array.isArray(gridCols) ? gridCols : [gridCols]
+    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
 
-    // Helper to get paragraph font info
-    const getParagraphFontInfo = p => {
-      let maxSz = null
-      let typeface = null
-
-      const getTypeface = pr => {
-        if (!pr) return null
-        if (pr['a:latin']?.['@_typeface']) return pr['a:latin']['@_typeface']
-        if (pr['a:ea']?.['@_typeface']) return pr['a:ea']['@_typeface']
-        if (pr['a:cs']?.['@_typeface']) return pr['a:cs']['@_typeface']
-        return null
-      }
-
-      if (p['a:pPr']?.['a:defRPr']) {
-        const defRPr = p['a:pPr']['a:defRPr']
-        if (defRPr['@_sz']) {
-          maxSz = parseInt(defRPr['@_sz'], 10) / 100
-        }
-        typeface = getTypeface(defRPr)
-      }
-
-      if (p['a:r']) {
-        const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-        for (const r of runs) {
-          if (r['a:rPr']) {
-            const rPr = r['a:rPr']
-            if (rPr['@_sz']) {
-              const szVal = parseInt(rPr['@_sz'], 10) / 100
-              if (maxSz === null || szVal > maxSz) {
-                maxSz = szVal
-              }
-            }
-            const tf = getTypeface(rPr)
-            if (tf) {
-              typeface = tf
-            }
-          }
-        }
-      }
-
-      if (maxSz === null && p['a:endParaRPr']) {
-        const endParaRPr = p['a:endParaRPr']
-        if (endParaRPr['@_sz']) {
-          maxSz = parseInt(endParaRPr['@_sz'], 10) / 100
-        }
-        const tf = getTypeface(endParaRPr)
-        if (tf) {
-          typeface = tf
-        }
-      }
-
-      return {
-        fontSize: maxSz !== null ? maxSz : 14,
-        typeface: typeface || 'Arial',
-      }
+    let currentX = startX
+    for (let c = 0; c < targetCol && c < cols.length; c++) {
+      currentX += parseInt(cols[c]?.['@_w'] || '0', 10)
     }
 
-    const getFontAspect = tf => {
-      if (!tf) return 0.55
-      const name = String(tf).toLowerCase()
-      if (name.includes('algerian')) return 0.85
-      return 0.55
+    let currentY = startY
+    for (let r = 0; r < targetRow && r < trs.length; r++) {
+      currentY += parseInt(trs[r]?.['@_h'] || '0', 10)
     }
 
-    const getCellMargins = cell => {
-      const tcPr = cell['a:tcPr']
-      const marL = tcPr?.['@_marL'] !== undefined ? parseInt(tcPr['@_marL'], 10) : 91440
-      const marR = tcPr?.['@_marR'] !== undefined ? parseInt(tcPr['@_marR'], 10) : 91440
-      return { marL, marR }
-    }
+    const cellWidth = parseInt(cols[targetCol]?.['@_w'] || '0', 10)
+    const cellHeight = parseInt(trs[targetRow]?.['@_h'] || '0', 10)
 
-    const colWeights = new Array(numCols).fill(0)
-    const hasText = new Array(numCols).fill(false)
-
-    for (let c = 0; c < numCols; c++) {
-      let maxCellWeight = 0
-
-      for (let r = 0; r < trsArr.length; r++) {
-        const row = trsArr[r]
-        const cell = row['a:tc']?.[c]
-        if (!cell || cell['@_hMerge']) continue
-
-        const gridSpan = cell['@_gridSpan'] ? parseInt(cell['@_gridSpan'], 10) : 1
-        if (gridSpan > 1) continue
-
-        const { marL, marR } = getCellMargins(cell)
-        let cellTextWidth = 0
-
-        const txBody = cell['a:txBody']
-        if (txBody) {
-          const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-          for (const p of paras) {
-            const fontInfo = getParagraphFontInfo(p)
-            const aspect = getFontAspect(fontInfo.typeface)
-            let pText = ''
-            if (p['a:r']) {
-              const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-              for (const r of runs) {
-                if (r['a:t']) {
-                  pText += String(r['a:t'])
-                }
-              }
-            }
-
-            if (pText.trim()) {
-              hasText[c] = true
-              const words = pText.split(/\s+/)
-              let longestWordLen = 0
-              for (const w of words) {
-                if (w.length > longestWordLen) longestWordLen = w.length
-              }
-
-              const minWordWidth = longestWordLen * fontInfo.fontSize * aspect * 9525 + marL + marR
-              const idealChars = Math.min(30, pText.length)
-              const idealTextWidth = idealChars * fontInfo.fontSize * aspect * 9525 + marL + marR
-
-              const cellIdeal = Math.max(minWordWidth, idealTextWidth)
-              if (cellIdeal > cellTextWidth) {
-                cellTextWidth = cellIdeal
-              }
-            }
-          }
-        }
-
-        const cellMin = cellTextWidth
-        if (cellMin > maxCellWeight) {
-          maxCellWeight = cellMin
-        }
-      }
-
-      colWeights[c] = maxCellWeight
-    }
-
-    const preferredWidths = new Array(numCols).fill(0)
-    for (let c = 0; c < numCols; c++) {
-      let floor = 500000
-      if (!hasText[c]) {
-        floor = Math.min(originalWidths[c] || 500000, 500000)
-      }
-      preferredWidths[c] = Math.max(colWeights[c], floor)
-    }
-
-    const sumPreferred = preferredWidths.reduce((sum, w) => sum + w, 0)
-
-    let finalWidths = [...preferredWidths]
-    if (sumPreferred > 0) {
-      const scale = totalTableWidth / sumPreferred
-      finalWidths = preferredWidths.map((w, idx) => {
-        const scaled = Math.round(w * scale)
-        const minAllowed = Math.min(originalWidths[idx] || 300000, 300000)
-        return Math.max(scaled, minAllowed)
-      })
-    }
-
-    const sumFinal = finalWidths.reduce((sum, w) => sum + w, 0)
-    const diff = totalTableWidth - sumFinal
-    if (diff !== 0 && finalWidths.length > 0) {
-      finalWidths[finalWidths.length - 1] += diff
-    }
-
-    if (writeToXml) {
-      const tblGrid = tblObj['a:tblGrid']
-      if (tblGrid) {
-        if (Array.isArray(tblGrid['a:gridCol'])) {
-          finalWidths.forEach((w, idx) => {
-            if (tblGrid['a:gridCol'][idx]) {
-              tblGrid['a:gridCol'][idx]['@_w'] = String(w)
-            }
-          })
-        } else if (tblGrid['a:gridCol'] && numCols === 1) {
-          tblGrid['a:gridCol']['@_w'] = String(finalWidths[0])
-        }
-      }
-    }
-
-    return finalWidths
-  }
-
-  #repositionAllTableCellShapes(slideIndex, tableId, slideManager, shapeManager) {
-    if (!shapeManager) return
-
-    const { resolvedTableId } = this.#getTableContext(slideIndex, tableId, slideManager)
-
-    const anchorsToReposition = []
-    for (const [name, anchor] of this.#cellShapeAnchors) {
-      if (anchor.slideIndex === slideIndex && anchor.resolvedTableId === resolvedTableId) {
-        anchorsToReposition.push({ name, anchor })
-      }
-    }
-
-    anchorsToReposition.sort((a, b) => {
-      if (a.anchor.rowIndex !== b.anchor.rowIndex) {
-        return a.anchor.rowIndex - b.anchor.rowIndex
-      }
-      if (a.anchor.colIndex !== b.anchor.colIndex) {
-        return a.anchor.colIndex - b.anchor.colIndex
-      }
-      const aBase =
-        typeof a.anchor.shapeIndex === 'string'
-          ? parseInt(a.anchor.shapeIndex.split('_')[0], 10)
-          : a.anchor.shapeIndex
-      const bBase =
-        typeof b.anchor.shapeIndex === 'string'
-          ? parseInt(b.anchor.shapeIndex.split('_')[0], 10)
-          : b.anchor.shapeIndex
-      return aBase - bBase
-    })
-
-    for (const { name } of anchorsToReposition) {
-      try {
-        shapeManager.removeShape(slideIndex, name, slideManager)
-      } catch (e) {
-        logger.warn(`Failed to delete cell shape "${name}" during table reposition: ${e.message}`)
-      }
-      this.#cellShapeAnchors.delete(name)
-    }
-
-    for (const { anchor } of anchorsToReposition) {
-      try {
-        this.addCellShape(
-          slideIndex,
-          anchor.tableId,
-          anchor.rowIndex,
-          anchor.colIndex,
-          anchor.config,
-          slideManager,
-          shapeManager
-        )
-      } catch (e) {
-        logger.warn(
-          `Failed to reposition cell shape for (${anchor.rowIndex}, ${anchor.colIndex}): ${e.message}`
-        )
-      }
+    return {
+      x: currentX,
+      y: currentY,
+      width: cellWidth,
+      height: cellHeight,
+      xPx: Math.round(emuToPx(currentX)),
+      yPx: Math.round(emuToPx(currentY)),
+      widthPx: Math.round(emuToPx(cellWidth)),
+      heightPx: Math.round(emuToPx(cellHeight)),
     }
   }
-
-  /**
-   * Generates a new rowId for the given row object.
-   */
-  #updateRowId(rowObj) {
-    const randomVal = String(this.#generateRandomUint32())
-    if (rowObj['a:extLst']?.['a:ext']) {
-      const ext = rowObj['a:extLst']['a:ext']
-      const exts = Array.isArray(ext) ? ext : [ext]
-      let updated = false
-      for (const e of exts) {
-        if (e['a16:rowId']) {
-          e['a16:rowId']['@_val'] = randomVal
-          updated = true
-        }
-      }
-      if (!updated) {
-        exts.push({
-          '@_uri': '{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}',
-          'a16:rowId': {
-            '@_xmlns:a16': 'http://schemas.microsoft.com/office/drawing/2014/main',
-            '@_val': randomVal,
-          },
-        })
-        rowObj['a:extLst']['a:ext'] = exts
-      }
-    } else {
-      rowObj['a:extLst'] = {
-        'a:ext': {
-          '@_uri': '{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}',
-          'a16:rowId': {
-            '@_xmlns:a16': 'http://schemas.microsoft.com/office/drawing/2014/main',
-            '@_val': randomVal,
-          },
-        },
-      }
-    }
-  }
-
-  #calculateRowHeights(slideIndex, tableId, slideManager, tblObj, writeToXml = true) {
-    const trsArr = tblObj['a:tr'] || []
-    if (trsArr.length === 0) return []
-
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const gridColsArr = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const colWidths = gridColsArr.map(col => parseInt(col['@_w'] || 0, 10))
-
-    const numRows = trsArr.length
-    const numCols = colWidths.length
-
-    const rowHeights = trsArr.map(row => {
-      const h = parseInt(row['@_h'] || 0, 10)
-      return h > 0 ? h : 228600
-    })
-
-    const getParagraphFontInfo = p => {
-      let maxSz = null
-      let typeface = null
-
-      const getTypeface = pr => {
-        if (!pr) return null
-        if (pr['a:latin']?.['@_typeface']) return pr['a:latin']['@_typeface']
-        if (pr['a:ea']?.['@_typeface']) return pr['a:ea']['@_typeface']
-        if (pr['a:cs']?.['@_typeface']) return pr['a:cs']['@_typeface']
-        return null
-      }
-
-      if (p['a:pPr']?.['a:defRPr']) {
-        const defRPr = p['a:pPr']['a:defRPr']
-        if (defRPr['@_sz']) {
-          maxSz = parseInt(defRPr['@_sz'], 10) / 100
-        }
-        typeface = getTypeface(defRPr)
-      }
-
-      if (p['a:r']) {
-        const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-        for (const r of runs) {
-          if (r['a:rPr']) {
-            const rPr = r['a:rPr']
-            if (rPr['@_sz']) {
-              const szVal = parseInt(rPr['@_sz'], 10) / 100
-              if (maxSz === null || szVal > maxSz) {
-                maxSz = szVal
-              }
-            }
-            const tf = getTypeface(rPr)
-            if (tf) {
-              typeface = tf
-            }
-          }
-        }
-      }
-
-      if (maxSz === null && p['a:endParaRPr']) {
-        const endParaRPr = p['a:endParaRPr']
-        if (endParaRPr['@_sz']) {
-          maxSz = parseInt(endParaRPr['@_sz'], 10) / 100
-        }
-        const tf = getTypeface(endParaRPr)
-        if (tf) {
-          typeface = tf
-        }
-      }
-
-      return {
-        fontSize: maxSz !== null ? maxSz : 14,
-        typeface: typeface || 'Arial',
-      }
-    }
-
-    const getFontAspect = tf => {
-      if (!tf) return 0.55
-      const name = String(tf).toLowerCase()
-      if (name.includes('algerian')) return 0.85
-      return 0.55
-    }
-
-    const wrapText = (text, availWidth_px, fontSize, aspect = 0.55) => {
-      const charWidth = fontSize * aspect
-      const words = text.split(/(\s+)/)
-      let linesCount = 0
-      let currentLineLen = 0
-
-      for (const word of words) {
-        if (!word) continue
-        const wordWidth = word.length * charWidth
-        if (wordWidth > availWidth_px) {
-          if (currentLineLen > 0) {
-            linesCount++
-            currentLineLen = 0
-          }
-          let remainingWidth = wordWidth
-          while (remainingWidth > 0) {
-            linesCount++
-            remainingWidth -= availWidth_px
-          }
-        } else {
-          if (currentLineLen + wordWidth > availWidth_px) {
-            linesCount++
-            currentLineLen = word.trim() ? wordWidth : 0
-          } else {
-            currentLineLen += wordWidth
-          }
-        }
-      }
-      if (currentLineLen > 0 || linesCount === 0) {
-        linesCount++
-      }
-      return linesCount
-    }
-
-    const getCellMargins = cell => {
-      const tcPr = cell['a:tcPr']
-      const marL = tcPr?.['@_marL'] !== undefined ? parseInt(tcPr['@_marL'], 10) : 91440
-      const marR = tcPr?.['@_marR'] !== undefined ? parseInt(tcPr['@_marR'], 10) : 91440
-      const marT = tcPr?.['@_marT'] !== undefined ? parseInt(tcPr['@_marT'], 10) : 45720
-      const marB = tcPr?.['@_marB'] !== undefined ? parseInt(tcPr['@_marB'], 10) : 45720
-      return { marL, marR, marT, marB }
-    }
-
-    const cellHeights = Array.from({ length: numRows }, () => new Array(numCols).fill(0))
-
-    for (let r = 0; r < numRows; r++) {
-      const row = trsArr[r]
-      const tcs = row['a:tc'] || []
-      for (let c = 0; c < numCols; c++) {
-        const cell = tcs[c]
-        if (!cell || cell['@_hMerge'] || cell['@_vMerge']) continue
-
-        const parent = this.getMergeParent(slideIndex, tableId, r, c, slideManager)
-        const gridSpan = cell['@_gridSpan'] ? parseInt(cell['@_gridSpan'], 10) : 1
-
-        let cellWidth = 0
-        for (let idx = 0; idx < gridSpan; idx++) {
-          cellWidth += colWidths[parent.col + idx] || 0
-        }
-
-        const { marL, marR, marT, marB } = getCellMargins(cell)
-        const availWidth = cellWidth - marL - marR
-        const availWidth_px = Math.max(1, availWidth / 9525)
-
-        const txBody = cell['a:txBody']
-        let textHeight_emu = 0
-        if (txBody) {
-          const paras = Array.isArray(txBody['a:p']) ? txBody['a:p'] : [txBody['a:p']]
-          for (const p of paras) {
-            const fontInfo = getParagraphFontInfo(p)
-            const fontSize = fontInfo.fontSize
-            const aspect = getFontAspect(fontInfo.typeface)
-
-            let pText = ''
-            if (p['a:r']) {
-              const runs = Array.isArray(p['a:r']) ? p['a:r'] : [p['a:r']]
-              for (const r of runs) {
-                if (r['a:t']) {
-                  pText += String(r['a:t'])
-                }
-              }
-            }
-
-            const linesCount = wrapText(pText, availWidth_px, fontSize, aspect)
-            const lineHeight_emu = fontSize * 20780
-
-            let pHeight_emu = linesCount * lineHeight_emu
-            if (p['a:pPr']?.['a:spcBef']?.['a:spcPts']?.['@_val']) {
-              pHeight_emu += parseInt(p['a:pPr']['a:spcBef']['a:spcPts']['@_val'], 10) * 127
-            }
-            if (p['a:pPr']?.['a:spcAft']?.['a:spcPts']?.['@_val']) {
-              pHeight_emu += parseInt(p['a:pPr']['a:spcAft']['a:spcPts']['@_val'], 10) * 127
-            }
-            textHeight_emu += pHeight_emu
-          }
-        }
-
-        const totalCellHeight_emu = marT + marB + textHeight_emu
-        const rowTemplateHeight = parseInt(row['@_h'] || 0, 10)
-        const minFloor = rowTemplateHeight > 0 ? rowTemplateHeight : 228600
-        cellHeights[r][c] = Math.max(totalCellHeight_emu, minFloor)
-      }
-    }
-
-    for (let r = 0; r < numRows; r++) {
-      let maxCellHeight = rowHeights[r]
-      const row = trsArr[r]
-      const tcs = row['a:tc'] || []
-      for (let c = 0; c < numCols; c++) {
-        const cell = tcs[c]
-        if (!cell || cell['@_vMerge'] || cell['@_hMerge']) continue
-        const rowSpan = cell['@_rowSpan'] ? parseInt(cell['@_rowSpan'], 10) : 1
-        if (rowSpan === 1) {
-          if (cellHeights[r][c] > maxCellHeight) {
-            maxCellHeight = cellHeights[r][c]
-          }
-        }
-      }
-      rowHeights[r] = maxCellHeight
-    }
-
-    for (let r = 0; r < numRows; r++) {
-      const row = trsArr[r]
-      const tcs = row['a:tc'] || []
-      for (let c = 0; c < numCols; c++) {
-        const cell = tcs[c]
-        if (!cell || cell['@_vMerge'] || cell['@_hMerge']) continue
-        const rowSpan = cell['@_rowSpan'] ? parseInt(cell['@_rowSpan'], 10) : 1
-        if (rowSpan > 1) {
-          const reqHeight = cellHeights[r][c]
-          let currentSpanHeight = 0
-          for (let idx = 0; idx < rowSpan; idx++) {
-            currentSpanHeight += rowHeights[r + idx] || 0
-          }
-          if (reqHeight > currentSpanHeight) {
-            const diff = reqHeight - currentSpanHeight
-            const extraPerRow = Math.ceil(diff / rowSpan)
-            for (let idx = 0; idx < rowSpan; idx++) {
-              rowHeights[r + idx] += extraPerRow
-            }
-          }
-        }
-      }
-    }
-
-    if (writeToXml) {
-      for (let r = 0; r < numRows; r++) {
-        trsArr[r]['@_h'] = String(rowHeights[r])
-      }
-    }
-    return rowHeights
-  }
-
-  #getNestedHeight(val) {
-    if (Array.isArray(val)) {
-      if (val.length === 0) return 1
-      return val.reduce((sum, item) => sum + this.#getNestedHeight(item), 0)
-    }
-    return 1
-  }
-
-  #expandCellVal(val, targetHeight) {
-    if (!Array.isArray(val)) {
-      const res = []
-      res.push({ value: val !== undefined ? val : '', rowSpan: targetHeight })
-      for (let i = 1; i < targetHeight; i++) {
-        res.push({ vMerge: true })
-      }
-      return res
-    }
-
-    if (val.length === 0) {
-      const res = []
-      res.push({ value: '', rowSpan: targetHeight })
-      for (let i = 1; i < targetHeight; i++) {
-        res.push({ vMerge: true })
-      }
-      return res
-    }
-
-    const itemHeights = val.map(item => this.#getNestedHeight(item))
-    const currentSum = itemHeights.reduce((a, b) => a + b, 0)
-
-    const allocatedHeights = []
-    let remaining = targetHeight
-    for (let i = 0; i < val.length; i++) {
-      const share = Math.round((itemHeights[i] / currentSum) * targetHeight)
-      allocatedHeights.push(share)
-      remaining -= share
-    }
-
-    if (remaining !== 0) {
-      let idx = 0
-      while (remaining > 0) {
-        allocatedHeights[idx % allocatedHeights.length]++
-        remaining--
-        idx++
-      }
-      while (remaining < 0) {
-        let reduced = false
-        for (let i = 0; i < allocatedHeights.length; i++) {
-          const actualIdx = (idx + i) % allocatedHeights.length
-          if (allocatedHeights[actualIdx] > 1) {
-            allocatedHeights[actualIdx]--
-            remaining++
-            reduced = true
-            break
-          }
-        }
-        if (!reduced) break
-        idx++
-      }
-    }
-
-    const result = []
-    for (let i = 0; i < val.length; i++) {
-      result.push(...this.#expandCellVal(val[i], allocatedHeights[i]))
-    }
-    return result
-  }
-
-  #applyAutoMerge(cells) {
-    const result = [...cells]
-    let i = 0
-    while (i < result.length) {
-      const cell = result[i]
-      if (cell.vMerge) {
-        i++
-        continue
-      }
-      let count = 1
-      let j = i + 1
-      while (
-        j < result.length &&
-        !result[j].vMerge &&
-        result[j].value === cell.value &&
-        cell.value !== ''
-      ) {
-        count++
-        j++
-      }
-      if (count > 1) {
-        cell.rowSpan = count
-        for (let k = i + 1; k < j; k++) {
-          result[k] = { vMerge: true }
-        }
-      }
-      i = j
-    }
-    return result
-  }
-
-  #generateRandomUint32() {
-    return Math.floor(Math.random() * 4294967296)
-  }
-}
-
-function escapeXml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
 }
 
 module.exports = { TableManager }

@@ -202,6 +202,161 @@ class StyleBuilder {
   }
 
   /**
+   * Builds an <a:ln> border element for DrawingML cells or shapes.
+   *
+   * @param {Object|boolean|string|number} borderOptions - Border configuration.
+   * @returns {Object|null} DrawingML line object or null.
+   */
+  static buildBorder(borderOptions) {
+    if (!borderOptions || borderOptions === 'none') {
+      return { 'a:noFill': {} }
+    }
+    const border = typeof borderOptions === 'object' ? borderOptions : {}
+    const colorHex = border.color ? normalizeHexColor(border.color) : '000000'
+    const ptWidth =
+      border.width !== undefined
+        ? Number(border.width)
+        : typeof borderOptions === 'number'
+          ? borderOptions
+          : 1
+    const emuWidth = Math.round(ptWidth * PT_EMU)
+    const dashType = border.dash || border.style || 'solid'
+
+    return {
+      '@_w': String(emuWidth),
+      '@_cmpd': 'sng',
+      'a:solidFill': { 'a:srgbClr': { '@_val': colorHex } },
+      'a:prstDash': { '@_val': dashType === 'solid' ? 'solid' : dashType },
+    }
+  }
+
+  /**
+   * Builds or updates an <a:tcPr> (Table Cell Properties) AST node from options.
+   *
+   * @param {Object} existingTcPr - Existing <a:tcPr> AST object.
+   * @param {Object} options - Cell property options.
+   * @returns {Object} Updated <a:tcPr> object.
+   */
+  static buildCellProperties(existingTcPr = {}, options = {}) {
+    const tcPr = { ...(existingTcPr || {}) }
+
+    // 1. Cell Solid Fill
+    const fill = options.fill !== undefined ? options.fill : options.bgColor || options.background
+    if (fill !== undefined) {
+      if (fill === false || fill === 'none' || fill === null) {
+        delete tcPr['a:solidFill']
+        tcPr['a:noFill'] = {}
+      } else {
+        delete tcPr['a:noFill']
+        tcPr['a:solidFill'] = { 'a:srgbClr': { '@_val': normalizeHexColor(fill) } }
+      }
+    }
+
+    // 2. Vertical Alignment (anchor)
+    const vAlign = options.verticalAlign || options.vAlign || options.anchor
+    if (vAlign) {
+      const v = String(vAlign).toLowerCase()
+      if (v === 'top' || v === 't') tcPr['@_anchor'] = 't'
+      else if (v === 'middle' || v === 'center' || v === 'ctr') tcPr['@_anchor'] = 'ctr'
+      else if (v === 'bottom' || v === 'b') tcPr['@_anchor'] = 'b'
+      else if (v === 'dist' || v === 'just') tcPr['@_anchor'] = v
+      else tcPr['@_anchor'] = v
+    }
+
+    // 3. Cell Margins (marL, marR, marT, marB)
+    const margins = options.margins || options.margin
+    if (margins !== undefined) {
+      if (typeof margins === 'number') {
+        const emu = Math.round(margins * PT_EMU)
+        tcPr['@_marL'] = String(emu)
+        tcPr['@_marR'] = String(emu)
+        tcPr['@_marT'] = String(emu)
+        tcPr['@_marB'] = String(emu)
+      } else if (typeof margins === 'object' && margins !== null) {
+        if (margins.left !== undefined)
+          tcPr['@_marL'] = String(Math.round(Number(margins.left) * PT_EMU))
+        if (margins.right !== undefined)
+          tcPr['@_marR'] = String(Math.round(Number(margins.right) * PT_EMU))
+        if (margins.top !== undefined)
+          tcPr['@_marT'] = String(Math.round(Number(margins.top) * PT_EMU))
+        if (margins.bottom !== undefined)
+          tcPr['@_marB'] = String(Math.round(Number(margins.bottom) * PT_EMU))
+      }
+    }
+    if (options.marginLeft !== undefined || options.marL !== undefined) {
+      tcPr['@_marL'] = String(Math.round(Number(options.marginLeft || options.marL) * PT_EMU))
+    }
+    if (options.marginRight !== undefined || options.marR !== undefined) {
+      tcPr['@_marR'] = String(Math.round(Number(options.marginRight || options.marR) * PT_EMU))
+    }
+    if (options.marginTop !== undefined || options.marT !== undefined) {
+      tcPr['@_marT'] = String(Math.round(Number(options.marginTop || options.marT) * PT_EMU))
+    }
+    if (options.marginBottom !== undefined || options.marB !== undefined) {
+      tcPr['@_marB'] = String(Math.round(Number(options.marginBottom || options.marB) * PT_EMU))
+    }
+
+    // 4. Borders (a:lnL, a:lnR, a:lnT, a:lnB)
+    if (options.border !== undefined) {
+      const ln = StyleBuilder.buildBorder(options.border)
+      if (ln) {
+        tcPr['a:lnL'] = { ...ln }
+        tcPr['a:lnR'] = { ...ln }
+        tcPr['a:lnT'] = { ...ln }
+        tcPr['a:lnB'] = { ...ln }
+      }
+    }
+    const borderLeft = options.borderLeft !== undefined ? options.borderLeft : options.left
+    if (borderLeft !== undefined) {
+      const ln = StyleBuilder.buildBorder(borderLeft)
+      if (ln) tcPr['a:lnL'] = ln
+    }
+    const borderRight = options.borderRight !== undefined ? options.borderRight : options.right
+    if (borderRight !== undefined) {
+      const ln = StyleBuilder.buildBorder(borderRight)
+      if (ln) tcPr['a:lnR'] = ln
+    }
+    const borderTop = options.borderTop !== undefined ? options.borderTop : options.top
+    if (borderTop !== undefined) {
+      const ln = StyleBuilder.buildBorder(borderTop)
+      if (ln) tcPr['a:lnT'] = ln
+    }
+    const borderBottom = options.borderBottom !== undefined ? options.borderBottom : options.bottom
+    if (borderBottom !== undefined) {
+      const ln = StyleBuilder.buildBorder(borderBottom)
+      if (ln) tcPr['a:lnB'] = ln
+    }
+
+    return tcPr
+  }
+
+  /**
+   * Builds or updates an <a:tblPr> (Table Properties) AST node from options.
+   *
+   * @param {Object} existingTblPr - Existing <a:tblPr> AST object.
+   * @param {Object} options - Table property options.
+   * @returns {Object} Updated <a:tblPr> object.
+   */
+  static buildTableProperties(existingTblPr = {}, options = {}) {
+    const tblPr = { ...(existingTblPr || {}) }
+
+    if (options.firstRow !== undefined) tblPr['@_firstRow'] = options.firstRow ? '1' : '0'
+    if (options.bandRow !== undefined) tblPr['@_bandRow'] = options.bandRow ? '1' : '0'
+    if (options.firstCol !== undefined) tblPr['@_firstCol'] = options.firstCol ? '1' : '0'
+    if (options.bandCol !== undefined) tblPr['@_bandCol'] = options.bandCol ? '1' : '0'
+    if (options.lastRow !== undefined) tblPr['@_lastRow'] = options.lastRow ? '1' : '0'
+    if (options.lastCol !== undefined) tblPr['@_lastCol'] = options.lastCol ? '1' : '0'
+
+    if (options.styleId) {
+      let sId = String(options.styleId).trim()
+      if (!sId.startsWith('{')) sId = `{${sId}}`
+      tblPr['a:tableStyleId'] = sId
+    }
+
+    return tblPr
+  }
+
+  /**
    * Builds or updates an <a:pPr> (Paragraph Properties) AST node from a style object.
    *
    * Supported Paragraph Properties:

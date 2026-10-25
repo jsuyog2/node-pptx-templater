@@ -222,23 +222,20 @@ async function demo03_TableOperations() {
   ppt.addTableRow(tableId, ['Totals', '6 Active Initiatives', 'All Leads', 'FY26', '$7.42M'])
   console.log('✓ Appended summary row via addTableRow().')
 
-  // 3. Apply row striping (alternating row background fills)
-  ppt.stripeRows(tableId, {
-    oddColor: 'F8FAFC',
-    evenColor: 'EDF2F7',
-    startRow: 1,
+  // 3. Apply table styling (alternating row background fills)
+  ppt.styleTable(tableId, {
+    bandRow: true,
+    oddFill: 'F8FAFC',
+    evenFill: 'EDF2F7',
   })
   console.log('✓ Applied alternating row striping (#F8FAFC / #EDF2F7).')
 
-  // 4. Set custom cell border on header cell via updateCell
-  ppt.updateCell(tableId, 0, 0, 'Workstream', {
+  // 4. Set custom cell border on header cell via updateTableCell
+  ppt.updateTableCell(tableId, 0, 0, {
+    text: 'Workstream',
     border: { bottom: { color: '3B82F6', width: 2 } },
   })
   console.log('✓ Applied custom bottom border to table header.')
-
-  // 5. Overflow handling: splitTableOnOverflow with summaryRows pinned
-  await ppt.splitTableOnOverflow(tableId, { summaryRows: 1, repeatHeaders: 1 })
-  console.log('✓ Configured table overflow splitting with summary row pinning.')
 
   const outPath = path.join(OUTPUT_DIR, '03-table-operations.pptx')
   await ppt.saveToFile(outPath)
@@ -258,25 +255,18 @@ async function demo04_NestedTablesAndExtraction() {
   const tables = ppt.getTables()
   const tableId = tables[0].name
 
-  // 1. Add nested rows with rowspan merging strategy
-  ppt.addTableRow(
-    tableId,
-    ['East Region', ['Q1 Sales', 'Q2 Sales'], ['$5,200', '$6,800'], '$12,000', 'Active'],
-    { mergeStrategy: 'rowspan' }
-  )
-  console.log('✓ Added nested row with rowspan strategy.')
+  // 1. Add rows
+  ppt.addTableRow(tableId, ['East Region', 'Q1 Sales', '$5,200', '$12,000', 'Active'])
+  ppt.addTableRow(tableId, ['East Region', 'Q2 Sales', '$6,800', '$12,000', 'Active'])
+  console.log('✓ Added regional rows via addTableRow().')
 
-  // 2. Add row with auto-merge for duplicate adjacent values
-  ppt.addTableRow(tableId, ['West Region', 'West Region', '$9,100', '$9,100', 'Active'], {
-    mergeStrategy: 'auto',
-  })
-  console.log('✓ Added row with auto-merge strategy.')
+  // 2. Merge region cells
+  ppt.mergeCells(tableId, 1, 0, 2, 0)
+  console.log('✓ Merged adjacent cells via mergeCells().')
 
-  // 3. Extract table data back into structured JSON
-  const extracted = await ppt.getTableRows(tableId, { includeMetadata: true })
-  console.log(
-    `✓ Extracted structured JSON from "${tableId}": ${extracted.rowCount} rows, ${extracted.columnCount} cols.`
-  )
+  // 3. Extract table data matrix
+  const extracted = ppt.getTableData(tableId)
+  console.log(`✓ Extracted table matrix from "${tableId}": ${extracted.length} rows.`)
 
   const outPath = path.join(OUTPUT_DIR, '04-nested-table-merges.pptx')
   await ppt.saveToFile(outPath)
@@ -353,27 +343,17 @@ async function demo05_ShapesAndZOrder() {
 // ============================================================================
 
 async function demo06_CellShapes() {
-  console.log('\n--- [Demo 06] Dynamic Cell Shapes & Table Cell Badging ---')
+  console.log('\n--- [Demo 06] Table Cell Formatting & Status Badging ---')
   const ppt = await PPTXTemplater.load(TEMPLATE_SAMPLE, { logLevel: 'warn' })
   ppt.useSlide(3)
 
   const tables = ppt.getTables()
   const tableId = tables[0].name
 
-  // Add rows with Shape Cells embedded directly into cells
-  await ppt.addTableRow(tableId, [
-    {
-      type: 'circle',
-      fill: '#10B981', // green
-      radius: 6,
-      position: 'center',
-    },
-    'Production Cluster',
-    'US-East-1',
-    'Operational',
-    '100%',
-  ])
-  console.log('✓ Added table row with embedded status indicator shape cell.')
+  // Add row with formatted cell values
+  ppt.addTableRow(tableId, ['● Active', 'Production Cluster', 'US-East-1', 'Operational', '100%'])
+  ppt.styleCell(tableId, 1, 0, { fill: 'DCFCE7', color: '166534', bold: true })
+  console.log('✓ Added table row with styled status cell.')
 
   const outPath = path.join(OUTPUT_DIR, '06-cell-shapes.pptx')
   await ppt.saveToFile(outPath)

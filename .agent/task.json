@@ -1,62 +1,115 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.9.9",
-    "category": "Charts Subsystem Engine Refactor",
-    "scope": "Purge obsolete label functions, consolidate data label manipulation into updateChart, and fix clearCharts parameter handling",
-    "testBed": {
-        "showcaseScript": "showcase/charts_operations.js",
-        "templatePath": "showcase/templates/ChartPowerPointSample.pptx"
-    },
-    "approvedChartsWhitelist": [
-        "addChart",
-        "updateChart",
-        "updateChartData",
-        "removeChart",
-        "clearCharts",
-        "getCharts",
-        "getChart",
-        "cloneChart"
-    ],
-    "purgedFunctions": [
-        "getChartLabel",
-        "setChartLabel",
-        "updateChartLabel"
+    "version": "3.10.0",
+    "category": "Tables",
+    "scope": "Strict 30 Tables Functions Whitelist Boundary",
+    "approvedFunctions": [
+        "addTable",
+        "updateTable",
+        "updateTableData",
+        "removeTable",
+        "getTables",
+        "getTable",
+        "cloneTable",
+        "addTableRow",
+        "addTableColumn",
+        "removeTableRow",
+        "removeTableColumn",
+        "updateRowData",
+        "updateColumnData",
+        "updateTableCell",
+        "clearRowData",
+        "clearColumnData",
+        "clearCellData",
+        "getTableData",
+        "getColumnData",
+        "getRowData",
+        "getColumn",
+        "getRow",
+        "getCell",
+        "getCellData",
+        "mergeCells",
+        "splitCell",
+        "styleTable",
+        "styleColumn",
+        "styleRow",
+        "styleCell"
     ],
     "tasks": [
         {
-            "id": "TASK-CHART-PURGE-LABELS-001",
-            "title": "Purge getChartLabel, setChartLabel, and updateChartLabel Methods",
+            "id": "TASK-TABLE-001",
+            "title": "Audit, Purge Non-Whitelisted Table Methods & Enforce 30-Function Boundary",
             "status": "completed",
-            "description": "Remove getChartLabel, setChartLabel, and updateChartLabel from src/elements/ChartManager.js, src/core/PPTXTemplater.js, and index.d.ts. Verify that all data label functionality (such as showVal, showCatName, showPercent, position, and label formatting) is consolidated and configurable via updateChart(chartId, { labels: { ... } }). Purge references to the deleted label methods from tests, documentation, and showcase files.",
+            "description": "Audit src/managers/TableManager.js, src/core/PPTXTemplater.js, and index.d.ts. Purge any table-related methods, legacy aliases, or extraneous routines that are not in the exact 30-function whitelist under the 'Tables' category. Ensure only these 30 functions are exposed in runtime delegates, interfaces, and public classes.",
             "deliverables": [
-                "src/elements/ChartManager.js",
+                "src/managers/TableManager.js",
                 "src/core/PPTXTemplater.js",
                 "index.d.ts"
             ]
         },
         {
-            "id": "TASK-CHART-CLEARCHART-FIX-002",
-            "title": "Fix clearCharts Signature and Error Handling When Passing chartId",
+            "id": "TASK-TABLE-002",
+            "title": "Implement Table Lifecycle, Query & Cloning Engine",
             "status": "completed",
-            "description": "Fix clearCharts in ChartManager.js and PPTXTemplater.js to prevent runtime exceptions when an argument is passed: (1) Accept polymorphic parameters clearCharts(slideRefOrChartId), (2) If a specific chartId is supplied, seamlessly delegate to removeChart(chartId) or evacuate that target chart cleanly, (3) If called with no argument or with a slide identifier, evacuate all charts from the target or active slide, (4) Ensure slide graphic frames, slide relationships (.rels), chart XML parts, and embedded workbooks are cleaned up without throwing errors or corrupting presentation state.",
+            "description": "Implement addTable, updateTable, updateTableData, removeTable, getTables, getTable, and cloneTable. Manage DrawingML table elements (<a:tbl>), non-visual group properties, graphic frame containers (<p:graphicFrame>), position transforms (<a:xfrm>), and slide context delegation. Support percentage and EMU coordinates while maintaining fluent chaining returning this.",
             "deliverables": [
-                "src/elements/ChartManager.js",
+                "src/managers/TableManager.js",
                 "src/core/PPTXTemplater.js",
-                "tests/integration/clearChartsFix.test.js"
+                "tests/integration/tableLifecycle.test.js"
             ]
         },
         {
-            "id": "TASK-CHART-DOCS-SHOWCASE-003",
-            "title": "Update Documentation, .agent Workspace, and Integration Tests",
+            "id": "TASK-TABLE-003",
+            "title": "Implement Row & Column Structural Manipulation & Data I/O",
             "status": "completed",
-            "description": "Update docs-site/src/data/apiReference.json, docs-site/src/data/features.json, README.md, .agent/rules/features.md, and .agent/project_summary.md to reflect the locked 8-function Charts API whitelist. Update showcase/charts_operations.js and integration test suites to verify that clearCharts works with and without chartId/slide parameters without error.",
+            "description": "Implement addTableRow, addTableColumn, removeTableRow, removeTableColumn, updateRowData, updateColumnData, clearRowData, clearColumnData, getRowData, getColumnData, getRow, and getColumn. Handle dynamic grid re-calculations (<a:tblGrid>, <a:gridCol>), row height distributions (<a:tr h=\"...\">), cell node shifts, and clean data updates without schema corruption.",
             "deliverables": [
+                "src/managers/TableManager.js",
+                "tests/integration/tableRowColumnOperations.test.js"
+            ]
+        },
+        {
+            "id": "TASK-TABLE-004",
+            "title": "Implement Cell-Level Operations, Clear & Data Accessors",
+            "status": "completed",
+            "description": "Implement updateTableCell, clearCellData, getTableData, getCell, and getCellData. Ensure cell text bodies (<a:txBody>), paragraph runs (<a:p>, <a:r>, <a:t>), and coordinate lookups accurately handle empty cells, multiline content, and non-destructive data clearing while preserving underlying formatting.",
+            "deliverables": [
+                "src/managers/TableManager.js",
+                "tests/integration/tableCellOperations.test.js"
+            ]
+        },
+        {
+            "id": "TASK-TABLE-005",
+            "title": "Implement Complex Cell Merging & Splitting Subsystem",
+            "status": "completed",
+            "description": "Implement mergeCells(tableId, startRow, startColumn, endRow, endColumn) and splitCell(tableId, rowIndex, columnIndex). Correctly generate OpenXML rowSpan/gridSpan attributes and horizontal/vertical merge tags (rowSpan, gridSpan, hMerge, vMerge) on <a:tc>, adjust adjacent cell references, and support un-merging/splitting back into independent matrix cells.",
+            "deliverables": [
+                "src/managers/TableManager.js",
+                "tests/integration/tableMergeSplit.test.js"
+            ]
+        },
+        {
+            "id": "TASK-TABLE-006",
+            "title": "Implement Comprehensive Multi-Tier Styling Engine",
+            "status": "completed",
+            "description": "Implement styleTable, styleColumn, styleRow, and styleCell. Map styling options (borders, cell backgrounds/solid fills, fonts, font size, colors, alignments, margins) cleanly to DrawingML table properties (<a:tblPr>), cell properties (<a:tcPr>), text body properties (<a:tcTxStyle>, <a:txBody>), and border elements (<a:lnL>, <a:lnR>, <a:lnT>, <a:lnB>).",
+            "deliverables": [
+                "src/managers/TableManager.js",
+                "src/parser/StyleBuilder.js",
+                "tests/integration/tableStyling.test.js"
+            ]
+        },
+        {
+            "id": "TASK-TABLE-007",
+            "title": "Executable Showcase Script, Documentation & Workspace Sync",
+            "status": "completed",
+            "description": "Create showcase/table_advanced.js demonstrating all 30 approved methods with console logs, JSDoc, and inline comments. Update docs-site/src/data/apiReference.json under 'Tables' to feature exclusively the 30 functions, update README.md, and sync .agent/ memory files.",
+            "deliverables": [
+                "showcase/table_advanced.js",
                 "docs-site/src/data/apiReference.json",
-                "docs-site/src/data/features.json",
                 "README.md",
                 ".agent/rules/features.md",
-                ".agent/project_summary.md",
-                "tests/integration/clearChartsFix.test.js"
+                ".agent/project_summary.md"
             ]
         }
     ]

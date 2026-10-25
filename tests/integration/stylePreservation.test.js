@@ -203,11 +203,11 @@ describe('Non-Destructive Style Merging & Fill Preservation (TASK-STYLE-PRESERVE
     expect(slideXml).toContain('Brand New Content')
   })
 
-  it('should preserve table cell shape fill when updating cell shape properties', async () => {
+  it('should preserve table cell fill when updating cell text properties', async () => {
     const ppt = await PPTXTemplater.load(samplePath)
 
     // Add a table first
-    await ppt.addTable(
+    ppt.addTable(
       [
         ['Header 1', 'Header 2'],
         ['Cell A', 'Cell B'],
@@ -221,37 +221,30 @@ describe('Non-Destructive Style Merging & Fill Preservation (TASK-STYLE-PRESERVE
       }
     )
 
-    // Add cell shape with fill #EF4444
-    await ppt.addCellShape('SampleTable', 1, 0, {
-      type: 'rectangle',
-      fill: '#EF4444',
+    ppt.updateTableCell('SampleTable', 1, 0, {
       text: 'Badge',
-      width: 60,
-      height: 30,
+      fill: 'EF4444',
     })
 
-    let cellShape = ppt.getCellShape('SampleTable', 1, 0, 0)
-    expect(cellShape).not.toBeNull()
-    expect(cellShape.fill).toBe('#EF4444')
+    let cell = ppt.getCell('SampleTable', 1, 0)
+    expect(cell).not.toBeNull()
+    expect(cell.fill).toBe('EF4444')
 
-    // Update cell shape text without providing fill
-    await ppt.updateCellShape('SampleTable', 1, 0, 0, {
+    ppt.updateTableCell('SampleTable', 1, 0, {
       text: 'Updated Badge',
     })
 
-    cellShape = ppt.getCellShape('SampleTable', 1, 0, 0)
-    expect(cellShape).not.toBeNull()
-    expect(cellShape.text).toBe('Updated Badge')
-    // Fill must be preserved!
-    expect(cellShape.fill).toBe('#EF4444')
+    cell = ppt.getCell('SampleTable', 1, 0)
+    expect(cell).not.toBeNull()
+    expect(cell.text).toBe('Updated Badge')
+    expect(cell.fill).toBe('EF4444')
 
-    // Update cell shape with explicit fill #10B981
-    await ppt.updateCellShape('SampleTable', 1, 0, 0, {
-      fill: '#10B981',
+    ppt.updateTableCell('SampleTable', 1, 0, {
+      fill: '10B981',
     })
 
-    cellShape = ppt.getCellShape('SampleTable', 1, 0, 0)
-    expect(cellShape.fill).toBe('#10B981')
+    cell = ppt.getCell('SampleTable', 1, 0)
+    expect(cell.fill).toBe('10B981')
 
     await ppt.saveToFile(outputPath)
     expect(existsSync(outputPath)).toBe(true)

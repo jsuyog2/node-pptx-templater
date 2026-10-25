@@ -10,7 +10,7 @@ export default function sitemap() {
     'Lifecycle & I/O',
     'Slides Management',
     'Text & Placeholders',
-    'Tables & Cell Shapes',
+    'Tables',
     'Charts',
     'Shapes & Geometry',
     'Images & Media',

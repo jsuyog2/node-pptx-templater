@@ -3605,7 +3605,12 @@ class SlideManager {
     const finalHeight = targetHeight !== undefined ? targetHeight : currentCy
 
     if (type === 'table' && tableManager) {
-      tableManager.resizeTable(slideIndex, objectIdOrName, finalWidth, finalHeight, this)
+      tableManager.updateTable(
+        objectIdOrName,
+        { width: finalWidth, height: finalHeight },
+        slideIndex,
+        this
+      )
       return
     }
 

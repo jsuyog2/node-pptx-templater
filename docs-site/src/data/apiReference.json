@@ -1,11 +1,11 @@
 {
   "version": "3.0.0-alpha.0",
-  "totalMethods": 125,
+  "totalMethods": 150,
   "categories": [
     "Lifecycle & I/O",
     "Slides",
     "Text & Placeholders",
-    "Tables & Cell Shapes",
+    "Tables",
     "Charts",
     "Shapes & Geometry",
     "Images & Media",
@@ -1814,458 +1814,6 @@
         "exampleCode": "ppt.useSlide(1).updateStyle(\"HeroTitle\", {\n  fontSize: 32,\n  color: \"#2563EB\",\n  alignment: \"center\"\n});"
       }
     ],
-    "Tables & Cell Shapes": [
-      {
-        "id": "addtable",
-        "name": "addTable",
-        "signature": "ppt.addTable(tableIdOrOptions, options = {})",
-        "category": "Tables & Cell Shapes",
-        "description": "Creates a brand-new table on the active slide. Generates DrawingML table structure (&lt;a:tbl&gt;) with customizable row count, column count, column widths, coordinates, styles, and initial data matrix.",
-        "openXmlImpact": "Appends &lt;p:graphicFrame&gt; containing &lt;a:tbl&gt;, &lt;a:tblPr&gt;, &lt;a:tblGrid&gt;, and &lt;a:tr&gt; rows.",
-        "edgeCases": "Validates row/column indices and handles merged cell boundaries without XML element interleaving.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "tableIdOrOptions",
-            "type": "string | Object",
-            "required": true,
-            "default": "—",
-            "description": "Table identifier name or full configuration options."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Table configuration (rows, cols, x, y, width, height, data)."
-          }
-        ],
-        "returns": {
-          "type": "Promise<string>",
-          "description": "Resolves to the newly created table shape ID."
-        },
-        "exampleCode": "ppt.useSlide(1);\nawait ppt.addTable('projectTable', {\n  x: '5%', y: '20%', width: '90%', height: '50%',\n  rows: 4, cols: 3,\n  colWidths: [2000000, 4000000, 2500000],\n  data: [\n    ['Workstream', 'Initiative Lead', 'Status'],\n    ['Core Cloud', 'Sarah Jenkins', 'Completed'],\n    ['AI Pipeline', 'Elena Rostova', 'In Progress'],\n    ['Security', 'Alicia Gomez', 'On Track']\n  ]\n});"
-      },
-      {
-        "id": "updatetable",
-        "name": "updateTable",
-        "signature": "ppt.updateTable(tableId, dataMatrix)",
-        "category": "Tables & Cell Shapes",
-        "description": "Replaces table cell values with a 2D array matrix of strings or numbers. Matches existing rows and columns while preserving all existing cell formatting (background fills, fonts, borders, alignments).",
-        "openXmlImpact": "Iterates existing &lt;a:tr&gt; and &lt;a:tc&gt; elements, updating text run values in &lt;a:t&gt;.",
-        "edgeCases": "Validates row/column indices and handles merged cell boundaries without XML element interleaving.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "tableId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Table name or shape ID."
-          },
-          {
-            "name": "dataMatrix",
-            "type": "Array<Array<any>>",
-            "required": true,
-            "default": "—",
-            "description": "2D matrix of row values."
-          }
-        ],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "await ppt.useSlide(1).updateTable('summary_table', [\n  ['Category', 'Budget', 'Actual'],\n  ['Engineering', '$4.2M', '$3.9M'],\n  ['Operations', '$1.8M', '$1.7M']\n]);"
-      },
-      {
-        "id": "gettablerows",
-        "name": "getTableRows",
-        "signature": "ppt.getTableRows(tableId, options = {})",
-        "category": "Tables & Cell Shapes",
-        "description": "Extracts data from an existing table on the active slide. Can return rows as structured JSON objects (using header row values as object keys) or as raw 2D string matrices.",
-        "openXmlImpact": "Parses &lt;a:tbl&gt; cells and extracts text from &lt;a:t&gt; elements.",
-        "edgeCases": "Validates row/column indices and handles merged cell boundaries without XML element interleaving.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "tableId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Table name or shape ID."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Extraction options."
-          },
-          {
-            "name": "options.asObjects",
-            "type": "boolean",
-            "required": false,
-            "default": "true",
-            "description": "When true, formats rows as JSON objects using table headers."
-          }
-        ],
-        "returns": {
-          "type": "Promise<Array>",
-          "description": "Array of extracted table row records."
-        },
-        "exampleCode": "const rows = await ppt.useSlide(1).getTableRows('kpi_table', { asObjects: true });\nconsole.log('Extracted table data:', rows);\n// [{ Metric: 'ARR', Value: '$124.8M' }, { Metric: 'NRR', Value: '118.4%' }]"
-      },
-      {
-        "id": "addtablerow",
-        "name": "addTableRow",
-        "signature": "ppt.addTableRow(tableId, rowData, options = {})",
-        "category": "Tables & Cell Shapes",
-        "description": "Appends a new row to an existing table. Supports nested arrays for multi-row merging (rowspan), automatic cell styling, custom background fills, and borders.",
-        "openXmlImpact": "Synthesizes and appends &lt;a:tr&gt; containing &lt;a:tc&gt; cells into &lt;a:tbl&gt;.",
-        "edgeCases": "Validates row/column indices and handles merged cell boundaries without XML element interleaving.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "tableId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Table name or shape ID."
-          },
-          {
-            "name": "rowData",
-            "type": "Array<any>",
-            "required": true,
-            "default": "—",
-            "description": "Array of cell values for the new row."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Options (mergeStrategy, cellStyles)."
-          }
-        ],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "await ppt.useSlide(1).addTableRow('projectTable', [\n  'Infrastructure', 'Multi-Region Failover', 'Completed'\n]);"
-      },
-      {
-        "id": "mergecells",
-        "name": "mergeCells",
-        "signature": "ppt.mergeCells(tableId, startRow, startCol, endRow, endCol)",
-        "category": "Tables & Cell Shapes",
-        "description": "Merges a rectangular block of cells across rows and/or columns. Applies compliant OpenXML rowspan and colspan attributes (rowSpan, gridSpan, hMerge, vMerge) without corrupting PowerPoint.",
-        "openXmlImpact": "Sets @_rowSpan, @_gridSpan, @_vMerge=\"1\", and @_hMerge=\"1\" on &lt;a:tcPr&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "tableId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Table name or shape ID."
-          },
-          {
-            "name": "startRow",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based start row index."
-          },
-          {
-            "name": "startCol",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based start column index."
-          },
-          {
-            "name": "endRow",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based end row index."
-          },
-          {
-            "name": "endCol",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based end column index."
-          }
-        ],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "// Merge header cells across columns 1 to 3\nawait ppt.useSlide(1).mergeCells('financials_table', 0, 1, 0, 3);"
-      },
-      {
-        "id": "clonemergedregion",
-        "name": "cloneMergedRegion",
-        "signature": "ppt.cloneMergedRegion(tableId, options)",
-        "category": "Tables & Cell Shapes",
-        "description": "Replicates an existing merged cell topology across multiple contiguous rows or columns.",
-        "openXmlImpact": "Copies &lt;a:tcPr&gt; merge flags across corresponding row indices in &lt;a:tbl&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "tableId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Table identifier."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": true,
-            "default": "—",
-            "description": "Source and destination range configuration."
-          }
-        ],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "await ppt.useSlide(1).cloneMergedRegion('salesTable', {\n  sourceRow: 1, targetRows: [2, 3, 4]\n});"
-      },
-      {
-        "id": "autofittable",
-        "name": "autoFitTable",
-        "signature": "ppt.autoFitTable(tableId, options = {})",
-        "category": "Tables & Cell Shapes",
-        "description": "Automatically calculates and distributes column widths in &lt;a:tblGrid&gt; based on text length and typography metrics, preventing awkward text wrapping.",
-        "openXmlImpact": "Recalculates &lt;a:gridCol @_w=\"...\"&gt; values in &lt;a:tblGrid&gt;.",
-        "edgeCases": "Validates row/column indices and handles merged cell boundaries without XML element interleaving.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "tableId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Table name or shape ID."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Autofit options (minColWidth, maxColWidth)."
-          }
-        ],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "await ppt.useSlide(1).autoFitTable('data_table', { minColWidth: '1.2in' });"
-      },
-      {
-        "id": "splittableonoverflow",
-        "name": "splitTableOnOverflow",
-        "signature": "ppt.splitTableOnOverflow(tableId, options = {})",
-        "category": "Tables & Cell Shapes",
-        "description": "Automatically splits large tables across consecutive duplicate slides when table height exceeds a slide threshold. Preserves repeated headers across all generated slides and keeps summary/totals rows pinned to the final slide.",
-        "openXmlImpact": "Calculates cumulative row heights in EMUs, duplicates slide XML, chunks &lt;a:tr&gt; rows, and syncs slide relationships.",
-        "edgeCases": "Validates row/column indices and handles merged cell boundaries without XML element interleaving.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "tableId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Table name or shape ID."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": false,
-            "default": "{}",
-            "description": "Pagination options."
-          },
-          {
-            "name": "options.bottomMargin",
-            "type": "number | string",
-            "required": false,
-            "default": "0.5 in",
-            "description": "Bottom margin threshold for triggering split."
-          },
-          {
-            "name": "options.repeatHeaders",
-            "type": "number",
-            "required": false,
-            "default": "1",
-            "description": "Number of header rows to repeat on each split slide."
-          },
-          {
-            "name": "options.summaryRows",
-            "type": "number",
-            "required": false,
-            "default": "0",
-            "description": "Number of summary rows to preserve on the final slide."
-          }
-        ],
-        "returns": {
-          "type": "Promise<Object>",
-          "description": "Pagination outcome with splitCount and slidesCreated."
-        },
-        "exampleCode": "// Split 100-row transaction ledger across slides\nconst result = await ppt.useSlide(3).splitTableOnOverflow('ledger_table', {\n  bottomMargin: '0.75in',\n  repeatHeaders: 1,\n  summaryRows: 1\n});\nconsole.log(`Created ${result.slidesCreated} additional slides.`);"
-      },
-      {
-        "id": "getcellbounds",
-        "name": "getCellBounds",
-        "signature": "ppt.getCellBounds(tableId, rowIndex, colIndex)",
-        "category": "Tables & Cell Shapes",
-        "description": "Computes the exact absolute spatial bounding box (x, y, width, height) of a table cell in EMUs relative to the slide canvas. Critical for placing floating badge shapes or icons precisely inside cells.",
-        "openXmlImpact": "Derives coordinates from table position (&lt;a:xfrm&gt;), &lt;a:tblGrid&gt; column widths, and row heights.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "tableId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Table name or shape ID."
-          },
-          {
-            "name": "rowIndex",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based row index."
-          },
-          {
-            "name": "colIndex",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based column index."
-          }
-        ],
-        "returns": {
-          "type": "Object",
-          "description": "Spatial bounds in EMUs."
-        },
-        "exampleCode": "const bounds = ppt.useSlide(1).getCellBounds('status_table', 2, 3);\nconsole.log(`Cell spatial coordinates:`, bounds);"
-      },
-      {
-        "id": "addcellshape",
-        "name": "addCellShape",
-        "signature": "ppt.addCellShape(tableId, rowIndex, colIndex, options)",
-        "category": "Tables & Cell Shapes",
-        "description": "Embeds a geometric badge or indicator shape (pill, status circle, checkmark) directly inside a table cell, positioned dynamically according to cell bounds.",
-        "openXmlImpact": "Inserts a positioned &lt;p:sp&gt; into &lt;p:spTree&gt; aligned with cell spatial boundaries.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "tableId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Table name or shape ID."
-          },
-          {
-            "name": "rowIndex",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based row index."
-          },
-          {
-            "name": "colIndex",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based column index."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": true,
-            "default": "—",
-            "description": "Shape options (shapeType, fill, text, padding)."
-          }
-        ],
-        "returns": {
-          "type": "Promise<string>",
-          "description": "Assigned shape ID."
-        },
-        "exampleCode": "// Add green status pill inside cell (row 1, col 2)\nawait ppt.useSlide(1).addCellShape('status_table', 1, 2, {\n  shapeType: 'roundRect',\n  fill: '10B981',\n  text: 'ACTIVE',\n  textColor: 'FFFFFF'\n});"
-      },
-      {
-        "id": "updatecellshape",
-        "name": "updateCellShape",
-        "signature": "ppt.updateCellShape(tableId, rowIndex, colIndex, shapeIndex, options)",
-        "category": "Tables & Cell Shapes",
-        "description": "Updates properties (fill color, text label, border) of an indicator shape previously placed inside a table cell.",
-        "openXmlImpact": "Modifies &lt;p:sp&gt; properties within &lt;p:spTree&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "tableId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Table identifier."
-          },
-          {
-            "name": "rowIndex",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based row index."
-          },
-          {
-            "name": "colIndex",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based column index."
-          },
-          {
-            "name": "shapeIndex",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based index of shape in cell."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": true,
-            "default": "—",
-            "description": "Updated properties."
-          }
-        ],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "await ppt.useSlide(1).updateCellShape('status_table', 1, 2, 0, {\n  fill: 'EF4444',\n  text: 'OFFLINE'\n});"
-      }
-    ],
     "Charts": [
       {
         "id": "addchart",
@@ -3912,6 +3460,1087 @@
           "description": "this (chainable)."
         },
         "exampleCode": "ppt.enableDebug();"
+      }
+    ],
+    "Tables": [
+      {
+        "id": "addtable",
+        "name": "addTable",
+        "signature": "ppt.addTable(slideId, rows, columns, data, options)",
+        "category": "Tables",
+        "description": "Creates a brand-new DrawingML table on the specified or active slide with customizable dimensions, coordinates (percentage, pt, emu), and cell matrix.",
+        "openXmlImpact": "Appends a new <p:graphicFrame> enclosing <a:tbl> with <a:tblPr>, <a:tblGrid>, and <a:tr> rows to <p:spTree>.",
+        "edgeCases": "Generates ISO/IEC 29500 compliant unique row GUIDs (<a16:rowId>) and handles percentage coordinate scaling across slide dimensions.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number | string | Object",
+            "required": true,
+            "default": "—",
+            "description": "Slide number/ID, or table configuration object."
+          },
+          {
+            "name": "rows",
+            "type": "number",
+            "required": false,
+            "default": "2",
+            "description": "Number of table rows."
+          },
+          {
+            "name": "columns",
+            "type": "number",
+            "required": false,
+            "default": "2",
+            "description": "Number of table columns."
+          },
+          {
+            "name": "data",
+            "type": "Array<Array<*>>",
+            "required": false,
+            "default": "[]",
+            "description": "Initial 2D matrix of row and cell values."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Geometry, styling, and positioning options (x, y, width, height, firstRow, bandRow, styleId)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.addTable(1, 3, 3, [\n  ['Header 1', 'Header 2', 'Header 3'],\n  ['A1', 'B1', 'C1'],\n  ['A2', 'B2', 'C2']\n], { x: '10%', y: '15%', width: '80%', height: '50%', firstRow: true });"
+      },
+      {
+        "id": "updatetable",
+        "name": "updateTable",
+        "signature": "ppt.updateTable(tableId, options)",
+        "category": "Tables",
+        "description": "Updates table geometry, position, column widths, row heights, or table-level properties.",
+        "openXmlImpact": "Mutates <a:xfrm> transform coordinates and <a:tblPr> table properties.",
+        "edgeCases": "Maintains proportional column distributions if overall width changes without explicit colWidths.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Updates for position (x, y, width, height), firstRow, bandRow, etc."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.updateTable('SalesTable', { x: 200, y: 150, width: 600, height: 300, firstRow: true });"
+      },
+      {
+        "id": "updatetabledata",
+        "name": "updateTableData",
+        "signature": "ppt.updateTableData(tableId, data)",
+        "category": "Tables",
+        "description": "Replaces matrix cell data while strictly preserving existing column widths, cell styling, and row heights.",
+        "openXmlImpact": "Iterates existing <a:tr> and <a:tc> nodes, replacing text content in <a:txBody> without schema reconstruction.",
+        "edgeCases": "Gracefully expands or truncates cells if incoming matrix dimensions differ from existing grid.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "data",
+            "type": "Array<Array<*>>",
+            "required": true,
+            "default": "[]",
+            "description": "2D matrix of cell values."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.updateTableData('SalesTable', [\n  ['Metric', 'Target', 'Actual'],\n  ['Revenue', '$1.2M', '$1.35M'],\n  ['EBITDA', '$300K', '$340K']\n]);"
+      },
+      {
+        "id": "removetable",
+        "name": "removeTable",
+        "signature": "ppt.removeTable(tableId)",
+        "category": "Tables",
+        "description": "Purges a table and its container graphic frame from the slide cleanly without orphaned relationships.",
+        "openXmlImpact": "Removes the target <p:graphicFrame> from the slide <p:spTree>.",
+        "edgeCases": "Throws TableNotFoundError if the table identifier cannot be located across targeted slides.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.removeTable('OldFinancialTable');"
+      },
+      {
+        "id": "gettables",
+        "name": "getTables",
+        "signature": "ppt.getTables(slideId)",
+        "category": "Tables",
+        "description": "Discovers and retrieves normalized metadata for all tables on the specified or active slides.",
+        "openXmlImpact": "Non-destructive read of <p:graphicFrame> nodes and <a:tbl> properties.",
+        "edgeCases": "Returns an empty array if no tables exist on the slide.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "undefined",
+            "description": "Optional slide number or ID (queries active slides if omitted)."
+          }
+        ],
+        "returns": {
+          "type": "Array<Object>",
+          "description": "List of table descriptors (id, name, rows, columns, x, y, width, height, properties)."
+        },
+        "exampleCode": "const tables = ppt.getTables(1);\nconsole.log(`Found ${tables.length} tables on Slide 1.`);"
+      },
+      {
+        "id": "gettable",
+        "name": "getTable",
+        "signature": "ppt.getTable(tableId)",
+        "category": "Tables",
+        "description": "Retrieves detailed metadata, row/col counts, position, properties, and cell data for a specific table.",
+        "openXmlImpact": "Non-destructive query of table graphic frame AST.",
+        "edgeCases": "Returns null if the table identifier is not found on targeted slides.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Normalized table metadata object, or null if not found."
+        },
+        "exampleCode": "const table = ppt.getTable('SalesTable');\nif (table) console.log(`Dimensions: ${table.rows}x${table.columns}`);"
+      },
+      {
+        "id": "clonetable",
+        "name": "cloneTable",
+        "signature": "ppt.cloneTable(tableId, clonedTableId, clonedOptions)",
+        "category": "Tables",
+        "description": "Deep-clones an existing table, assigning a new identifier and applying positioning or dimension overrides.",
+        "openXmlImpact": "Duplicates <p:graphicFrame>, re-keys shape ID (<p:cNvPr>), and assigns fresh ISO/IEC 29500 row IDs (<a16:rowId>).",
+        "edgeCases": "Preserves complete cell styling, formatting, and border hierarchy in the cloned copy.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Source table name or shape ID."
+          },
+          {
+            "name": "clonedTableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Unique identifier for the cloned table."
+          },
+          {
+            "name": "clonedOptions",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Positioning and dimension overrides (x, y, width, height)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.cloneTable('QuarterlyTemplate', 'Q2Summary', { y: '55%' });"
+      },
+      {
+        "id": "addtablerow",
+        "name": "addTableRow",
+        "signature": "ppt.addTableRow(tableId, rowIndex, data)",
+        "category": "Tables",
+        "description": "Inserts or appends a row to a table with cell values, automatically generating unique row IDs.",
+        "openXmlImpact": "Constructs a new <a:tr> with <a:tc> cells and unique <a16:rowId>, inserting into <a:tbl>.",
+        "edgeCases": "Clones formatting from adjacent row template when inserting to maintain visual consistency.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number | Array<*>",
+            "required": false,
+            "default": "undefined",
+            "description": "0-based insertion row index, or row data array if appending."
+          },
+          {
+            "name": "data",
+            "type": "Array<*>",
+            "required": false,
+            "default": "[]",
+            "description": "Row cell data array if rowIndex was specified."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.addTableRow('SalesTable', ['North Region', '$120,000', '+8%']);\nppt.addTableRow('SalesTable', 1, ['East Region', '$95,000', '+5%']);"
+      },
+      {
+        "id": "addtablecolumn",
+        "name": "addTableColumn",
+        "signature": "ppt.addTableColumn(tableId, columnIndex, data)",
+        "category": "Tables",
+        "description": "Inserts or appends a column in <a:tblGrid> and creates corresponding cells across all rows.",
+        "openXmlImpact": "Inserts <a:gridCol> into <a:tblGrid> and appends/inserts <a:tc> cell in every <a:tr>.",
+        "edgeCases": "Calculates default column width from adjacent grid columns to preserve total table geometry.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number | Array<*>",
+            "required": false,
+            "default": "undefined",
+            "description": "0-based insertion column index, or column data array if appending."
+          },
+          {
+            "name": "data",
+            "type": "Array<*>",
+            "required": false,
+            "default": "[]",
+            "description": "Column cell data if columnIndex was specified."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.addTableColumn('SalesTable', ['Q4 Target', '$140K', '$110K', '$160K']);"
+      },
+      {
+        "id": "removetablerow",
+        "name": "removeTableRow",
+        "signature": "ppt.removeTableRow(tableId, rowIndex)",
+        "category": "Tables",
+        "description": "Removes a row from a table by 0-based row index.",
+        "openXmlImpact": "Splices the target <a:tr> element from <a:tbl>.",
+        "edgeCases": "Validates row index bounds and throws PPTXError if out of bounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index to remove."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.removeTableRow('SalesTable', 2);"
+      },
+      {
+        "id": "removetablecolumn",
+        "name": "removeTableColumn",
+        "signature": "ppt.removeTableColumn(tableId, columnIndex)",
+        "category": "Tables",
+        "description": "Removes a column from a table by 0-based column index.",
+        "openXmlImpact": "Splices target <a:gridCol> from <a:tblGrid> and removes corresponding <a:tc> from each <a:tr>.",
+        "edgeCases": "Validates column index bounds and throws PPTXError if out of bounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index to remove."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.removeTableColumn('SalesTable', 1);"
+      },
+      {
+        "id": "updaterowdata",
+        "name": "updateRowData",
+        "signature": "ppt.updateRowData(tableId, rowIndex, data)",
+        "category": "Tables",
+        "description": "Updates cell text values along target row rowIndex while preserving existing cell styling.",
+        "openXmlImpact": "Mutates text runs (<a:t>) inside <a:txBody> of cells across the row.",
+        "edgeCases": "Preserves individual cell formatting, font colors, and backgrounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "data",
+            "type": "Array<*>",
+            "required": true,
+            "default": "[]",
+            "description": "Row cell values."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.updateRowData('SalesTable', 1, ['Updated Region', '$150K', '12%']);"
+      },
+      {
+        "id": "updatecolumndata",
+        "name": "updateColumnData",
+        "signature": "ppt.updateColumnData(tableId, columnIndex, data)",
+        "category": "Tables",
+        "description": "Updates cell text values down target column columnIndex while preserving existing cell styling.",
+        "openXmlImpact": "Mutates text runs (<a:t>) inside <a:txBody> of cells down the column.",
+        "edgeCases": "Preserves individual cell formatting, font colors, and backgrounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          },
+          {
+            "name": "data",
+            "type": "Array<*>",
+            "required": true,
+            "default": "[]",
+            "description": "Column cell values down each row."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.updateColumnData('SalesTable', 1, ['$100', '$200', '$300']);"
+      },
+      {
+        "id": "updatetablecell",
+        "name": "updateTableCell",
+        "signature": "ppt.updateTableCell(tableId, rowIndex, columnIndex, options)",
+        "category": "Tables",
+        "description": "Updates text, typography (bold, color, size, align), and background styling of a single cell.",
+        "openXmlImpact": "Mutates <a:tcPr> cell properties and <a:txBody> text paragraph runs.",
+        "edgeCases": "Supports multiline strings (splits into paragraphs <a:p>) and XML entity escaping.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          },
+          {
+            "name": "options",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "{}",
+            "description": "New cell value or formatting options (text, bold, color, fill, align, verticalAlign)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.updateTableCell('SalesTable', 1, 2, { text: 'Complete', bold: true, fill: 'DCFCE7', color: '166534' });"
+      },
+      {
+        "id": "clearrowdata",
+        "name": "clearRowData",
+        "signature": "ppt.clearRowData(tableId, rowIndex)",
+        "category": "Tables",
+        "description": "Purges text content from all cells across rowIndex while preserving formatting, borders, and fills.",
+        "openXmlImpact": "Empties <a:t> text nodes in <a:txBody> without removing <a:tcPr> formatting.",
+        "edgeCases": "Ensures cell remains valid OpenXML by retaining an empty paragraph node <a:p>.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.clearRowData('SalesTable', 2);"
+      },
+      {
+        "id": "clearcolumndata",
+        "name": "clearColumnData",
+        "signature": "ppt.clearColumnData(tableId, columnIndex)",
+        "category": "Tables",
+        "description": "Purges text content from all cells down columnIndex while preserving formatting, borders, and fills.",
+        "openXmlImpact": "Empties <a:t> text nodes in <a:txBody> of target column cells without removing <a:tcPr>.",
+        "edgeCases": "Retains valid empty paragraph nodes <a:p> in DrawingML specification.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.clearColumnData('SalesTable', 1);"
+      },
+      {
+        "id": "clearcelldata",
+        "name": "clearCellData",
+        "signature": "ppt.clearCellData(tableId, rowIndex, columnIndex)",
+        "category": "Tables",
+        "description": "Purges text content from a single table cell while preserving underlying formatting and properties.",
+        "openXmlImpact": "Empties text node <a:t> in <a:txBody> while leaving <a:tcPr> intact.",
+        "edgeCases": "Preserves cell background fills, borders, anchors, and margins.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.clearCellData('SalesTable', 0, 0);"
+      },
+      {
+        "id": "gettabledata",
+        "name": "getTableData",
+        "signature": "ppt.getTableData(tableId)",
+        "category": "Tables",
+        "description": "Extracts raw string data from all cells in the table as a 2D matrix array.",
+        "openXmlImpact": "Non-destructive read of table cell text bodies.",
+        "edgeCases": "Returns empty strings for unpopulated or blank cells.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          }
+        ],
+        "returns": {
+          "type": "Array<Array<string>>",
+          "description": "2D matrix array of cell string values."
+        },
+        "exampleCode": "const matrix = ppt.getTableData('SalesTable');\nconsole.log(matrix);"
+      },
+      {
+        "id": "getcolumndata",
+        "name": "getColumnData",
+        "signature": "ppt.getColumnData(tableId, columnIndex)",
+        "category": "Tables",
+        "description": "Returns array of cell text values down the specified column index.",
+        "openXmlImpact": "Non-destructive read of column cells.",
+        "edgeCases": "Returns empty array if table or column index does not exist.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "Array<string>",
+          "description": "Column cell values."
+        },
+        "exampleCode": "const values = ppt.getColumnData('SalesTable', 1);"
+      },
+      {
+        "id": "getrowdata",
+        "name": "getRowData",
+        "signature": "ppt.getRowData(tableId, rowIndex)",
+        "category": "Tables",
+        "description": "Returns array of cell text values along the specified row index.",
+        "openXmlImpact": "Non-destructive read of row cells.",
+        "edgeCases": "Returns empty array if table or row index does not exist.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          }
+        ],
+        "returns": {
+          "type": "Array<string>",
+          "description": "Row cell values."
+        },
+        "exampleCode": "const values = ppt.getRowData('SalesTable', 0);"
+      },
+      {
+        "id": "getcolumn",
+        "name": "getColumn",
+        "signature": "ppt.getColumn(tableId, columnIndex)",
+        "category": "Tables",
+        "description": "Returns column metadata: index, width (EMU and pixels), and cell text data.",
+        "openXmlImpact": "Queries <a:tblGrid> col definitions and cell values.",
+        "edgeCases": "Returns null if table or column index is out of bounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Column descriptor object (index, width, widthPx, data)."
+        },
+        "exampleCode": "const col = ppt.getColumn('SalesTable', 0);\nconsole.log(`Col width: ${col.widthPx}px`);"
+      },
+      {
+        "id": "getrow",
+        "name": "getRow",
+        "signature": "ppt.getRow(tableId, rowIndex)",
+        "category": "Tables",
+        "description": "Returns row metadata: index, height (EMU and pixels), and cell text data.",
+        "openXmlImpact": "Queries <a:tr> definitions and row height attributes.",
+        "edgeCases": "Returns null if table or row index is out of bounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Row descriptor object (index, height, heightPx, data)."
+        },
+        "exampleCode": "const row = ppt.getRow('SalesTable', 0);\nconsole.log(`Row height: ${row.heightPx}px`);"
+      },
+      {
+        "id": "getcell",
+        "name": "getCell",
+        "signature": "ppt.getCell(tableId, rowIndex, columnIndex)",
+        "category": "Tables",
+        "description": "Returns detailed cell metadata, bounds, fill, anchor, rowSpan, gridSpan, and merge state.",
+        "openXmlImpact": "Queries <a:tc>, <a:tcPr>, and calculated spatial coordinates.",
+        "edgeCases": "Returns null if cell coordinate does not exist.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Cell descriptor object (row, column, text, fill, anchor, rowSpan, gridSpan, isMerged, bounds)."
+        },
+        "exampleCode": "const cell = ppt.getCell('SalesTable', 0, 0);\nconsole.log(`Cell fill: ${cell.fill}`);"
+      },
+      {
+        "id": "getcelldata",
+        "name": "getCellData",
+        "signature": "ppt.getCellData(tableId, rowIndex, columnIndex)",
+        "category": "Tables",
+        "description": "Extracts raw string text from cell at (rowIndex, columnIndex).",
+        "openXmlImpact": "Non-destructive read of cell <a:txBody>.",
+        "edgeCases": "Returns empty string if cell is empty or does not exist.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "string",
+          "description": "Cell string text."
+        },
+        "exampleCode": "const text = ppt.getCellData('SalesTable', 0, 0);"
+      },
+      {
+        "id": "mergecells",
+        "name": "mergeCells",
+        "signature": "ppt.mergeCells(tableId, startRow, startColumn, endRow, endColumn)",
+        "category": "Tables",
+        "description": "Merges a rectangular region of table cells with ISO/IEC 29500 DrawingML compliance.",
+        "openXmlImpact": "Applies rowSpan/gridSpan to primary cell and hMerge/vMerge tags to covered secondary cells.",
+        "edgeCases": "Empties covered secondary cells to prevent duplicated rendering in PowerPoint.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string | Object",
+            "required": true,
+            "default": "—",
+            "description": "Table ID string or merge options object."
+          },
+          {
+            "name": "startRow",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based start row index."
+          },
+          {
+            "name": "startColumn",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based start column index."
+          },
+          {
+            "name": "endRow",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based end row index."
+          },
+          {
+            "name": "endColumn",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based end column index."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.mergeCells('SalesTable', 0, 0, 0, 2);"
+      },
+      {
+        "id": "splitcell",
+        "name": "splitCell",
+        "signature": "ppt.splitCell(tableId, rowIndex, columnIndex)",
+        "category": "Tables",
+        "description": "Restores a merged region back into independent matrix cells by clearing rowSpan, gridSpan, hMerge, and vMerge.",
+        "openXmlImpact": "Purges merge attributes across the merged rectangle, restoring cell boundaries.",
+        "edgeCases": "Can be called on the primary anchor cell or any covered secondary cell in the region.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string | Object",
+            "required": true,
+            "default": "—",
+            "description": "Table ID string or split options object."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.splitCell('SalesTable', 0, 0);"
+      },
+      {
+        "id": "styletable",
+        "name": "styleTable",
+        "signature": "ppt.styleTable(tableId, options)",
+        "category": "Tables",
+        "description": "Applies table-wide styling, alternating row/column bands, headers, and borders.",
+        "openXmlImpact": "Configures <a:tblPr> properties and iterates <a:tcPr> cells applying alternating solid fills and borders.",
+        "edgeCases": "Supports headerFill, oddFill, evenFill, bandRow, bandCol, and border presets.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Styling options (firstRow, bandRow, headerFill, oddFill, evenFill, border, fontSize)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.styleTable('SalesTable', { headerFill: '1E3A8A', oddFill: 'F8FAFC', evenFill: 'FFFFFF', border: { color: 'CBD5E1', width: 1 } });"
+      },
+      {
+        "id": "stylecolumn",
+        "name": "styleColumn",
+        "signature": "ppt.styleColumn(tableId, columnIndex, options)",
+        "category": "Tables",
+        "description": "Applies fills, typography, alignments, and borders down a target column.",
+        "openXmlImpact": "Mutates <a:tcPr> and text properties of every cell in the column.",
+        "edgeCases": "Preserves individual row height and other column formatting.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Column styling options (fill, bold, color, align, border)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.styleColumn('SalesTable', 1, { fill: 'E0E7FF', bold: true, align: 'ctr' });"
+      },
+      {
+        "id": "stylerow",
+        "name": "styleRow",
+        "signature": "ppt.styleRow(tableId, rowIndex, options)",
+        "category": "Tables",
+        "description": "Applies fills, typography, height, and borders across a target row.",
+        "openXmlImpact": "Mutates <a:tr @_h=\"...\"> height and cell properties <a:tcPr> across the row.",
+        "edgeCases": "Translates row height from points to EMUs accurately.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Row styling options (fill, color, bold, height, border)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.styleRow('SalesTable', 0, { fill: '1E3A8A', color: 'FFFFFF', bold: true, height: 35 });"
+      },
+      {
+        "id": "stylecell",
+        "name": "styleCell",
+        "signature": "ppt.styleCell(tableId, rowIndex, columnIndex, options)",
+        "category": "Tables",
+        "description": "Applies solid fill, vertical alignment, margins, typography, and borders to a specific cell.",
+        "openXmlImpact": "Mutates cell <a:tcPr> (<a:solidFill>, @_anchor, @_marL, @_marR, @_marT, @_marB, <a:lnL>, <a:lnR>, <a:lnT>, <a:lnB>).",
+        "edgeCases": "Supports hex colors, borders on individual edges (borderLeft, borderRight, borderTop, borderBottom), and padding.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Cell styling options (fill, align, verticalAlign, margins, border)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.styleCell('SalesTable', 1, 2, { fill: '10B981', align: 'ctr', verticalAlign: 'ctr', border: { color: '047857', width: 2 } });"
       }
     ]
   }

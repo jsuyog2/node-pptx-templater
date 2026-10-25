@@ -27,6 +27,7 @@ const CATEGORY_ICONS = {
   'Lifecycle & I/O': Layers,
   'Slides': Layers,
   'Text & Placeholders': Sparkles,
+  'Tables': Table,
   'Tables & Cell Shapes': Table,
   'Charts': BarChart3,
   'Shapes & Geometry': Cpu,

@@ -99,7 +99,7 @@ const docsNavigation = {
         { title: "Lifecycle & I/O", href: "/docs/api#Lifecycle%20%26%20I%2FO", category: "Lifecycle & I/O", count: 16 },
         { title: "Slides", href: "/docs/api#Slides", category: "Slides", count: 12 },
         { title: "Text & Placeholders", href: "/docs/api#Text%20%26%20Placeholders", category: "Text & Placeholders", count: 10 },
-        { title: "Tables & Cell Shapes", href: "/docs/api#Tables%20%26%20Cell%20Shapes", category: "Tables & Cell Shapes", count: 11 },
+        { title: "Tables", href: "/docs/api#Tables", category: "Tables", count: 30 },
         { title: "Charts & Series Sync", href: "/docs/api#Charts%20%26%20Series%20Sync", category: "Charts & Series Sync", count: 8 },
         { title: "Shapes & Geometry", href: "/docs/api#Shapes%20%26%20Geometry", category: "Shapes & Geometry", count: 11 },
         { title: "Images & Media", href: "/docs/api#Images%20%26%20Media", category: "Images & Media", count: 3 },

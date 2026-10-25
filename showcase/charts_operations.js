@@ -1149,7 +1149,6 @@ async function runChartsShowcase() {
   logStep(3, 'remove Line Chart', 'Removes a multi-series line chart')
   await ppt.removeChart('LineChart')
 
-
   // --------------------------F---------------------------------------------------
   // Part 4: clearChart() :- Clearing All 17 Types of Charts
   // -----------------------------------------------------------------------------

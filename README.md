@@ -76,7 +76,7 @@ Engineered specifically for serverless and edge architectures:
 | **Template-Free Blank Generation** | ✅ **`createBlank()` (16:9, 4:3)** | ✅ Supported | ⚠️ Basic | ⚠️ Macro required |
 | **Run Fragment Normalizer (Anti-Corruption)** | ✅ **AST Paragraph Healer** | ❌ N/A | ❌ N/A | ❌ Brittle regex |
 | **Chart & Excel Workbook Dual-Sync** | ✅ **XML + XLSX Cache Sync** | ⚠️ Basic values only | ❌ Unsupported | ⚠️ Slow headless calc |
-| **Table Overflow Auto-Pagination** | ✅ **`splitTableOnOverflow()`** | ❌ Manual math | ❌ Unsupported | ❌ Unsupported |
+| **DrawingML Tables Subsystem** | ✅ **Strict 30-Method Engine** | ⚠️ Basic tables | ⚠️ Minimal | ⚠️ Slow headless calc |
 | **Z-Order Layer Stacking (`p:spTree`)** | ✅ **`bringToFront` / `sendToBack`** | ❌ Re-render required | ❌ Unsupported | ❌ Manual scripts |
 | **Web Framework & Edge Streaming** | ✅ **Express, Fastify, Web Response**| ⚠️ Buffer only | ⚠️ Stream only | ❌ CLI process spawn |
 | **Direct XML Extraction with Formatting** | ✅ **`extractToXml({formatXml})`**| ❌ Unsupported | ❌ Unsupported | ❌ Unsupported |
@@ -285,7 +285,7 @@ async function chartOperations() {
 }
 ```
 
-### 8. Dynamic Tables, Nested Rows & Overflow Auto-Pagination
+### 8. DrawingML Tables & Multi-Tier Styling (Strict 30 Methods)
 
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');
@@ -294,30 +294,31 @@ async function generateTable() {
   const ppt = await PPTXTemplater.load('./templates/inventory.pptx');
   ppt.useSlide(3);
 
-  // 1. Append simple database rows
-  for (const item of inventoryRecords) {
-    ppt.addTableRow('InventoryTable', [item.sku, item.name, item.warehouse, item.qty]);
-  }
+  // 1. Create a table with percentage coordinates
+  ppt.addTable(3, 4, 3, [
+    ['SKU', 'Product', 'Quantity'],
+    ['SKU-001', 'Cloud Widget', '150'],
+    ['SKU-002', 'Edge Device', '80'],
+    ['SKU-003', 'Sensor Hub', '320'],
+  ], { id: 'InventoryTable', x: '10%', y: '15%', width: '80%', height: '45%' });
 
-  // 2. Append nested sub-rows with vertical merge strategy
-  await ppt.addTableRow('InventoryTable', ['West Region', ['Electronics', '450'], ['Hardware', '120'], 'In Stock'], {
-    mergeStrategy: 'rowspan'
-  });
+  // 2. Append new rows and columns with fluent chaining
+  ppt.addTableRow('InventoryTable', ['SKU-004', 'Gateway', '45'])
+     .addTableColumn('InventoryTable', ['Status', 'Active', 'Active', 'Pending', 'Active']);
 
-  // 3. Extract table rows as JSON with full layout metadata
-  const meta = await ppt.getTableRows('InventoryTable', { includeMetadata: true });
-  console.log(`Total rows: ${meta.rowCount}, Merges: ${meta.mergedCells.length}`);
+  // 3. Multi-tier styling: table, rows, columns, and individual cells
+  ppt.styleTable('InventoryTable', { headerFill: '1E3A8A', oddFill: 'F8FAFC', evenFill: 'FFFFFF' })
+     .styleRow('InventoryTable', 0, { color: 'FFFFFF', bold: true })
+     .styleCell('InventoryTable', 1, 2, { fill: 'DCFCE7', color: '166534', bold: true });
 
-  // 4. Alternate row background colors
-  ppt.stripeRows('InventoryTable', '#F8FAFC', '#FFFFFF');
+  // 4. Merge header or summary cells
+  ppt.mergeCells('InventoryTable', 0, 0, 0, 2);
 
-  // 5. Automatically split table across cloned slides if it overflows slide height
-  await ppt.splitTableOnOverflow('InventoryTable', {
-    bottomMargin: '1in',
-    repeatHeaders: 1
-  });
+  // 5. Query table metrics and 2D data matrix
+  const matrix = ppt.getTableData('InventoryTable');
+  console.log(`Total rows: ${matrix.length}`);
 
-  await ppt.saveToFile('./output/paginated-table.pptx');
+  await ppt.saveToFile('./output/styled-table.pptx');
 }
 ```
 
