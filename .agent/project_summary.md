@@ -155,6 +155,7 @@ All DrawingML table operations strictly adhere to these 30 approved methods (all
 
 **Core Table Invariants**:
 - **ISO/IEC 29500 DrawingML Invariants**: Every `<a:tr>` generates a unique 32-bit `<a16:rowId>` in `<a:extLst>`. Percentage coordinate resolutions map directly to canvas EMUs.
+- **Polymorphic Cell Ingestion & Overlay Badges**: `addTable`, `updateTable`, `updateTableData`, `updateTableCell`, `updateRowData`, `updateColumnData`, `addTableRow`, and `addTableColumn` accept primitives (`string`, `number`, `boolean`), styled objects (`{ value, style: { fontSize, fontFace, color, bold, fill, ... } }`), and shape badges (`{ shape: { type, fill, stroke, width, height }, text, textPosition: 'inside' | 'outside' }`). Badges render as overlay shapes anchored to cell bounds with zero table reflow.
 - **Merge & Split Subsystem**: Supports rectangular `gridSpan` and `rowSpan` on primary cells and `hMerge="1"` / `vMerge="1"` on secondary covered cells, and bidirectional split restoration.
 - **Multi-Tier Styling**: Clean property mapping to `<a:tblPr>` (properties, styles, alternating row/column bands), `<a:tcPr>` (solid fills, anchors, borders, margins), and `<a:txBody>` (typography, alignments).
 

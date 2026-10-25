@@ -198,6 +198,14 @@ class StyleBuilder {
       delete rPr['a:effectLst']
     }
 
+    // 12. Font Face / Family
+    const font = style.fontFace || style.fontFamily || style.font
+    if (font) {
+      rPr['a:latin'] = { '@_typeface': String(font) }
+      rPr['a:ea'] = { '@_typeface': String(font) }
+      rPr['a:cs'] = { '@_typeface': String(font) }
+    }
+
     return rPr
   }
 
@@ -253,7 +261,8 @@ class StyleBuilder {
     }
 
     // 2. Vertical Alignment (anchor)
-    const vAlign = options.verticalAlign || options.vAlign || options.anchor
+    const vAlign =
+      options.verticalAlignment || options.verticalAlign || options.vAlign || options.anchor
     if (vAlign) {
       const v = String(vAlign).toLowerCase()
       if (v === 'top' || v === 't') tcPr['@_anchor'] = 't'
@@ -376,7 +385,12 @@ class StyleBuilder {
     const pPr = { ...(existingPPr || {}) }
 
     // 1. Text Alignment
-    const align = style.textAlignment !== undefined ? style.textAlignment : style.alignment
+    const align =
+      style.textAlignment !== undefined
+        ? style.textAlignment
+        : style.alignment !== undefined
+          ? style.alignment
+          : style.align
     if (align !== undefined && align !== null) {
       const map = {
         left: 'l',

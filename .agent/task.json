@@ -1,115 +1,76 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.10.0",
-    "category": "Tables",
-    "scope": "Strict 30 Tables Functions Whitelist Boundary",
-    "approvedFunctions": [
-        "addTable",
-        "updateTable",
-        "updateTableData",
-        "removeTable",
-        "getTables",
-        "getTable",
-        "cloneTable",
-        "addTableRow",
-        "addTableColumn",
-        "removeTableRow",
-        "removeTableColumn",
-        "updateRowData",
-        "updateColumnData",
-        "updateTableCell",
-        "clearRowData",
-        "clearColumnData",
-        "clearCellData",
-        "getTableData",
-        "getColumnData",
-        "getRowData",
-        "getColumn",
-        "getRow",
-        "getCell",
-        "getCellData",
-        "mergeCells",
-        "splitCell",
-        "styleTable",
-        "styleColumn",
-        "styleRow",
-        "styleCell"
-    ],
+    "version": "3.10.1",
+    "category": "Table Cell Shapes Subsystem Bug Fixes",
+    "scope": "Fix cell shape lifecycle, positioning, index reordering, text coexistence, cloning, and cascading deletions across all Table API methods",
     "tasks": [
         {
-            "id": "TASK-TABLE-001",
-            "title": "Audit, Purge Non-Whitelisted Table Methods & Enforce 30-Function Boundary",
+            "id": "TASK-TBL-SHAPE-FIX-001",
+            "title": "Fix Initial Table Cell Shape Rendering in addTable and Placement in updateTableData",
             "status": "completed",
-            "description": "Audit src/managers/TableManager.js, src/core/PPTXTemplater.js, and index.d.ts. Purge any table-related methods, legacy aliases, or extraneous routines that are not in the exact 30-function whitelist under the 'Tables' category. Ensure only these 30 functions are exposed in runtime delegates, interfaces, and public classes.",
+            "description": "Fix issues #1 and #2. In TableManager.js and CellShapeManager.js, ensure addTable correctly parses polymorphic cell shape configurations during initial table generation. In updateTableData, fix the positioning and placement calculation for newly added or replaced cell shapes so that offset attributes, alignment, width/height, and placement (left/right/center) render accurately relative to the table cell bounds without failing silently.",
             "deliverables": [
                 "src/managers/TableManager.js",
-                "src/core/PPTXTemplater.js",
-                "index.d.ts"
+                "src/elements/CellShapeManager.js"
             ]
         },
         {
-            "id": "TASK-TABLE-002",
-            "title": "Implement Table Lifecycle, Query & Cloning Engine",
+            "id": "TASK-TBL-SHAPE-FIX-002",
+            "title": "Implement Deep Shape Cloning in cloneTable",
             "status": "completed",
-            "description": "Implement addTable, updateTable, updateTableData, removeTable, getTables, getTable, and cloneTable. Manage DrawingML table elements (<a:tbl>), non-visual group properties, graphic frame containers (<p:graphicFrame>), position transforms (<a:xfrm>), and slide context delegation. Support percentage and EMU coordinates while maintaining fluent chaining returning this.",
+            "description": "Fix issue #3. When cloneTable duplicates a table graphic frame (<p:graphicFrame>), query all anchored cell shapes associated with the source tableId, duplicate their underlying <p:sp> nodes in <p:spTree>, recalculate offsets relative to the new cloned table coordinates, allocate unique shape IDs, and register them under clonedTableId.",
             "deliverables": [
                 "src/managers/TableManager.js",
-                "src/core/PPTXTemplater.js",
-                "tests/integration/tableLifecycle.test.js"
+                "src/elements/CellShapeManager.js"
             ]
         },
         {
-            "id": "TASK-TABLE-003",
-            "title": "Implement Row & Column Structural Manipulation & Data I/O",
+            "id": "TASK-TBL-SHAPE-FIX-003",
+            "title": "Fix Dynamic Row Insertion Indexing and Shift Existing Cell Shapes in addTableRow",
             "status": "completed",
-            "description": "Implement addTableRow, addTableColumn, removeTableRow, removeTableColumn, updateRowData, updateColumnData, clearRowData, clearColumnData, getRowData, getColumnData, getRow, and getColumn. Handle dynamic grid re-calculations (<a:tblGrid>, <a:gridCol>), row height distributions (<a:tr h=\"...\">), cell node shifts, and clean data updates without schema corruption.",
+            "description": "Fix issue #4. In addTableRow, when inserting a new row at rowIndex, shift the row index metadata of all existing cell shapes at or below rowIndex downward (rowIndex >= targetIndex -> rowIndex + 1). Ensure shapes are bound strictly to the target insertion index rather than the order of creation or last-modified row.",
             "deliverables": [
                 "src/managers/TableManager.js",
-                "tests/integration/tableRowColumnOperations.test.js"
+                "src/elements/CellShapeManager.js"
             ]
         },
         {
-            "id": "TASK-TABLE-004",
-            "title": "Implement Cell-Level Operations, Clear & Data Accessors",
+            "id": "TASK-TBL-SHAPE-FIX-004",
+            "title": "Fix Text and Shape Coexistence in addTableColumn",
             "status": "completed",
-            "description": "Implement updateTableCell, clearCellData, getTableData, getCell, and getCellData. Ensure cell text bodies (<a:txBody>), paragraph runs (<a:p>, <a:r>, <a:t>), and coordinate lookups accurately handle empty cells, multiline content, and non-destructive data clearing while preserving underlying formatting.",
+            "description": "Fix issue #5. In addTableColumn, ensure both shape overlays and accompanying text are correctly added. When polymorphic column data provides shapes with outside text, ensure both the cell DrawingML text body (<a:txBody>) and the anchored shape node (<p:sp>) render without dropping the text runs.",
             "deliverables": [
-                "src/managers/TableManager.js",
-                "tests/integration/tableCellOperations.test.js"
+                "src/managers/TableManager.js"
             ]
         },
         {
-            "id": "TASK-TABLE-005",
-            "title": "Implement Complex Cell Merging & Splitting Subsystem",
+            "id": "TASK-TBL-SHAPE-FIX-005",
+            "title": "Cascading Deletion of Cell Shapes in removeTable, removeTableRow, and removeTableColumn",
             "status": "completed",
-            "description": "Implement mergeCells(tableId, startRow, startColumn, endRow, endColumn) and splitCell(tableId, rowIndex, columnIndex). Correctly generate OpenXML rowSpan/gridSpan attributes and horizontal/vertical merge tags (rowSpan, gridSpan, hMerge, vMerge) on <a:tc>, adjust adjacent cell references, and support un-merging/splitting back into independent matrix cells.",
+            "description": "Fix issues #6, #7, and #8. Implement cascading deletions of anchored shape nodes (<p:sp>) from <p:spTree>: (1) removeTable must purge all shapes associated with the target tableId; (2) removeTableRow must purge all shapes in the removed rowIndex and decrement indices for rows below it; (3) removeTableColumn must purge all shapes in the removed columnIndex and decrement indices for columns to the right.",
             "deliverables": [
                 "src/managers/TableManager.js",
-                "tests/integration/tableMergeSplit.test.js"
+                "src/elements/CellShapeManager.js"
             ]
         },
         {
-            "id": "TASK-TABLE-006",
-            "title": "Implement Comprehensive Multi-Tier Styling Engine",
+            "id": "TASK-TBL-SHAPE-FIX-006",
+            "title": "Cascading Shape Purging in clearRowData, clearColumnData, and clearCellData",
             "status": "completed",
-            "description": "Implement styleTable, styleColumn, styleRow, and styleCell. Map styling options (borders, cell backgrounds/solid fills, fonts, font size, colors, alignments, margins) cleanly to DrawingML table properties (<a:tblPr>), cell properties (<a:tcPr>), text body properties (<a:tcTxStyle>, <a:txBody>), and border elements (<a:lnL>, <a:lnR>, <a:lnT>, <a:lnB>).",
+            "description": "Fix issues #9, #10, and #11. Ensure data clearing operations also purge associated cell shapes: clearRowData must remove all shapes across the specified rowIndex; clearColumnData must remove all shapes across the specified columnIndex; clearCellData must remove shapes anchored at (rowIndex, columnIndex).",
             "deliverables": [
                 "src/managers/TableManager.js",
-                "src/parser/StyleBuilder.js",
-                "tests/integration/tableStyling.test.js"
+                "src/elements/CellShapeManager.js"
             ]
         },
         {
-            "id": "TASK-TABLE-007",
-            "title": "Executable Showcase Script, Documentation & Workspace Sync",
+            "id": "TASK-TBL-SHAPE-FIX-007",
+            "title": "Comprehensive Integration Tests & Showcase Verification",
             "status": "completed",
-            "description": "Create showcase/table_advanced.js demonstrating all 30 approved methods with console logs, JSDoc, and inline comments. Update docs-site/src/data/apiReference.json under 'Tables' to feature exclusively the 30 functions, update README.md, and sync .agent/ memory files.",
+            "description": "Write automated tests in tests/integration/tableCellShapesLifecycle.test.js covering all 11 bug scenarios. Verify with showcase/table_advanced.js and confirm that exported presentations trigger zero Microsoft PowerPoint repair warnings.",
             "deliverables": [
-                "showcase/table_advanced.js",
-                "docs-site/src/data/apiReference.json",
-                "README.md",
-                ".agent/rules/features.md",
-                ".agent/project_summary.md"
+                "tests/integration/tableCellShapesLifecycle.test.js",
+                "showcase/table_advanced.js"
             ]
         }
     ]

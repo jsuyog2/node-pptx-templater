@@ -3468,7 +3468,7 @@
         "name": "addTable",
         "signature": "ppt.addTable(slideId, rows, columns, data, options)",
         "category": "Tables",
-        "description": "Creates a brand-new DrawingML table on the specified or active slide with customizable dimensions, coordinates (percentage, pt, emu), and cell matrix.",
+        "description": "Creates a brand-new DrawingML table with support for polymorphic cell data (primitives, styled values, and shape overlays with inside/outside text).",
         "openXmlImpact": "Appends a new <p:graphicFrame> enclosing <a:tbl> with <a:tblPr>, <a:tblGrid>, and <a:tr> rows to <p:spTree>.",
         "edgeCases": "Generates ISO/IEC 29500 compliant unique row GUIDs (<a16:rowId>) and handles percentage coordinate scaling across slide dimensions.",
         "isStatic": false,
@@ -3497,10 +3497,10 @@
           },
           {
             "name": "data",
-            "type": "Array<Array<*>>",
+            "type": "Array<Array<TableCellData>>",
             "required": false,
             "default": "[]",
-            "description": "Initial 2D matrix of row and cell values."
+            "description": "Initial 2D matrix of row and cell values. Supports primitives (string, number, boolean), styled objects ({ value, style: { fontSize, color, bold, fill, ... } }), and shape overlays ({ shape: { type, fill, ... }, text, textPosition: \"inside\" | \"outside\" })."
           },
           {
             "name": "options",
@@ -3514,7 +3514,7 @@
           "type": "PPTXTemplater",
           "description": "this (fluent chaining)"
         },
-        "exampleCode": "ppt.addTable(1, 3, 3, [\n  ['Header 1', 'Header 2', 'Header 3'],\n  ['A1', 'B1', 'C1'],\n  ['A2', 'B2', 'C2']\n], { x: '10%', y: '15%', width: '80%', height: '50%', firstRow: true });"
+        "exampleCode": "ppt.addTable(1, 3, 3, [\n  [\"Department\", \"Target\", \"Status\"],\n  [\"Engineering\", 125000, { shape: { type: \"roundRect\", fill: \"#10B981\" }, text: \"Done\", textPosition: \"inside\" }],\n  [\"Marketing\", { value: 85000, style: { bold: true, color: \"#15803D\" } }, { shape: { type: \"circle\", fill: \"#EF4444\" }, text: \"Critical\", textPosition: \"outside\" }]\n], { x: \"10%\", y: \"15%\", width: \"80%\", height: \"50%\", firstRow: true });"
       },
       {
         "id": "updatetable",
@@ -3568,10 +3568,10 @@
           },
           {
             "name": "data",
-            "type": "Array<Array<*>>",
+            "type": "Array<Array<TableCellData>>",
             "required": true,
             "default": "[]",
-            "description": "2D matrix of cell values."
+            "description": "2D matrix of cell data. Accepts primitives, styled values, and shape overlays ({ shape, text, textPosition })."
           }
         ],
         "returns": {
@@ -3863,10 +3863,10 @@
           },
           {
             "name": "data",
-            "type": "Array<*>",
+            "type": "Array<TableCellData>",
             "required": true,
             "default": "[]",
-            "description": "Row cell values."
+            "description": "Array of row values. Accepts primitives, styled values, and shape overlays."
           }
         ],
         "returns": {
@@ -3902,10 +3902,10 @@
           },
           {
             "name": "data",
-            "type": "Array<*>",
+            "type": "Array<TableCellData>",
             "required": true,
             "default": "[]",
-            "description": "Column cell values down each row."
+            "description": "Array of column values. Accepts primitives, styled values, and shape overlays."
           }
         ],
         "returns": {
@@ -3919,7 +3919,7 @@
         "name": "updateTableCell",
         "signature": "ppt.updateTableCell(tableId, rowIndex, columnIndex, options)",
         "category": "Tables",
-        "description": "Updates text, typography (bold, color, size, align), and background styling of a single cell.",
+        "description": "Updates cell text, typography, alignments, background fills, or attaches a positioned shape overlay (inside or outside text).",
         "openXmlImpact": "Mutates <a:tcPr> cell properties and <a:txBody> text paragraph runs.",
         "edgeCases": "Supports multiline strings (splits into paragraphs <a:p>) and XML entity escaping.",
         "isStatic": false,
@@ -3948,17 +3948,17 @@
           },
           {
             "name": "options",
-            "type": "string | number | Object",
+            "type": "string | number | boolean | Object",
             "required": true,
             "default": "{}",
-            "description": "New cell value or formatting options (text, bold, color, fill, align, verticalAlign)."
+            "description": "New cell value (primitive string/number/boolean), styled value object ({ value, style: { color, fill, ... } }), or cell shape overlay ({ shape: { type, fill, ... }, text, textPosition: \"inside\" | \"outside\" })."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (fluent chaining)"
         },
-        "exampleCode": "ppt.updateTableCell('SalesTable', 1, 2, { text: 'Complete', bold: true, fill: 'DCFCE7', color: '166534' });"
+        "exampleCode": "ppt.updateTableCell(\"Table1\", 1, 2, {\n  shape: { type: \"roundRect\", fill: \"#10B981\" },\n  text: \"Completed\",\n  textPosition: \"inside\",\n  textStyle: { color: \"#FFFFFF\", bold: true }\n});"
       },
       {
         "id": "clearrowdata",

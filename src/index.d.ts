@@ -1,3 +1,59 @@
+export interface TableCellStyle {
+  fontSize?: number;
+  fontFace?: string;
+  fontFamily?: string;
+  color?: string;
+  fontColor?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean | string;
+  alignment?: 'left' | 'center' | 'right' | 'justify' | string;
+  align?: 'left' | 'center' | 'right' | 'justify' | string;
+  verticalAlignment?: 'top' | 'middle' | 'center' | 'bottom' | string;
+  verticalAlign?: 'top' | 'middle' | 'center' | 'bottom' | string;
+  valign?: 'top' | 'middle' | 'center' | 'bottom' | string;
+  fill?: string | false | null;
+  bgColor?: string;
+  backgroundColor?: string;
+  margins?: number | { left?: number; right?: number; top?: number; bottom?: number };
+  border?: any;
+  borders?: any;
+  [key: string]: any;
+}
+
+export interface TableCellShapeOptions {
+  shape: {
+    type?: 'roundRect' | 'circle' | 'ellipse' | 'rect' | 'square' | 'triangle' | 'star5' | 'rightArrow' | string;
+    preset?: string;
+    fill?: string;
+    stroke?: string;
+    strokeColor?: string;
+    strokeWidth?: number;
+    lineWidth?: number;
+    width?: number;
+    height?: number;
+    radius?: number;
+    border?: any;
+    [key: string]: any;
+  };
+  text?: string | number | boolean;
+  textPosition?: 'inside' | 'outside' | 'none';
+  textStyle?: TableCellStyle;
+  shapePlacement?: 'left' | 'right';
+  style?: TableCellStyle;
+  [key: string]: any;
+}
+
+export interface TableCellStyledValue {
+  value?: string | number | boolean;
+  text?: string | number | boolean;
+  style?: TableCellStyle;
+  [key: string]: any;
+}
+
+export type TableCellPrimitive = string | number | boolean | null | undefined;
+export type TableCellData = TableCellPrimitive | TableCellStyledValue | TableCellShapeOptions;
+
 export class PPTXTemplater {
   static load(source: string | Buffer | any, options?: any): Promise<PPTXTemplater>;
   static createBlank(options?: any): Promise<PPTXTemplater>;
@@ -71,22 +127,22 @@ export class PPTXTemplater {
   removeHyperlink(textOrOptions: any): this;
   addSlideLink(options: any): this;
   // Tables (Strict 30 Whitelisted Methods)
-  addTable(slideId: number | string, rows: number, columns: number, data?: any[][], options?: any): this;
-  addTable(rows: number, columns: number, data?: any[][], options?: any): this;
+  addTable(slideId: number | string, rows: number, columns: number, data?: TableCellData[][], options?: any): this;
+  addTable(rows: number, columns: number, data?: TableCellData[][], options?: any): this;
   addTable(options: any): this;
   updateTable(tableId: string, options: any): this;
-  updateTableData(tableId: string, data: any[][]): this;
+  updateTableData(tableId: string, data: TableCellData[][]): this;
   removeTable(tableId: string): this;
   getTables(slideId?: number | string): any[];
   getTable(tableId: string): any;
   cloneTable(tableId: string, clonedTableId: string, clonedOptions?: any): this;
-  addTableRow(tableId: string, rowIndex?: number | any[], data?: any[]): this;
-  addTableColumn(tableId: string, columnIndex?: number | any[], data?: any[]): this;
+  addTableRow(tableId: string, rowIndex?: number | TableCellData[], data?: TableCellData[]): this;
+  addTableColumn(tableId: string, columnIndex?: number | TableCellData[], data?: TableCellData[]): this;
   removeTableRow(tableId: string, rowIndex: number): this;
   removeTableColumn(tableId: string, columnIndex: number): this;
-  updateRowData(tableId: string, rowIndex: number, data: any[]): this;
-  updateColumnData(tableId: string, columnIndex: number, data: any[]): this;
-  updateTableCell(tableId: string, rowIndex: number, columnIndex: number, options: any): this;
+  updateRowData(tableId: string, rowIndex: number, data: TableCellData[]): this;
+  updateColumnData(tableId: string, columnIndex: number, data: TableCellData[]): this;
+  updateTableCell(tableId: string, rowIndex: number, columnIndex: number, options: TableCellData | TableCellStyle): this;
   clearRowData(tableId: string, rowIndex: number): this;
   clearColumnData(tableId: string, columnIndex: number): this;
   clearCellData(tableId: string, rowIndex: number, columnIndex: number): this;
@@ -226,6 +282,10 @@ export class ChartManager {
 }
 
 export class TableManager {
+  [key: string]: any;
+}
+
+export class CellShapeManager {
   [key: string]: any;
 }
 

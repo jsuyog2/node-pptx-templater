@@ -11,6 +11,8 @@ const { TableNotFoundError, PPTXError } = require('../utils/errors.js')
 const { toEmu, emuToPx } = require('../spatial/units.js')
 const { resolveCoordinate, getCanvasDimensions } = require('../utils/coordinateUtils.js')
 const { StyleBuilder } = require('../parser/StyleBuilder.js')
+const { CellShapeManager } = require('./CellShapeManager.js')
+const { Z_ORDER_SYMBOL } = require('../parsers/XMLParser.js')
 
 const logger = createLogger('TableManager')
 
@@ -48,11 +50,37 @@ class TableManager {
   /** @private @type {XMLParser} */
   #xmlParser
 
+  /** @private @type {CellShapeManager} */
+  #cellShapeManager
+
+  /** @private @type {ShapeManager|null} */
+  #shapeManager
+
   /**
    * @param {XMLParser} xmlParser
+   * @param {ShapeManager} [shapeManager]
    */
-  constructor(xmlParser) {
+  constructor(xmlParser, shapeManager = null) {
     this.#xmlParser = xmlParser
+    this.#shapeManager = shapeManager
+    this.#cellShapeManager = new CellShapeManager(xmlParser, shapeManager)
+  }
+
+  /**
+   * Sets or updates the ShapeManager instance.
+   * @param {ShapeManager} shapeManager
+   */
+  setShapeManager(shapeManager) {
+    this.#shapeManager = shapeManager
+    this.#cellShapeManager.setShapeManager(shapeManager)
+  }
+
+  /**
+   * Returns the underlying CellShapeManager.
+   * @returns {CellShapeManager}
+   */
+  getCellShapeManager() {
+    return this.#cellShapeManager
   }
 
   // ==========================================================================
@@ -90,6 +118,9 @@ class TableManager {
 
     const canvas = getCanvasDimensions(slideIndex, slideManager)
     const opt = typeof options === 'object' && options !== null ? options : {}
+    if ((!data || data.length === 0) && Array.isArray(opt.data)) {
+      data = opt.data
+    }
 
     // Resolve coordinates (supports percentages, pt, px, in, emu)
     const x = opt.x !== undefined ? resolveCoordinate(opt.x, canvas.width, opt) : 1524000
@@ -122,6 +153,7 @@ class TableManager {
     // Build row elements
     const defaultRowH = Math.round(height / numRows)
     const trList = []
+    const deferredShapes = []
 
     for (let r = 0; r < numRows; r++) {
       let rowH = defaultRowH
@@ -131,20 +163,24 @@ class TableManager {
 
       const tcList = []
       for (let c = 0; c < numCols; c++) {
-        let cellVal = ''
-        let cellOpt = {}
-
+        let raw = undefined
         if (Array.isArray(data) && data[r] && data[r][c] !== undefined) {
-          const raw = data[r][c]
-          if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
-            cellVal = raw.value !== undefined ? raw.value : raw.text !== undefined ? raw.text : ''
-            cellOpt = raw
-          } else {
-            cellVal = String(raw ?? '')
-          }
+          raw = data[r][c]
         }
 
-        const tcNode = this.#createCellNode(cellVal, cellOpt)
+        const parsed = this.#cellShapeManager.parseCellData(raw)
+        const cellText =
+          parsed.kind === 'shape'
+            ? parsed.shapeConfig?.textPosition === 'outside'
+              ? parsed.text
+              : ''
+            : parsed.text
+        const tcNode = this.#createCellNode(cellText, parsed.style)
+
+        if (parsed.kind === 'shape') {
+          deferredShapes.push({ r, c, shapeConfig: parsed.shapeConfig, tcNode })
+        }
+
         tcList.push(tcNode)
       }
 
@@ -217,6 +253,27 @@ class TableManager {
     }
     spTree['p:graphicFrame'].push(graphicFrame)
 
+    if (spTree[Z_ORDER_SYMBOL] && !spTree[Z_ORDER_SYMBOL].includes(String(shapeId))) {
+      spTree[Z_ORDER_SYMBOL].push(String(shapeId))
+    }
+
+    // Apply any deferred cell shape overlays
+    const tblObj = graphicFrame['a:graphic']['a:graphicData']['a:tbl']
+    for (const item of deferredShapes) {
+      this.#cellShapeManager.applyCellShape(
+        slideIndex,
+        tableId,
+        item.r,
+        item.c,
+        item.shapeConfig,
+        slideManager,
+        graphicFrame,
+        tblObj,
+        item.tcNode,
+        this.#shapeManager
+      )
+    }
+
     this.#markDirty(slideIndex, slideManager)
     logger.debug(`Created table "${tableId}" on slide ${slideIndex}`)
     return tableId
@@ -286,6 +343,10 @@ class TableManager {
       }
     }
 
+    if (Array.isArray(options.data)) {
+      this.updateTableData(tableId, options.data, resolvedSlideIndex, slideManager)
+    }
+
     this.#markDirty(resolvedSlideIndex, slideManager)
     return this
   }
@@ -301,7 +362,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   updateTableData(tableId, data = [], slideIndex, slideManager) {
-    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     if (!Array.isArray(data) || data.length === 0) return this
 
     let trs = tblObj['a:tr']
@@ -329,11 +394,32 @@ class TableManager {
 
       const rowValues = Array.isArray(data[r]) ? data[r] : [data[r]]
       for (let c = 0; c < rowValues.length && c < tcs.length; c++) {
-        const val = rowValues[c]
-        if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
-          this.#setCellText(tcs[c], val.value !== undefined ? val.value : val.text, val)
+        const raw = rowValues[c]
+        const parsed = this.#cellShapeManager.parseCellData(raw)
+
+        if (parsed.kind === 'shape') {
+          this.#cellShapeManager.applyCellShape(
+            resolvedSlideIndex,
+            tableId,
+            r,
+            c,
+            parsed.shapeConfig,
+            slideManager,
+            frame,
+            tblObj,
+            tcs[c],
+            this.#shapeManager
+          )
         } else {
-          this.#setCellText(tcs[c], val)
+          this.#cellShapeManager.removeCellShape(resolvedSlideIndex, tableId, r, c, slideManager)
+          if (tcs[c]['a:tcPr']) {
+            delete tcs[c]['a:tcPr']['@_marL']
+            delete tcs[c]['a:tcPr']['@_marR']
+          }
+          this.#setCellText(tcs[c], parsed.text, parsed.style)
+          if (parsed.style && Object.keys(parsed.style).length > 0) {
+            tcs[c]['a:tcPr'] = StyleBuilder.buildCellProperties(tcs[c]['a:tcPr'], parsed.style)
+          }
         }
       }
     }
@@ -358,6 +444,8 @@ class TableManager {
       slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
       slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree']
 
+    const targetFrameId = String(frame?.['p:nvGraphicFramePr']?.['p:cNvPr']?.['@_id'] || '')
+
     if (spTree?.['p:graphicFrame']) {
       if (Array.isArray(spTree['p:graphicFrame'])) {
         const idx = spTree['p:graphicFrame'].indexOf(frame)
@@ -369,6 +457,14 @@ class TableManager {
       }
     }
 
+    if (spTree?.[Z_ORDER_SYMBOL] && targetFrameId) {
+      const zIdx = spTree[Z_ORDER_SYMBOL].indexOf(targetFrameId)
+      if (zIdx !== -1) {
+        spTree[Z_ORDER_SYMBOL].splice(zIdx, 1)
+      }
+    }
+
+    this.#cellShapeManager.removeAllCellShapesForTable(resolvedSlideIndex, tableId, slideManager)
     this.#markDirty(resolvedSlideIndex, slideManager)
     logger.debug(`Removed table "${tableId}" from slide ${resolvedSlideIndex}`)
     return this
@@ -601,6 +697,26 @@ class TableManager {
     }
     spTree['p:graphicFrame'].push(clonedFrame)
 
+    if (spTree[Z_ORDER_SYMBOL] && !spTree[Z_ORDER_SYMBOL].includes(String(newShapeId))) {
+      spTree[Z_ORDER_SYMBOL].push(String(newShapeId))
+    }
+
+    const origOff = frame['p:xfrm']?.['a:off'] || {}
+    const origX = parseInt(origOff['@_x'] || '0', 10)
+    const origY = parseInt(origOff['@_y'] || '0', 10)
+    const newX = parseInt(off['@_x'] || '0', 10)
+    const newY = parseInt(off['@_y'] || '0', 10)
+
+    this.#cellShapeManager.cloneCellShapes(
+      resolvedSlideIndex,
+      tableId,
+      resolvedSlideIndex,
+      newName,
+      slideManager,
+      newX - origX,
+      newY - origY
+    )
+
     this.#markDirty(resolvedSlideIndex, slideManager)
     logger.debug(`Cloned table "${tableId}" to "${newName}" on slide ${resolvedSlideIndex}`)
     return this
@@ -622,7 +738,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   addTableRow(tableId, rowIndex, data, slideIndex, slideManager) {
-    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     let trs = tblObj['a:tr']
     if (!Array.isArray(trs)) {
       trs = trs ? [trs] : []
@@ -643,6 +763,7 @@ class TableManager {
 
     const templateRow = trs[Math.min(insertIdx, trs.length - 1)] || trs[0]
     let newRow
+    const deferredShapes = []
 
     if (templateRow) {
       newRow = this.#xmlParser.deepClone(templateRow)
@@ -658,11 +779,24 @@ class TableManager {
         delete tcs[c]['@_gridSpan']
         delete tcs[c]['@_hMerge']
         delete tcs[c]['@_vMerge']
-        const val = rowValues[c] !== undefined ? rowValues[c] : ''
-        if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
-          this.#setCellText(tcs[c], val.value !== undefined ? val.value : val.text, val)
+        if (tcs[c]['a:tcPr']) {
+          delete tcs[c]['a:tcPr']['@_marL']
+          delete tcs[c]['a:tcPr']['@_marR']
+        }
+        const raw = rowValues[c] !== undefined ? rowValues[c] : ''
+        const parsed = this.#cellShapeManager.parseCellData(raw)
+        if (parsed.kind === 'shape') {
+          if (parsed.shapeConfig?.textPosition === 'outside' && parsed.text) {
+            this.#setCellText(tcs[c], parsed.text, parsed.shapeConfig.textStyle || parsed.style)
+          } else {
+            this.#setCellText(tcs[c], '')
+          }
+          deferredShapes.push({ c, shapeConfig: parsed.shapeConfig, tcNode: tcs[c] })
         } else {
-          this.#setCellText(tcs[c], val)
+          this.#setCellText(tcs[c], parsed.text, parsed.style)
+          if (parsed.style && Object.keys(parsed.style).length > 0) {
+            tcs[c]['a:tcPr'] = StyleBuilder.buildCellProperties(tcs[c]['a:tcPr'], parsed.style)
+          }
         }
       }
     } else {
@@ -670,7 +804,19 @@ class TableManager {
       const colCount = Array.isArray(cols) ? cols.length : 1
       const tcList = []
       for (let c = 0; c < colCount; c++) {
-        tcList.push(this.#createCellNode(rowValues[c] ?? ''))
+        const raw = rowValues[c] ?? ''
+        const parsed = this.#cellShapeManager.parseCellData(raw)
+        const cellText =
+          parsed.kind === 'shape'
+            ? parsed.shapeConfig?.textPosition === 'outside'
+              ? parsed.text
+              : ''
+            : parsed.text
+        const cellNode = this.#createCellNode(cellText, parsed.style)
+        if (parsed.kind === 'shape') {
+          deferredShapes.push({ c, shapeConfig: parsed.shapeConfig, tcNode: cellNode })
+        }
+        tcList.push(cellNode)
       }
       newRow = {
         '@_h': '370840',
@@ -687,7 +833,34 @@ class TableManager {
       }
     }
 
+    const insertedRowH = parseInt(newRow['@_h'] || '370840', 10)
+
+    // Shift existing cell shapes at or below insertIdx downward BEFORE splicing
+    this.#cellShapeManager.shiftRowShapes(
+      resolvedSlideIndex,
+      tableId,
+      insertIdx,
+      insertedRowH,
+      slideManager
+    )
+
     trs.splice(insertIdx, 0, newRow)
+
+    for (const item of deferredShapes) {
+      this.#cellShapeManager.applyCellShape(
+        resolvedSlideIndex,
+        tableId,
+        insertIdx,
+        item.c,
+        item.shapeConfig,
+        slideManager,
+        frame,
+        tblObj,
+        item.tcNode,
+        this.#shapeManager
+      )
+    }
+
     this.#markDirty(resolvedSlideIndex, slideManager)
     return this
   }
@@ -704,7 +877,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   addTableColumn(tableId, columnIndex, data, slideIndex, slideManager) {
-    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     let gridCols = tblObj['a:tblGrid']?.['a:gridCol']
     if (!Array.isArray(gridCols)) {
       gridCols = gridCols ? [gridCols] : []
@@ -725,6 +902,17 @@ class TableManager {
     }
 
     const defaultW = gridCols.length > 0 ? gridCols[0]['@_w'] || '2032000' : '2032000'
+    const insertedColW = parseInt(defaultW, 10)
+
+    // Shift existing cell shapes at or right of insertIdx rightward BEFORE splicing
+    this.#cellShapeManager.shiftColShapes(
+      resolvedSlideIndex,
+      tableId,
+      insertIdx,
+      insertedColW,
+      slideManager
+    )
+
     gridCols.splice(insertIdx, 0, { '@_w': defaultW })
 
     const trs = Array.isArray(tblObj['a:tr'])
@@ -733,13 +921,16 @@ class TableManager {
         ? [tblObj['a:tr']]
         : []
 
+    const deferredShapes = []
+
     for (let r = 0; r < trs.length; r++) {
       let tcs = trs[r]['a:tc']
       if (!Array.isArray(tcs)) {
         tcs = tcs ? [tcs] : []
         trs[r]['a:tc'] = tcs
       }
-      const val = colValues[r] !== undefined ? colValues[r] : ''
+      const raw = colValues[r] !== undefined ? colValues[r] : ''
+      const parsed = this.#cellShapeManager.parseCellData(raw)
       const templateCell = tcs[Math.min(insertIdx, tcs.length - 1)] || tcs[0]
       let newCell
 
@@ -749,16 +940,52 @@ class TableManager {
         delete newCell['@_gridSpan']
         delete newCell['@_hMerge']
         delete newCell['@_vMerge']
-        if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
-          this.#setCellText(newCell, val.value !== undefined ? val.value : val.text, val)
+        if (newCell['a:tcPr']) {
+          delete newCell['a:tcPr']['@_marL']
+          delete newCell['a:tcPr']['@_marR']
+        }
+        if (parsed.kind === 'shape') {
+          if (parsed.shapeConfig?.textPosition === 'outside' && parsed.text) {
+            this.#setCellText(newCell, parsed.text, parsed.shapeConfig.textStyle || parsed.style)
+          } else {
+            this.#setCellText(newCell, '')
+          }
+          deferredShapes.push({ r, shapeConfig: parsed.shapeConfig, tcNode: newCell })
         } else {
-          this.#setCellText(newCell, val)
+          this.#setCellText(newCell, parsed.text, parsed.style)
+          if (parsed.style && Object.keys(parsed.style).length > 0) {
+            newCell['a:tcPr'] = StyleBuilder.buildCellProperties(newCell['a:tcPr'], parsed.style)
+          }
         }
       } else {
-        newCell = this.#createCellNode(val)
+        const cellText =
+          parsed.kind === 'shape'
+            ? parsed.shapeConfig?.textPosition === 'outside'
+              ? parsed.text
+              : ''
+            : parsed.text
+        newCell = this.#createCellNode(cellText, parsed.style)
+        if (parsed.kind === 'shape') {
+          deferredShapes.push({ r, shapeConfig: parsed.shapeConfig, tcNode: newCell })
+        }
       }
 
       tcs.splice(insertIdx, 0, newCell)
+    }
+
+    for (const item of deferredShapes) {
+      this.#cellShapeManager.applyCellShape(
+        resolvedSlideIndex,
+        tableId,
+        item.r,
+        insertIdx,
+        item.shapeConfig,
+        slideManager,
+        frame,
+        tblObj,
+        item.tcNode,
+        this.#shapeManager
+      )
     }
 
     this.#markDirty(resolvedSlideIndex, slideManager)
@@ -782,6 +1009,17 @@ class TableManager {
       throw new PPTXError(`Row index ${rowIndex} out of bounds (table has ${trs.length} rows)`)
     }
 
+    const removedRowH = parseInt(trs[rowIndex]?.['@_h'] || '370840', 10)
+
+    // Purge shapes on rowIndex and shift lower shapes upward
+    this.#cellShapeManager.removeRowShapesAndShift(
+      resolvedSlideIndex,
+      tableId,
+      rowIndex,
+      removedRowH,
+      slideManager
+    )
+
     trs.splice(rowIndex, 1)
     this.#markDirty(resolvedSlideIndex, slideManager)
     return this
@@ -800,21 +1038,35 @@ class TableManager {
   removeTableColumn(tableId, columnIndex, slideIndex, slideManager) {
     const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
     const gridCols = tblObj['a:tblGrid']?.['a:gridCol']
-    if (Array.isArray(gridCols)) {
-      if (columnIndex < 0 || columnIndex >= gridCols.length) {
-        throw new PPTXError(`Column index ${columnIndex} out of bounds`)
-      }
-      gridCols.splice(columnIndex, 1)
+    if (!Array.isArray(gridCols) || columnIndex < 0 || columnIndex >= gridCols.length) {
+      throw new PPTXError(`Column index ${columnIndex} out of bounds`)
     }
+
+    const removedColW = parseInt(gridCols[columnIndex]?.['@_w'] || '2032000', 10)
+
+    // Purge shapes on columnIndex and shift right shapes leftward
+    this.#cellShapeManager.removeColShapesAndShift(
+      resolvedSlideIndex,
+      tableId,
+      columnIndex,
+      removedColW,
+      slideManager
+    )
+
+    gridCols.splice(columnIndex, 1)
 
     const trs = Array.isArray(tblObj['a:tr'])
       ? tblObj['a:tr']
       : tblObj['a:tr']
         ? [tblObj['a:tr']]
         : []
-    for (const tr of trs) {
-      if (Array.isArray(tr['a:tc']) && columnIndex >= 0 && columnIndex < tr['a:tc'].length) {
-        tr['a:tc'].splice(columnIndex, 1)
+    for (let r = 0; r < trs.length; r++) {
+      if (
+        Array.isArray(trs[r]['a:tc']) &&
+        columnIndex >= 0 &&
+        columnIndex < trs[r]['a:tc'].length
+      ) {
+        trs[r]['a:tc'].splice(columnIndex, 1)
       }
     }
 
@@ -834,7 +1086,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   updateRowData(tableId, rowIndex, data, slideIndex, slideManager) {
-    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
     if (rowIndex < 0 || rowIndex >= trs.length) {
       throw new PPTXError(`Row index ${rowIndex} out of bounds`)
@@ -847,10 +1103,36 @@ class TableManager {
 
     for (let c = 0; c < vals.length && c < tcs.length; c++) {
       const v = vals[c]
-      if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
-        this.#setCellText(tcs[c], v.value !== undefined ? v.value : v.text, v)
+      const parsed = this.#cellShapeManager.parseCellData(v)
+      if (parsed.kind === 'shape') {
+        this.#cellShapeManager.applyCellShape(
+          resolvedSlideIndex,
+          tableId,
+          rowIndex,
+          c,
+          parsed.shapeConfig,
+          slideManager,
+          frame,
+          tblObj,
+          tcs[c],
+          this.#shapeManager
+        )
       } else {
-        this.#setCellText(tcs[c], v)
+        this.#cellShapeManager.removeCellShape(
+          resolvedSlideIndex,
+          tableId,
+          rowIndex,
+          c,
+          slideManager
+        )
+        if (tcs[c]['a:tcPr']) {
+          delete tcs[c]['a:tcPr']['@_marL']
+          delete tcs[c]['a:tcPr']['@_marR']
+        }
+        this.#setCellText(tcs[c], parsed.text, parsed.style)
+        if (parsed.style && Object.keys(parsed.style).length > 0) {
+          tcs[c]['a:tcPr'] = StyleBuilder.buildCellProperties(tcs[c]['a:tcPr'], parsed.style)
+        }
       }
     }
 
@@ -870,7 +1152,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   updateColumnData(tableId, columnIndex, data, slideIndex, slideManager) {
-    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     const trs = Array.isArray(tblObj['a:tr'])
       ? tblObj['a:tr']
       : tblObj['a:tr']
@@ -882,10 +1168,39 @@ class TableManager {
       const tcs = Array.isArray(trs[r]['a:tc']) ? trs[r]['a:tc'] : [trs[r]['a:tc']]
       if (columnIndex >= 0 && columnIndex < tcs.length) {
         const v = vals[r]
-        if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
-          this.#setCellText(tcs[columnIndex], v.value !== undefined ? v.value : v.text, v)
+        const parsed = this.#cellShapeManager.parseCellData(v)
+        if (parsed.kind === 'shape') {
+          this.#cellShapeManager.applyCellShape(
+            resolvedSlideIndex,
+            tableId,
+            r,
+            columnIndex,
+            parsed.shapeConfig,
+            slideManager,
+            frame,
+            tblObj,
+            tcs[columnIndex],
+            this.#shapeManager
+          )
         } else {
-          this.#setCellText(tcs[columnIndex], v)
+          this.#cellShapeManager.removeCellShape(
+            resolvedSlideIndex,
+            tableId,
+            r,
+            columnIndex,
+            slideManager
+          )
+          if (tcs[columnIndex]['a:tcPr']) {
+            delete tcs[columnIndex]['a:tcPr']['@_marL']
+            delete tcs[columnIndex]['a:tcPr']['@_marR']
+          }
+          this.#setCellText(tcs[columnIndex], parsed.text, parsed.style)
+          if (parsed.style && Object.keys(parsed.style).length > 0) {
+            tcs[columnIndex]['a:tcPr'] = StyleBuilder.buildCellProperties(
+              tcs[columnIndex]['a:tcPr'],
+              parsed.style
+            )
+          }
         }
       }
     }
@@ -911,7 +1226,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   updateTableCell(tableId, rowIndex, columnIndex, options = {}, slideIndex, slideManager) {
-    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
     if (rowIndex < 0 || rowIndex >= trs.length) {
       throw new PPTXError(`Row index ${rowIndex} out of bounds`)
@@ -925,28 +1244,53 @@ class TableManager {
     }
 
     const cell = tcs[columnIndex]
-    if (typeof options === 'string' || typeof options === 'number') {
-      this.#setCellText(cell, options)
-    } else if (typeof options === 'object' && options !== null) {
-      const textVal =
-        options.text !== undefined
-          ? options.text
-          : options.value !== undefined
-            ? options.value
-            : undefined
+    const parsed = this.#cellShapeManager.parseCellData(options)
 
-      if (textVal !== undefined) {
-        this.#setCellText(cell, textVal, options)
-      } else if (
-        Object.keys(options).some(k =>
-          ['bold', 'italic', 'fontSize', 'color', 'fontFace', 'align'].includes(k)
-        )
-      ) {
-        this.#applyTypography(cell, options)
+    if (parsed.kind === 'shape') {
+      this.#cellShapeManager.applyCellShape(
+        resolvedSlideIndex,
+        tableId,
+        rowIndex,
+        columnIndex,
+        parsed.shapeConfig,
+        slideManager,
+        frame,
+        tblObj,
+        cell,
+        this.#shapeManager
+      )
+    } else {
+      this.#cellShapeManager.removeCellShape(
+        resolvedSlideIndex,
+        tableId,
+        rowIndex,
+        columnIndex,
+        slideManager
+      )
+      if (cell['a:tcPr']) {
+        delete cell['a:tcPr']['@_marL']
+        delete cell['a:tcPr']['@_marR']
       }
+      if (
+        typeof options === 'string' ||
+        typeof options === 'number' ||
+        typeof options === 'boolean'
+      ) {
+        this.#setCellText(cell, options)
+      } else if (typeof options === 'object' && options !== null) {
+        if (parsed.text !== '' || options.value !== undefined || options.text !== undefined) {
+          this.#setCellText(cell, parsed.text, parsed.style)
+        } else if (
+          Object.keys(parsed.style).some(k =>
+            ['bold', 'italic', 'fontSize', 'color', 'fontFace', 'align', 'alignment'].includes(k)
+          )
+        ) {
+          this.#applyTypography(cell, parsed.style)
+        }
 
-      // Cell properties (fill, border, margins, vertical alignment)
-      cell['a:tcPr'] = StyleBuilder.buildCellProperties(cell['a:tcPr'], options)
+        // Cell properties (fill, border, margins, vertical alignment)
+        cell['a:tcPr'] = StyleBuilder.buildCellProperties(cell['a:tcPr'], parsed.style)
+      }
     }
 
     this.#markDirty(resolvedSlideIndex, slideManager)
@@ -970,10 +1314,15 @@ class TableManager {
       const tcs = Array.isArray(trs[rowIndex]['a:tc'])
         ? trs[rowIndex]['a:tc']
         : [trs[rowIndex]['a:tc']]
-      for (const tc of tcs) {
-        this.#setCellText(tc, '')
+      for (let c = 0; c < tcs.length; c++) {
+        this.#setCellText(tcs[c], '')
+        if (tcs[c]['a:tcPr']) {
+          delete tcs[c]['a:tcPr']['@_marL']
+          delete tcs[c]['a:tcPr']['@_marR']
+        }
       }
     }
+    this.#cellShapeManager.removeRowShapes(resolvedSlideIndex, tableId, rowIndex, slideManager)
     this.#markDirty(resolvedSlideIndex, slideManager)
     return this
   }
@@ -995,12 +1344,17 @@ class TableManager {
       : tblObj['a:tr']
         ? [tblObj['a:tr']]
         : []
-    for (const tr of trs) {
-      const tcs = Array.isArray(tr['a:tc']) ? tr['a:tc'] : [tr['a:tc']]
+    for (let r = 0; r < trs.length; r++) {
+      const tcs = Array.isArray(trs[r]['a:tc']) ? trs[r]['a:tc'] : [trs[r]['a:tc']]
       if (columnIndex >= 0 && columnIndex < tcs.length) {
         this.#setCellText(tcs[columnIndex], '')
+        if (tcs[columnIndex]['a:tcPr']) {
+          delete tcs[columnIndex]['a:tcPr']['@_marL']
+          delete tcs[columnIndex]['a:tcPr']['@_marR']
+        }
       }
     }
+    this.#cellShapeManager.removeColShapes(resolvedSlideIndex, tableId, columnIndex, slideManager)
     this.#markDirty(resolvedSlideIndex, slideManager)
     return this
   }
@@ -1025,8 +1379,19 @@ class TableManager {
         : [trs[rowIndex]['a:tc']]
       if (columnIndex >= 0 && columnIndex < tcs.length) {
         this.#setCellText(tcs[columnIndex], '')
+        if (tcs[columnIndex]['a:tcPr']) {
+          delete tcs[columnIndex]['a:tcPr']['@_marL']
+          delete tcs[columnIndex]['a:tcPr']['@_marR']
+        }
       }
     }
+    this.#cellShapeManager.removeCellShape(
+      resolvedSlideIndex,
+      tableId,
+      rowIndex,
+      columnIndex,
+      slideManager
+    )
     this.#markDirty(resolvedSlideIndex, slideManager)
     return this
   }
@@ -1041,7 +1406,7 @@ class TableManager {
    * @returns {Array<Array<string>>} 2D array of cell values.
    */
   getTableData(tableId, slideIndex, slideManager) {
-    const { tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
     const trs = Array.isArray(tblObj['a:tr'])
       ? tblObj['a:tr']
       : tblObj['a:tr']
@@ -1049,11 +1414,23 @@ class TableManager {
         : []
 
     const matrix = []
-    for (const tr of trs) {
+    for (let r = 0; r < trs.length; r++) {
+      const tr = trs[r]
       const tcs = Array.isArray(tr['a:tc']) ? tr['a:tc'] : tr['a:tc'] ? [tr['a:tc']] : []
       const row = []
-      for (const tc of tcs) {
-        row.push(this.#getCellText(tc))
+      for (let c = 0; c < tcs.length; c++) {
+        let text = this.#getCellText(tcs[c])
+        if (!text) {
+          const shapeText = this.#cellShapeManager.getCellShapeText(
+            resolvedSlideIndex,
+            tableId,
+            r,
+            c,
+            slideManager
+          )
+          if (shapeText) text = shapeText
+        }
+        row.push(text)
       }
       matrix.push(row)
     }
@@ -1151,7 +1528,11 @@ class TableManager {
    * @returns {Object} Cell descriptor object.
    */
   getCell(tableId, rowIndex, columnIndex, slideIndex, slideManager) {
-    const { frame, tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
     const tr = trs[rowIndex]
     if (!tr) return null
@@ -1160,7 +1541,18 @@ class TableManager {
     const tc = tcs[columnIndex]
     if (!tc) return null
 
-    const text = this.#getCellText(tc)
+    let text = this.#getCellText(tc)
+    const cellShape = this.#cellShapeManager.getCellShape(
+      resolvedSlideIndex,
+      tableId,
+      rowIndex,
+      columnIndex,
+      slideManager
+    )
+    if (!text && cellShape?.text) {
+      text = cellShape.text
+    }
+
     const tcPr = tc['a:tcPr'] || {}
     const fillClr = tcPr['a:solidFill']?.['a:srgbClr']?.['@_val'] || null
 
@@ -1183,6 +1575,7 @@ class TableManager {
         parseInt(tc['@_rowSpan'] || '1', 10) > 1 ||
         parseInt(tc['@_gridSpan'] || '1', 10) > 1,
       bounds,
+      shape: cellShape || null,
     }
   }
 

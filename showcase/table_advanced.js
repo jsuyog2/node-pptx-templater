@@ -48,7 +48,7 @@ const OUTPUT_DIR = path.resolve(__dirname, 'output')
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'table_advanced_output.pptx')
 
 async function run() {
-  const startTime = Date.now();
+  const startTime = Date.now()
   console.log('='.repeat(75))
   console.log('node-pptx-templater: Strict 30-Method Tables Subsystem Master Showcase')
   console.log('='.repeat(75))
@@ -63,16 +63,112 @@ async function run() {
   console.log('\n[Part 1] Table Lifecycle & Cloning...')
 
   // 1. addTable
-
   ppt.useSlide(1)
   ppt.addTable(
     1,
     3,
     4,
     [
-      ['Department', 'Q1 Target', 'Q1 Actual', 'Status'],
-      ['Engineering', '$450,000', '$475,000', { type: 'circle', fill: '#10B981' }],
-      ['Marketing', '$200,000', { value: '$210,000', color: '15803D', bold: true }, { type: 'square', fill: '#10B981' }],
+      [
+        'Department',
+        'Sprint Status (Inside Text)',
+        'Blocker Indicator (Outside Text)',
+        'Priority Rating (Shape Only)',
+      ],
+      [
+        'Engineering',
+        // Variation 1: Inside Shape Text (renders inside shape's <p:txBody>)
+        {
+          shape: {
+            type: 'roundRect',
+            fill: '#10B981',
+            stroke: '#059669',
+            width: 80,
+            height: 24,
+          },
+          text: 'Completed',
+          textPosition: 'inside',
+          textStyle: {
+            color: '#FFFFFF',
+            fontSize: 10,
+            bold: true,
+            alignment: 'center',
+          },
+        },
+        // Variation 2: Outside Shape Text (shape anchored badge, text in cell <a:txBody>)
+        {
+          shape: {
+            type: 'circle',
+            fill: '#EF4444',
+            width: 12,
+            height: 12,
+          },
+          text: 'Critical Blocker',
+          textPosition: 'outside',
+          shapePlacement: 'left',
+          textStyle: {
+            color: '#1E293B',
+            fontSize: 11,
+            bold: false,
+          },
+        },
+        // Variation 3: Shape Only (graphic shape anchored within cell with zero text)
+        {
+          shape: {
+            type: 'star5',
+            fill: '#F59E0B',
+            stroke: '#D97706',
+            width: 18,
+            height: 18,
+          },
+        },
+      ],
+      [
+        'Marketing',
+        // Secondary row: Inside Shape Text with "In Review" badge
+        {
+          shape: {
+            type: 'roundRect',
+            fill: '#3B82F6',
+            width: 75,
+            height: 22,
+          },
+          text: 'In Review',
+          textPosition: 'inside',
+          textStyle: {
+            color: '#FFFFFF',
+            fontSize: 10,
+            bold: true,
+            alignment: 'center',
+          },
+        },
+        // Outside Shape Text: On Track indicator
+        {
+          shape: {
+            type: 'circle',
+            fill: '#10B981',
+            width: 12,
+            height: 12,
+          },
+          text: 'On Track',
+          textPosition: 'outside',
+          shapePlacement: 'left',
+          textStyle: {
+            color: '#15803D',
+            fontSize: 11,
+            bold: true,
+          },
+        },
+        // Shape Only: Right Arrow badge
+        {
+          shape: {
+            type: 'rightArrow',
+            fill: '#6366F1',
+            width: 16,
+            height: 14,
+          },
+        },
+      ],
     ],
     {
       id: 'PerformanceTable',
@@ -85,10 +181,11 @@ async function run() {
       bandRow: true,
     }
   )
-  console.log('  ✓ 1. addTable: Created "PerformanceTable" with percentage coordinates.')
+  console.log(
+    '  ✓ 1. addTable: Created "PerformanceTable" demonstrating inside, outside, and shape-only cell variations.'
+  )
 
   // 2. updateTable
-
   ppt.useSlide(2)
   ppt.updateTable('UpdateTable', {
     y: '12%',
@@ -100,15 +197,25 @@ async function run() {
   ppt.useSlide(3)
   ppt.updateTableData('UpdateTable', [
     ['Department', 'Q1 Target', 'Q1 Actual', 'Status'],
-    ['Engineering & Product', '$500,000', '$520,000', { type: 'circle', fill: '#10B981' }],
-    ['Global Marketing', '$250,000', '$245,000', { type: 'circle', fill: '#10B981' }],
+    [
+      'Engineering & Product',
+      '$500,000',
+      '$520,000',
+      { shape: { type: 'circle', fill: '#10B981' } },
+    ],
+    [
+      'Global Marketing',
+      '$250,000',
+      '$245,000',
+      { shape: { type: 'circle', fill: '#10B981', shapePlacement: 'left' } },
+    ],
   ])
   console.log('  ✓ 3. updateTableData: Replaced matrix data seamlessly.')
 
-  // 7. removeTable
+  // 4. removeTable
   ppt.useSlide(4)
   ppt.removeTable('UpdateTable')
-  console.log('  ✓ 7. removeTable: Cleanly purged temporary table.')
+  console.log('  ✓ 4. removeTable: Cleanly purged temporary table.')
 
   // 5. getTables
   ppt.useAllSlides()
@@ -122,17 +229,12 @@ async function run() {
     `  ✓ 6. getTable: Fetched metadata for "${tableMeta.name}" (${tableMeta.rows}x${tableMeta.columns}).`
   )
 
-  // 4. cloneTable
+  // 7. cloneTable
   ppt.useSlide(5)
   ppt.cloneTable('UpdateTable', 'ClonedPerformanceTable', {
     y: '52%',
   })
-  console.log('  ✓ 4. cloneTable: Cloned "PerformanceTable" -> "ClonedPerformanceTable".')
-
-
-
-
-
+  console.log('  ✓ 7. cloneTable: Cloned "PerformanceTable" -> "ClonedPerformanceTable".')
 
   // --------------------------------------------------------------------------
   // PART 2: Row & Column Structural Manipulation & Data I/O (Slide 2)
@@ -141,13 +243,27 @@ async function run() {
 
   // 8. addTableRow
   ppt.useSlide(6)
-  ppt.addTableRow('UpdateTable', 2, ['Widget C', 'Hardware', '$49.99', { type: 'circle', fill: '#10B981' }])
-  ppt.addTableRow('UpdateTable', 1, ['Widget Premium', 'Hardware', '$199.99', { type: 'circle', fill: '#10B981' }])
+  ppt.addTableRow('UpdateTable', 2, [
+    'Widget C',
+    'Hardware',
+    '$49.99',
+    { shape: { type: 'circle', fill: '#10B981' } },
+  ])
+  ppt.addTableRow('UpdateTable', 1, [
+    'Widget Premium',
+    'Hardware',
+    '$199.99',
+    { shape: { type: 'circle', fill: '#10B981' } },
+  ])
   console.log('  ✓ 8. addTableRow: Appended and inserted rows.')
 
   // 9. addTableColumn
   ppt.useSlide(7)
-  ppt.addTableColumn('UpdateTable', ['Status', '450', { type: 'circle', fill: '#10B981' }])
+  ppt.addTableColumn('UpdateTable', [
+    'Status',
+    '450',
+    { shape: { type: 'circle', fill: '#10B981' } },
+  ])
   console.log('  ✓ 9. addTableColumn: Added "Stock" column across all rows.')
 
   // 10. removeTableRow
@@ -158,63 +274,75 @@ async function run() {
   // 11. removeTableColumn
   ppt.useSlide(9)
   ppt.removeTableColumn('UpdateTable', 1)
+  ppt.removeTableColumn('UpdateTable', 3)
   console.log('  ✓ 11. removeTableColumn: Removed column at index 1 ("Category").')
 
   // 12. updateRowData
   ppt.useSlide(10)
-  ppt.updateRowData('UpdateTable', 1, ['Widget Ultra', '$249.99', '500', { type: 'circle', fill: '#b91010ff' }])
+  ppt.updateRowData('UpdateTable', 1, [
+    'Widget Ultra',
+    '$249.99',
+    '500',
+    { shape: { type: 'circle', fill: '#b91010ff' } },
+  ])
   console.log('  ✓ 12. updateRowData: Updated row 1 values.')
 
   // 13. updateColumnData
   ppt.useSlide(11)
-  ppt.updateColumnData('UpdateTable', 2, ['Units In Stock', '600', { type: 'circle', fill: '#b91010ff' }])
+  ppt.updateColumnData('UpdateTable', 2, [
+    'Units In Stock',
+    '600',
+    { shape: { type: 'circle', fill: '#b91010ff' } },
+  ])
   console.log('  ✓ 13. updateColumnData: Updated column 2 values.')
 
-  // 21. updateTableCell
+  // 14. updateTableCell
   ppt.useSlide(12)
   ppt.updateTableCell('UpdateTable', 2, 2, { text: 'To Clear', fill: 'FEF3C7', bold: true })
-  ppt.updateTableCell('UpdateTable', 2, 3, { type: 'circle', fill: '#b91010ff' })
-  console.log('  ✓ 21. updateTableCell: Updated cell (2, 2) with text and fill.')
+  ppt.updateTableCell('UpdateTable', 2, 3, { shape: { type: 'circle', fill: '#b91010ff' } })
+  console.log('  ✓ 14. updateTableCell: Updated cell (2, 2) with text and fill.')
 
-  // 14. clearRowData
+  // 15. clearRowData
   ppt.useSlide(13)
   ppt.clearRowData('UpdateTable', 2)
-  console.log('  ✓ 14. clearRowData: Cleared row text while keeping cell structure.')
+  console.log('  ✓ 15. clearRowData: Cleared row text while keeping cell structure.')
 
-  // 15. clearColumnData
+  // 16. clearColumnData
   ppt.useSlide(14)
   ppt.clearColumnData('UpdateTable', 2)
-  console.log('  ✓ 15. clearColumnData: Cleared column text while keeping structure.')
+  ppt.clearColumnData('UpdateTable', 4)
+  console.log('  ✓ 16. clearColumnData: Cleared column text while keeping structure.')
 
-  // 21. clearCellData
+  // 17. clearCellData
   ppt.useSlide(15)
   ppt.clearCellData('UpdateTable', 2, 2)
-  console.log('  ✓ 21. clearCellData: Emptied cell (2, 2) while keeping fill.')
+  ppt.clearCellData('UpdateTable', 2, 4)
+  console.log('  ✓ 17. clearCellData: Emptied cell (2, 2) while keeping fill.')
 
-  // 22. getTableData
+  // 18. getTableData
   const matrix = ppt.getTableData('UpdateTable')
-  console.log('  ✓ 22. getTableData: 2D Matrix has', matrix.length, 'rows.')
+  console.log('  ✓ 18. getTableData: 2D Matrix has', matrix.length, 'rows.')
 
-  // 17. getColumnData
+  // 19. getColumnData
   ppt.useSlide(16)
   const colData = ppt.getColumnData('UpdateTable', 0)
-  console.log('  ✓ 17. getColumnData: Product names column is', JSON.stringify(colData))
+  console.log('  ✓ 19. getColumnData: Product names column is', JSON.stringify(colData))
 
-  // 16. getRowData
+  // 20. getRowData
   ppt.useSlide(15)
   const rowData = ppt.getRowData('UpdateTable', 0)
-  console.log('  ✓ 16. getRowData: Header row is', JSON.stringify(rowData))
+  console.log('  ✓ 20. getRowData: Header row is', JSON.stringify(rowData))
 
-  // 19. getColumn
+  // 21. getColumn
   const colObj = ppt.getColumn('UpdateTable', 1)
   console.log(
-    `  ✓ 19. getColumn: Col 1 width=${colObj.width} EMU, data=${JSON.stringify(colObj.data)}`
+    `  ✓ 21. getColumn: Col 1 width=${colObj.width} EMU, data=${JSON.stringify(colObj.data)}`
   )
 
-  // 18. getRow
+  // 22. getRow
   const rowObj = ppt.getRow('UpdateTable', 1)
   console.log(
-    `  ✓ 18. getRow: Row 1 height=${rowObj.height} EMU, data=${JSON.stringify(rowObj.data)}`
+    `  ✓ 22. getRow: Row 1 height=${rowObj.height} EMU, data=${JSON.stringify(rowObj.data)}`
   )
 
   // 23. getCell
@@ -225,6 +353,11 @@ async function run() {
   const rawText = ppt.getCellData('UpdateTable', 1, 1)
   console.log(`  ✓ 24. getCellData: Raw cell string at (1,1) is "${rawText}"`)
 
+  // --------------------------------------------------------------------------
+  // PART 3: Merging, Splitting & Multi-Tier Styling
+  // --------------------------------------------------------------------------
+  console.log('\n[Part 3] Merging, Splitting & Multi-Tier Styling...')
+
   // 25. mergeCells
   ppt.useSlide(16)
   ppt.mergeCells('UpdateTable', 0, 0, 0, 4) // Merge entire top row
@@ -234,7 +367,6 @@ async function run() {
   ppt.useSlide(17)
   ppt.splitCell('UpdateTable', 1, 0) // Restore summary row to 4 independent cells
   console.log('  ✓ 26. splitCell: Restored row 3 to independent matrix cells.')
-
 
   // 27. styleTable
   ppt.useSlide(18)
@@ -249,16 +381,16 @@ async function run() {
   })
   console.log('  ✓ 27. styleTable: Applied alternating bands and border theme.')
 
-  // 29. styleColumn
+  // 28. styleColumn
   ppt.useSlide(19)
   ppt.styleColumn('UpdateTable', 3, {
     bold: true,
     align: 'r',
     color: '15803D',
   })
-  console.log('  ✓ 29. styleColumn: Styled Growth column in bold green with right alignment.')
+  console.log('  ✓ 28. styleColumn: Styled Growth column in bold green with right alignment.')
 
-  // 28. styleRow
+  // 29. styleRow
   ppt.useSlide(20)
   ppt.styleRow('UpdateTable', 1, {
     fill: '172554',
@@ -267,7 +399,7 @@ async function run() {
     height: 35,
     fontSize: 13,
   })
-  console.log('  ✓ 28. styleRow: Applied corporate dark header styling with white bold font.')
+  console.log('  ✓ 29. styleRow: Applied corporate dark header styling with white bold font.')
 
   // 30. styleCell
   ppt.useSlide(21)
@@ -277,11 +409,6 @@ async function run() {
     border: { color: '22C55E', width: 2 },
   })
   console.log('  ✓ 30. styleCell: Highlighted top performing cell (3, 3).')
-
-  // --------------------------------------------------------------------------
-  // PART 3: Cell Operations & Data Matrix (Slide 3)
-  // --------------------------------------------------------------------------
-  console.log('\n[Part 3] Cell Operations & Accessors (Slide 3)...')
 
   // --------------------------------------------------------------------------
   // Save & Verify Output Deck

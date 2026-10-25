@@ -191,10 +191,10 @@ class PPTXTemplater {
       this.#contentTypesManager
     )
     this.#chartManager = new ChartManager(this.#xmlParser, this.#contentTypesManager)
-    this.#tableManager = new TableManager(this.#xmlParser)
+    this.#shapeManager = new ShapeManager(this.#xmlParser)
+    this.#tableManager = new TableManager(this.#xmlParser, this.#shapeManager)
     this.#hyperlinkManager = new HyperlinkManager(this.#xmlParser, this.#relationshipManager)
     this.#mediaManager = new MediaManager(this.#contentTypesManager)
-    this.#shapeManager = new ShapeManager(this.#xmlParser)
     this.#imageManager = new ImageManager(this.#xmlParser)
     this.#textManager = new TextManager(this.#xmlParser)
     this.#templateEngine = new TemplateEngine(this.#xmlParser)

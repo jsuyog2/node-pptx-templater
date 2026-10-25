@@ -64,6 +64,14 @@
   - Vertically Shadowed Cells: Set `@_vMerge="1"`; delete `@_rowSpan` and text content.
 - **Cell Splitting Protocol**: Remove `rowSpan`, `gridSpan`, `hMerge`, and `vMerge` attributes across the region, restoring independent cell boundaries. Works whether called on primary anchor or secondary continuation cells.
 - **Fluent Method Chaining**: All table mutation methods must return `this` (or `Promise<PPTXTemplater>` when async).
+- **Polymorphic Table Cell Ingestion & Overlay Badges**:
+  - `addTable`, `updateTable`, `updateTableData`, `updateTableCell`, `updateRowData`, `addTableRow`, and `addTableColumn` accept polymorphic inputs:
+    1. **Primitives**: `string`, `number`, `boolean` seamlessly serialized to DrawingML text runs `<a:t>`.
+    2. **Styled Values**: `{ value, style: { fontSize, fontFace, color, bold, italic, alignment, verticalAlignment, fill, ... } }`.
+    3. **Cell Shape Overlays**: Positioned shape overlays (e.g. `roundRect`, `circle`, `pill`) aligned with cell bounding coordinates without modifying `<a:tbl>` table structure or causing table reflow:
+       - `textPosition: 'inside'`: Renders inside `<p:txBody>` of the overlay shape; underlying `<a:tc>` text remains empty.
+       - `textPosition: 'outside'`: Shape renders without text; cell DrawingML `<a:txBody>` retains text and margin padding (`@_marL` / `@_marR`) is auto-applied to prevent collision.
+  - Life-cycle integration automatically handles cell badge repositioning, cleaning on cell updates/clears, and cloning with coordinate offsets.
 
 ## 4. Z-Order & `<p:spTree>` Container Order
 - **ECMA-376 Header Order**: Inside `<p:spTree>` and `<p:grpSp>`, non-visual headers must appear before drawing children:
