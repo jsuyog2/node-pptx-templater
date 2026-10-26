@@ -218,9 +218,9 @@ async function run() {
   console.log('  ✓ 4. removeTable: Cleanly purged temporary table.')
 
   // 5. getTables
-  ppt.useAllSlides()
-  const slide1Tables = ppt.getTables()
-  console.log(`  ✓ 5. getTables: Discovered ${slide1Tables.length} tables on Slide 1.`)
+  ppt.useSlide(1)
+  const slide1Tables = ppt.getTables(1)
+  console.log(`  ✓ 5. getTables: Discovered ${slide1Tables.length} table(s) on Slide 1.`)
 
   // 6. getTable
   ppt.useSlide(3)
@@ -234,12 +234,12 @@ async function run() {
   ppt.cloneTable('UpdateTable', 'ClonedPerformanceTable', {
     y: '52%',
   })
-  console.log('  ✓ 7. cloneTable: Cloned "PerformanceTable" -> "ClonedPerformanceTable".')
+  console.log('  ✓ 7. cloneTable: Cloned "UpdateTable" -> "ClonedPerformanceTable".')
 
   // --------------------------------------------------------------------------
-  // PART 2: Row & Column Structural Manipulation & Data I/O (Slide 2)
+  // PART 2: Row & Column Structural Manipulation & Data I/O
   // --------------------------------------------------------------------------
-  console.log('\n[Part 2] Row & Column Operations (Slide 2)...')
+  console.log('\n[Part 2] Row & Column Operations...')
 
   // 8. addTableRow
   ppt.useSlide(6)
@@ -259,23 +259,28 @@ async function run() {
 
   // 9. addTableColumn
   ppt.useSlide(7)
-  ppt.addTableColumn('UpdateTable', [
+  ppt.addTableColumn('UpdateTable', 4, [
     'Status',
     '450',
     { shape: { type: 'circle', fill: '#10B981' } },
   ])
-  console.log('  ✓ 9. addTableColumn: Added "Stock" column across all rows.')
+  console.log('  ✓ 9. addTableColumn: Added "Status" column across all rows.')
 
   // 10. removeTableRow
   ppt.useSlide(8)
-  ppt.removeTableRow('UpdateTable', 2)
-  console.log('  ✓ 10. removeTableRow: Removed row at index 2.')
+  ppt.removeTableRow('UpdateTable', 1)
+  ppt.removeTableRow('UpdateTable', 3)
+  console.log(
+    '  ✓ 10. removeTableRow: Sequentially removed row 1 and row 3, purging shapes & arrow connectors while shifting surviving rows.'
+  )
 
   // 11. removeTableColumn
   ppt.useSlide(9)
-  ppt.removeTableColumn('UpdateTable', 1)
+  ppt.removeTableColumn('UpdateTable', 2)
   ppt.removeTableColumn('UpdateTable', 3)
-  console.log('  ✓ 11. removeTableColumn: Removed column at index 1 ("Category").')
+  console.log(
+    '  ✓ 11. removeTableColumn: Sequentially removed column 2 and column 3, purging column shapes & arrow connectors.'
+  )
 
   // 12. updateRowData
   ppt.useSlide(10)

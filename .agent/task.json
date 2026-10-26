@@ -1,75 +1,47 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.10.1",
-    "category": "Table Cell Shapes Subsystem Bug Fixes",
-    "scope": "Fix cell shape lifecycle, positioning, index reordering, text coexistence, cloning, and cascading deletions across all Table API methods",
+    "version": "3.10.6",
+    "category": "Showcase Verification & Arrow Shape Removal Fixes",
+    "scope": "Verify showcase/table_advanced.js script and fix arrow shape removal (rightArrow preset / cxnSp connector / table cell arrow shapes) on slides 8 and 9",
     "tasks": [
         {
-            "id": "TASK-TBL-SHAPE-FIX-001",
-            "title": "Fix Initial Table Cell Shape Rendering in addTable and Placement in updateTableData",
+            "id": "TASK-SHOWCASE-VERIFY-001",
+            "title": "Comprehensive Audit and Execution Verification of showcase/table_advanced.js",
             "status": "completed",
-            "description": "Fix issues #1 and #2. In TableManager.js and CellShapeManager.js, ensure addTable correctly parses polymorphic cell shape configurations during initial table generation. In updateTableData, fix the positioning and placement calculation for newly added or replaced cell shapes so that offset attributes, alignment, width/height, and placement (left/right/center) render accurately relative to the table cell bounds without failing silently.",
+            "description": "Perform an end-to-end code audit of showcase/table_advanced.js. Verify method call indexing, argument alignments, sequential slide flow, and slide context targeting (specifically slides 8 and 9). Ensure that executing 'node showcase/table_advanced.js' runs cleanly with zero runtime exceptions, creates valid OpenXML output, and opens in Microsoft PowerPoint with zero repair warnings.",
+            "deliverables": [
+                "showcase/table_advanced.js"
+            ]
+        },
+        {
+            "id": "TASK-ARROW-REMOVAL-FIX-002",
+            "title": "Fix Arrow Shape Detection and Cascading Removal in Table Operations",
+            "status": "completed",
+            "description": "Resolve Bug #2 on slides 8 and 9 where added arrows fail to be removed during table/row/column removal or cell cleaning. Root causes: (1) Arrow shapes use preset 'rightArrow' (or aliases 'arrow', 'right-arrow', 'leftArrow', 'upArrow', 'downArrow') or connector elements (<p:cxnSp>), which get skipped by shape selector queries looking only for standard rects/circles or strict <p:sp> nodes; (2) In CellShapeManager and TableManager boundary-based deletion routines, coordinate calculations for non-rectangular or directional shapes (rotations, arrow head extents, or flipped geometries) fail strict bounding box containment. Fix: ensure shape filtering targets both <p:sp> and <p:cxnSp>, normalizes arrow preset names, and checks arrow bounding coordinates accurately against table, row, column, and cell boundary boxes.",
             "deliverables": [
                 "src/managers/TableManager.js",
-                "src/elements/CellShapeManager.js"
+                "src/elements/TableManager.js",
+                "src/elements/CellShapeManager.js",
+                "src/managers/ShapeManager.js"
             ]
         },
         {
-            "id": "TASK-TBL-SHAPE-FIX-002",
-            "title": "Implement Deep Shape Cloning in cloneTable",
+            "id": "TASK-ARROW-STANDALONE-FIX-003",
+            "title": "Ensure removeShape and Slide Cleanup Support Arrow and Connector Nodes",
             "status": "completed",
-            "description": "Fix issue #3. When cloneTable duplicates a table graphic frame (<p:graphicFrame>), query all anchored cell shapes associated with the source tableId, duplicate their underlying <p:sp> nodes in <p:spTree>, recalculate offsets relative to the new cloned table coordinates, allocate unique shape IDs, and register them under clonedTableId.",
+            "description": "Verify slide-level shape removal (removeShape, clearShapes) on slides 8 and 9. Ensure that if the arrow was added as a standalone shape (via addShape) or connector (via addShape with type 'arrow'/'rightArrow'), removeShape matches the shape by either ID (<p:cNvPr id=\"...\">) or name (<p:cNvPr name=\"...\">) across both <p:sp> and <p:cxnSp> elements, and cleanly disbands references in <p:spTree>.",
             "deliverables": [
-                "src/managers/TableManager.js",
-                "src/elements/CellShapeManager.js"
+                "src/managers/ShapeManager.js",
+                "src/elements/ShapeManager.js"
             ]
         },
         {
-            "id": "TASK-TBL-SHAPE-FIX-003",
-            "title": "Fix Dynamic Row Insertion Indexing and Shift Existing Cell Shapes in addTableRow",
+            "id": "TASK-TEST-VERIFY-004",
+            "title": "Automated Tests for Arrow Shape Removal and Coordinate Life Cycles",
             "status": "completed",
-            "description": "Fix issue #4. In addTableRow, when inserting a new row at rowIndex, shift the row index metadata of all existing cell shapes at or below rowIndex downward (rowIndex >= targetIndex -> rowIndex + 1). Ensure shapes are bound strictly to the target insertion index rather than the order of creation or last-modified row.",
+            "description": "Write automated integration tests in tests/integration/tableArrowShapeRemoval.test.js replicating slides 8 and 9: (1) add arrow shapes to table cells (inside, outside, and shape-only); (2) remove rows and columns containing arrows and assert arrows are purged from <p:spTree>; (3) remove table with arrows and assert zero orphaned arrow nodes remain; (4) test standalone arrow removal via removeShape. Verify with 'npm test' and inspect generated PPTX files in PowerPoint.",
             "deliverables": [
-                "src/managers/TableManager.js",
-                "src/elements/CellShapeManager.js"
-            ]
-        },
-        {
-            "id": "TASK-TBL-SHAPE-FIX-004",
-            "title": "Fix Text and Shape Coexistence in addTableColumn",
-            "status": "completed",
-            "description": "Fix issue #5. In addTableColumn, ensure both shape overlays and accompanying text are correctly added. When polymorphic column data provides shapes with outside text, ensure both the cell DrawingML text body (<a:txBody>) and the anchored shape node (<p:sp>) render without dropping the text runs.",
-            "deliverables": [
-                "src/managers/TableManager.js"
-            ]
-        },
-        {
-            "id": "TASK-TBL-SHAPE-FIX-005",
-            "title": "Cascading Deletion of Cell Shapes in removeTable, removeTableRow, and removeTableColumn",
-            "status": "completed",
-            "description": "Fix issues #6, #7, and #8. Implement cascading deletions of anchored shape nodes (<p:sp>) from <p:spTree>: (1) removeTable must purge all shapes associated with the target tableId; (2) removeTableRow must purge all shapes in the removed rowIndex and decrement indices for rows below it; (3) removeTableColumn must purge all shapes in the removed columnIndex and decrement indices for columns to the right.",
-            "deliverables": [
-                "src/managers/TableManager.js",
-                "src/elements/CellShapeManager.js"
-            ]
-        },
-        {
-            "id": "TASK-TBL-SHAPE-FIX-006",
-            "title": "Cascading Shape Purging in clearRowData, clearColumnData, and clearCellData",
-            "status": "completed",
-            "description": "Fix issues #9, #10, and #11. Ensure data clearing operations also purge associated cell shapes: clearRowData must remove all shapes across the specified rowIndex; clearColumnData must remove all shapes across the specified columnIndex; clearCellData must remove shapes anchored at (rowIndex, columnIndex).",
-            "deliverables": [
-                "src/managers/TableManager.js",
-                "src/elements/CellShapeManager.js"
-            ]
-        },
-        {
-            "id": "TASK-TBL-SHAPE-FIX-007",
-            "title": "Comprehensive Integration Tests & Showcase Verification",
-            "status": "completed",
-            "description": "Write automated tests in tests/integration/tableCellShapesLifecycle.test.js covering all 11 bug scenarios. Verify with showcase/table_advanced.js and confirm that exported presentations trigger zero Microsoft PowerPoint repair warnings.",
-            "deliverables": [
-                "tests/integration/tableCellShapesLifecycle.test.js",
+                "tests/integration/tableArrowShapeRemoval.test.js",
                 "showcase/table_advanced.js"
             ]
         }

@@ -3271,7 +3271,16 @@ class SlideManager {
 
   getSlideShape(slideIndex, shapeId) {
     this.getSlideObj(slideIndex)
-    return this.#slideStates.get(slideIndex).shapeMap.get(String(shapeId)) || null
+    const map = this.#slideStates.get(slideIndex)?.shapeMap
+    if (!map) return null
+    const key = String(shapeId).trim()
+    const found = map.get(key)
+    if (found) return found
+    const lowerKey = key.toLowerCase()
+    for (const [k, v] of map.entries()) {
+      if (k.toLowerCase() === lowerKey) return v
+    }
+    return null
   }
 
   getSlidePic(slideIndex, picId) {

@@ -1183,6 +1183,7 @@ class ShapeManager {
     if (!spTree) return null
 
     const targetIdStr = String(shapeId).trim()
+    const targetLower = targetIdStr.toLowerCase()
 
     const searchContainer = container => {
       if (!container) return null
@@ -1191,11 +1192,17 @@ class ShapeManager {
       if (!Array.isArray(shapes)) shapes = [shapes]
       for (const s of shapes) {
         const cNvPr = s?.['p:nvSpPr']?.['p:cNvPr']
-        if (
-          cNvPr &&
-          (String(cNvPr['@_id']) === targetIdStr || String(cNvPr['@_name']) === targetIdStr)
-        ) {
-          return { shape: s, parent: container, type: 'sp' }
+        if (cNvPr) {
+          const id = String(cNvPr['@_id'])
+          const name = String(cNvPr['@_name'] || '')
+          if (
+            id === targetIdStr ||
+            name === targetIdStr ||
+            name.toLowerCase() === targetLower ||
+            id.toLowerCase() === targetLower
+          ) {
+            return { shape: s, parent: container, type: 'sp' }
+          }
         }
       }
 
@@ -1203,11 +1210,17 @@ class ShapeManager {
       if (!Array.isArray(cxns)) cxns = [cxns]
       for (const c of cxns) {
         const cNvPr = c?.['p:nvCxnSpPr']?.['p:cNvPr']
-        if (
-          cNvPr &&
-          (String(cNvPr['@_id']) === targetIdStr || String(cNvPr['@_name']) === targetIdStr)
-        ) {
-          return { shape: c, parent: container, type: 'cxnSp' }
+        if (cNvPr) {
+          const id = String(cNvPr['@_id'])
+          const name = String(cNvPr['@_name'] || '')
+          if (
+            id === targetIdStr ||
+            name === targetIdStr ||
+            name.toLowerCase() === targetLower ||
+            id.toLowerCase() === targetLower
+          ) {
+            return { shape: c, parent: container, type: 'cxnSp' }
+          }
         }
       }
 
@@ -1215,11 +1228,17 @@ class ShapeManager {
       if (!Array.isArray(groups)) groups = [groups]
       for (const g of groups) {
         const cNvPr = g?.['p:nvGrpSpPr']?.['p:cNvPr']
-        if (
-          cNvPr &&
-          (String(cNvPr['@_id']) === targetIdStr || String(cNvPr['@_name']) === targetIdStr)
-        ) {
-          return { shape: g, parent: container, type: 'grpSp' }
+        if (cNvPr) {
+          const id = String(cNvPr['@_id'])
+          const name = String(cNvPr['@_name'] || '')
+          if (
+            id === targetIdStr ||
+            name === targetIdStr ||
+            name.toLowerCase() === targetLower ||
+            id.toLowerCase() === targetLower
+          ) {
+            return { shape: g, parent: container, type: 'grpSp' }
+          }
         }
         const inner = searchContainer(g)
         if (inner) return inner

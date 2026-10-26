@@ -438,13 +438,28 @@ class TableManager {
    * @returns {TableManager} this
    */
   removeTable(tableId, slideIndex, slideManager) {
-    const { frame, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     const slideObj = slideManager.getSlideObj(resolvedSlideIndex)
     const spTree =
       slideObj?.['p:sld']?.['p:cSld']?.['p:spTree'] ||
       slideObj?.['p:sldLayout']?.['p:cSld']?.['p:spTree']
 
     const targetFrameId = String(frame?.['p:nvGraphicFramePr']?.['p:cNvPr']?.['@_id'] || '')
+
+    // Strict geometric bounding-box containment: purge shapes strictly interior to the table
+    const tableBounds = this.#cellShapeManager.getTableBounds(frame, tblObj)
+    if (tableBounds) {
+      this.#cellShapeManager.purgeShapesWithinBounds(
+        resolvedSlideIndex,
+        tableBounds,
+        slideManager,
+        tableId
+      )
+    }
 
     if (spTree?.['p:graphicFrame']) {
       if (Array.isArray(spTree['p:graphicFrame'])) {
@@ -464,7 +479,6 @@ class TableManager {
       }
     }
 
-    this.#cellShapeManager.removeAllCellShapesForTable(resolvedSlideIndex, tableId, slideManager)
     this.#markDirty(resolvedSlideIndex, slideManager)
     logger.debug(`Removed table "${tableId}" from slide ${resolvedSlideIndex}`)
     return this
@@ -645,7 +659,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   cloneTable(tableId, clonedTableId, clonedOptions = {}, slideIndex, slideManager) {
-    const { frame, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     const slideObj = slideManager.getSlideObj(resolvedSlideIndex)
     const spTree =
       slideObj['p:sld']?.['p:cSld']?.['p:spTree'] ||
@@ -714,7 +732,9 @@ class TableManager {
       newName,
       slideManager,
       newX - origX,
-      newY - origY
+      newY - origY,
+      frame,
+      tblObj
     )
 
     this.#markDirty(resolvedSlideIndex, slideManager)
@@ -1003,7 +1023,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   removeTableRow(tableId, rowIndex, slideIndex, slideManager) {
-    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
     if (rowIndex < 0 || rowIndex >= trs.length) {
       throw new PPTXError(`Row index ${rowIndex} out of bounds (table has ${trs.length} rows)`)
@@ -1011,16 +1035,27 @@ class TableManager {
 
     const removedRowH = parseInt(trs[rowIndex]?.['@_h'] || '370840', 10)
 
-    // Purge shapes on rowIndex and shift lower shapes upward
+    // Purge shapes strictly inside rowBounds and shift lower interior shapes upward
     this.#cellShapeManager.removeRowShapesAndShift(
       resolvedSlideIndex,
       tableId,
       rowIndex,
       removedRowH,
-      slideManager
+      slideManager,
+      frame,
+      tblObj
     )
 
     trs.splice(rowIndex, 1)
+
+    // Update graphicFrame ext cy to reflect the row deletion
+    if (frame?.['p:xfrm']?.['a:ext']?.['@_cy']) {
+      const curCy = parseInt(frame['p:xfrm']['a:ext']['@_cy'] || '0', 10)
+      if (curCy > removedRowH) {
+        frame['p:xfrm']['a:ext']['@_cy'] = String(curCy - removedRowH)
+      }
+    }
+
     this.#markDirty(resolvedSlideIndex, slideManager)
     return this
   }
@@ -1036,7 +1071,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   removeTableColumn(tableId, columnIndex, slideIndex, slideManager) {
-    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     const gridCols = tblObj['a:tblGrid']?.['a:gridCol']
     if (!Array.isArray(gridCols) || columnIndex < 0 || columnIndex >= gridCols.length) {
       throw new PPTXError(`Column index ${columnIndex} out of bounds`)
@@ -1044,16 +1083,26 @@ class TableManager {
 
     const removedColW = parseInt(gridCols[columnIndex]?.['@_w'] || '2032000', 10)
 
-    // Purge shapes on columnIndex and shift right shapes leftward
+    // Purge shapes strictly inside colBounds and shift right interior shapes leftward
     this.#cellShapeManager.removeColShapesAndShift(
       resolvedSlideIndex,
       tableId,
       columnIndex,
       removedColW,
-      slideManager
+      slideManager,
+      frame,
+      tblObj
     )
 
     gridCols.splice(columnIndex, 1)
+
+    // Update graphicFrame ext cx to reflect the column deletion
+    if (frame?.['p:xfrm']?.['a:ext']?.['@_cx']) {
+      const curCx = parseInt(frame['p:xfrm']['a:ext']['@_cx'] || '0', 10)
+      if (curCx > removedColW) {
+        frame['p:xfrm']['a:ext']['@_cx'] = String(curCx - removedColW)
+      }
+    }
 
     const trs = Array.isArray(tblObj['a:tr'])
       ? tblObj['a:tr']
@@ -1061,13 +1110,12 @@ class TableManager {
         ? [tblObj['a:tr']]
         : []
     for (let r = 0; r < trs.length; r++) {
-      if (
-        Array.isArray(trs[r]['a:tc']) &&
-        columnIndex >= 0 &&
-        columnIndex < trs[r]['a:tc'].length
-      ) {
-        trs[r]['a:tc'].splice(columnIndex, 1)
+      if (!trs[r] || !trs[r]['a:tc']) continue
+      const tcs = Array.isArray(trs[r]['a:tc']) ? trs[r]['a:tc'] : [trs[r]['a:tc']]
+      if (columnIndex >= 0 && columnIndex < tcs.length) {
+        tcs.splice(columnIndex, 1)
       }
+      trs[r]['a:tc'] = tcs
     }
 
     this.#markDirty(resolvedSlideIndex, slideManager)
@@ -1308,7 +1356,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   clearRowData(tableId, rowIndex, slideIndex, slideManager) {
-    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
     if (rowIndex >= 0 && rowIndex < trs.length) {
       const tcs = Array.isArray(trs[rowIndex]['a:tc'])
@@ -1322,7 +1374,16 @@ class TableManager {
         }
       }
     }
-    this.#cellShapeManager.removeRowShapes(resolvedSlideIndex, tableId, rowIndex, slideManager)
+    // Strict geometric bounding-box containment: purge shapes strictly interior to row
+    const rowBounds = this.#cellShapeManager.getTableRowBounds(frame, tblObj, rowIndex)
+    if (rowBounds) {
+      this.#cellShapeManager.purgeShapesWithinBounds(
+        resolvedSlideIndex,
+        rowBounds,
+        slideManager,
+        tableId
+      )
+    }
     this.#markDirty(resolvedSlideIndex, slideManager)
     return this
   }
@@ -1338,7 +1399,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   clearColumnData(tableId, columnIndex, slideIndex, slideManager) {
-    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     const trs = Array.isArray(tblObj['a:tr'])
       ? tblObj['a:tr']
       : tblObj['a:tr']
@@ -1354,7 +1419,16 @@ class TableManager {
         }
       }
     }
-    this.#cellShapeManager.removeColShapes(resolvedSlideIndex, tableId, columnIndex, slideManager)
+    // Strict geometric bounding-box containment: purge shapes strictly interior to column
+    const colBounds = this.#cellShapeManager.getTableColumnBounds(frame, tblObj, columnIndex)
+    if (colBounds) {
+      this.#cellShapeManager.purgeShapesWithinBounds(
+        resolvedSlideIndex,
+        colBounds,
+        slideManager,
+        tableId
+      )
+    }
     this.#markDirty(resolvedSlideIndex, slideManager)
     return this
   }
@@ -1371,7 +1445,11 @@ class TableManager {
    * @returns {TableManager} this
    */
   clearCellData(tableId, rowIndex, columnIndex, slideIndex, slideManager) {
-    const { tblObj, resolvedSlideIndex } = this.#getTableContext(slideIndex, tableId, slideManager)
+    const { frame, tblObj, resolvedSlideIndex } = this.#getTableContext(
+      slideIndex,
+      tableId,
+      slideManager
+    )
     const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
     if (rowIndex >= 0 && rowIndex < trs.length) {
       const tcs = Array.isArray(trs[rowIndex]['a:tc'])
@@ -1385,13 +1463,21 @@ class TableManager {
         }
       }
     }
-    this.#cellShapeManager.removeCellShape(
-      resolvedSlideIndex,
-      tableId,
+    // Strict geometric bounding-box containment: purge shapes strictly interior to cell
+    const cellBounds = this.#cellShapeManager.getTableCellBounds(
+      frame,
+      tblObj,
       rowIndex,
-      columnIndex,
-      slideManager
+      columnIndex
     )
+    if (cellBounds) {
+      this.#cellShapeManager.purgeShapesWithinBounds(
+        resolvedSlideIndex,
+        cellBounds,
+        slideManager,
+        tableId
+      )
+    }
     this.#markDirty(resolvedSlideIndex, slideManager)
     return this
   }
@@ -2095,38 +2181,94 @@ class TableManager {
    * @private
    */
   #calculateCellBounds(frame, tblObj, targetRow, targetCol) {
-    const xfrm = frame['p:xfrm'] || {}
-    const off = xfrm['a:off'] || {}
-    const startX = parseInt(off['@_x'] || '0', 10)
-    const startY = parseInt(off['@_y'] || '0', 10)
+    return this.#cellShapeManager.calculateCellBounds(frame, tblObj, targetRow, targetCol)
+  }
 
-    const gridCols = tblObj['a:tblGrid']?.['a:gridCol'] || []
-    const cols = Array.isArray(gridCols) ? gridCols : [gridCols]
-    const trs = Array.isArray(tblObj['a:tr']) ? tblObj['a:tr'] : [tblObj['a:tr']]
+  /**
+   * Calculates the full bounding box of a table in EMUs and pixels.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager instance.
+   * @returns {{ x: number, y: number, width: number, height: number, xMin: number, yMin: number, xMax: number, yMax: number, xPx: number, yPx: number, widthPx: number, heightPx: number }}
+   */
+  getTableBounds(tableId, slideIndex, slideManager) {
+    const { frame, tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    return this.#cellShapeManager.getTableBounds(frame, tblObj)
+  }
 
-    let currentX = startX
-    for (let c = 0; c < targetCol && c < cols.length; c++) {
-      currentX += parseInt(cols[c]?.['@_w'] || '0', 10)
+  /**
+   * Calculates the full horizontal row bounding box of a table row in EMUs and pixels.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager instance.
+   * @returns {{ x: number, y: number, width: number, height: number, xMin: number, yMin: number, xMax: number, yMax: number, xPx: number, yPx: number, widthPx: number, heightPx: number }}
+   */
+  getTableRowBounds(tableId, rowIndex, slideIndex, slideManager) {
+    const { frame, tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    return this.#cellShapeManager.getTableRowBounds(frame, tblObj, rowIndex)
+  }
+
+  /**
+   * Calculates the full vertical column bounding box of a table column in EMUs and pixels.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} columnIndex - 0-based column index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager instance.
+   * @returns {{ x: number, y: number, width: number, height: number, xMin: number, yMin: number, xMax: number, yMax: number, xPx: number, yPx: number, widthPx: number, heightPx: number }}
+   */
+  getTableColumnBounds(tableId, columnIndex, slideIndex, slideManager) {
+    const { frame, tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    return this.#cellShapeManager.getTableColumnBounds(frame, tblObj, columnIndex)
+  }
+
+  /**
+   * Calculates the bounding box of a specific cell in EMUs and pixels.
+   *
+   * @param {string} tableId - Table identifier.
+   * @param {number} rowIndex - 0-based row index.
+   * @param {number} columnIndex - 0-based column index.
+   * @param {number} [slideIndex] - Slide index.
+   * @param {SlideManager} slideManager - SlideManager instance.
+   * @returns {{ x: number, y: number, width: number, height: number, xMin: number, yMin: number, xMax: number, yMax: number, xPx: number, yPx: number, widthPx: number, heightPx: number }}
+   */
+  getTableCellBounds(tableId, rowIndex, columnIndex, slideIndex, slideManager) {
+    const { frame, tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    return this.#cellShapeManager.getTableCellBounds(frame, tblObj, rowIndex, columnIndex)
+  }
+
+  /**
+   * Calculates rendered cell bounding coordinates.
+   * Supports both (tableId, rowIndex, columnIndex, slideIndex, slideManager) and
+   * (slideIndex, tableId, rowIndex, columnIndex, slideManager) signatures.
+   *
+   * @param {string|number} first
+   * @param {string|number} second
+   * @param {number} third
+   * @param {number} fourth
+   * @param {SlideManager} fifth
+   * @returns {{ x: number, y: number, width: number, height: number, xMin: number, yMin: number, xMax: number, yMax: number, xPx: number, yPx: number, widthPx: number, heightPx: number }}
+   */
+  getCellBounds(first, second, third, fourth, fifth) {
+    let slideIndex, tableId, rowIndex, columnIndex, slideManager
+    if (typeof first === 'number' && typeof second === 'string') {
+      slideIndex = first
+      tableId = second
+      rowIndex = third
+      columnIndex = fourth
+      slideManager = fifth
+    } else {
+      tableId = first
+      rowIndex = second
+      columnIndex = third
+      slideIndex = fourth
+      slideManager = fifth
     }
-
-    let currentY = startY
-    for (let r = 0; r < targetRow && r < trs.length; r++) {
-      currentY += parseInt(trs[r]?.['@_h'] || '0', 10)
-    }
-
-    const cellWidth = parseInt(cols[targetCol]?.['@_w'] || '0', 10)
-    const cellHeight = parseInt(trs[targetRow]?.['@_h'] || '0', 10)
-
-    return {
-      x: currentX,
-      y: currentY,
-      width: cellWidth,
-      height: cellHeight,
-      xPx: Math.round(emuToPx(currentX)),
-      yPx: Math.round(emuToPx(currentY)),
-      widthPx: Math.round(emuToPx(cellWidth)),
-      heightPx: Math.round(emuToPx(cellHeight)),
-    }
+    const { frame, tblObj } = this.#getTableContext(slideIndex, tableId, slideManager)
+    return this.#cellShapeManager.getTableCellBounds(frame, tblObj, rowIndex, columnIndex)
   }
 }
 
