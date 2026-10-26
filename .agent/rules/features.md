@@ -142,3 +142,23 @@
   - **Fluent API**: All mutation methods return `this` (or `Promise<PPTXTemplater>`).
   - **Non-destructive Removal & Timing Pruning**: Deleting shapes clears timing sequence nodes in `<p:timing>` and verifies relationship targets are not shared before removing `.rels` entries.
 
+## 11. Strict 6-Method Hyperlinks Whitelist Boundary
+- **Approved 6 Methods**:
+  1. `addHyperlink(targetId, url, options)`
+  2. `updateHyperlink(targetId, url, options)`
+  3. `removeHyperlink(targetId)`
+  4. `getHyperlinks(slideId)`
+  5. `getHyperlink(targetId)`
+  6. `setHyperlink(targetId, text, url, options)`
+- **OpenXML Hyperlink Architecture & Mandates**:
+  - **Schema Location**:
+    - Shapes/Images: Attached to `<p:cNvPr>` under `<a:hlinkClick r:id="..." action="..." tooltip="...">`.
+    - Text Runs: Attached to `<a:rPr>` under `<a:hlinkClick r:id="..." action="..." tooltip="...">`.
+  - **External URLs**: Registered in `ppt/slides/_rels/slideN.xml.rels` with `Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"` and `TargetMode="External"`. Unsafe protocols (`javascript:`) strictly rejected.
+  - **Internal Slide Jumps**: Registered in `.rels` with `Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"` pointing to `slideM.xml`, and click action `action="ppaction://hlinksldjump"`.
+  - **Slideshow Actions**: Supported via standard action URIs (`ppaction://hlinkshowjump?s=nextslide`, `prevslide`, `firstslide`, `lastslide`, `endshow`).
+  - **AST Run Splitting (`setHyperlink`)**: Locates substring inside shape paragraphs, splits `<a:r>` runs to isolate the exact text, applies DrawingML styling (`color`, `underline`, `bold`, `italic`, `fontSize`) via `StyleBuilder`, and binds `<a:hlinkClick>`.
+  - **Orphan Relationship Purging**: Upon `removeHyperlink` or updating targets, verifies `rId` is not referenced anywhere else on the slide before removing the entry from `.rels`.
+  - **Fluent Chaining**: Mutation methods return `this` for fluent chaining.
+
+

@@ -3056,153 +3056,121 @@
     ],
     "Hyperlinks": [
       {
-        "id": "addslidelink",
-        "name": "addSlideLink",
-        "signature": "ppt.addSlideLink(options)",
+        "id": "addhyperlink",
+        "name": "addHyperlink",
+        "signature": "ppt.addHyperlink(targetId, url, options)",
         "category": "Hyperlinks",
-        "description": "Creates an internal navigation jump link that transitions the slideshow presentation directly to another specified slide index when clicked.",
-        "openXmlImpact": "Appends &lt;a:hlinkClick action=\"ppaction://hlinksldjump\" r:id=\"rId...\"/&gt; linked to target slide relationship.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
+        "description": "Binds an external web URL, inter-slide transition jump, or slideshow navigation action to an entire shape, textbox, image, or container.",
+        "openXmlImpact": "Generates <a:hlinkClick r:id=\"rId...\" tooltip=\"...\" action=\"...\"/> inside <p:cNvPr> and adds corresponding relationship to slide .rels.",
+        "edgeCases": "Rejects unsafe javascript: URLs with PPTXError. Supports targetSlide numbers for internal slide jumps. Replaces any existing shape hyperlink safely.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
+          {
+            "name": "targetId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID or shape name to make clickable."
+          },
+          {
+            "name": "url",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Destination web URL (e.g. 'https://...'), slide index (number), or action string ('next', 'prev')."
+          },
           {
             "name": "options",
             "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Additional hyperlink options (tooltip, action, targetSlide, slide)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).addHyperlink('LearnMoreBtn', 'https://github.com', { tooltip: 'Visit GitHub' });\nppt.addHyperlink('NextSlideBtn', 'next', { action: 'next' });"
+      },
+      {
+        "id": "updatehyperlink",
+        "name": "updateHyperlink",
+        "signature": "ppt.updateHyperlink(targetId, url, options)",
+        "category": "Hyperlinks",
+        "description": "Modifies the target URL destination, action type, or ScreenTip tooltip of an existing hyperlink on a shape or container.",
+        "openXmlImpact": "Rewrites <a:hlinkClick> attributes in <p:cNvPr> and updates or replaces relationship targets in slide .rels.",
+        "edgeCases": "If target has no hyperlink, adds it automatically. Cleans up old orphaned relationships when changing link types.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "targetId",
+            "type": "string | number",
             "required": true,
             "default": "—",
-            "description": "Slide jump configuration."
+            "description": "Shape ID or name whose hyperlink to update."
           },
           {
-            "name": "options.targetSlide",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "1-based target slide index to navigate to."
-          },
-          {
-            "name": "options.shapeId",
-            "type": "string",
+            "name": "url",
+            "type": "string | number",
             "required": false,
             "default": "—",
-            "description": "Target shape ID."
+            "description": "New target URL or slide index."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Options object (tooltip, action, targetSlide, slide)."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "// Link table of contents item directly to Appendix slide 8\nppt.useSlide(2).addSlideLink({\n  shapeId: 'toc_item_4',\n  targetSlide: 8\n});"
+        "exampleCode": "ppt.useSlide(1).updateHyperlink('LearnMoreBtn', 'https://example.com/docs', { tooltip: 'Read API Docs' });"
       },
       {
-        "id": "addimagelink",
-        "name": "addImageLink",
-        "signature": "ppt.addImageLink(imageId, url)",
+        "id": "removehyperlink",
+        "name": "removeHyperlink",
+        "signature": "ppt.removeHyperlink(targetId)",
         "category": "Hyperlinks",
-        "description": "Attaches an external web hyperlink action to an image or picture element on the active slide.",
-        "openXmlImpact": "Attaches &lt;a:hlinkClick r:id=\"...\"/&gt; under &lt;p:cNvPr&gt; inside &lt;p:pic&gt;.",
-        "edgeCases": "Validates image format (PNG, JPEG, WebP, SVG). Recalculates natural dimensions while respecting bounding constraints.",
+        "description": "Detaches a hyperlink from a shape, textbox, image, or text run, and purges orphaned relationship entries from slide .rels.",
+        "openXmlImpact": "Removes <a:hlinkClick> node from <p:cNvPr> or <a:rPr> and unlinks relationship from slide{N}.xml.rels.",
+        "edgeCases": "Safely verifies relationship is not shared before removing from .rels. Supports shape ID, shape name, or text query.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "imageId",
-            "type": "string",
+            "name": "targetId",
+            "type": "string | number | Object",
             "required": true,
             "default": "—",
-            "description": "Image shape ID or picture name."
-          },
-          {
-            "name": "url",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Target web URL."
+            "description": "Shape ID, name, or options object { targetId, shapeName, text, slide }."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(1).addImageLink('logo_img', 'https://github.com/jsuyog2/node-pptx-templater');"
-      },
-      {
-        "id": "addshapelink",
-        "name": "addShapeLink",
-        "signature": "ppt.addShapeLink(shapeId, url)",
-        "category": "Hyperlinks",
-        "description": "Attaches an external web click action to an entire vector shape.",
-        "openXmlImpact": "Mutates &lt;p:cNvPr&gt; in &lt;p:nvSpPr&gt; and links external URL relationship.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "shapeId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Shape ID."
-          },
-          {
-            "name": "url",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Target web URL."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(1).addShapeLink('cta_button', 'https://company.com/signup');"
-      },
-      {
-        "id": "addshapenavigationlink",
-        "name": "addShapeNavigationLink",
-        "signature": "ppt.addShapeNavigationLink(shapeId, targetSlideNumber)",
-        "category": "Hyperlinks",
-        "description": "Makes an entire vector shape trigger navigation to another slide when clicked.",
-        "openXmlImpact": "Applies internal jump click action to shape &lt;p:cNvPr&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "shapeId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Shape ID."
-          },
-          {
-            "name": "targetSlideNumber",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "1-based destination slide index."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(1).addShapeNavigationLink('next_button', 2);"
+        "exampleCode": "ppt.useSlide(1).removeHyperlink('OldLinkBtn');\nppt.removeHyperlink({ text: 'Deprecated link', slide: 2 });"
       },
       {
         "id": "gethyperlinks",
         "name": "getHyperlinks",
-        "signature": "ppt.getHyperlinks(slideIndex)",
+        "signature": "ppt.getHyperlinks(slideId)",
         "category": "Hyperlinks",
-        "description": "Extracts and lists all internal and external hyperlinks defined on the specified slide.",
-        "openXmlImpact": "Scans slide{N}.xml.rels and matches &lt;a:hlinkClick&gt; tags.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "description": "Extracts and inspects all hyperlinks (shape-level and inline text run-level) defined on the targeted slide.",
+        "openXmlImpact": "Read-only traversal of slide XML AST and slide{N}.xml.rels mappings without mutating DOM.",
+        "edgeCases": "Returns empty array if slide has no hyperlinks or invalid slide ID. Normalizes internal slide destinations.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "slideIndex",
+            "name": "slideId",
             "type": "number",
             "required": false,
             "default": "active slide",
@@ -3211,9 +3179,80 @@
         ],
         "returns": {
           "type": "Array<Object>",
-          "description": "List of hyperlink descriptors."
+          "description": "List of normalized hyperlink descriptors with targetId, url, isInternal, targetSlide, tooltip, and type."
         },
         "exampleCode": "const links = ppt.useSlide(1).getHyperlinks();\nconsole.log('Slide 1 links:', links);"
+      },
+      {
+        "id": "gethyperlink",
+        "name": "getHyperlink",
+        "signature": "ppt.getHyperlink(targetId)",
+        "category": "Hyperlinks",
+        "description": "Retrieves the hyperlink configuration and target destination for a specific element or text run.",
+        "openXmlImpact": "Read-only inspection of target shape <p:cNvPr> or text run <a:rPr>.",
+        "edgeCases": "Returns null if target element has no hyperlink attached or target is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "targetId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID, shape name, or text string to query."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Hyperlink descriptor object or null if not found."
+        },
+        "exampleCode": "const link = ppt.useSlide(1).getHyperlink('LearnMoreBtn');\nif (link) console.log('Target URL:', link.url);"
+      },
+      {
+        "id": "sethyperlink",
+        "name": "setHyperlink",
+        "signature": "ppt.setHyperlink(targetId, text, url, options)",
+        "category": "Hyperlinks",
+        "description": "Locates a specific text substring inside a shape/textbox, isolates it into a split text run via AST run splitting/healing, attaches an OpenXML hyperlink, and applies custom typography styling overrides.",
+        "openXmlImpact": "Splits <a:r> text runs in <p:txBody>, attaches <a:hlinkClick> under <a:rPr>, and applies styling attributes (<a:solidFill>, @_u, @_b, @_i).",
+        "edgeCases": "Handles substrings split across multiple fractured runs. Applies PowerPoint link blue (#0563C1) and underline by default.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "targetId",
+            "type": "string | number | null",
+            "required": false,
+            "default": "null",
+            "description": "Shape ID or name containing text, or null to search across active slide."
+          },
+          {
+            "name": "text",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Exact text substring to make clickable."
+          },
+          {
+            "name": "url",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Target destination URL, action, or destination slide number."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Styling and hyperlink options (color, underline, bold, italic, fontSize, tooltip, slide)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).setHyperlink('SummaryCard', 'API Guide', 'https://example.com/api', {\n  color: '#0066CC',\n  underline: true,\n  bold: true,\n  tooltip: 'Read API Guide'\n});"
       }
     ],
     "Diagnostics & Validation": [

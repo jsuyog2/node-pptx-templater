@@ -457,25 +457,18 @@ async function demo09_HyperlinksAndNavigation() {
 
   // 1. Add shape hyperlink on Slide 1
   try {
-    ppt.addShapeLink({
-      slide: 1,
-      shapeId: 'Title',
-      targetSlide: 2,
-    })
+    ppt.addHyperlink('Title', 2, { tooltip: 'Jump to Slide 2' })
     console.log('✓ Added shape slide hyperlink.')
   } catch (err) {
-    console.log(`  (addShapeLink: ${err.message})`)
+    console.log(`  (addHyperlink: ${err.message})`)
   }
 
   // 2. Add slide link
   try {
-    ppt.addSlideLink({
-      sourceSlide: 1,
-      targetSlide: 3,
-    })
+    ppt.addHyperlink('first', 3, { tooltip: 'Jump to Slide 3' })
     console.log('✓ Added internal slide jump link to Slide 3.')
   } catch (err) {
-    console.log(`  (addSlideLink: ${err.message})`)
+    console.log(`  (addHyperlink: ${err.message})`)
   }
 
   // 3. Inspect existing hyperlinks on slide

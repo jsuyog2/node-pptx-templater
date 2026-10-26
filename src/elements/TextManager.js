@@ -1342,6 +1342,39 @@ class TextManager {
       this.#collectTextElements(g, results, slideIndex)
     }
   }
+
+  /**
+   * Sets a substring hyperlink with styling on a text element.
+   *
+   * @param {number} slideIndex
+   * @param {string|number} targetId
+   * @param {string} text
+   * @param {string|number} url
+   * @param {Object} options
+   * @param {SlideManager} slideManager
+   * @param {RelationshipManager} relationshipManager
+   * @param {HyperlinkManager} hyperlinkManager
+   */
+  setHyperlink(
+    slideIndex,
+    targetId,
+    text,
+    url,
+    options,
+    slideManager,
+    relationshipManager,
+    hyperlinkManager
+  ) {
+    return hyperlinkManager.setHyperlink(
+      slideIndex,
+      targetId,
+      text,
+      url,
+      options,
+      slideManager,
+      relationshipManager
+    )
+  }
 }
 
 module.exports = { TextManager }

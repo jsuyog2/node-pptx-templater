@@ -771,109 +771,125 @@ class PPTXTemplater {
     return this
   }
 
-  /**
-   * Adds an inter-slide hyperlink to a specific text element.
-   *
-   * @param {Object} options - Link configuration.
-   * @param {number} options.sourceSlide - Source slide number (1-based).
-   * @param {number} options.targetSlide - Destination slide number (1-based).
-   * @param {string} options.element - Text element to make clickable.
-   * @returns {PPTXTemplater} this (chainable)
-   */
-  addSlideLink(options) {
-    this.#assertLoaded()
-    const { sourceSlide, targetSlide, element } = options
+  // ==========================================================================
+  // HYPERLINK CATEGORY (STRICT 6 APPROVED METHODS)
+  // ==========================================================================
 
-    // Fallback: If no element text is provided, link the slide number (legacy behavior)
-    if (!element) {
-      this.#hyperlinkManager.addSlideHyperlink(
-        sourceSlide,
-        targetSlide,
-        this.#slideManager,
-        this.#relationshipManager
-      )
-    } else {
-      // Add a slide hyperlink on specific text
-      this.#hyperlinkManager.addTextSlideLink(
-        sourceSlide,
-        element,
-        targetSlide,
+  /**
+   * Binds an external URL, internal slide jump, or navigation action to a shape, textbox, image, or group container.
+   *
+   * @param {string|number} targetId - Shape ID or name to make clickable.
+   * @param {string|number} url - Destination URL (e.g. 'https://...'), action ('next', 'prev'), or target slide index.
+   * @param {Object} [options={}] - Additional hyperlink options.
+   * @param {number} [options.slide] - 1-based slide index. If omitted, uses active slide selection.
+   * @param {string} [options.tooltip] - ScreenTip tooltip displayed on hover.
+   * @param {string} [options.action] - Action type (e.g. 'next', 'previous', 'first', 'last', 'endshow', 'ppaction://...').
+   * @param {number} [options.targetSlide] - Explicit target slide index for slide jumps.
+   * @param {boolean} [options.isInternal] - Explicit flag indicating internal slide link.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * // External link on a button shape
+   * ppt.useSlide(1).addHyperlink('LearnMoreBtn', 'https://github.com', { tooltip: 'Visit GitHub' });
+   *
+   * // Slide jump to slide 3
+   * ppt.addHyperlink('OverviewBox', 3);
+   *
+   * // Slide navigation action
+   * ppt.addHyperlink('NextArrow', 'next', { action: 'next' });
+   */
+  addHyperlink(targetId, url, options = {}) {
+    this.#assertLoaded()
+    const targetIndices =
+      options && options.slide !== undefined ? [options.slide] : this.#getTargetSlideIndices()
+
+    for (const slideIndex of targetIndices) {
+      this.#hyperlinkManager.addHyperlink(
+        slideIndex,
+        targetId,
+        url,
+        options,
         this.#slideManager,
         this.#relationshipManager
       )
     }
+
     return this
   }
 
   /**
-   * Adds an inter-slide hyperlink to an image.
+   * Updates an existing hyperlink target URL, action, or tooltip on a shape or container.
    *
-   * @param {Object} options
-   * @param {number} options.slide - Source slide number.
-   * @param {string} options.imageId - Image name/id to make clickable.
-   * @param {number} options.targetSlide - Destination slide number.
-   * @returns {PPTXTemplater} this
-   */
-  addImageLink(options) {
-    this.#assertLoaded()
-    this.#hyperlinkManager.addShapeSlideLink(
-      options.slide,
-      options.imageId,
-      options.targetSlide,
-      this.#slideManager,
-      this.#relationshipManager
-    )
-    return this
-  }
-
-  /**
-   * Adds an inter-slide hyperlink to a shape.
-   *
-   * @param {Object} options
-   * @param {number} options.slide - Source slide number.
-   * @param {string} options.shapeId - Shape name/id to make clickable.
-   * @param {number} options.targetSlide - Destination slide number.
-   * @returns {PPTXTemplater} this
-   */
-  addShapeLink(options) {
-    this.#assertLoaded()
-    this.#hyperlinkManager.addShapeSlideLink(
-      options.slide,
-      options.shapeId,
-      options.targetSlide,
-      this.#slideManager,
-      this.#relationshipManager
-    )
-    return this
-  }
-
-  /**
-   * Adds a special navigation link (next, previous, first, last slide) to a shape or image.
-   *
-   * @param {Object} options
-   * @param {number} options.slide - Source slide number (1-based).
-   * @param {string} options.shapeId - Shape name/id to make clickable.
-   * @param {'next'|'previous'|'first'|'last'} options.action - Navigation action type.
+   * @param {string|number} targetId - Shape ID or name whose hyperlink to update.
+   * @param {string|number} [url] - New destination URL, action, or slide number.
+   * @param {Object} [options={}] - Options (e.g. { tooltip, action, targetSlide, slide }).
    * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).updateHyperlink('LearnMoreBtn', 'https://example.com/docs', { tooltip: 'Updated Docs' });
    */
-  addShapeNavigationLink(options) {
+  updateHyperlink(targetId, url, options = {}) {
     this.#assertLoaded()
-    const { slide, shapeId, action } = options
-    this.#hyperlinkManager.addShapeNavigationLink(slide, shapeId, action, this.#slideManager)
+    const targetIndices =
+      options && options.slide !== undefined ? [options.slide] : this.#getTargetSlideIndices()
+
+    for (const slideIndex of targetIndices) {
+      this.#hyperlinkManager.updateHyperlink(
+        slideIndex,
+        targetId,
+        url,
+        options,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+    }
+
     return this
   }
 
   /**
-   * Retrieves all hyperlinks (external URLs, inter-slide links, navigation actions) on targeted slide.
+   * Removes a hyperlink from a shape, textbox, image, or text run, safely purging orphaned relationships.
+   *
+   * @param {string|number|Object} targetId - Shape ID, shape name, or options object { targetId, text, slide }.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).removeHyperlink('LearnMoreBtn');
+   * ppt.removeHyperlink({ text: 'Click here', slide: 2 });
+   */
+  removeHyperlink(targetId) {
+    this.#assertLoaded()
+    let slides = []
+
+    if (typeof targetId === 'object' && targetId !== null && targetId.slide !== undefined) {
+      slides = [targetId.slide]
+    } else {
+      slides = this.#getTargetSlideIndices()
+    }
+
+    for (const slideIndex of slides) {
+      this.#hyperlinkManager.removeHyperlink(
+        slideIndex,
+        targetId,
+        this.#slideManager,
+        this.#relationshipManager
+      )
+    }
+
+    return this
+  }
+
+  /**
+   * Retrieves all hyperlinks (external URLs, inter-slide links, navigation actions, and text run links) on targeted slide.
    *
    * @param {number} [slideIndex] - 1-based slide index. If omitted, uses active slide.
    * @returns {Array<Object>} Array of hyperlink descriptor objects.
    *
    * @example
-   * const links = ppt.getHyperlinks(1);
+   * const links = ppt.useSlide(1).getHyperlinks();
    * // [
-   * //   { type: 'external', url: 'https://example.com', text: 'Visit site', rId: 'rId2' },
-   * //   { type: 'slide', targetSlide: 3, shapeName: 'NextBtn' }
+   * //   { targetId: 'Btn1', url: 'https://example.com', type: 'shape', isInternal: false },
+   * //   { targetId: 'Box2', targetSlide: 3, type: 'shape', isInternal: true }
    * // ]
    */
   getHyperlinks(slideIndex) {
@@ -887,34 +903,56 @@ class PPTXTemplater {
   }
 
   /**
-   * Removes a hyperlink from text or a shape on the targeted slide(s).
+   * Retrieves the hyperlink configuration for a specific shape, textbox, image, or text element.
    *
-   * @param {string|Object} textOrOptions - Text string or options object { text, shapeName, slide }.
+   * @param {string|number} targetId - Shape ID, shape name, or text string to query.
+   * @returns {Object|null} Hyperlink descriptor object or null if not found.
+   *
+   * @example
+   * const link = ppt.useSlide(1).getHyperlink('LearnMoreBtn');
+   * if (link) console.log(link.url);
+   */
+  getHyperlink(targetId) {
+    this.#assertLoaded()
+    const targetIdx = this.#getTargetSlideIndices()[0] || 1
+    return this.#hyperlinkManager.getHyperlink(
+      targetIdx,
+      targetId,
+      this.#slideManager,
+      this.#relationshipManager
+    )
+  }
+
+  /**
+   * Locates a substring inside a shape/textbox, isolates it into a split text run,
+   * attaches a hyperlink, and applies typography/styling overrides.
+   *
+   * @param {string|number|null} targetId - ID or name of the target shape (or null to search across slide).
+   * @param {string} text - Exact substring to make clickable.
+   * @param {string|number} url - Destination URL, action, or target slide number.
+   * @param {Object} [options={}] - Styling and hyperlink options (color, underline, bold, italic, fontSize, tooltip, slide).
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.removeHyperlink('Click here');
-   * ppt.removeHyperlink({ text: 'Read more', slide: 2 });
-   * ppt.removeHyperlink({ shapeName: 'Button 1' });
+   * ppt.useSlide(1).setHyperlink('SummaryBox', 'Documentation', 'https://example.com/docs', {
+   *   color: '#0563C1',
+   *   underline: true,
+   *   bold: true,
+   *   tooltip: 'Open Documentation'
+   * });
    */
-  removeHyperlink(textOrOptions) {
+  setHyperlink(targetId, text, url, options = {}) {
     this.#assertLoaded()
-    let slides = []
+    const targetIndices =
+      options && options.slide !== undefined ? [options.slide] : this.#getTargetSlideIndices()
 
-    if (
-      typeof textOrOptions === 'object' &&
-      textOrOptions !== null &&
-      textOrOptions.slide !== undefined
-    ) {
-      slides = [textOrOptions.slide]
-    } else {
-      slides = this.#getTargetSlideIndices()
-    }
-
-    for (const slideIndex of slides) {
-      this.#hyperlinkManager.removeHyperlink(
+    for (const slideIndex of targetIndices) {
+      this.#hyperlinkManager.setHyperlink(
         slideIndex,
-        textOrOptions,
+        targetId,
+        text,
+        url,
+        options,
         this.#slideManager,
         this.#relationshipManager
       )

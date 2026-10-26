@@ -506,23 +506,23 @@
       "items": [
         {
           "id": 76,
-          "title": "External Web Hyperlinks",
-          "description": "Attach external URLs to specific text runs, entire text frames, shapes, or images."
+          "title": "Strict 6-Method Hyperlink Subsystem",
+          "description": "Standardized ISO/IEC 29500 Hyperlink API (addHyperlink, updateHyperlink, removeHyperlink, getHyperlinks, getHyperlink, setHyperlink)."
         },
         {
           "id": 77,
-          "title": "Internal Slide Jump Links",
-          "description": "Attach slide-to-slide navigation links (e.g., jump to a specific slide, first slide, last slide)."
+          "title": "Target-Level Shape & Image Hyperlinks",
+          "description": "Attach external URLs, internal slide jumps, or slideshow navigation actions to shapes, textboxes, and pictures via <p:cNvPr><a:hlinkClick>."
         },
         {
           "id": 78,
-          "title": "Hyperlink Inspection",
-          "description": "Read existing destination URLs and internal slide targets."
+          "title": "Substring Run Splitting & Typography Styling",
+          "description": "Isolate text substrings into dedicated DrawingML runs with custom link colors, underlines, bold, italic, and ScreenTip tooltips via setHyperlink."
         },
         {
           "id": 79,
-          "title": "Hyperlink Removal",
-          "description": "Strip hyperlinks from elements while retaining the underlying text or shape styling."
+          "title": "Introspection & Orphan Relationship Purging",
+          "description": "Inspect slide hyperlinks via getHyperlinks and getHyperlink, and safely purge orphaned relationship entries in .rels upon hyperlink detachment."
         }
       ],
       "count": 4

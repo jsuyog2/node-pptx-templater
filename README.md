@@ -439,6 +439,57 @@ async function manageMedia() {
 }
 ```
 
+### 11. Interactive Hyperlinks & Slide Navigation (Strict 6 Methods)
+
+Fully ISO/IEC 29500 (ECMA-376) PresentationML compliant hyperlink engine supporting external web URLs, inter-slide transition jumps, slideshow navigation actions (`next`, `prev`, `first`, `last`, `endshow`), shape-level target binding, and inline text substring run-splitting with typography styling overrides:
+
+```javascript
+const { PPTXTemplater } = require('node-pptx-templater');
+
+async function manageHyperlinks() {
+  const ppt = await PPTXTemplater.load('./templates/presentation.pptx');
+  ppt.useSlide(1);
+
+  // 1. External web URL on a shape button with ScreenTip tooltip
+  ppt.addHyperlink('LearnMoreBtn', 'https://github.com', {
+    tooltip: 'Navigate to GitHub Repository'
+  });
+
+  // 2. Inter-slide jump (transitions presentation directly to Slide 3)
+  ppt.addHyperlink('TocItem3', 3, {
+    tooltip: 'Jump to Slide 3'
+  });
+
+  // 3. Slideshow navigation action
+  ppt.addHyperlink('NextArrow', 'next', {
+    action: 'next',
+    tooltip: 'Advance to next slide'
+  });
+
+  // 4. Substring run-splitting and link styling within a paragraph
+  ppt.setHyperlink('SummaryCard', 'API Documentation', 'https://example.com/docs', {
+    color: '#0563C1',
+    underline: true,
+    bold: true,
+    tooltip: 'Open API Documentation'
+  });
+
+  // 5. Update an existing hyperlink destination and ScreenTip
+  ppt.updateHyperlink('LearnMoreBtn', 'https://example.com/new-docs', {
+    tooltip: 'Updated Documentation Portal'
+  });
+
+  // 6. Inspect all hyperlinks across a slide (shape & textRun)
+  const links = ppt.getHyperlinks(1);
+  const singleLink = ppt.getHyperlink('LearnMoreBtn');
+
+  // 7. Detach hyperlink and safely purge orphaned .rels relationship
+  ppt.removeHyperlink('LearnMoreBtn');
+
+  await ppt.saveToFile('./output/interactive-hyperlinks.pptx');
+}
+```
+
 ---
 
 ## 🎪 CLI Usage

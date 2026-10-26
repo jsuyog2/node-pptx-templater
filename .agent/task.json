@@ -1,48 +1,80 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.10.6",
-    "category": "Showcase Verification & Arrow Shape Removal Fixes",
-    "scope": "Verify showcase/table_advanced.js script and fix arrow shape removal (rightArrow preset / cxnSp connector / table cell arrow shapes) on slides 8 and 9",
+    "version": "3.7.0",
+    "category": "Hyperlink",
+    "scope": "Strict 6 Hyperlink Functions Implementation & OpenXML Binding",
+    "approvedFunctions": [
+        "addHyperlink",
+        "updateHyperlink",
+        "removeHyperlink",
+        "getHyperlinks",
+        "getHyperlink",
+        "setHyperlink"
+    ],
     "tasks": [
         {
-            "id": "TASK-SHOWCASE-VERIFY-001",
-            "title": "Comprehensive Audit and Execution Verification of showcase/table_advanced.js",
+            "id": "TASK-HYPERLINK-001",
+            "title": "Build Core Hyperlink Subsystem & OpenXML Relationship Infrastructure",
             "status": "completed",
-            "description": "Perform an end-to-end code audit of showcase/table_advanced.js. Verify method call indexing, argument alignments, sequential slide flow, and slide context targeting (specifically slides 8 and 9). Ensure that executing 'node showcase/table_advanced.js' runs cleanly with zero runtime exceptions, creates valid OpenXML output, and opens in Microsoft PowerPoint with zero repair warnings.",
+            "description": "Create src/managers/HyperlinkManager.js and wire it to PPTXTemplater. Implement OpenXML relationship mechanics in ppt/slides/_rels/slideN.xml.rels for external URL targets (r:id binding with Type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink' and TargetMode='External') as well as internal slide targets (ppaction://hlinksldjump or target slide relationship references). Handle non-visual shape drawing properties (<p:cNvPr><a:hlinkClick>) and text run properties (<a:rPr><a:hlinkClick>).",
             "deliverables": [
-                "showcase/table_advanced.js"
+                "src/managers/HyperlinkManager.js",
+                "src/core/PPTXTemplater.js (chainable delegation wrappers)",
+                "src/utils/xmlUtils.js"
             ]
         },
         {
-            "id": "TASK-ARROW-REMOVAL-FIX-002",
-            "title": "Fix Arrow Shape Detection and Cascading Removal in Table Operations",
+            "id": "TASK-HYPERLINK-002",
+            "title": "Implement Target-Level Hyperlink APIs (addHyperlink, updateHyperlink, removeHyperlink)",
             "status": "completed",
-            "description": "Resolve Bug #2 on slides 8 and 9 where added arrows fail to be removed during table/row/column removal or cell cleaning. Root causes: (1) Arrow shapes use preset 'rightArrow' (or aliases 'arrow', 'right-arrow', 'leftArrow', 'upArrow', 'downArrow') or connector elements (<p:cxnSp>), which get skipped by shape selector queries looking only for standard rects/circles or strict <p:sp> nodes; (2) In CellShapeManager and TableManager boundary-based deletion routines, coordinate calculations for non-rectangular or directional shapes (rotations, arrow head extents, or flipped geometries) fail strict bounding box containment. Fix: ensure shape filtering targets both <p:sp> and <p:cxnSp>, normalizes arrow preset names, and checks arrow bounding coordinates accurately against table, row, column, and cell boundary boxes.",
+            "description": "Implement addHyperlink(targetId, url, options), updateHyperlink(targetId, url, options), and removeHyperlink(targetId) to bind, modify, or detach hyperlinks from entire shapes, text boxes, images, and other slide objects via <a:hlinkClick> in <p:cNvPr>. Handle tooltip options, action behaviors, URL sanitization, and purging of orphaned relationship entries in slide .rels files upon removal.",
             "deliverables": [
-                "src/managers/TableManager.js",
-                "src/elements/TableManager.js",
-                "src/elements/CellShapeManager.js",
-                "src/managers/ShapeManager.js"
+                "src/managers/HyperlinkManager.js",
+                "tests/integration/shapeHyperlinks.test.js"
             ]
         },
         {
-            "id": "TASK-ARROW-STANDALONE-FIX-003",
-            "title": "Ensure removeShape and Slide Cleanup Support Arrow and Connector Nodes",
+            "id": "TASK-HYPERLINK-003",
+            "title": "Implement Hyperlink Inspection APIs (getHyperlinks & getHyperlink)",
             "status": "completed",
-            "description": "Verify slide-level shape removal (removeShape, clearShapes) on slides 8 and 9. Ensure that if the arrow was added as a standalone shape (via addShape) or connector (via addShape with type 'arrow'/'rightArrow'), removeShape matches the shape by either ID (<p:cNvPr id=\"...\">) or name (<p:cNvPr name=\"...\">) across both <p:sp> and <p:cxnSp> elements, and cleanly disbands references in <p:spTree>.",
+            "description": "Implement getHyperlinks(slideId) and getHyperlink(targetId) to parse slide XML and relationship mappings in read-only mode. Extract target identifiers, destination URLs or internal slide indices, action types, tooltips, target element types (shape, text run, image), and associated styles without modifying the underlying DOM/AST.",
             "deliverables": [
-                "src/managers/ShapeManager.js",
-                "src/elements/ShapeManager.js"
+                "src/managers/HyperlinkManager.js",
+                "tests/integration/hyperlinkInspection.test.js"
             ]
         },
         {
-            "id": "TASK-TEST-VERIFY-004",
-            "title": "Automated Tests for Arrow Shape Removal and Coordinate Life Cycles",
+            "id": "TASK-HYPERLINK-004",
+            "title": "Implement Substring Text Hyperlink & Styling API (setHyperlink)",
             "status": "completed",
-            "description": "Write automated integration tests in tests/integration/tableArrowShapeRemoval.test.js replicating slides 8 and 9: (1) add arrow shapes to table cells (inside, outside, and shape-only); (2) remove rows and columns containing arrows and assert arrows are purged from <p:spTree>; (3) remove table with arrows and assert zero orphaned arrow nodes remain; (4) test standalone arrow removal via removeShape. Verify with 'npm test' and inspect generated PPTX files in PowerPoint.",
+            "description": "Implement setHyperlink(targetId, text, url, options) to locate a specific text substring inside a shape/textbox, perform AST run splitting/healing (<a:r>/<a:t>) to isolate only the target text, attach <a:hlinkClick> to the split run's <a:rPr>, and apply custom typographic/hyperlink styling options (e.g., color, underline, bold, italic).",
             "deliverables": [
-                "tests/integration/tableArrowShapeRemoval.test.js",
-                "showcase/table_advanced.js"
+                "src/managers/HyperlinkManager.js",
+                "src/managers/TextManager.js",
+                "tests/integration/textHyperlinks.test.js"
+            ]
+        },
+        {
+            "id": "TASK-HYPERLINK-005",
+            "title": "Comprehensive Showcase Script (showcase/hyperlinks_advanced.js)",
+            "status": "completed",
+            "description": "Create showcase/hyperlinks_advanced.js demonstrating all 6 Hyperlink methods (external web URLs, internal slide jumps, tooltips, shape links, text substring link styling, hyperlink queries, updates, and removals). Include clear console diagnostics, inline JSDoc comments, and ensure generated presentations open error-free in PowerPoint.",
+            "deliverables": [
+                "showcase/hyperlinks_advanced.js"
+            ]
+        },
+        {
+            "id": "TASK-HYPERLINK-006",
+            "title": "Synchronize Documentation, TypeScript Declarations & .agent Memory",
+            "status": "completed",
+            "description": "Update index.d.ts with complete parameter typings for all 6 Hyperlink functions. Sync docs-site/src/data/apiReference.json, docs-site/src/data/features.json, README.md, and .agent memory files (.agent/rules/features.md, .agent/project_summary.md) to document the Hyperlink category and its exact API signatures.",
+            "deliverables": [
+                "index.d.ts",
+                "docs-site/src/data/apiReference.json",
+                "docs-site/src/data/features.json",
+                "README.md",
+                ".agent/project_summary.md",
+                ".agent/rules/features.md"
             ]
         }
     ]

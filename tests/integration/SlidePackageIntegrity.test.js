@@ -88,11 +88,7 @@ describe('PPTXTemplater - Slide package structural integrity', () => {
   it('should produce a valid package after remove, duplicate, and reorder (sections sync)', async () => {
     const ppt = await PPTXTemplater.load(fixtureFile)
     ppt.removeSlide(2)
-    ppt.addSlideLink({
-      element: 'Hello {{title}}',
-      sourceSlide: 2,
-      targetSlide: 1,
-    })
+    ppt.setHyperlink(null, 'Hello {{title}}', 1, { slide: 2, targetSlide: 1 })
     await ppt.duplicateSlide(1, 3)
     await assertValidBuffer(await ppt.toBuffer(), 'remove + link + duplicate')
   })

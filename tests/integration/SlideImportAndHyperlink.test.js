@@ -63,15 +63,13 @@ describe('PPTXTemplater - Slide Import & Slide Navigation Hyperlinks', () => {
     // Add navigation action links to slide 1
     // Let's first inspect slide 1 text to see what runs we can link.
     // Standard template has hello text or we can just link to slide number / first available run
-    sourceEngine.addShapeNavigationLink({
+    sourceEngine.addHyperlink('Shape', 'next', {
       slide: 1,
-      shapeId: 'Shape',
       action: 'next',
     })
 
-    sourceEngine.addShapeNavigationLink({
+    sourceEngine.addHyperlink('Title', 'last', {
       slide: 1,
-      shapeId: 'Title',
       action: 'last',
     })
 
@@ -92,9 +90,8 @@ describe('PPTXTemplater - Slide Import & Slide Navigation Hyperlinks', () => {
     const sourceEngine = await PPTXTemplater.load(fixtureFile)
 
     // Add inter-slide link
-    sourceEngine.addSlideLink({
-      element: 'Hello {{title}}',
-      sourceSlide: 1,
+    sourceEngine.setHyperlink(null, 'Hello {{title}}', 2, {
+      slide: 1,
       targetSlide: 2,
     })
 

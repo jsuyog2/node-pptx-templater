@@ -1,3 +1,34 @@
+export interface HyperlinkOptions {
+  tooltip?: string;
+  action?: 'next' | 'previous' | 'prev' | 'first' | 'last' | 'endshow' | string;
+  targetSlide?: number;
+  isInternal?: boolean;
+  slide?: number;
+}
+
+export interface TextHyperlinkOptions extends HyperlinkOptions {
+  color?: string;
+  underline?: boolean | string;
+  bold?: boolean;
+  italic?: boolean;
+  fontSize?: number;
+  fontFace?: string;
+}
+
+export interface HyperlinkDescriptor {
+  targetId: string;
+  url?: string;
+  isInternal: boolean;
+  targetSlide?: number;
+  action?: string;
+  tooltip?: string;
+  type: 'shape' | 'textRun' | 'image';
+  shapeName?: string;
+  shapeId?: string;
+  text?: string;
+  rId?: string;
+}
+
 export interface TableCellStyle {
   fontSize?: number;
   fontFace?: string;
@@ -123,9 +154,13 @@ export class PPTXTemplater {
   getChart(chartId: string): any;
   cloneChart(chartId: string, clonedChartId?: string, clonedOptions?: any): this;
   applyZOrder(slideNumber: number, zOrderConfig: any[]): this;
-  getHyperlinks(slideIndex?: number): any[];
-  removeHyperlink(textOrOptions: any): this;
-  addSlideLink(options: any): this;
+  // Hyperlinks (Strict 6 Whitelisted Methods)
+  addHyperlink(targetId: string | number, url: string | number, options?: HyperlinkOptions): this;
+  updateHyperlink(targetId: string | number, url?: string | number, options?: HyperlinkOptions): this;
+  removeHyperlink(targetId: string | number | { targetId?: string | number; shapeName?: string; text?: string; slide?: number }): this;
+  getHyperlinks(slideId?: number): HyperlinkDescriptor[];
+  getHyperlink(targetId: string | number): HyperlinkDescriptor | null;
+  setHyperlink(targetId: string | number | null, text: string, url: string | number, options?: TextHyperlinkOptions): this;
   // Tables (Strict 30 Whitelisted Methods)
   addTable(slideId: number | string, rows: number, columns: number, data?: TableCellData[][], options?: any): this;
   addTable(rows: number, columns: number, data?: TableCellData[][], options?: any): this;

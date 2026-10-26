@@ -44,11 +44,7 @@ describe('PPTXTemplater - Slide Sections and Package Structural Normalization', 
     expect(ppt.slideCount).toBe(initialCount - 1)
 
     // Add a slide link from slide 2 (formerly slide 3) to slide 1
-    ppt.addSlideLink({
-      element: 'Hello {{title}}',
-      sourceSlide: 2,
-      targetSlide: 1,
-    })
+    ppt.setHyperlink(null, 'Hello {{title}}', 1, { slide: 2, targetSlide: 1 })
 
     // Duplicate slide 1 to position 3
     await ppt.duplicateSlide(1, 3)

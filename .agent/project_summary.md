@@ -161,7 +161,25 @@ All DrawingML table operations strictly adhere to these 30 approved methods (all
 
 ---
 
-## 9. Documentation Portal (`docs-site/`)
+## 9. Strict 6-Method Hyperlinks Whitelist
+
+All interactive hyperlink and slideshow navigation operations strictly adhere to these 6 approved methods across `PPTXTemplater` and `HyperlinkManager`:
+
+1. `ppt.addHyperlink(targetId, url, options)`: Binds an external web URL, inter-slide jump (`action="ppaction://hlinksldjump"` with slide relationship), or slideshow action (`ppaction://hlinkshowjump?s=...`) to a shape or container under `<p:cNvPr><a:hlinkClick>`.
+2. `ppt.updateHyperlink(targetId, url, options)`: Updates the destination target, action, or ScreenTip tooltip of an existing hyperlink.
+3. `ppt.removeHyperlink(targetId)`: Detaches a hyperlink from a shape, textbox, or text run, safely verifying relationship references and purging orphaned `.rels` entries.
+4. `ppt.getHyperlinks(slideId)`: Read-only extraction of all shape-level and inline text-run level hyperlinks on targeted slide.
+5. `ppt.getHyperlink(targetId)`: Queries hyperlink metadata for a specific shape or text element.
+6. `ppt.setHyperlink(targetId, text, url, options)`: Locates a text substring within a shape, isolates it into a dedicated `<a:r>` text run via AST run splitting, applies DrawingML styling (`color`, `underline`, `bold`, `italic`, `fontSize`) via `StyleBuilder`, and binds the hyperlink `<a:hlinkClick>`.
+
+**Core Hyperlink Invariants**:
+- **OpenXML Relationship Mechanics**: External hyperlinks generate `Type=".../relationships/hyperlink"` and `TargetMode="External"` in `ppt/slides/_rels/slideN.xml.rels`. Internal slide jumps generate `Type=".../relationships/slide"` pointing to `slideM.xml`.
+- **Security & Sanitization**: Unsafe `javascript:` protocols are strictly rejected with `PPTXError`.
+- **AST Integrity**: Non-destructive run splitting and healing with safe orphan relationship garbage collection.
+
+---
+
+## 10. Documentation Portal (`docs-site/`)
 
 The documentation site is a static export built with Next.js 14+ App Router (`output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`). All documentation content is driven by decoupled JSON schemas in `docs-site/src/data/` (`apiReference.json`, `features.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`) and verified by `npm run docs:validate`.
 
