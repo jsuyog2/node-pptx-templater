@@ -10,6 +10,84 @@ const { EMU_PER_PT } = require('../spatial/units.js')
 const PT_EMU = EMU_PER_PT || 12700
 
 /**
+ * Strict ECMA-376 DrawingML CT_TextCharacterProperties child element sequence.
+ * Per ISO/IEC 29500-1 § 21.1.2.3.9, children of <a:rPr> must appear in this order.
+ */
+const RPR_CHILD_SEQUENCE = [
+  'a:ln',
+  // EG_FillProperties
+  'a:noFill',
+  'a:solidFill',
+  'a:gradFill',
+  'a:blipFill',
+  'a:pattFill',
+  'a:grpFill',
+  // EG_EffectProperties
+  'a:effectLst',
+  'a:effectDag',
+  // highlight
+  'a:highlight',
+  // EG_TextUnderlineLine
+  'a:uLnTx',
+  'a:uLn',
+  // EG_TextUnderlineFill
+  'a:uFillTx',
+  'a:uFill',
+  // Text fonts
+  'a:latin',
+  'a:ea',
+  'a:cs',
+  'a:sym',
+  // Hyperlinks
+  'a:hlinkClick',
+  'a:hlinkMouseOver',
+  // rtl
+  'a:rtl',
+  // extLst
+  'a:extLst',
+]
+
+/**
+ * Reorders an <a:rPr> object's keys so that child elements conform strictly
+ * to the ECMA-376 schema sequence, preventing PowerPoint repair dialogs.
+ *
+ * @param {Object} rPr - Raw or constructed <a:rPr> AST object.
+ * @returns {Object} Schema-ordered <a:rPr> object.
+ */
+function orderRunProperties(rPr) {
+  if (!rPr || typeof rPr !== 'object') return rPr
+  const ordered = {}
+
+  // 1. Preserve XML attributes (@_*) first
+  for (const k of Object.keys(rPr)) {
+    if (k.startsWith('@_')) {
+      ordered[k] = rPr[k]
+    }
+  }
+
+  // 2. Insert schema-defined child elements in exact sequence
+  for (const tag of RPR_CHILD_SEQUENCE) {
+    if (rPr[tag] !== undefined) {
+      ordered[tag] = rPr[tag]
+    }
+  }
+
+  // 3. Append any other non-attribute elements not in standard sequence
+  for (const k of Object.keys(rPr)) {
+    if (!k.startsWith('@_') && !RPR_CHILD_SEQUENCE.includes(k)) {
+      ordered[k] = rPr[k]
+    }
+  }
+
+  // Ensure extLst is always last child if present
+  if (rPr['a:extLst'] !== undefined && ordered['a:extLst'] === undefined) {
+    ordered['a:extLst'] = rPr['a:extLst']
+  }
+
+  return ordered
+}
+
+/**
  * Normalizes a hex color string to RRGGBB uppercase.
  * @param {string} hex
  * @returns {string}
@@ -206,7 +284,17 @@ class StyleBuilder {
       rPr['a:cs'] = { '@_typeface': String(font) }
     }
 
-    return rPr
+    return orderRunProperties(rPr)
+  }
+
+  /**
+   * Reorders an <a:rPr> object's keys to conform strictly to ECMA-376 schema sequence.
+   *
+   * @param {Object} rPr
+   * @returns {Object}
+   */
+  static orderRunProperties(rPr) {
+    return orderRunProperties(rPr)
   }
 
   /**

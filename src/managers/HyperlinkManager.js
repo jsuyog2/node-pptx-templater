@@ -22,32 +22,39 @@ const logger = createLogger('HyperlinkManager')
 
 /**
  * Normalizes navigation action shortcuts to OpenXML ppaction URI strings.
+ * Conforms strictly to PowerPoint / ISO/IEC 29500 standard query strings (?jump=...).
  *
  * @param {string} action
  * @returns {string}
  */
 function normalizeAction(action) {
   if (!action || typeof action !== 'string') return ''
-  const trimmed = action.trim().toLowerCase()
-  switch (trimmed) {
+  const trimmed = action.trim()
+  const lower = trimmed.toLowerCase()
+  switch (lower) {
     case 'next':
     case 'nextslide':
-      return 'ppaction://hlinkshowjump?s=nextslide'
+      return 'ppaction://hlinkshowjump?jump=nextslide'
     case 'previous':
     case 'prev':
     case 'prevslide':
-      return 'ppaction://hlinkshowjump?s=prevslide'
+    case 'previousslide':
+      return 'ppaction://hlinkshowjump?jump=previousslide'
     case 'first':
     case 'firstslide':
-      return 'ppaction://hlinkshowjump?s=firstslide'
+      return 'ppaction://hlinkshowjump?jump=firstslide'
     case 'last':
     case 'lastslide':
-      return 'ppaction://hlinkshowjump?s=lastslide'
+      return 'ppaction://hlinkshowjump?jump=lastslide'
+    case 'end':
     case 'endshow':
-      return 'ppaction://hlinkshowjump?s=endshow'
+      return 'ppaction://hlinkshowjump?jump=endshow'
     default:
-      if (trimmed.startsWith('ppaction://')) return action.trim()
-      return `ppaction://${action.trim()}`
+      if (lower.startsWith('ppaction://hlinkshowjump?s=')) {
+        return trimmed.replace(/\?s=/i, '?jump=')
+      }
+      if (lower.startsWith('ppaction://')) return trimmed
+      return `ppaction://${trimmed}`
   }
 }
 
@@ -62,8 +69,119 @@ function isShowJumpAction(val) {
   const lower = val.trim().toLowerCase()
   return (
     lower.startsWith('ppaction://hlinkshowjump') ||
-    ['next', 'previous', 'prev', 'first', 'last', 'endshow'].includes(lower)
+    [
+      'next',
+      'nextslide',
+      'prev',
+      'previous',
+      'prevslide',
+      'previousslide',
+      'first',
+      'firstslide',
+      'last',
+      'lastslide',
+      'end',
+      'endshow',
+    ].includes(lower)
   )
+}
+
+/**
+ * Ensures strict PresentationML sequence of child elements inside <p:cNvPr>:
+ * 1. Attributes (@_id, @_name, etc.)
+ * 2. <a:hlinkClick>
+ * 3. <a:hlinkHover>
+ * 4. Other children
+ * 5. <a:extLst>
+ *
+ * @param {Object} cNvPr
+ * @returns {Object}
+ */
+function orderCnvPrChildren(cNvPr) {
+  if (!cNvPr || typeof cNvPr !== 'object') return cNvPr
+
+  const ordered = {}
+  // 1. Attributes
+  for (const key of Object.keys(cNvPr)) {
+    if (key.startsWith('@_')) {
+      ordered[key] = cNvPr[key]
+    }
+  }
+
+  // 2. a:hlinkClick
+  if (cNvPr['a:hlinkClick']) {
+    ordered['a:hlinkClick'] = cNvPr['a:hlinkClick']
+  }
+
+  // 3. a:hlinkHover
+  if (cNvPr['a:hlinkHover']) {
+    ordered['a:hlinkHover'] = cNvPr['a:hlinkHover']
+  }
+
+  // 4. Other child elements except extLst
+  for (const key of Object.keys(cNvPr)) {
+    if (
+      !key.startsWith('@_') &&
+      key !== 'a:hlinkClick' &&
+      key !== 'a:hlinkHover' &&
+      key !== 'a:extLst'
+    ) {
+      ordered[key] = cNvPr[key]
+    }
+  }
+
+  // 5. a:extLst
+  if (cNvPr['a:extLst']) {
+    ordered['a:extLst'] = cNvPr['a:extLst']
+  }
+
+  // Clean in-place keys and re-assign
+  for (const key of Object.keys(cNvPr)) {
+    delete cNvPr[key]
+  }
+  Object.assign(cNvPr, ordered)
+  return cNvPr
+}
+
+/**
+ * Applies text formatting styles (color, underline, bold, italic, fontSize, fontFace)
+ * to all text runs within a shape's txBody if style properties are passed.
+ *
+ * @param {Object} shape - Target shape element.
+ * @param {Object} style - Styling options.
+ */
+function applyTextStyleToShape(shape, style) {
+  if (!shape || !shape['p:txBody'] || !style || typeof style !== 'object') return
+  const hasStyle =
+    style.color !== undefined ||
+    style.underline !== undefined ||
+    style.bold !== undefined ||
+    style.italic !== undefined ||
+    style.fontSize !== undefined ||
+    style.fontFace !== undefined ||
+    style.fontFamily !== undefined ||
+    style.highlight !== undefined ||
+    style.strikethrough !== undefined ||
+    style.strike !== undefined
+
+  if (!hasStyle) return
+
+  let paras = shape['p:txBody']['a:p'] || []
+  if (!Array.isArray(paras)) {
+    paras = [paras]
+    shape['p:txBody']['a:p'] = paras
+  }
+
+  for (const p of paras) {
+    let runs = p['a:r'] || []
+    if (!Array.isArray(runs)) {
+      runs = [runs]
+      p['a:r'] = runs
+    }
+    for (const r of runs) {
+      r['a:rPr'] = StyleBuilder.buildRunProperties(r['a:rPr'] || {}, style)
+    }
+  }
 }
 
 /**
@@ -181,12 +299,24 @@ class HyperlinkManager {
    *
    * @param {number} slideIndex - 1-based slide index.
    * @param {string|number} targetId - ID or name of the target shape/element.
-   * @param {string|number} url - Destination URL, action string, or target slide number.
-   * @param {Object} [options={}] - Additional options (tooltip, action, targetSlide).
+   * @param {string|number|Object} url - Destination URL, action string, target slide number, or options bag.
+   * @param {Object} [options={}] - Additional options (tooltip, action, targetSlide, styling).
    * @param {SlideManager} slideManager
    * @param {RelationshipManager} relationshipManager
    */
   addHyperlink(slideIndex, targetId, url, options = {}, slideManager, relationshipManager) {
+    let effectiveUrl = url
+    let effectiveOptions = options || {}
+    if (typeof url === 'object' && url !== null) {
+      effectiveOptions = { ...url, ...effectiveOptions }
+      effectiveUrl =
+        effectiveOptions.url !== undefined
+          ? effectiveOptions.url
+          : effectiveOptions.action !== undefined
+            ? effectiveOptions.action
+            : effectiveOptions.targetSlide
+    }
+
     const relMgr = relationshipManager || this.#relationshipManager
     const slideInfo = slideManager.getSlideInfo(slideIndex)
     if (!slideInfo) {
@@ -221,25 +351,24 @@ class HyperlinkManager {
     }
 
     const { rId, action, tooltip } = this.#resolveLinkTarget(
-      url,
-      options,
+      effectiveUrl,
+      effectiveOptions,
       slideInfo,
       slideManager,
       relMgr
     )
 
-    const hlinkClickObj = {
-      '@_xmlns:r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
-    }
-    if (rId) hlinkClickObj['@_r:id'] = rId
+    const hlinkClickObj = {}
+    if (rId !== null && rId !== undefined) hlinkClickObj['@_r:id'] = rId
     if (action) hlinkClickObj['@_action'] = action
     if (tooltip) hlinkClickObj['@_tooltip'] = tooltip
 
-    // Ensure OpenXML schema order inside <p:cNvPr>: a:hlinkClick must precede a:extLst
-    const extLst = cNvPr['a:extLst']
-    delete cNvPr['a:extLst']
+    // Ensure OpenXML schema order inside <p:cNvPr>
     cNvPr['a:hlinkClick'] = hlinkClickObj
-    if (extLst) cNvPr['a:extLst'] = extLst
+    orderCnvPrChildren(cNvPr)
+
+    // Apply text styling if specified in options and target shape has text body
+    applyTextStyleToShape(found.element, effectiveOptions)
 
     slideManager.markSlideObjDirty(slideIndex)
     logger.debug(`addHyperlink: Attached hyperlink to target "${targetId}" on slide ${slideIndex}`)
@@ -253,12 +382,24 @@ class HyperlinkManager {
    *
    * @param {number} slideIndex - 1-based slide index.
    * @param {string|number} targetId - ID or name of the target shape/element.
-   * @param {string|number} [url] - New destination URL, action, or target slide number.
-   * @param {Object} [options={}] - Options (tooltip, action, targetSlide).
+   * @param {string|number|Object} [url] - New destination URL, action, target slide number, or options bag.
+   * @param {Object} [options={}] - Options (tooltip, action, targetSlide, styling).
    * @param {SlideManager} slideManager
    * @param {RelationshipManager} relationshipManager
    */
   updateHyperlink(slideIndex, targetId, url, options = {}, slideManager, relationshipManager) {
+    let effectiveUrl = url
+    let effectiveOptions = options || {}
+    if (typeof url === 'object' && url !== null) {
+      effectiveOptions = { ...url, ...effectiveOptions }
+      effectiveUrl =
+        effectiveOptions.url !== undefined
+          ? effectiveOptions.url
+          : effectiveOptions.action !== undefined
+            ? effectiveOptions.action
+            : effectiveOptions.targetSlide
+    }
+
     const relMgr = relationshipManager || this.#relationshipManager
     const slideInfo = slideManager.getSlideInfo(slideIndex)
     if (!slideInfo) {
@@ -281,11 +422,22 @@ class HyperlinkManager {
 
     // If no hyperlink existed previously, delegate to addHyperlink
     if (!existingHlink) {
-      return this.addHyperlink(slideIndex, targetId, url, options, slideManager, relMgr)
+      return this.addHyperlink(
+        slideIndex,
+        targetId,
+        effectiveUrl,
+        effectiveOptions,
+        slideManager,
+        relMgr
+      )
     }
 
     // If URL or targetSlide is provided, re-resolve target and clean up old rel if needed
-    if (url !== undefined || options.targetSlide !== undefined || options.action !== undefined) {
+    if (
+      effectiveUrl !== undefined ||
+      effectiveOptions.targetSlide !== undefined ||
+      effectiveOptions.action !== undefined
+    ) {
       const oldRId = existingHlink['@_r:id']
       delete cNvPr['a:hlinkClick']
       if (oldRId) {
@@ -299,36 +451,44 @@ class HyperlinkManager {
         )
       }
 
-      const effectiveUrl = url !== undefined ? url : existingHlink['@_action'] || ''
+      const effectiveTarget =
+        effectiveUrl !== undefined ? effectiveUrl : existingHlink['@_action'] || ''
       const {
         rId,
         action,
         tooltip: resolvedTip,
-      } = this.#resolveLinkTarget(effectiveUrl, options, slideInfo, slideManager, relMgr)
+      } = this.#resolveLinkTarget(
+        effectiveTarget,
+        effectiveOptions,
+        slideInfo,
+        slideManager,
+        relMgr
+      )
 
-      const hlinkClickObj = {
-        '@_xmlns:r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
-      }
-      if (rId) hlinkClickObj['@_r:id'] = rId
+      const hlinkClickObj = {}
+      if (rId !== null && rId !== undefined) hlinkClickObj['@_r:id'] = rId
       if (action) hlinkClickObj['@_action'] = action
       const effectiveTip =
-        options.tooltip !== undefined ? options.tooltip : resolvedTip || existingHlink['@_tooltip']
+        effectiveOptions.tooltip !== undefined
+          ? effectiveOptions.tooltip
+          : resolvedTip || existingHlink['@_tooltip']
       if (effectiveTip) hlinkClickObj['@_tooltip'] = effectiveTip
 
-      const extLst = cNvPr['a:extLst']
-      delete cNvPr['a:extLst']
       cNvPr['a:hlinkClick'] = hlinkClickObj
-      if (extLst) cNvPr['a:extLst'] = extLst
+      orderCnvPrChildren(cNvPr)
     } else {
       // Just updating tooltip or properties
-      if (options.tooltip !== undefined) {
-        if (options.tooltip === null || options.tooltip === '') {
+      if (effectiveOptions.tooltip !== undefined) {
+        if (effectiveOptions.tooltip === null || effectiveOptions.tooltip === '') {
           delete existingHlink['@_tooltip']
         } else {
-          existingHlink['@_tooltip'] = String(options.tooltip)
+          existingHlink['@_tooltip'] = String(effectiveOptions.tooltip)
         }
       }
     }
+
+    // Apply text styling if specified
+    applyTextStyleToShape(found.element, effectiveOptions)
 
     slideManager.markSlideObjDirty(slideIndex)
     logger.debug(
@@ -616,7 +776,7 @@ class HyperlinkManager {
    * @param {number} slideIndex - 1-based slide index.
    * @param {string|number|null} targetId - ID or name of the target shape (or null to search across slide).
    * @param {string} text - Substring text to make clickable.
-   * @param {string|number} url - Target URL, action, or target slide number.
+   * @param {string|number|Object} url - Target URL, action, target slide number, or options bag.
    * @param {Object} [options={}] - Styling and hyperlink options (color, underline, bold, italic, tooltip).
    * @param {SlideManager} slideManager
    * @param {RelationshipManager} relationshipManager
@@ -624,6 +784,18 @@ class HyperlinkManager {
   setHyperlink(slideIndex, targetId, text, url, options = {}, slideManager, relationshipManager) {
     if (!text || typeof text !== 'string') {
       throw new PPTXError('setHyperlink requires a non-empty text string to link')
+    }
+
+    let effectiveUrl = url
+    let effectiveOptions = options || {}
+    if (typeof url === 'object' && url !== null) {
+      effectiveOptions = { ...url, ...effectiveOptions }
+      effectiveUrl =
+        effectiveOptions.url !== undefined
+          ? effectiveOptions.url
+          : effectiveOptions.action !== undefined
+            ? effectiveOptions.action
+            : effectiveOptions.targetSlide
     }
 
     const relMgr = relationshipManager || this.#relationshipManager
@@ -675,19 +847,36 @@ class HyperlinkManager {
 
     // 2. Resolve relationship / action for the hyperlink
     const { rId, action, tooltip } = this.#resolveLinkTarget(
-      url,
-      options,
+      effectiveUrl,
+      effectiveOptions,
       slideInfo,
       slideManager,
       relMgr
     )
 
-    const hlinkClickObj = {
-      '@_xmlns:r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
-    }
-    if (rId) hlinkClickObj['@_r:id'] = rId
+    const hlinkClickObj = {}
+    if (rId !== null && rId !== undefined) hlinkClickObj['@_r:id'] = rId
     if (action) hlinkClickObj['@_action'] = action
     if (tooltip) hlinkClickObj['@_tooltip'] = tooltip
+
+    // Helper to build styled and schema-ordered run properties
+    const buildStyledRunProperties = existingRPr => {
+      let targetRPr = this.#xmlParser.deepClone(existingRPr || {})
+      const styleOverrides = { ...effectiveOptions }
+      const isAction =
+        effectiveOptions.action ||
+        (typeof effectiveUrl === 'string' && isShowJumpAction(effectiveUrl)) ||
+        effectiveOptions.targetSlide !== undefined ||
+        typeof effectiveUrl === 'number'
+
+      if (!isAction) {
+        if (styleOverrides.color === undefined) styleOverrides.color = '0563C1'
+        if (styleOverrides.underline === undefined) styleOverrides.underline = true
+      }
+      targetRPr = StyleBuilder.buildRunProperties(targetRPr, styleOverrides)
+      targetRPr['a:hlinkClick'] = hlinkClickObj
+      return StyleBuilder.orderRunProperties(targetRPr)
+    }
 
     // 3. Locate the paragraph and perform run splitting
     let paras = targetShape['p:txBody']['a:p'] || []
@@ -715,13 +904,7 @@ class HyperlinkManager {
         const matchedText = text
         const afterText = fullStr.substring(matchIdx + text.length)
 
-        // Build styled run properties for target text
-        let targetRPr = this.#xmlParser.deepClone(r['a:rPr'] || {})
-        const styleOverrides = { ...options }
-        if (styleOverrides.color === undefined) styleOverrides.color = '0563C1' // Standard PowerPoint link blue
-        if (styleOverrides.underline === undefined) styleOverrides.underline = true
-        targetRPr = StyleBuilder.buildRunProperties(targetRPr, styleOverrides)
-        targetRPr['a:hlinkClick'] = hlinkClickObj
+        const targetRPr = buildStyledRunProperties(r['a:rPr'])
 
         const replacementRuns = []
         if (beforeText.length > 0) {
@@ -782,13 +965,7 @@ class HyperlinkManager {
             }
 
             if (!matchedRunCreated) {
-              let targetRPr = this.#xmlParser.deepClone(r['a:rPr'] || {})
-              const styleOverrides = { ...options }
-              if (styleOverrides.color === undefined) styleOverrides.color = '0563C1'
-              if (styleOverrides.underline === undefined) styleOverrides.underline = true
-              targetRPr = StyleBuilder.buildRunProperties(targetRPr, styleOverrides)
-              targetRPr['a:hlinkClick'] = hlinkClickObj
-
+              const targetRPr = buildStyledRunProperties(r['a:rPr'])
               newRuns.push({
                 'a:rPr': targetRPr,
                 'a:t': text,
@@ -836,11 +1013,11 @@ class HyperlinkManager {
     // 1. Navigation Action (next, prev, first, last, endshow, ppaction://hlinkshowjump)
     if (options.action && isShowJumpAction(options.action)) {
       action = normalizeAction(options.action)
-      return { rId: null, action, tooltip }
+      return { rId: '', action, tooltip }
     }
     if (typeof url === 'string' && isShowJumpAction(url)) {
       action = normalizeAction(url)
-      return { rId: null, action, tooltip }
+      return { rId: '', action, tooltip }
     }
 
     // 2. Internal Slide Target
@@ -867,7 +1044,22 @@ class HyperlinkManager {
       }
 
       const relativeTarget = targetInfo.zipPath.split('/').pop()
-      rId = relationshipManager.addRelationship(slideInfo.zipPath, REL_TYPES.SLIDE, relativeTarget)
+
+      // Deduplicate relationship if one already exists for this target slide
+      const existingRels = relationshipManager.getRelationships(slideInfo.zipPath)
+      const existingRel = existingRels.find(
+        r => r.type === REL_TYPES.SLIDE && r.target === relativeTarget
+      )
+      if (existingRel) {
+        rId = existingRel.id
+      } else {
+        rId = relationshipManager.addRelationship(
+          slideInfo.zipPath,
+          REL_TYPES.SLIDE,
+          relativeTarget
+        )
+      }
+
       action = 'ppaction://hlinksldjump'
       return { rId, action, tooltip }
     }
@@ -875,19 +1067,36 @@ class HyperlinkManager {
     // 3. Custom ppaction URI
     if (typeof url === 'string' && url.startsWith('ppaction://')) {
       action = url
-      return { rId: null, action, tooltip }
+      return { rId: '', action, tooltip }
     }
 
     // 4. External URL
     const sanitizedUrl = sanitizeUrl(url)
-    rId = relationshipManager.addRelationship(
-      slideInfo.zipPath,
-      REL_TYPES.HYPERLINK,
-      sanitizedUrl,
-      'External'
-    )
 
-    return { rId, action: options.action || null, tooltip }
+    // Deduplicate relationship if one already exists for this external URL
+    const existingRels = relationshipManager.getRelationships(slideInfo.zipPath)
+    const existingRel = existingRels.find(
+      r =>
+        r.type === REL_TYPES.HYPERLINK &&
+        r.target === sanitizedUrl &&
+        (r.targetMode === 'External' || !r.targetMode)
+    )
+    if (existingRel) {
+      rId = existingRel.id
+    } else {
+      rId = relationshipManager.addRelationship(
+        slideInfo.zipPath,
+        REL_TYPES.HYPERLINK,
+        sanitizedUrl,
+        'External'
+      )
+    }
+
+    return {
+      rId,
+      action: options.action ? normalizeAction(options.action) : null,
+      tooltip,
+    }
   }
 
   // ==========================================================================

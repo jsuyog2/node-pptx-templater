@@ -1,9 +1,31 @@
+export type ActionPreset =
+  | 'next'
+  | 'nextSlide'
+  | 'previous'
+  | 'prev'
+  | 'previousSlide'
+  | 'prevSlide'
+  | 'first'
+  | 'firstSlide'
+  | 'last'
+  | 'lastSlide'
+  | 'end'
+  | 'endShow'
+  | string;
+
 export interface HyperlinkOptions {
   tooltip?: string;
-  action?: 'next' | 'previous' | 'prev' | 'first' | 'last' | 'endshow' | string;
+  action?: ActionPreset;
   targetSlide?: number;
   isInternal?: boolean;
   slide?: number;
+  url?: string | number;
+  color?: string;
+  underline?: boolean | string;
+  bold?: boolean;
+  italic?: boolean;
+  fontSize?: number;
+  fontFace?: string;
 }
 
 export interface TextHyperlinkOptions extends HyperlinkOptions {
@@ -155,12 +177,12 @@ export class PPTXTemplater {
   cloneChart(chartId: string, clonedChartId?: string, clonedOptions?: any): this;
   applyZOrder(slideNumber: number, zOrderConfig: any[]): this;
   // Hyperlinks (Strict 6 Whitelisted Methods)
-  addHyperlink(targetId: string | number, url: string | number, options?: HyperlinkOptions): this;
-  updateHyperlink(targetId: string | number, url?: string | number, options?: HyperlinkOptions): this;
+  addHyperlink(targetId: string | number, urlOrAction: string | number | ActionPreset | HyperlinkOptions, options?: HyperlinkOptions): this;
+  updateHyperlink(targetId: string | number, urlOrAction?: string | number | ActionPreset | HyperlinkOptions, options?: HyperlinkOptions): this;
   removeHyperlink(targetId: string | number | { targetId?: string | number; shapeName?: string; text?: string; slide?: number }): this;
   getHyperlinks(slideId?: number): HyperlinkDescriptor[];
   getHyperlink(targetId: string | number): HyperlinkDescriptor | null;
-  setHyperlink(targetId: string | number | null, text: string, url: string | number, options?: TextHyperlinkOptions): this;
+  setHyperlink(targetId: string | number | null, text: string, urlOrAction: string | number | ActionPreset | TextHyperlinkOptions, options?: TextHyperlinkOptions): this;
   // Tables (Strict 30 Whitelisted Methods)
   addTable(slideId: number | string, rows: number, columns: number, data?: TableCellData[][], options?: any): this;
   addTable(rows: number, columns: number, data?: TableCellData[][], options?: any): this;

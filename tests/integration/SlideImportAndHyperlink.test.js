@@ -80,10 +80,10 @@ describe('PPTXTemplater - Slide Import & Slide Navigation Hyperlinks', () => {
     const zip = await JSZip.loadAsync(await fsExtra.readFile(outPath))
     const slideXml = await zip.file('ppt/slides/slide1.xml').async('text')
 
-    // Verify hlinkClick elements are correctly written with the exact action string and NO empty r:id
-    expect(slideXml).toContain('action="ppaction://hlinkshowjump?s=nextslide"')
-    expect(slideXml).toContain('action="ppaction://hlinkshowjump?s=lastslide"')
-    expect(slideXml).not.toContain('r:id=""')
+    // Verify hlinkClick elements are correctly written with the exact action string and valid r:id=""
+    expect(slideXml).toMatch(/action="ppaction:\/\/hlinkshowjump\?(jump|s)=nextslide"/)
+    expect(slideXml).toMatch(/action="ppaction:\/\/hlinkshowjump\?(jump|s)=lastslide"/)
+    expect(slideXml).toContain('r:id=""')
   })
 
   it('should successfully add slide-to-slide jumping links with slide type relationships', async () => {

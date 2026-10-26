@@ -101,14 +101,15 @@ describe('Shape and Target-Level Hyperlinks Integration Tests (TASK-HYPERLINK-00
     const navLink = links.find(l => l.shapeName === 'NextArrow' || l.targetId === 'NextArrow')
     expect(navLink).toBeDefined()
     expect(navLink.isInternal).toBe(true)
-    expect(navLink.action).toBe('ppaction://hlinkshowjump?s=nextslide')
+    expect(navLink.action).toBe('ppaction://hlinkshowjump?jump=nextslide')
     expect(navLink.tooltip).toBe('Next Slide')
 
     const buffer = await ppt.toBuffer()
     const zip = await JSZip.loadAsync(buffer)
     const slideXml = await zip.file('ppt/slides/slide1.xml').async('text')
 
-    expect(slideXml).toContain('action="ppaction://hlinkshowjump?s=nextslide"')
+    expect(slideXml).toContain('action="ppaction://hlinkshowjump?jump=nextslide"')
+    expect(slideXml).toContain('r:id=""')
   })
 
   it('4. should update an existing hyperlink URL and tooltip via updateHyperlink', async () => {

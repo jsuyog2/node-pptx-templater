@@ -3058,7 +3058,7 @@
       {
         "id": "addhyperlink",
         "name": "addHyperlink",
-        "signature": "ppt.addHyperlink(targetId, url, options)",
+        "signature": "ppt.addHyperlink(targetId, urlOrAction, options)",
         "category": "Hyperlinks",
         "description": "Binds an external web URL, inter-slide transition jump, or slideshow navigation action to an entire shape, textbox, image, or container.",
         "openXmlImpact": "Generates <a:hlinkClick r:id=\"rId...\" tooltip=\"...\" action=\"...\"/> inside <p:cNvPr> and adds corresponding relationship to slide .rels.",
@@ -3074,30 +3074,30 @@
             "description": "Shape ID or shape name to make clickable."
           },
           {
-            "name": "url",
-            "type": "string | number",
+            "name": "urlOrAction",
+            "type": "string | number | Object",
             "required": true,
             "default": "—",
-            "description": "Destination web URL (e.g. 'https://...'), slide index (number), or action string ('next', 'prev')."
+            "description": "Destination web URL (e.g. \"https://...\"), decoupled action preset (\"nextSlide\", \"previousSlide\", \"firstSlide\", \"lastSlide\", \"endShow\"), slide index (number), or options object."
           },
           {
             "name": "options",
             "type": "Object",
             "required": false,
             "default": "{}",
-            "description": "Additional hyperlink options (tooltip, action, targetSlide, slide)."
+            "description": "Additional hyperlink options (tooltip, action, targetSlide, slide, color, underline, bold, italic, fontSize)."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(1).addHyperlink('LearnMoreBtn', 'https://github.com', { tooltip: 'Visit GitHub' });\nppt.addHyperlink('NextSlideBtn', 'next', { action: 'next' });"
+        "exampleCode": "ppt.useSlide(1).addHyperlink(\"NextBtn\", \"nextSlide\", { tooltip: \"Advance\" });\nppt.addHyperlink(\"Slide3Btn\", 3);"
       },
       {
         "id": "updatehyperlink",
         "name": "updateHyperlink",
-        "signature": "ppt.updateHyperlink(targetId, url, options)",
+        "signature": "ppt.updateHyperlink(targetId, urlOrAction, options)",
         "category": "Hyperlinks",
         "description": "Modifies the target URL destination, action type, or ScreenTip tooltip of an existing hyperlink on a shape or container.",
         "openXmlImpact": "Rewrites <a:hlinkClick> attributes in <p:cNvPr> and updates or replaces relationship targets in slide .rels.",
@@ -3113,25 +3113,25 @@
             "description": "Shape ID or name whose hyperlink to update."
           },
           {
-            "name": "url",
-            "type": "string | number",
+            "name": "urlOrAction",
+            "type": "string | number | Object",
             "required": false,
             "default": "—",
-            "description": "New target URL or slide index."
+            "description": "New target URL, decoupled action preset (\"nextSlide\", \"previousSlide\", etc.), slide index, or options object."
           },
           {
             "name": "options",
             "type": "Object",
             "required": false,
             "default": "{}",
-            "description": "Options object (tooltip, action, targetSlide, slide)."
+            "description": "Options object (tooltip, action, targetSlide, slide, color, underline, bold, italic)."
           }
         ],
         "returns": {
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(1).updateHyperlink('LearnMoreBtn', 'https://example.com/docs', { tooltip: 'Read API Docs' });"
+        "exampleCode": "ppt.useSlide(1).updateHyperlink(\"NextBtn\", \"previousSlide\");"
       },
       {
         "id": "removehyperlink",
@@ -3211,7 +3211,7 @@
       {
         "id": "sethyperlink",
         "name": "setHyperlink",
-        "signature": "ppt.setHyperlink(targetId, text, url, options)",
+        "signature": "ppt.setHyperlink(targetId, text, urlOrAction, options)",
         "category": "Hyperlinks",
         "description": "Locates a specific text substring inside a shape/textbox, isolates it into a split text run via AST run splitting/healing, attaches an OpenXML hyperlink, and applies custom typography styling overrides.",
         "openXmlImpact": "Splits <a:r> text runs in <p:txBody>, attaches <a:hlinkClick> under <a:rPr>, and applies styling attributes (<a:solidFill>, @_u, @_b, @_i).",
@@ -3234,11 +3234,11 @@
             "description": "Exact text substring to make clickable."
           },
           {
-            "name": "url",
-            "type": "string | number",
+            "name": "urlOrAction",
+            "type": "string | number | Object",
             "required": true,
             "default": "—",
-            "description": "Target destination URL, action, or destination slide number."
+            "description": "Target destination URL, decoupled action preset (\"nextSlide\", etc.), destination slide number, or options object."
           },
           {
             "name": "options",
@@ -3252,7 +3252,7 @@
           "type": "PPTXTemplater",
           "description": "this (chainable)."
         },
-        "exampleCode": "ppt.useSlide(1).setHyperlink('SummaryCard', 'API Guide', 'https://example.com/api', {\n  color: '#0066CC',\n  underline: true,\n  bold: true,\n  tooltip: 'Read API Guide'\n});"
+        "exampleCode": "ppt.useSlide(1).setHyperlink(\"SummaryCard\", \"Next Step\", \"nextSlide\", {\n  color: \"#0066CC\",\n  underline: true,\n  bold: true,\n  tooltip: \"Go to Next Step\"\n});"
       }
     ],
     "Diagnostics & Validation": [

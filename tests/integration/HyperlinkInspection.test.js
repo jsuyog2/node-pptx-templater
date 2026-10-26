@@ -99,7 +99,7 @@ describe('Hyperlink Introspection APIs Integration Tests (TASK-HYPERLINK-003)', 
     const link = ppt.getHyperlink('PrevBtn')
     expect(link).toBeDefined()
     expect(link.isInternal).toBe(true)
-    expect(link.action).toBe('ppaction://hlinkshowjump?s=prevslide')
+    expect(link.action).toBe('ppaction://hlinkshowjump?jump=previousslide')
     expect(link.tooltip).toBe('Go Back')
 
     // Ensure getHyperlinks returns empty array for empty slide or out of bounds slide

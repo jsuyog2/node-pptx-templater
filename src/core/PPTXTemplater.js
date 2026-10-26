@@ -792,11 +792,12 @@ class PPTXTemplater {
    * // External link on a button shape
    * ppt.useSlide(1).addHyperlink('LearnMoreBtn', 'https://github.com', { tooltip: 'Visit GitHub' });
    *
-   * // Slide jump to slide 3
+   * // Slide jump to slide 3 directly
    * ppt.addHyperlink('OverviewBox', 3);
    *
-   * // Slide navigation action
-   * ppt.addHyperlink('NextArrow', 'next', { action: 'next' });
+   * // Slide navigation action preset directly decoupled from options
+   * ppt.addHyperlink('NextArrow', 'nextSlide');
+   * ppt.addHyperlink('PrevArrow', 'previousSlide', { tooltip: 'Back' });
    */
   addHyperlink(targetId, url, options = {}) {
     this.#assertLoaded()
@@ -821,12 +822,13 @@ class PPTXTemplater {
    * Updates an existing hyperlink target URL, action, or tooltip on a shape or container.
    *
    * @param {string|number} targetId - Shape ID or name whose hyperlink to update.
-   * @param {string|number} [url] - New destination URL, action, or slide number.
+   * @param {string|number|Object} [url] - New destination URL, action, or slide number.
    * @param {Object} [options={}] - Options (e.g. { tooltip, action, targetSlide, slide }).
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
    * ppt.useSlide(1).updateHyperlink('LearnMoreBtn', 'https://example.com/docs', { tooltip: 'Updated Docs' });
+   * ppt.updateHyperlink('ActionBtn', 'previousSlide');
    */
   updateHyperlink(targetId, url, options = {}) {
     this.#assertLoaded()
