@@ -17,24 +17,25 @@ Ingestion (PackageLoader, FlatOpcConverter, LegacyConverter)
         └─► AST Parsing & Serializing (XMLParser: standard & ordered [Z_ORDER_SYMBOL])
               ├─► Core: TemplateEngine (run healing, lists), ValidationEngine (XXE, integrity)
               ├─► Slide Subsystems: SlideManager, ZOrderManager, CommentManager
-              ├─► Element Subsystems: TextManager, TableManager, ChartManager, ShapeManager, ImageManager, MediaManager
+              ├─► Element Subsystems: TextManager, TableManager, ChartManager, ShapeManager, ImageManager, MediaManager, HyperlinkManager
               ├─► Package Manifests: RelationshipManager, ContentTypesManager, ZipManager
               └─► Output Pipeline: OutputWriter & FrameworkAdapters (18-method I/O boundary)
 ```
 
-### Core Subsystems
-- **`VirtualFileSystem`** (`src/core/VirtualFileSystem.js`): Normalized forward-slash in-memory file store.
+### Core Subsystem Managers
+- **`VirtualFileSystem`** (`src/core/VirtualFileSystem.js`): Normalized forward-slash in-memory file store (`Map<string, Uint8Array>`).
 - **`PackageLoader`** (`src/core/PackageLoader.js`): Ingests local files, buffers, streams, URLs, directories, cloud objects, and Flat OPC XML.
 - **`XMLParser`** (`src/parsers/XMLParser.js`): Lossless `fast-xml-parser` with dual-mode AST parsing and Z-order preservation (`[Z_ORDER_SYMBOL]`).
 - **`TemplateEngine`** (`src/core/TemplateEngine.js`): AST-level text run healing across fragmented `<a:r>`/`<a:t>` tags and native list generation.
 - **`ValidationEngine`** (`src/core/ValidationEngine.js`): XXE defense, entity bomb prevention, and structural package verification.
 - **`SlideManager`** (`src/managers/SlideManager.js`): 1-based slide operations, deep cloning, reordering, layout binding, sections, and comments.
-- **`TableManager`** (`src/elements/TableManager.js`): Strict 30-method DrawingML engine for table lifecycle, row/column operations, rectangular cell merges/splits, matrix I/O, and multi-tier styling.
-- **`ChartManager`** (`src/elements/ChartManager.js`): Strict 8-method whitelist supporting all 17 standard (`<c:chartSpace>`) and Office 2016+ extended (`<cx:chartSpace>`) chart types with Dual-Sync updating of embedded Excel workbooks.
-- **`ShapeManager`** (`src/elements/ShapeManager.js`): Vector geometry, fills, borders, text, alignment, and coordinate math.
+- **`TableManager`** (`src/elements/TableManager.js`): DrawingML table lifecycle, row/column CRUD, rectangular cell merges/splits, `<a16:rowId>` allocation, and polymorphic cell badges.
+- **`ChartManager`** (`src/elements/ChartManager.js`): DrawingML (`<c:chartSpace>`) and extended (`<cx:chartSpace>`) chart types with Dual-Sync updating of embedded Excel workbooks.
+- **`ShapeManager`** (`src/elements/ShapeManager.js`): Vector geometry, fills, borders, text, alignment, grouping, and coordinate math.
 - **`TextManager`** (`src/elements/TextManager.js`): Run substitutions, full text box replacement (`replaceTextByTag`), and 31-property DrawingML styling.
 - **`ZOrderManager`** (`src/spatial/ZOrderManager.js`): Visual stacking operations while preserving `<p:nvGrpSpPr>` and `<p:grpSpPr>` header invariants.
-- **`ImageManager`** & **`MediaManager`** (`src/elements/ImageManager.js`, `src/managers/MediaManager.js`): Image insertion, swap, MIME detection, aspect ratio, audio/video links.
+- **`ImageManager`** & **`MediaManager`** (`src/elements/ImageManager.js`, `src/managers/MediaManager.js`): Image, audio, and video insertion, MIME detection, aspect ratio, and timing tracks.
+- **`HyperlinkManager`** (`src/managers/HyperlinkManager.js`): External web URLs, internal slide jumps (`action="ppaction://hlinksldjump"`), and slideshow actions.
 - **`RelationshipManager`** & **`ContentTypesManager`** (`src/managers/`): `.rels` target graphs and `[Content_Types].xml` default/override mappings.
 - **`ZipManager`** (`src/managers/ZipManager.js`): In-memory ZIP packaging and extraction via JSZip.
 - **`OutputWriter`** (`src/writer/OutputWriter.js`): Multi-target output serialization with Express/Fastify adapters.
@@ -56,7 +57,7 @@ All presentation input, output, and serialization must route through these 18 ap
 
 ## 3. Strict 23-Method Slide Management Whitelist
 
-All slide manipulations use 1-based indexing and strictly adhere to these 23 approved methods:
+All slide manipulations use 1-based indexing and strictly adhere to these 23 approved methods without multi-page redundant tutorials:
 
 - **Selection & Scoping (2)**: `ppt.useSlide(...slideRefs)` • `ppt.useAllSlides()`
 - **Creation & Duplication (2)**: `ppt.addSlide(options, position)` • `ppt.duplicateSlide(sourceIndex, atPosition)`
@@ -69,117 +70,6 @@ All slide manipulations use 1-based indexing and strictly adhere to these 23 app
 
 ---
 
-## 4. Text & Style Engine Whitelist
-
-- **Text & Lists (18 Methods)**: `replaceText`, `addText`, `replaceTextByTag`, `addLists`, `getList`, `getLists`, `findLists`, `replaceList`, `clearList`, `removeList`, `findText`, `getText`, `getTextElements`, `addStyle`, `updateStyle`, `removeStyle`, `clearText`, `removeText`.
-- **`replaceTextByTag(tagOrId, newText, options)`**: Resolves by shape ID (`<p:cNvPr id="...">`), name (`name="..."`), or tag; clears existing runs inside `<p:txBody>`, partitions `\n` into distinct `<a:p>` paragraphs, and inherits root `<a:pPr>` and `<a:rPr>`.
-- **31-Property Style Engine**: Typography (8), Casing & Spacing (6), Alignment & Direction (4), Bullets (5), Shadows & Outer Effects (6).
-
----
-
-## 5. Strict 10-Method Shapes & Geometry Whitelist
-
-All shape creation, inspection, mutation, grouping, and cleanup strictly adhere to these 10 approved methods (all non-whitelisted shape functions such as `deleteShape`, `updateShapeText`, `alignShapes`, `validateShape`, or `addTextAtPosition` are prohibited):
-
-1. `ppt.addShape(slideId, type, options)`
-2. `ppt.updateShape(targetId, options)`
-3. `ppt.removeShape(shapeId)`
-4. `ppt.clearShapes()`
-5. `ppt.getShapes()`
-6. `ppt.getShape(shapeId)`
-7. `ppt.cloneShape(shapeId, clonedShapeId, clonedOptions)`
-8. `ppt.getGroupShapes(groupId)`
-9. `ppt.groupShapes(shapeIds)`
-10. `ppt.ungroupShapes(groupId)`
-
----
-
-## 6. Strict 12-Method Images & Media Whitelist
-
-All image, video, and audio operations strictly adhere to these 12 approved methods across `PPTXTemplater`, `ImageManager`, and `MediaManager` (with PascalCase aliases maintained for backward compatibility):
-
-- **Images (3)**:
-  `ppt.addImage([slideId], source, options)` • `ppt.updateImage(imageId, options)` • `ppt.removeImage(imageId)`
-- **Videos (3)**:
-  `ppt.addVideo([slideId], source, options)` • `ppt.updateVideo(videoId, options)` • `ppt.removeVideo(videoId)`
-- **Audio (3)**:
-  `ppt.addAudio([slideId], source, options)` • `ppt.updateAudio(audioId, options)` • `ppt.removeAudio(audioId)`
-- **Inspection & Cloning (3)**:
-  `ppt.getMedias([slideId])` • `ppt.getMedia(mediaId)` • `ppt.cloneMedia(mediaId, clonedMediaId, clonedOptions)`
-
-**Architecture Highlights**:
-- **`useSlide()` Context Binding**: Operations seamlessly resolve the active slide from `ppt.useSlide(slideNumber)` when `slideId` is omitted.
-- **Universal Input Ingestion**: Supports local file paths, remote URLs, Base64 Data URIs (`data:...;base64,...`), raw Base64 strings, Buffers, and streams.
-- **Automatic In-Memory Deduplication**: Content-hash SHA-1 tracking avoids duplicate media assets in `ppt/media/`.
-- **Full OpenXML Conformance**: Slide relationships (`.rels`), `<p:pic>` generation, `<p:timing>` audio/video node generation and automated orphaned timing sequence purging, percentage and EMU spatial resolution, and safe relationship deletion without breaking sibling references.
-
----
-
-## 7. Strict 8-Method Charts Whitelist
-
-All chart creation, mutation, inspection, cloning, and removal strictly adhere to these 8 approved methods (all data label modifications route through `updateChart(chartId, { labels: { ... } })` or `addChart(..., { labels: { ... } })`):
-
-1. `ppt.addChart(slideId, chartType, data, options)`
-2. `ppt.updateChart(chartId, options)`
-3. `ppt.updateChartData(chartId, data)`
-4. `ppt.removeChart(chartId)`
-5. `ppt.clearCharts([slideRefOrChartId])`
-6. `ppt.getCharts([slideId])`
-7. `ppt.getChart(chartId)`
-8. `ppt.cloneChart(chartId, clonedChartId, clonedOptions)`
-
-**17 Supported Chart Types**:
-- **Standard DrawingML (`<c:chartSpace>`)**: Column (`column`, `col`), Line (`line`), Pie (`pie`), Bar (`bar`), Area (`area`), XY Scatter (`scatter`, `xy`, `xyScatter`), Map (`map`), Stock (`stock`), Surface (`surface`), Radar (`radar`), Combo (`combo`).
-- **Office 2016+ Extended (`<cx:chartSpace>`)**: Treemap (`treemap`), Sunburst (`sunburst`), Histogram (`histogram`), Box & Whisker (`boxWhisker`, `boxAndWhisker`, `box_and_whisker`), Waterfall (`waterfall`), Funnel (`funnel`).
-
-**Core Invariants**:
-- **Dual-Sync Invariant**: Every chart addition or data mutation synchronously updates the XML cache (`ppt/charts/chartN.xml` or `chartExN.xml`) and the backing embedded Excel workbook (`ppt/embeddings/Microsoft_Excel_WorksheetN.xlsx`) with table cleansing to eliminate PowerPoint repair prompts.
-- **clearCharts Evacuation**: Evacuates all chart graphic frames from targeted slide(s) and purges unreferenced chart parts and workbooks while preserving layout shapes, tables, and text frames.
-
----
-
-## 8. Strict 30-Method Tables Subsystem Whitelist
-
-All DrawingML table operations strictly adhere to these 30 approved methods (all non-whitelisted routines such as `getTableRows`, `autoFitTable`, `splitTableOnOverflow`, `cloneMergedRegion`, `addCellShape`, `updateCellShape`, `removeCellShape`, `getCellShape`, `getCellBounds`, `getCellPosition`, `stripeRows` are prohibited):
-
-- **Lifecycle & Query (7)**:
-  `ppt.addTable(slideId, rows, columns, data, options)` • `ppt.updateTable(tableId, options)` • `ppt.updateTableData(tableId, data)` • `ppt.removeTable(tableId)` • `ppt.getTables(slideId)` • `ppt.getTable(tableId)` • `ppt.cloneTable(tableId, clonedTableId, clonedOptions)`
-- **Row & Column Operations (6)**:
-  `ppt.addTableRow(tableId, rowIndex, data)` • `ppt.addTableColumn(tableId, columnIndex, data)` • `ppt.removeTableRow(tableId, rowIndex)` • `ppt.removeTableColumn(tableId, columnIndex)` • `ppt.updateRowData(tableId, rowIndex, data)` • `ppt.updateColumnData(tableId, columnIndex, data)`
-- **Cell Operations & Clear (5)**:
-  `ppt.updateTableCell(tableId, rowIndex, columnIndex, options)` • `ppt.clearRowData(tableId, rowIndex)` • `ppt.clearColumnData(tableId, columnIndex)` • `ppt.clearCellData(tableId, rowIndex, columnIndex)` • `ppt.splitCell(tableId, rowIndex, columnIndex)`
-- **Data Accessors & Inspection (8)**:
-  `ppt.getTableData(tableId)` • `ppt.getColumnData(tableId, columnIndex)` • `ppt.getRowData(tableId, rowIndex)` • `ppt.getColumn(tableId, columnIndex)` • `ppt.getRow(tableId, rowIndex)` • `ppt.getCell(tableId, rowIndex, columnIndex)` • `ppt.getCellData(tableId, rowIndex, columnIndex)` • `ppt.mergeCells(tableId, startRow, startColumn, endRow, endColumn)`
-- **Multi-Tier Styling Engine (4)**:
-  `ppt.styleTable(tableId, options)` • `ppt.styleColumn(tableId, columnIndex, options)` • `ppt.styleRow(tableId, rowIndex, options)` • `ppt.styleCell(tableId, rowIndex, columnIndex, options)`
-
-**Core Table Invariants**:
-- **ISO/IEC 29500 DrawingML Invariants**: Every `<a:tr>` generates a unique 32-bit `<a16:rowId>` in `<a:extLst>`. Percentage coordinate resolutions map directly to canvas EMUs.
-- **Polymorphic Cell Ingestion & Overlay Badges**: `addTable`, `updateTable`, `updateTableData`, `updateTableCell`, `updateRowData`, `updateColumnData`, `addTableRow`, and `addTableColumn` accept primitives (`string`, `number`, `boolean`), styled objects (`{ value, style: { fontSize, fontFace, color, bold, fill, ... } }`), and shape badges (`{ shape: { type, fill, stroke, width, height }, text, textPosition: 'inside' | 'outside' }`). Badges render as overlay shapes anchored to cell bounds with zero table reflow.
-- **Merge & Split Subsystem**: Supports rectangular `gridSpan` and `rowSpan` on primary cells and `hMerge="1"` / `vMerge="1"` on secondary covered cells, and bidirectional split restoration.
-- **Multi-Tier Styling**: Clean property mapping to `<a:tblPr>` (properties, styles, alternating row/column bands), `<a:tcPr>` (solid fills, anchors, borders, margins), and `<a:txBody>` (typography, alignments).
-
----
-
-## 9. Strict 6-Method Hyperlinks Whitelist
-
-All interactive hyperlink and slideshow navigation operations strictly adhere to these 6 approved methods across `PPTXTemplater` and `HyperlinkManager`:
-
-1. `ppt.addHyperlink(targetId, url, options)`: Binds an external web URL, inter-slide jump (`action="ppaction://hlinksldjump"` with slide relationship), or slideshow action (`ppaction://hlinkshowjump?s=...`) to a shape or container under `<p:cNvPr><a:hlinkClick>`.
-2. `ppt.updateHyperlink(targetId, url, options)`: Updates the destination target, action, or ScreenTip tooltip of an existing hyperlink.
-3. `ppt.removeHyperlink(targetId)`: Detaches a hyperlink from a shape, textbox, or text run, safely verifying relationship references and purging orphaned `.rels` entries.
-4. `ppt.getHyperlinks(slideId)`: Read-only extraction of all shape-level and inline text-run level hyperlinks on targeted slide.
-5. `ppt.getHyperlink(targetId)`: Queries hyperlink metadata for a specific shape or text element.
-6. `ppt.setHyperlink(targetId, text, url, options)`: Locates a text substring within a shape, isolates it into a dedicated `<a:r>` text run via AST run splitting, applies DrawingML styling (`color`, `underline`, `bold`, `italic`, `fontSize`) via `StyleBuilder`, and binds the hyperlink `<a:hlinkClick>`.
-
-**Core Hyperlink Invariants**:
-- **OpenXML Relationship Mechanics**: External hyperlinks generate `Type=".../relationships/hyperlink"` and `TargetMode="External"` in `ppt/slides/_rels/slideN.xml.rels`. Internal slide jumps generate `Type=".../relationships/slide"` pointing to `slideM.xml`.
-- **Security & Sanitization**: Unsafe `javascript:` protocols are strictly rejected with `PPTXError`.
-- **AST Integrity**: Non-destructive run splitting and healing with safe orphan relationship garbage collection.
-
----
-
-## 10. Documentation Portal (`docs-site/`)
+## 4. Documentation Portal (`docs-site/`)
 
 The documentation site is a static export built with Next.js 14+ App Router (`output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`). All documentation content is driven by decoupled JSON schemas in `docs-site/src/data/` (`apiReference.json`, `features.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`) and verified by `npm run docs:validate`.
-
