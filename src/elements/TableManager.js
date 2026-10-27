@@ -10,7 +10,7 @@ const { createLogger } = require('../utils/logger.js')
 const { TableNotFoundError, PPTXError } = require('../utils/errors.js')
 const { toEmu, emuToPx } = require('../spatial/units.js')
 const { resolveCoordinate, getCanvasDimensions } = require('../utils/coordinateUtils.js')
-const { StyleBuilder } = require('../parser/StyleBuilder.js')
+const { StyleBuilder } = require('../parsers/StyleBuilder.js')
 const { CellShapeManager } = require('./CellShapeManager.js')
 const { Z_ORDER_SYMBOL } = require('../parsers/XMLParser.js')
 

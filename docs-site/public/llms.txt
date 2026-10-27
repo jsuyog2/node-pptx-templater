@@ -1,0 +1,123 @@
+# node-pptx-templater
+
+> High-performance, pure JavaScript PowerPoint (PPTX) OpenXML & Flat OPC template engine for Node.js, Express, Fastify, AWS Lambda, Cloudflare Workers, and Vercel Edge. Zero native binaries, C++ addons, or Microsoft Office / LibreOffice dependencies.
+
+## Overview & Core Advantages
+
+`node-pptx-templater` (v3.0.0-beta.0) is an enterprise-grade presentation engine designed to programmatically create, populate, mutate, and export PowerPoint presentations (.pptx, Flat OPC .xml) at machine scale.
+
+- **Pure JavaScript Runtime**: 100% portable JavaScript. Runs seamlessly in Node.js (>=18.x), AWS Lambda, Cloudflare Workers, Vercel Edge, Deno, and Bun. Zero `node-gyp`, zero C/C++ bindings, zero headless LibreOffice or COM interop overhead.
+- **Sub-50ms Execution**: Low-overhead in-memory Virtual File System (VFS) with streaming zip inflation and selective XML AST serialization.
+- **Dual-Sync Chart Engine**: Synchronizes both DrawingML XML (`<c:chartSpace>` / `<cx:chartSpace>`) and embedded Excel binaries (`ppt/embeddings/*.xlsx`) across 17 native chart types. Prevents PowerPoint "We found a problem with some content" repair prompts.
+- **Dynamic Table Pagination**: Automatically calculates row heights in EMUs and splits overflowing rows across multiple slides with repeating headers and footer preservation.
+- **AST Run Healing**: Eliminates split-tag XML regex corruption (`{{`, `title`, `}}` across different `<a:r>` nodes) by normalizing run hierarchies before replacement.
+- **Strict 8-Category API Architecture**: Clean, chainable API surface organized strictly into 8 categories with 18 whitelisted I/O methods.
+- **Hardened XML Security**: Built-in defenses against XXE attacks, entity bombs (Billion Laughs), and Zip-Slip directory traversal attacks.
+
+---
+
+## 8 Standardized Categories
+
+1. **Import/Export**: Static loading (`load`, `createBlank`, `preload`, `fromCache`, `clearCache`), export channels (`saveToFile`, `toBuffer`, `toStream`, `toBase64`, `toArrayBuffer`, `toResponse`, `toExpress`, `toFastify`), and inspection extractions (`extractToZip`, `extractToXml`, `toFlatXml`, `extractPptx`, `buildPptx`).
+2. **Slides**: Slide mutations (`useSlide`, `useAllSlides`, `addSlide`, `duplicateSlide`, `removeSlide`, `getSlides`, `getSlide`, `importSlideFrom`, `exportSlides`, `moveSlide`, `reorderSlides`, `tagSlide`, `getSlideDimensions`, `getSlideLayout`), section grouping (`useSection`, `addSection`, `updateSection`, `removeSection`, `getSection`), visibility (`hideSlide`, `unhideSlide`, `resetSlide`), and comments (`addComment`, `removeComment`).
+3. **Text & Placeholders**: Template variable substitution and typography (`replaceText`, `addText`, `replaceTextByTag`, `updateText`, `addLists`, `getList`, `findText`, `addStyle`, `removeStyle`, `updateStyle`).
+4. **Tables**: Complete table manipulation with 30 methods (`addTable`, `updateTable`, `updateTableData`, `removeTable`, `getTables`, `getTable`, `cloneTable`, `addTableRow`, `addTableColumn`, `removeTableRow`, `removeTableColumn`, `updateRowData`, `updateColumnData`, `updateTableCell`, `clearRowData`, `clearColumnData`, `clearCellData`, `getTableData`, `getColumnData`, `getRowData`, `getColumn`, `getRow`, `getCell`, `getCellData`, `mergeCells`, `splitCell`, `styleTable`, `styleColumn`, `styleRow`, `styleCell`).
+5. **Charts**: Native chart generation and mutation (`addChart`, `updateChart`, `updateChartData`, `removeChart`, `clearCharts`, `getCharts`, `getChart`, `cloneChart`, `getDataLabels`, `getChartLabelPositions`).
+6. **Shapes**: Vector shapes and containers (`addShape`, `updateShape`, `removeShape`, `clearShapes`, `getShapes`, `getShape`, `cloneShape`, `getGroupShapes`, `groupShapes`, `ungroupShapes`).
+7. **Images & Media**: Rich media embedding (`addImage`, `updateImage`, `removeImage`, `addVideo`, `updateVideo`, `removeVideo`, `addAudio`, `updateAudio`, `removeAudio`, `getMedias`, `getMedia`, `cloneMedia`).
+8. **Elements**: Element discovery, z-ordering, and hyperlinks (`getElements`, `getElement`, `removeElement`, `removeAllElements`, `setZOrder`, `bringToFront`, `sendToBack`, `bringForward`, `sendBackward`, `addHyperlink`, `updateHyperlink`, `removeHyperlink`, `getHyperlinks`, `getHyperlink`, `setHyperlink`, `checkCollision`, `isContained`).
+
+---
+
+## Quick Starts
+
+### 1. In-Place Text Replacement
+```javascript
+const { PPTXTemplater } = require('node-pptx-templater');
+
+const ppt = await PPTXTemplater.load('./templates/executive_summary.pptx');
+ppt.useSlide(1);
+ppt.replaceText({
+  '{{COMPANY}}': 'Acme Global Corp',
+  '{{FISCAL_YEAR}}': '2026',
+  '{{REVENUE}}': '$48.5M'
+});
+
+await ppt.saveToFile('./output/generated_report.pptx');
+```
+
+### 2. Native Chart Creation with Excel Dual-Sync
+```javascript
+const { PPTXTemplater } = require('node-pptx-templater');
+
+const ppt = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });
+ppt.useSlide(1);
+
+ppt.addChart(1, 'column', {
+  categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+  series: [
+    { name: 'Revenue', values: [120, 150, 180, 220] },
+    { name: 'Expenses', values: [80, 95, 110, 130] }
+  ]
+}, {
+  x: '10%',
+  y: '15%',
+  width: '80%',
+  height: '70%',
+  title: 'Annual Financial Overview'
+});
+
+await ppt.saveToFile('./output/financial_chart.pptx');
+```
+
+### 3. Serverless HTTP Streaming (Express / Fastify)
+```javascript
+// Express.js
+app.get('/download-deck', async (req, res) => {
+  const ppt = await PPTXTemplater.load('./templates/invoice.pptx');
+  ppt.replaceText({ '{{CLIENT}}': req.query.client });
+  await ppt.toExpress(res, 'Custom_Deck.pptx');
+});
+
+// Fastify
+fastify.get('/export-deck', async (request, reply) => {
+  const ppt = await PPTXTemplater.load('./templates/pitch.pptx');
+  ppt.replaceText({ '{{PRESENTER}}': 'Jane Doe' });
+  await ppt.toFastify(reply, 'Pitch_2026.pptx');
+});
+```
+
+### 4. Dynamic Table Insertion & Formatting
+```javascript
+const { PPTXTemplater } = require('node-pptx-templater');
+
+const ppt = await PPTXTemplater.load('./templates/template.pptx');
+ppt.useSlide(2);
+
+ppt.addTable(2, 4, 3, [
+  ['Department', 'Headcount', 'Budget'],
+  ['Engineering', '42', '$4,200,000'],
+  ['Product', '14', '$1,800,000'],
+  ['Sales', '28', '$3,100,000']
+], {
+  x: 50,
+  y: 100,
+  width: 620,
+  headerFill: '#1E293B',
+  headerColor: '#FFFFFF',
+  zebraFill: '#F8FAFC'
+});
+
+await ppt.saveToFile('./output/tables.pptx');
+```
+
+---
+
+## Canonical Links & Documentation
+
+- Official Documentation Portal: https://node-pptx-templater.pages.dev
+- Interactive API Reference: https://node-pptx-templater.pages.dev/docs/api/
+- Feature Matrix: https://node-pptx-templater.pages.dev/features/
+- Quick Start Guide: https://node-pptx-templater.pages.dev/guides/quick-start/
+- GitHub Repository: https://github.com/jsuyog2/node-pptx-templater
+- NPM Package: https://www.npmjs.com/package/node-pptx-templater

@@ -1,126 +1,105 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
 
   <url>
     <loc>https://node-pptx-templater.pages.dev/</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>1.0000</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.8000</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/features/</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.8000</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api/</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.8000</priority>
   </url>
   <url>
-    <loc>https://node-pptx-templater.pages.dev/api-reference/</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Import%2FExport</loc>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.8000</priority>
   </url>
   <url>
-    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Lifecycle%20%26%20I%2FO</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
-    <priority>0.8000</priority>
-  </url>
-  <url>
-    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Slides%20Management</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Slides</loc>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.8000</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Text%20%26%20Placeholders</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.8000</priority>
   </url>
   <url>
-    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Tables%20%26%20Cell%20Shapes</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Tables</loc>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.8000</priority>
   </url>
   <url>
-    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Charts%20%26%20Series%20Sync</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Charts</loc>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.8000</priority>
   </url>
   <url>
-    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Shapes%20%26%20Geometry</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Shapes</loc>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.8000</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Images%20%26%20Media</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.8000</priority>
   </url>
   <url>
-    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Z-Order%20%26%20Layering</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
-    <priority>0.8000</priority>
-  </url>
-  <url>
-    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Diagnostics%20%26%20Validation</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Elements</loc>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.8000</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/installation/</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.6400</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/compatibility/</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
-    <priority>0.6400</priority>
-  </url>
-  <url>
-    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Slides</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
-    <priority>0.6400</priority>
-  </url>
-  <url>
-    <loc>https://node-pptx-templater.pages.dev/docs/api/?category=Hyperlinks</loc>
-    <lastmod>2026-10-11T11:32:40+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.6400</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/guides/quick-start/</loc>
-    <lastmod>2026-10-13T00:00:00+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.7000</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/guides/serverless-deployment/</loc>
-    <lastmod>2026-10-13T00:00:00+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.7000</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/guides/run-fragment-healing/</loc>
-    <lastmod>2026-10-13T00:00:00+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.7000</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/guides/chart-excel-sync/</loc>
-    <lastmod>2026-10-13T00:00:00+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.7000</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/guides/table-pagination/</loc>
-    <lastmod>2026-10-13T00:00:00+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.7000</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/guides/spatial-transforms/</loc>
-    <lastmod>2026-10-13T00:00:00+00:00</lastmod>
+    <lastmod>2026-10-27T00:00:00+00:00</lastmod>
     <priority>0.7000</priority>
   </url>
 </urlset>

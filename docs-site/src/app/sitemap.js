@@ -5,23 +5,16 @@ export default function sitemap() {
   const baseUrl = siteMeta.domainUrl.replace(/\/+$/, '');
   const now = new Date();
 
-  // Categories with priority 0.8
-  const primaryCategories = [
-    'Lifecycle & I/O',
-    'Slides Management',
+  // Exact 8 Standardized Categories
+  const standardCategories = [
+    'Import/Export',
+    'Slides',
     'Text & Placeholders',
     'Tables',
     'Charts',
-    'Shapes & Geometry',
+    'Shapes',
     'Images & Media',
-    'Z-Order & Layering',
-    'Diagnostics & Validation',
-  ];
-
-  // Categories with priority 0.64
-  const secondaryCategories = [
-    'Slides',
-    'Hyperlinks',
+    'Elements',
   ];
 
   const routes = [
@@ -49,7 +42,7 @@ export default function sitemap() {
       changeFrequency: 'weekly',
       priority: 0.8,
     },
-    ...primaryCategories.map((category) => ({
+    ...standardCategories.map((category) => ({
       url: `${baseUrl}/docs/api/?category=${encodeURIComponent(category)}`,
       lastModified: now,
       changeFrequency: 'weekly',
@@ -72,12 +65,6 @@ export default function sitemap() {
       lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.7,
-    })),
-    ...secondaryCategories.map((category) => ({
-      url: `${baseUrl}/docs/api/?category=${encodeURIComponent(category)}`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.64,
     })),
   ];
 

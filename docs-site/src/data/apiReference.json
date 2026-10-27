@@ -1,25 +1,23 @@
 {
-  "version": "3.0.0-alpha.0",
-  "totalMethods": 147,
+  "version": "3.0.0-beta.0",
+  "totalMethods": 130,
   "categories": [
-    "Lifecycle & I/O",
+    "Import/Export",
     "Slides",
     "Text & Placeholders",
     "Tables",
     "Charts",
-    "Shapes & Geometry",
+    "Shapes",
     "Images & Media",
-    "Elements",
-    "Hyperlinks",
-    "Diagnostics & Validation"
+    "Elements"
   ],
   "methodsByCategory": {
-    "Lifecycle & I/O": [
+    "Import/Export": [
       {
         "id": "load",
         "name": "load",
         "signature": "PPTXTemplater.load(source, options = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Loads an existing PowerPoint presentation from a file path (.pptx, .xml, .ppt), directory tree, remote URL, Buffer or stream. Inflates the PKZip container or Flat OPC XML, parses relationships, and mounts the in-memory Virtual File System (VFS).",
         "openXmlImpact": "Reads ZIP archive entries: [Content_Types].xml, _rels/.rels, ppt/presentation.xml, ppt/_rels/presentation.xml.rels.",
         "edgeCases": "Inspects ZIP magic bytes. Rejects malformed archives and XXE entity expansion attacks.",
@@ -58,7 +56,7 @@
         "id": "createblank",
         "name": "createBlank",
         "signature": "PPTXTemplater.createBlank(options = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Creates a minimal, template-free blank PowerPoint presentation in memory from clean, valid OpenXML schemas with custom aspect ratio (16:9, 4:3, 16:10) or custom EMU/pixel dimensions. Contains 1 initial blank slide.",
         "openXmlImpact": "Synthesizes minimal [Content_Types].xml, _rels/.rels, presentation.xml with specified dimensions, slideMaster1.xml, slideLayout1.xml, theme1.xml, and slide1.xml.",
         "edgeCases": "Accepts '16:9', '4:3', '16:10' string aliases or explicit { width, height } in EMUs or pixels. Rejects invalid dimension inputs with PPTXError.",
@@ -111,7 +109,7 @@
         "id": "extractpptx",
         "name": "extractPptx",
         "signature": "PPTXTemplater.extractPptx(pptxPath, destinationFolder, options = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Unpacks a binary .pptx file into a folder of formatted OpenXML documents for automated inspection, security auditing, or batch transformation.",
         "openXmlImpact": "Extracts and formats [Content_Types].xml, ppt/presentation.xml, slide XML, and relationships.",
         "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
@@ -150,7 +148,7 @@
         "id": "buildpptx",
         "name": "buildPptx",
         "signature": "PPTXTemplater.buildPptx(folderPath, outputPath)",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Compiles an extracted OpenXML directory back into a valid, zipped PowerPoint presentation file. Guarantees proper zip compression and relationship integrity.",
         "openXmlImpact": "Scans directory, preserves binary media bytes, and zips back to compliant PresentationML package.",
         "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
@@ -182,7 +180,7 @@
         "id": "preload",
         "name": "preload",
         "signature": "PPTXTemplater.preload(source)",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Pre-reads, inflates, and caches a PPTX template into a high-speed memory cache. Subsequent calls to PPTXTemplater.fromCache() clone this pre-parsed memory state directly, eliminating disk reads and zip decompression overhead.",
         "openXmlImpact": "Caches inflated OpenXML parts in memory; avoids repeating JSZip.loadAsync on heavy batch jobs.",
         "edgeCases": "Inspects ZIP magic bytes. Rejects malformed archives and XXE entity expansion attacks.",
@@ -207,7 +205,7 @@
         "id": "fromcache",
         "name": "fromCache",
         "signature": "PPTXTemplater.fromCache(source)",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Instantiates a new PPTXTemplater by deep-cloning an existing preloaded template cache. Delivers up to 10x higher throughput for concurrent report generation in high-concurrency API servers and cloud functions.",
         "openXmlImpact": "Fast deep-copies the virtual OpenXML byte tree without reading from disk or re-parsing the zip container.",
         "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
@@ -232,7 +230,7 @@
         "id": "clearcache",
         "name": "clearCache",
         "signature": "PPTXTemplater.clearCache()",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Clears all cached template packages from memory. Ideal for test teardown, memory reclamation, or when template files on disk have been hot-reloaded.",
         "openXmlImpact": "Flushes global in-memory maps holding pre-inflated OpenXML byte arrays.",
         "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
@@ -249,7 +247,7 @@
         "id": "savetofile",
         "name": "saveToFile",
         "signature": "ppt.saveToFile(outputPath, options = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Serializes the entire in-memory PresentationML package, generates a standardized PKZip archive with DEFLATE compression, and writes the output file to disk. Creates any missing parent directories automatically.",
         "openXmlImpact": "Recompresses all modified XML parts (ppt/slides/slide*.xml, [Content_Types].xml, etc.) into compliant binary PPTX container.",
         "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
@@ -288,7 +286,7 @@
         "id": "tobuffer",
         "name": "toBuffer",
         "signature": "ppt.toBuffer(options = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Serializes the entire PowerPoint presentation into an in-memory Node.js binary Buffer. Essential for serverless architectures (AWS Lambda, Vercel Functions, Google Cloud Run) where local disk writes are prohibited or ephemeral.",
         "openXmlImpact": "Compresses all OpenXML package parts directly into memory without touching the filesystem.",
         "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
@@ -320,7 +318,7 @@
         "id": "tostream",
         "name": "toStream",
         "signature": "ppt.toStream(options = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Returns a Node.js Readable stream emitting binary chunks of the compressed PPTX archive. Enables streaming responses with low memory footprints when producing massive decks.",
         "openXmlImpact": "Streams zipped binary data directly from internal archive compression pipeline.",
         "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
@@ -345,7 +343,7 @@
         "id": "tobase64",
         "name": "toBase64",
         "signature": "ppt.toBase64(options = { dataUri: false })",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Serializes the presentation archive and returns it as a Base64 string or full Data URI string (data:application/vnd...;base64,...). Ideal for JSON API responses, client downloads, or webhook payloads.",
         "openXmlImpact": "Converts in-memory zipped binary buffer into Base64 encoding.",
         "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
@@ -377,7 +375,7 @@
         "id": "toarraybuffer",
         "name": "toArrayBuffer",
         "signature": "ppt.toArrayBuffer()",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Serializes presentation into a raw in-memory ArrayBuffer, ideal for Cloudflare Workers, Vercel Edge, and Fetch API streaming.",
         "openXmlImpact": "Flushes VirtualFileSystem into an uncompressed or compressed PKZip ArrayBuffer payload.",
         "edgeCases": "Returns standard ArrayBuffer compatible with Web Streams and Edge Response objects.",
@@ -394,7 +392,7 @@
         "id": "toresponse",
         "name": "toResponse",
         "signature": "ppt.toResponse(options = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Compiles the presentation and returns a web-standard Web API Response object with binary ArrayBuffer body, correct OpenXML Content-Type headers, and optional Content-Disposition attachment header. Ideal for Next.js Route Handlers, Remix, SvelteKit, and Edge workers.",
         "openXmlImpact": "Serializes VirtualFileSystem into PKZip binary buffer wrapped in standard Response.",
         "edgeCases": "Encodes Unicode filenames safely into RFC-5987 Content-Disposition header.",
@@ -440,7 +438,7 @@
         "id": "toexpress",
         "name": "toExpress",
         "signature": "ppt.toExpress(res, filename, options = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Streams the presentation directly to an Express.js response object. Automatically sets the correct OpenXML MIME type (application/vnd.openxmlformats-officedocument.presentationml.presentation), Content-Disposition attachment header with encoded filename, and Content-Length.",
         "openXmlImpact": "Direct HTTP response serialization with standardized OpenXML MIME headers.",
         "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
@@ -479,7 +477,7 @@
         "id": "tofastify",
         "name": "toFastify",
         "signature": "ppt.toFastify(reply, filename = 'presentation.pptx', options = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Pipes the presentation binary Buffer directly to a Fastify reply instance with correct OpenXML MIME type, Content-Length, and Content-Disposition download headers.",
         "openXmlImpact": "Serializes in-memory presentation into binary buffer dispatched through Fastify reply pipeline.",
         "edgeCases": "Handles Fastify header chaining (.type, .header, .send).",
@@ -518,7 +516,7 @@
         "id": "extracttozip",
         "name": "extractToZip",
         "signature": "ppt.extractToZip(destinationPath, options = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Packages the in-memory presentation and writes a raw compressed PKZip archive file to disk. Ensures all directories exist before writing.",
         "openXmlImpact": "Serializes entire VirtualFileSystem into compressed ZIP container written to destinationPath.",
         "edgeCases": "Creates nested parent directories recursively.",
@@ -550,7 +548,7 @@
         "id": "extracttoxml",
         "name": "extractToXml",
         "signature": "ppt.extractToXml(destinationDir, options = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Unpacks all OpenXML presentation parts (slides, charts, relationships, content types, themes) into an uncompressed folder on disk. Supports formatting and pretty-printing XML files for version control inspection.",
         "openXmlImpact": "Writes individual files into directory structure mirroring the OpenXML package ([Content_Types].xml, _rels/, ppt/slides/, etc.).",
         "edgeCases": "Preserves binary media files as raw buffers while optionally formatting XML documents with indentation.",
@@ -589,7 +587,7 @@
         "id": "toflatxml",
         "name": "toFlatXml",
         "signature": "ppt.toFlatXml(destinationPathOrOptions = {})",
-        "category": "Lifecycle & I/O",
+        "category": "Import/Export",
         "description": "Serializes the entire in-memory presentation into a Microsoft Flat OPC XML string (<pkg:package>). If a file path string is provided, writes directly to local disk and returns the XML string. If options are provided or omitted, returns the XML string directly in memory.",
         "openXmlImpact": "Constructs a valid ISO/IEC 29500-2 Flat OPC XML document from the current VirtualFileSystem state without disk or ZIP overhead.",
         "edgeCases": "Infers OpenXML MIME types for all parts and strips root [Content_Types].xml which is not part of Flat OPC schema.",
@@ -2065,12 +2063,12 @@
         "exampleCode": "ppt.useSlide(1).cloneChart('Q1_Chart', 'Q2_Chart', { x: '5.5in', y: '1.5in' });"
       }
     ],
-    "Shapes & Geometry": [
+    "Shapes": [
       {
         "id": "addshape",
         "name": "addShape",
         "signature": "ppt.addShape(slideId, type, options = {})",
-        "category": "Shapes & Geometry",
+        "category": "Shapes",
         "description": "Creates and inserts a new vector shape onto the targeted slide. Supports preset geometries (rect, roundRect, ellipse, triangle, rightArrow, star5, diamond, etc.), solid or gradient fills, borders, opacity, rotation, flips, and embedded text frames.",
         "openXmlImpact": "Inserts <p:sp> containing <p:nvSpPr>, <p:spPr> (<a:prstGeom prst=\"...\">, <a:xfrm>, <a:solidFill>), and <p:txBody> into <p:spTree>.",
         "edgeCases": "Throws PPTXError if slide index is invalid or shape options fail schema validation.",
@@ -2109,7 +2107,7 @@
         "id": "updateshape",
         "name": "updateShape",
         "signature": "ppt.updateShape(targetId, options = {})",
-        "category": "Shapes & Geometry",
+        "category": "Shapes",
         "description": "Updates spatial coordinates, dimensions, fills, borders, rotation, or inner text of an existing shape by shape ID or name in-place.",
         "openXmlImpact": "Mutates <a:xfrm> (<a:off>, <a:ext>), <a:solidFill>, <a:ln>, and <p:txBody> under <p:sp>.",
         "edgeCases": "Throws PPTXError if targeted shape is not found on the slide.",
@@ -2141,7 +2139,7 @@
         "id": "removeshape",
         "name": "removeShape",
         "signature": "ppt.removeShape(shapeId)",
-        "category": "Shapes & Geometry",
+        "category": "Shapes",
         "description": "Removes a shape element from the targeted slide(s) by shape ID or name and updates slide z-order.",
         "openXmlImpact": "Evacuates targeted <p:sp> node from <p:spTree> and clears its z-order entry.",
         "edgeCases": "Throws PPTXError if targeted shape is not found.",
@@ -2166,7 +2164,7 @@
         "id": "clearshapes",
         "name": "clearShapes",
         "signature": "ppt.clearShapes()",
-        "category": "Shapes & Geometry",
+        "category": "Shapes",
         "description": "Evacuates all user-created shapes from targeted slide(s) while strictly preserving layout placeholders, master placeholders, and background elements.",
         "openXmlImpact": "Filters <p:spTree> child nodes, removing non-placeholder <p:sp> and <p:grpSp> elements.",
         "edgeCases": "Does not remove layout titles, footers, slide numbers, or prompt placeholders.",
@@ -2183,7 +2181,7 @@
         "id": "getshapes",
         "name": "getShapes",
         "signature": "ppt.getShapes()",
-        "category": "Shapes & Geometry",
+        "category": "Shapes",
         "description": "Returns metadata for all shapes on the targeted slide(s) including IDs, names, preset geometries, pixel coordinates, EMU bounds, style metadata, and text.",
         "openXmlImpact": "Recursively scans DrawingML nodes (<p:sp>, <p:grpSp>) under <p:spTree> in read-only mode.",
         "edgeCases": "Returns empty array if slide has no shapes.",
@@ -2200,7 +2198,7 @@
         "id": "getshape",
         "name": "getShape",
         "signature": "ppt.getShape(shapeId)",
-        "category": "Shapes & Geometry",
+        "category": "Shapes",
         "description": "Discovers and retrieves normalized metadata for a specific shape by shape ID or name on the targeted slide(s).",
         "openXmlImpact": "Inspects target <p:sp> or <p:grpSp> node and computes coordinate bounds.",
         "edgeCases": "Returns null if shape is not found.",
@@ -2225,7 +2223,7 @@
         "id": "cloneshape",
         "name": "cloneShape",
         "signature": "ppt.cloneShape(shapeId, clonedShapeId, clonedOptions = {})",
-        "category": "Shapes & Geometry",
+        "category": "Shapes",
         "description": "Duplicates an existing shape with a new ID, optional coordinate offsets or overrides, preserving formatting.",
         "openXmlImpact": "Deep-clones <p:sp> node, assigns unique <p:cNvPr id=\"...\" name=\"...\">, and adjusts <a:off>.",
         "edgeCases": "Throws PPTXError if source shape is not found.",
@@ -2264,7 +2262,7 @@
         "id": "getgroupshapes",
         "name": "getGroupShapes",
         "signature": "ppt.getGroupShapes(groupId)",
-        "category": "Shapes & Geometry",
+        "category": "Shapes",
         "description": "Inspects a composite group container (<p:grpSp>) and returns normalized descriptors for all direct child shapes.",
         "openXmlImpact": "Inspects <p:grpSp> children (<p:sp>) and reads their geometry and coordinates.",
         "edgeCases": "Returns empty array if group ID does not exist or target element is not a group.",
@@ -2289,7 +2287,7 @@
         "id": "groupshapes",
         "name": "groupShapes",
         "signature": "ppt.groupShapes(shapeIds, groupOptions = {})",
-        "category": "Shapes & Geometry",
+        "category": "Shapes",
         "description": "Groups multiple shapes into a composite group container (<p:grpSp>), computing composite bounding boxes (<p:grpSpPr> with <a:xfrm>, <a:chOff>, <a:chExt>).",
         "openXmlImpact": "Constructs <p:grpSp>, moves targeted <p:sp> nodes into it, and updates slide z-order.",
         "edgeCases": "Throws PPTXError if fewer than 2 shapes are provided or any shape is not found.",
@@ -2321,7 +2319,7 @@
         "id": "ungroupshapes",
         "name": "ungroupShapes",
         "signature": "ppt.ungroupShapes(groupId)",
-        "category": "Shapes & Geometry",
+        "category": "Shapes",
         "description": "Dissolves a composite group container (<p:grpSp>), re-projecting child coordinate transforms back to canvas absolute EMUs, and appends shapes back to parent slide.",
         "openXmlImpact": "Unnests child <p:sp> nodes from <p:grpSp>, removes <p:grpSp>, and updates slide z-order.",
         "edgeCases": "Throws PPTXError if group shape is not found or is not a group.",
@@ -3017,14 +3015,12 @@
           "description": "this (chainable)."
         },
         "exampleCode": "ppt.useSlide(1).sendBackward('shadow_shape');"
-      }
-    ],
-    "Hyperlinks": [
+      },
       {
         "id": "addhyperlink",
         "name": "addHyperlink",
         "signature": "ppt.addHyperlink(targetId, urlOrAction, options)",
-        "category": "Hyperlinks",
+        "category": "Elements",
         "description": "Binds an external web URL, inter-slide transition jump, or slideshow navigation action to an entire shape, textbox, image, or container.",
         "openXmlImpact": "Generates <a:hlinkClick r:id=\"rId...\" tooltip=\"...\" action=\"...\"/> inside <p:cNvPr> and adds corresponding relationship to slide .rels.",
         "edgeCases": "Rejects unsafe javascript: URLs with PPTXError. Supports targetSlide numbers for internal slide jumps. Replaces any existing shape hyperlink safely.",
@@ -3063,7 +3059,7 @@
         "id": "updatehyperlink",
         "name": "updateHyperlink",
         "signature": "ppt.updateHyperlink(targetId, urlOrAction, options)",
-        "category": "Hyperlinks",
+        "category": "Elements",
         "description": "Modifies the target URL destination, action type, or ScreenTip tooltip of an existing hyperlink on a shape or container.",
         "openXmlImpact": "Rewrites <a:hlinkClick> attributes in <p:cNvPr> and updates or replaces relationship targets in slide .rels.",
         "edgeCases": "If target has no hyperlink, adds it automatically. Cleans up old orphaned relationships when changing link types.",
@@ -3102,7 +3098,7 @@
         "id": "removehyperlink",
         "name": "removeHyperlink",
         "signature": "ppt.removeHyperlink(targetId)",
-        "category": "Hyperlinks",
+        "category": "Elements",
         "description": "Detaches a hyperlink from a shape, textbox, image, or text run, and purges orphaned relationship entries from slide .rels.",
         "openXmlImpact": "Removes <a:hlinkClick> node from <p:cNvPr> or <a:rPr> and unlinks relationship from slide{N}.xml.rels.",
         "edgeCases": "Safely verifies relationship is not shared before removing from .rels. Supports shape ID, shape name, or text query.",
@@ -3127,7 +3123,7 @@
         "id": "gethyperlinks",
         "name": "getHyperlinks",
         "signature": "ppt.getHyperlinks(slideId)",
-        "category": "Hyperlinks",
+        "category": "Elements",
         "description": "Extracts and inspects all hyperlinks (shape-level and inline text run-level) defined on the targeted slide.",
         "openXmlImpact": "Read-only traversal of slide XML AST and slide{N}.xml.rels mappings without mutating DOM.",
         "edgeCases": "Returns empty array if slide has no hyperlinks or invalid slide ID. Normalizes internal slide destinations.",
@@ -3152,7 +3148,7 @@
         "id": "gethyperlink",
         "name": "getHyperlink",
         "signature": "ppt.getHyperlink(targetId)",
-        "category": "Hyperlinks",
+        "category": "Elements",
         "description": "Retrieves the hyperlink configuration and target destination for a specific element or text run.",
         "openXmlImpact": "Read-only inspection of target shape <p:cNvPr> or text run <a:rPr>.",
         "edgeCases": "Returns null if target element has no hyperlink attached or target is not found.",
@@ -3177,7 +3173,7 @@
         "id": "sethyperlink",
         "name": "setHyperlink",
         "signature": "ppt.setHyperlink(targetId, text, urlOrAction, options)",
-        "category": "Hyperlinks",
+        "category": "Elements",
         "description": "Locates a specific text substring inside a shape/textbox, isolates it into a split text run via AST run splitting/healing, attaches an OpenXML hyperlink, and applies custom typography styling overrides.",
         "openXmlImpact": "Splits <a:r> text runs in <p:txBody>, attaches <a:hlinkClick> under <a:rPr>, and applies styling attributes (<a:solidFill>, @_u, @_b, @_i).",
         "edgeCases": "Handles substrings split across multiple fractured runs. Applies PowerPoint link blue (#0563C1) and underline by default.",
@@ -3218,252 +3214,6 @@
           "description": "this (chainable)."
         },
         "exampleCode": "ppt.useSlide(1).setHyperlink(\"SummaryCard\", \"Next Step\", \"nextSlide\", {\n  color: \"#0066CC\",\n  underline: true,\n  bold: true,\n  tooltip: \"Go to Next Step\"\n});"
-      }
-    ],
-    "Diagnostics & Validation": [
-      {
-        "id": "validate",
-        "name": "validate",
-        "signature": "ppt.validate()",
-        "category": "Diagnostics & Validation",
-        "description": "Performs a comprehensive integrity check of the entire PowerPoint package. Verifies PresentationML schemas, checks all XML tags for balanced closures, audits DrawingML tree structures, and ensures no dangling references exist.",
-        "openXmlImpact": "Audits [Content_Types].xml, _rels/.rels, ppt/presentation.xml, all slides, layouts, masters, and charts.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [],
-        "returns": {
-          "type": "Promise<{ valid: boolean, errors: string[] }>",
-          "description": "Validation outcome with list of any structural errors."
-        },
-        "exampleCode": "const result = await ppt.validate();\nif (!result.valid) {\n  console.error('Validation issues found:', result.errors);\n} else {\n  console.log('Presentation is 100% compliant and non-corrupting.');\n}"
-      },
-      {
-        "id": "validatepresentation",
-        "name": "validatePresentation",
-        "signature": "ppt.validatePresentation()",
-        "category": "Diagnostics & Validation",
-        "description": "Audits presentation-level structures: verifies slide ordering, checks layout linkages, and ensures master slide relationship consistency.",
-        "openXmlImpact": "Validates ppt/presentation.xml and ppt/_rels/presentation.xml.rels.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [],
-        "returns": {
-          "type": "Promise<Object>",
-          "description": "Validation outcome."
-        },
-        "exampleCode": "const check = await ppt.validatePresentation();"
-      },
-      {
-        "id": "validatetable",
-        "name": "validateTable",
-        "signature": "ppt.validateTable(tableId)",
-        "category": "Diagnostics & Validation",
-        "description": "Validates a table's DrawingML grid structures, ensuring cell counts match grid columns and merge coordinates do not overlap or exceed table boundaries.",
-        "openXmlImpact": "Audits &lt;a:tblGrid&gt; and &lt;a:tr&gt; row/cell consistency.",
-        "edgeCases": "Validates row/column indices and handles merged cell boundaries without XML element interleaving.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "tableId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Table name or shape ID."
-          }
-        ],
-        "returns": {
-          "type": "Promise<Object>",
-          "description": "Validation outcome."
-        },
-        "exampleCode": "const res = await ppt.useSlide(1).validateTable('projectTable');"
-      },
-      {
-        "id": "validaterelationships",
-        "name": "validateRelationships",
-        "signature": "ppt.validateRelationships()",
-        "category": "Diagnostics & Validation",
-        "description": "Scans all .rels files across the presentation to ensure every relationship targets an existing package part and no unreferenced orphaned assets exist.",
-        "openXmlImpact": "Audits all _rels/*.rels files against package file entries.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [],
-        "returns": {
-          "type": "Promise<Object>",
-          "description": "Audit result with orphaned and missing target lists."
-        },
-        "exampleCode": "const relsAudit = await ppt.validateRelationships();\nconsole.log('Orphaned parts:', relsAudit.orphaned);"
-      },
-      {
-        "id": "repair",
-        "name": "repair",
-        "signature": "ppt.repair()",
-        "category": "Diagnostics & Validation",
-        "description": "Automatically analyzes and repairs common PowerPoint corruption triggers: fixes orphaned relationship IDs, resolves unclosed XML run tags, regenerates missing Content-Type entries, and normalizes table structures.",
-        "openXmlImpact": "Corrects [Content_Types].xml, trims broken .rels links, and repairs corrupted DrawingML trees.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [],
-        "returns": {
-          "type": "Promise<PPTXTemplater>",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "// Automatically fix an externally modified or corrupted deck\nawait ppt.repair();\nawait ppt.saveToFile('./repaired-deck.pptx');"
-      },
-      {
-        "id": "inspectxml",
-        "name": "inspectXML",
-        "signature": "ppt.inspectXML(xmlPath)",
-        "category": "Diagnostics & Validation",
-        "description": "Returns the formatted, syntax-indented XML content of any internal part in the presentation package (e.g. ppt/slides/slide1.xml).",
-        "openXmlImpact": "Reads and pretty-prints raw XML part string.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "xmlPath",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Relative part path inside PPTX package."
-          }
-        ],
-        "returns": {
-          "type": "Promise<string>",
-          "description": "Formatted XML string."
-        },
-        "exampleCode": "const slideXml = await ppt.inspectXML('ppt/slides/slide1.xml');\nconsole.log(slideXml.substring(0, 500));"
-      },
-      {
-        "id": "inspectslide",
-        "name": "inspectSlide",
-        "signature": "ppt.inspectSlide(slideNumber)",
-        "category": "Diagnostics & Validation",
-        "description": "Returns the formatted, indented XML string of a specific slide.",
-        "openXmlImpact": "Retrieves ppt/slides/slide{N}.xml.",
-        "edgeCases": "Throws error if 1-based slide index is out of bounds [1, slideCount]. Automatically resolves layout and relationship mappings.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "slideNumber",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "1-based slide index."
-          }
-        ],
-        "returns": {
-          "type": "Promise<string>",
-          "description": "Formatted slide XML."
-        },
-        "exampleCode": "const xml = await ppt.inspectSlide(1);"
-      },
-      {
-        "id": "inspectchart",
-        "name": "inspectChart",
-        "signature": "ppt.inspectChart(chartId)",
-        "category": "Diagnostics & Validation",
-        "description": "Returns the formatted XML content of a specific chart part.",
-        "openXmlImpact": "Retrieves ppt/charts/chart{N}.xml.",
-        "edgeCases": "Ensures synchronization between drawingML series and embedded Excel worksheet to avoid Office Repair prompts. Gracefully handles missing categories.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "chartId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Chart name or ID."
-          }
-        ],
-        "returns": {
-          "type": "Promise<string>",
-          "description": "Formatted chart XML."
-        },
-        "exampleCode": "const chartXml = await ppt.inspectChart('chart1');"
-      },
-      {
-        "id": "debugrelationships",
-        "name": "debugRelationships",
-        "signature": "ppt.debugRelationships(slideNumber)",
-        "category": "Diagnostics & Validation",
-        "description": "Dumps all relationship entries linked to a specific slide, listing relationship IDs, schemas, and target files.",
-        "openXmlImpact": "Parses ppt/slides/_rels/slide{N}.xml.rels.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": true,
-        "parameters": [
-          {
-            "name": "slideNumber",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "1-based slide index."
-          }
-        ],
-        "returns": {
-          "type": "Promise<Array<Object>>",
-          "description": "Array of relationship entries."
-        },
-        "exampleCode": "const rels = await ppt.debugRelationships(1);\nconsole.table(rels);"
-      },
-      {
-        "id": "enableperformanceprofile",
-        "name": "enablePerformanceProfile",
-        "signature": "ppt.enablePerformanceProfile()",
-        "category": "Diagnostics & Validation",
-        "description": "Activates microsecond performance telemetry profiling for all subsequent XML parsing, AST manipulations, and zip serialization.",
-        "openXmlImpact": "Hooks high-resolution timers around XML mutations and package compilation.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.enablePerformanceProfile();\nppt.useSlide(1).replaceText({ '{{title}}': 'Fast Generation' });\nconst metrics = ppt.getPerformanceMetrics();\nconsole.log('Execution timing breakdown:', metrics);"
-      },
-      {
-        "id": "getperformancemetrics",
-        "name": "getPerformanceMetrics",
-        "signature": "ppt.getPerformanceMetrics()",
-        "category": "Diagnostics & Validation",
-        "description": "Returns high-resolution timing metrics for operations performed on the presentation.",
-        "openXmlImpact": "Returns telemetry data map.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [],
-        "returns": {
-          "type": "Object",
-          "description": "Metrics summary object with durations in milliseconds."
-        },
-        "exampleCode": "const metrics = ppt.getPerformanceMetrics();"
-      },
-      {
-        "id": "enabledebug",
-        "name": "enableDebug",
-        "signature": "ppt.enableDebug()",
-        "category": "Diagnostics & Validation",
-        "description": "Sets global and instance logger verbosity to debug level, printing detailed OpenXML transformation traces to stdout.",
-        "openXmlImpact": "Enables debug logging for all internal managers.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.enableDebug();"
       }
     ],
     "Tables": [

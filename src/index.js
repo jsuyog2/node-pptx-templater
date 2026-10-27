@@ -36,11 +36,11 @@ const { TableManager } = require('./elements/TableManager.js')
 const { ShapeManager } = require('./elements/ShapeManager.js')
 const { ImageManager } = require('./elements/ImageManager.js')
 const { TextManager } = require('./elements/TextManager.js')
-const { HyperlinkManager } = require('./managers/HyperlinkManager.js')
+const { HyperlinkManager } = require('./elements/HyperlinkManager.js')
 const { MediaManager } = require('./managers/MediaManager.js')
 const { RelationshipManager } = require('./managers/RelationshipManager.js')
 const { ZOrderManager } = require('./spatial/ZOrderManager.js')
-const { ElementManager } = require('./managers/ElementManager.js')
+const { ElementManager } = require('./elements/ElementManager.js')
 const { OutputWriter, formatXml } = require('./writer/OutputWriter.js')
 const {
   sendExpress,

@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0-beta.0] - 2026-10-27
+
+### Added
+- **Exact 8 Standardized Categories**: Architectural reorganization across all documentation schemas, TypeScript declarations (`src/index.d.ts`), and JSDoc tags into 8 canonical categories:
+  1. `Import/Export` (18 methods: 7 Static, 8 Export, 3 Extraction)
+  2. `Slides` (24 methods)
+  3. `Text & Placeholders` (10 methods)
+  4. `Tables` (30 methods)
+  5. `Charts` (11 methods)
+  6. `Shapes` (11 methods)
+  7. `Images & Media` (11 methods)
+  8. `Elements` (15 methods)
+- **Elements & Hyperlinks Subsystem Consolidation**: Fully merged all 6 Hyperlink methods (`addHyperlink`, `updateHyperlink`, `removeHyperlink`, `getHyperlinks`, `getHyperlink`, `setHyperlink`) into the `Elements` category alongside element querying, relationship unlinking, and z-ordering. Moved `HyperlinkManager` and `ElementManager` directly into `src/elements/`.
+- **AI & LLM Discoverability (`llms.txt`)**: Authored `docs-site/public/llms.txt` structured for AI search crawlers (Perplexity, ChatGPT Search, Gemini, Claude) with library advantages, pure JS invariants, sub-50ms serverless benchmarks, and quick-start guides.
+- **Schema.org JSON-LD**: Injected semantic structured data (`SoftwareApplication`, `TechArticle`, `HowTo`) into `docs-site/src/data/siteMeta.json` and rendered across documentation pages for search indexing.
+- **Canonical Sitemap & Robots Directives**: Synchronized `sitemap.xml`, `sitemap.js`, and `robots.txt` with the 8 standardized categories.
+
+### Changed
+- **Performance & Memory Leak Optimizations**:
+  - `VirtualFileSystem`: Streamlined internal path normalization, eliminated redundant regex passes on clean normalized paths, and eliminated intermediate Buffer reallocations in `writeBytes`.
+  - `TemplateEngine`: Replaced memory-intensive `split().join()` allocations with guarded `replaceAll` execution, cutting garbage collection spikes during high-concurrency template batch processing.
+- **Source Restructuring (`src/`)**: Cleaned module hierarchy in `src/elements/`, `src/parsers/`, and `src/core/`. Consolidated `StyleBuilder.js` into `src/parsers/` and re-routed forwarders cleanly.
+- **README Overhaul**: Overhauled with high-intent SEO keywords, feature badges, and a comprehensive comparison table against native MS Office COM, python-pptx, headless LibreOffice, and pptxgenjs.
+- **Version Bump**: Bumped to `3.0.0-beta.0` across `package.json`, `package-lock.json`, `docs-site/package.json`, and documentation data files.
+
+### Removed
+- **Diagnostics & Validation Category**: Stripped standalone diagnostic methods from public categories and documentation while preserving core in-memory XML security defenses (XXE protection, Billion Laughs entity bomb resistance, and Zip-Slip traversal prevention).
+
+---
+
 ## [1.1.0] - 2026-06-12
 
 ### Added

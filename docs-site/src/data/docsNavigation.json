@@ -43,9 +43,9 @@
       "href": "/docs/api",
       "items": [
         {
-          "title": "Lifecycle & I/O",
-          "href": "/docs/api#Lifecycle%20%26%20I%2FO",
-          "category": "Lifecycle & I/O",
+          "title": "Import/Export",
+          "href": "/docs/api#Import%2FExport",
+          "category": "Import/Export",
           "count": 18
         },
         {
@@ -73,9 +73,9 @@
           "count": 11
         },
         {
-          "title": "Shapes & Geometry",
-          "href": "/docs/api#Shapes%20%26%20Geometry",
-          "category": "Shapes & Geometry",
+          "title": "Shapes",
+          "href": "/docs/api#Shapes",
+          "category": "Shapes",
           "count": 11
         },
         {
@@ -88,19 +88,7 @@
           "title": "Elements",
           "href": "/docs/api#Elements",
           "category": "Elements",
-          "count": 9
-        },
-        {
-          "title": "Hyperlinks",
-          "href": "/docs/api#Hyperlinks",
-          "category": "Hyperlinks",
-          "count": 7
-        },
-        {
-          "title": "Diagnostics & Validation",
-          "href": "/docs/api#Diagnostics%20%26%20Validation",
-          "category": "Diagnostics & Validation",
-          "count": 12
+          "count": 15
         }
       ]
     }

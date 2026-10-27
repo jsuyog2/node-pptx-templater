@@ -4,7 +4,7 @@ export default function robots() {
   return {
     rules: {
       userAgent: '*',
-      allow: '/',
+      allow: ['/', '/llms.txt'],
     },
     sitemap: `${siteMeta.domainUrl}/sitemap.xml`,
   };

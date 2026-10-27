@@ -57,7 +57,7 @@ export const metadata = {
   },
 };
 
-const jsonLd = {
+const jsonLd = siteMeta.jsonLd || {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   name: 'node-pptx-templater',

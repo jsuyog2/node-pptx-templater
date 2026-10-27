@@ -35,8 +35,12 @@ class TemplateEngine {
       const escaped = this.#escapeXml(String(value))
       const placeholderEscaped = this.#escapeXml(placeholder)
 
-      updated = updated.split(placeholderEscaped).join(escaped)
-      updated = updated.split(placeholder).join(escaped)
+      if (updated.includes(placeholderEscaped)) {
+        updated = updated.replaceAll(placeholderEscaped, escaped)
+      }
+      if (updated.includes(placeholder)) {
+        updated = updated.replaceAll(placeholder, escaped)
+      }
     }
 
     return updated
@@ -104,7 +108,9 @@ class TemplateEngine {
 
     let replacedText = combinedText
     for (const [placeholder, value] of Object.entries(replacements)) {
-      replacedText = replacedText.split(placeholder).join(String(value))
+      if (replacedText.includes(placeholder)) {
+        replacedText = replacedText.replaceAll(placeholder, String(value))
+      }
     }
 
     const firstRun = this.#xmlParser.deepClone(runs[0])

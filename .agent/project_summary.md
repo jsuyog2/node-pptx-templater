@@ -1,7 +1,7 @@
 # Project Architecture Summary: `node-pptx-templater`
 
-> **Version**: 3.0.0-alpha.0  
-> **Runtime**: Pure JavaScript (Node.js `>=18.x`, AWS Lambda, Cloudflare Workers, Vercel Edge, Deno)  
+> **Version**: 3.0.0-beta.0  
+> **Runtime**: Pure JavaScript (Node.js `>=18.x`, AWS Lambda, Cloudflare Workers, Vercel Edge, Deno, Bun)  
 > **Standard**: ISO/IEC 29500 (ECMA-376) Parts 1 & 2 (OPC & PresentationML)  
 > **API Catalog**: See `docs-site/src/data/apiReference.json` for full parameter definitions & examples
 
@@ -17,73 +17,61 @@ Ingestion (PackageLoader, FlatOpcConverter, LegacyConverter)
         └─► AST Parsing & Serializing (XMLParser: standard & ordered [Z_ORDER_SYMBOL])
               ├─► Core: TemplateEngine (run healing, lists), ValidationEngine (XXE, integrity)
               ├─► Slide Subsystems: SlideManager, CommentManager
-              ├─► Element Subsystems: ElementManager, ZOrderManager, TextManager, TableManager, ChartManager, ShapeManager, ImageManager, MediaManager, HyperlinkManager
+              ├─► Element Subsystems: ElementManager, HyperlinkManager, ZOrderManager, TextManager, TableManager, ChartManager, ShapeManager, ImageManager, MediaManager
               ├─► Package Manifests: RelationshipManager, ContentTypesManager, ZipManager
               └─► Output Pipeline: OutputWriter & FrameworkAdapters (18-method I/O boundary)
 ```
 
 ### Core Subsystem Managers
-- **`VirtualFileSystem`** (`src/core/VirtualFileSystem.js`): Normalized forward-slash in-memory file store (`Map<string, Uint8Array>`).
+- **`VirtualFileSystem`** (`src/core/VirtualFileSystem.js`): Normalized in-memory file store (`Map<string, Uint8Array>`).
 - **`PackageLoader`** (`src/core/PackageLoader.js`): Ingests local files, buffers, streams, URLs, directories, cloud objects, and Flat OPC XML.
 - **`XMLParser`** (`src/parsers/XMLParser.js`): Lossless `fast-xml-parser` with dual-mode AST parsing and Z-order preservation (`[Z_ORDER_SYMBOL]`).
+- **`StyleBuilder`** (`src/parsers/StyleBuilder.js`): DrawingML typography and shape style builder.
 - **`TemplateEngine`** (`src/core/TemplateEngine.js`): AST-level text run healing across fragmented `<a:r>`/`<a:t>` tags and native list generation.
 - **`ValidationEngine`** (`src/core/ValidationEngine.js`): XXE defense, entity bomb prevention, and structural package verification.
 - **`SlideManager`** (`src/managers/SlideManager.js`): 1-based slide operations, deep cloning, reordering, layout binding, sections, and comments.
 - **`TableManager`** (`src/elements/TableManager.js`): DrawingML table lifecycle, row/column CRUD, rectangular cell merges/splits, `<a16:rowId>` allocation, and polymorphic cell badges.
 - **`ChartManager`** (`src/elements/ChartManager.js`): DrawingML (`<c:chartSpace>`) and extended (`<cx:chartSpace>`) chart types with Dual-Sync updating of embedded Excel workbooks.
 - **`ShapeManager`** (`src/elements/ShapeManager.js`): Vector geometry, fills, borders, text, alignment, grouping, and coordinate math.
-- **`TextManager`** (`src/elements/TextManager.js`): Run substitutions, full text box replacement (`replaceTextByTag`), and 31-property DrawingML styling.
-- **`ElementManager`** (`src/managers/ElementManager.js`): Unified slide element inspection, querying, relationship-safe removal, and canvas resets.
+- **`TextManager`** (`src/elements/TextManager.js`): Run substitutions, full text box replacement (`replaceTextByTag`), and DrawingML styling.
+- **`ElementManager`** (`src/elements/ElementManager.js`): Unified slide element inspection, querying, relationship-safe removal, and canvas resets.
+- **`HyperlinkManager`** (`src/elements/HyperlinkManager.js`): External web URLs, internal slide jumps (`action="ppaction://hlinksldjump"`), and slideshow actions.
 - **`ZOrderManager`** (`src/spatial/ZOrderManager.js`): Visual stacking operations while preserving `<p:nvGrpSpPr>` and `<p:grpSpPr>` header invariants.
 - **`ImageManager`** & **`MediaManager`** (`src/elements/ImageManager.js`, `src/managers/MediaManager.js`): Image, audio, and video insertion, MIME detection, aspect ratio, and timing tracks.
-- **`HyperlinkManager`** (`src/managers/HyperlinkManager.js`): External web URLs, internal slide jumps (`action="ppaction://hlinksldjump"`), and slideshow actions.
 - **`RelationshipManager`** & **`ContentTypesManager`** (`src/managers/`): `.rels` target graphs and `[Content_Types].xml` default/override mappings.
 - **`ZipManager`** (`src/managers/ZipManager.js`): In-memory ZIP packaging and extraction via JSZip.
 - **`OutputWriter`** (`src/writer/OutputWriter.js`): Multi-target output serialization with Express/Fastify adapters.
 
 ---
 
-## 2. Strict 18-Method I/O Whitelist
+## 2. Exact 8 Standardized Categories & 130 Public Methods
 
-All presentation input, output, and serialization must route through these 18 approved methods (all deprecated aliases like `toFile`, `save`, `exportZip`, `writeToBuffer` are prohibited):
+The public API surface of `PPTXTemplater` is strictly organized across 8 categories:
 
-- **Static Methods (7)**:
-  `PPTXTemplater.load(source, options)` • `PPTXTemplater.createBlank(options)` • `PPTXTemplater.extractPptx(pptxPath, outputDir, options)` • `PPTXTemplater.buildPptx(sourceDir, outputPath, options)` • `PPTXTemplater.preload(source, options)` • `PPTXTemplater.fromCache(source)` • `PPTXTemplater.clearCache()`
-- **Export Methods (8)**:
-  `ppt.saveToFile(destinationPath, options)` • `ppt.toBuffer(options)` • `ppt.toStream(options)` • `ppt.toBase64(options)` • `ppt.toArrayBuffer(options)` • `ppt.toResponse(options)` • `ppt.toExpress(res, filename, options)` • `ppt.toFastify(reply, filename, options)`
-- **Extraction & Conversion (3)**:
-  `ppt.extractToZip(destinationPath, options)` • `ppt.extractToXml(destinationDir, options)` • `ppt.toFlatXml(destinationPathOrOptions, options)`
-
----
-
-## 3. Strict 23-Method Slide Management Whitelist
-
-All slide manipulations use 1-based indexing and strictly adhere to these 23 approved methods without multi-page redundant tutorials:
-
-- **Selection & Scoping (2)**: `ppt.useSlide(...slideRefs)` • `ppt.useAllSlides()`
-- **Creation & Duplication (2)**: `ppt.addSlide(options, position)` • `ppt.duplicateSlide(sourceIndex, atPosition)`
-- **Lifecycle & Reordering (3)**: `ppt.removeSlide(position)` • `ppt.moveSlide(fromIndex, toIndex)` • `ppt.reorderSlides(order)`
-- **Inspection & Metadata (5)**: `ppt.getSlides()` • `ppt.getSlide(index)` • `ppt.tagSlide(slideIndex, tag)` • `ppt.getSlideDimensions()` • `ppt.getSlideLayout(slideIndex)`
-- **Cross-Deck Transfer (2)**: `ppt.importSlideFrom(sourcePpt, sourceIndex, atPosition)` • `ppt.exportSlides(...slideIndices)`
-- **Section Management (5)**: `ppt.useSection(sectionRef)` • `ppt.addSection(name, startSlideIndex)` • `ppt.updateSection(sectionIdentifier, options)` • `ppt.removeSection(sectionIdentifier, removeSlides)` • `ppt.getSection(sectionRef)`
-- **Visibility & Reset (3)**: `ppt.hideSlide(...slideRefs)` • `ppt.unhideSlide(...slideRefs)` • `ppt.resetSlide(slideRef, options)`
-- **Comments (2)**: `ppt.addComment(text, options)` • `ppt.removeComment(commentIdentifier, options)`
-
----
-
-## 4. Strict 9-Method Elements Whitelist
-
-Slide visual element inspection, querying, removal, and layer stacking strictly adhere to these 9 approved methods under the unified "Elements" category (legacy "Z-Order & Layering" and unapproved methods are deprecated and prohibited):
-
-- **Inspection & Query (2)**:
-  `ppt.getElements(slideIdOrFilter, filter)` • `ppt.getElement(elementId, slideId)`
-- **Removal & Reset (2)**:
-  `ppt.removeElement(elementId, slideId)` • `ppt.removeAllElements(slideId, options)`
-- **Visual Stacking & Layering (5)**:
-  `ppt.setZOrder(elementId, zIndex, slideId)` • `ppt.bringToFront(elementId, slideId)` • `ppt.sendToBack(elementId, slideId)` • `ppt.bringForward(elementId, slideId)` • `ppt.sendBackward(elementId, slideId)`
+1. **`Import/Export`** (18 Methods):
+   - *Static (7)*: `load`, `createBlank`, `extractPptx`, `buildPptx`, `preload`, `fromCache`, `clearCache` (plus `setLogLevel`).
+   - *Export (8)*: `saveToFile`, `toBuffer`, `toStream`, `toBase64`, `toArrayBuffer`, `toResponse`, `toExpress`, `toFastify`.
+   - *Extraction (3)*: `extractToZip`, `extractToXml`, `toFlatXml`.
+2. **`Slides`** (24 Methods):
+   - `useSlide`, `useAllSlides`, `addSlide`, `duplicateSlide`, `removeSlide`, `getSlides`, `getSlide`, `importSlideFrom`, `exportSlides`, `moveSlide`, `reorderSlides`, `tagSlide`, `getSlideDimensions`, `getSlideLayout`, `useSection`, `addSection`, `updateSection`, `removeSection`, `getSection`, `hideSlide`, `unhideSlide`, `resetSlide`, `addComment`, `removeComment`.
+3. **`Text & Placeholders`** (10 Methods):
+   - `replaceText`, `addText`, `replaceTextByTag`, `updateText`, `addLists`, `getList`, `findText`, `addStyle`, `removeStyle`, `updateStyle`.
+4. **`Tables`** (30 Methods):
+   - `addTable`, `updateTable`, `updateTableData`, `removeTable`, `getTables`, `getTable`, `cloneTable`, `addTableRow`, `addTableColumn`, `removeTableRow`, `removeTableColumn`, `updateRowData`, `updateColumnData`, `updateTableCell`, `clearRowData`, `clearColumnData`, `clearCellData`, `getTableData`, `getColumnData`, `getRowData`, `getColumn`, `getRow`, `getCell`, `getCellData`, `mergeCells`, `splitCell`, `styleTable`, `styleColumn`, `styleRow`, `styleCell`.
+5. **`Charts`** (11 Methods):
+   - `addChart`, `updateChart`, `updateChartData`, `removeChart`, `clearCharts`, `getCharts`, `getChart`, `cloneChart`, `getDataLabels`, `getChartLabelPositions`.
+6. **`Shapes`** (11 Methods):
+   - `addShape`, `updateShape`, `removeShape`, `clearShapes`, `getShapes`, `getShape`, `cloneShape`, `getGroupShapes`, `groupShapes`, `ungroupShapes`.
+7. **`Images & Media`** (11 Methods):
+   - `addImage`, `updateImage`, `removeImage`, `addVideo`, `updateVideo`, `removeVideo`, `addAudio`, `updateAudio`, `removeAudio`, `getMedias`, `getMedia`, `cloneMedia`.
+8. **`Elements`** (15 Methods):
+   - *Element Queries (4)*: `getElements`, `getElement`, `removeElement`, `removeAllElements`.
+   - *Z-Ordering (5)*: `setZOrder`, `bringToFront`, `sendToBack`, `bringForward`, `sendBackward`.
+   - *Hyperlinks (6)*: `addHyperlink`, `updateHyperlink`, `removeHyperlink`, `getHyperlinks`, `getHyperlink`, `setHyperlink`.
+   - *Spatial Collision (2)*: `checkCollision`, `isContained`.
 
 ---
 
-## 5. Documentation Portal (`docs-site/`)
+## 3. Documentation Portal (`docs-site/`)
 
 The documentation site is a static export built with Next.js 14+ App Router (`output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`). All documentation content is driven by decoupled JSON schemas in `docs-site/src/data/` (`apiReference.json`, `features.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`) and verified by `npm run docs:validate`.

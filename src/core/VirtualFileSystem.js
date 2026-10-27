@@ -88,7 +88,12 @@ class VirtualFileSystem {
       throw new TypeError(`VirtualFileSystem.writeBytes: expected Uint8Array/Buffer for "${path}"`)
     }
     const key = this.#normalize(path)
-    this.#store.set(key, bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes))
+    this.#store.set(
+      key,
+      bytes instanceof Uint8Array
+        ? bytes
+        : new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    )
   }
 
   /**
@@ -242,6 +247,7 @@ class VirtualFileSystem {
    */
   #normalize(p) {
     if (!p) return ''
+    if (!p.includes('\\') && !p.startsWith('/')) return p
     return p.replace(/\\/g, '/').replace(/^\/+/, '')
   }
 }

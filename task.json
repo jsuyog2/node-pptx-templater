@@ -1,88 +1,142 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.11.0",
-    "category": "Elements",
-    "scope": "Strict 9 Elements Functions Whitelist & Z-Order Category Deprecation",
-    "approvedFunctions": [
-        "getElements",
-        "getElement",
-        "removeElement",
-        "removeAllElements",
-        "setZOrder",
-        "bringToFront",
-        "sendToBack",
-        "bringForward",
-        "sendBackward"
-    ],
-    "prohibitedCategories": [
-        "Z-Order & Layering",
-        "Layer Ordering",
-        "Z-Index Shift"
+    "version": "3.0.0-beta.0",
+    "category": "Refactoring, Optimization, SEO & Release Preparation",
+    "scope": "Elements consolidation, category reclassification, codebase cleanup, performance/memory optimization, SEO/AI-readiness, and 3.0.0-beta.0 release prep",
+    "approvedCategories": [
+        "Import/Export",
+        "Slides",
+        "Text & Placeholders",
+        "Tables",
+        "Charts",
+        "Shapes",
+        "Images & Media",
+        "Elements"
     ],
     "tasks": [
         {
-            "id": "TASK-ELEM-001",
-            "title": "Deprecate Legacy Z-Index Category & Reclassify Layering Methods",
+            "id": "TASK-RELEASE-001",
+            "title": "Consolidate Hyperlinks into Elements Category",
             "status": "completed",
-            "description": "Remove the old 'Z-Order & Layering' / 'Layer Ordering' category from docs-site/src/data/features.json, docs-site/src/data/apiReference.json, README.md, and .agent memory files. Reclassify all layering methods (setZOrder, bringToFront, sendToBack, bringForward, sendBackward) strictly under the unified 'Elements' category alongside element inspection and removal.",
+            "description": "Move and reclassify all Hyperlink methods (addHyperlink, updateHyperlink, removeHyperlink, getHyperlinks, getHyperlink, setHyperlink) strictly under the 'Elements' category. Relocate or merge logic from src/managers/HyperlinkManager.js into the Elements subsystem. Update docs-site/src/data/apiReference.json, features.json, README.md, and .agent memory.",
             "deliverables": [
+                "src/elements/",
+                "src/core/PPTXTemplater.js",
                 "docs-site/src/data/apiReference.json",
                 "docs-site/src/data/features.json",
-                "README.md",
-                ".agent/rules/features.md"
-            ]
-        },
-        {
-            "id": "TASK-ELEM-002",
-            "title": "Audit, Purge Non-Whitelisted Element Routines & Lock 9-Method Boundary",
-            "status": "completed",
-            "description": "Audit src/core/PPTXTemplater.js, src/managers/ElementManager.js (or equivalent manager), and index.d.ts. Ensure strictly that only the 9 approved functions (getElements, getElement, removeElement, removeAllElements, setZOrder, bringToFront, sendToBack, bringForward, sendBackward) are exposed for element management and layering. Purge any legacy aliases, deprecated duplicates, or unapproved methods.",
-            "deliverables": [
-                "src/core/PPTXTemplater.js",
                 "index.d.ts"
             ]
         },
         {
-            "id": "TASK-ELEM-003",
-            "title": "Implement Inspection and Removal Subsystem (getElements, getElement, removeElement, removeAllElements)",
+            "id": "TASK-RELEASE-002",
+            "title": "Remove Diagnostics & Validation Category",
             "status": "completed",
-            "description": "Implement getElements(slideId) to return complete metadata for all visual objects (shapes, images, videos, audio, tables, charts) under <p:spTree>. Implement getElement(elementId) for single-element inspection. Implement removeElement(elementId) to safely purge any element type from <p:spTree> and clean dangling relationship references in ppt/slides/_rels/slideN.xml.rels. Implement removeAllElements(slideId) to clear all slide content while preserving layout bindings and required group headers (<p:nvGrpSpPr>, <p:grpSpPr>).",
-            "deliverables": [
-                "src/managers/ElementManager.js",
-                "src/core/PPTXTemplater.js",
-                "tests/integration/elementsQueryRemove.test.js"
-            ]
-        },
-        {
-            "id": "TASK-ELEM-004",
-            "title": "Consolidate Z-Order & Layering Engine under Elements Category",
-            "status": "completed",
-            "description": "Wire setZOrder(elementId, zIndex), bringToFront(elementId), sendToBack(elementId), bringForward(elementId), and sendBackward(elementId) through PPTXTemplater into src/spatial/ZOrderManager.js. Ensure reordering manipulates child nodes in <p:spTree> without altering required leading group properties (<p:nvGrpSpPr>, <p:grpSpPr>), preventing PresentationML corruption and PowerPoint repair prompts.",
-            "deliverables": [
-                "src/spatial/ZOrderManager.js",
-                "src/core/PPTXTemplater.js",
-                "tests/integration/elementsZOrder.test.js"
-            ]
-        },
-        {
-            "id": "TASK-ELEM-005",
-            "title": "Executable Showcase Script (showcase/elements_advanced.js)",
-            "status": "completed",
-            "description": "Create showcase/elements_advanced.js exercising all 9 approved methods in sequential slide scenarios: retrieving element lists/metadata, adjusting layer positions with setZOrder, bringToFront, sendToBack, bringForward, sendBackward, removing single elements by ID, and clearing entire slide canvases with removeAllElements. Include descriptive console.log diagnostics.",
-            "deliverables": [
-                "showcase/elements_advanced.js"
-            ]
-        },
-        {
-            "id": "TASK-ELEM-006",
-            "title": "Documentation, TypeScript Typings & .agent Workspace Synchronization",
-            "status": "completed",
-            "description": "Update docs-site/src/data/apiReference.json with the new 'Elements' category documenting all 9 approved methods with signatures, parameters, return types, and runnable examples. Ensure index.d.ts includes full typings and update .agent/project_summary.md and .agent/rules/features.md to reflect the removal of the old z-order category and addition of the Elements category.",
+            "description": "Deprecate and remove the 'Diagnostics & Validation' category from public documentation, features lists, and API manifests. Remove or internalize non-whitelisted standalone diagnostic routines while retaining necessary internal XML security guards (XXE/entity limits) in core ingestion.",
             "deliverables": [
                 "docs-site/src/data/apiReference.json",
+                "docs-site/src/data/features.json",
+                "README.md",
+                "index.d.ts"
+            ]
+        },
+        {
+            "id": "TASK-RELEASE-003",
+            "title": "Purge Unnecessary Examples and Test Files",
+            "status": "completed",
+            "description": "Audit examples/, showcase/, and tests/ directories. Remove obsolete, duplicate, experimental, or unmaintained example scripts and test fixtures. Keep showcase scripts aligned strictly with the official public API boundary and ensure tests cleanly cover production modules.",
+            "deliverables": [
+                "examples/",
+                "showcase/",
+                "tests/"
+            ]
+        },
+        {
+            "id": "TASK-RELEASE-004",
+            "title": "Remove Unwanted Files from Project Root and Workspace",
+            "status": "completed",
+            "description": "Audit repository tree and delete abandoned config files, stale build artifacts, temporary log files, obsolete scratch scripts, legacy documentation relics, and stray XML/presentation dump files across the root and subdirectories.",
+            "deliverables": [
+                ".",
+                "scratch/",
+                "tmp/"
+            ]
+        },
+        {
+            "id": "TASK-RELEASE-005",
+            "title": "Performance Tuning & Memory Leak Elimination",
+            "status": "completed",
+            "description": "Audit AST parsing, VFS Map operations, JSZip buffering, and stream handling. Ensure large object references, XML caches, and temporary Buffer allocations are freed or garbage-collected efficiently. Optimize tight loops in text run healing, cell matrix traversals, and embedded workbook updates. Validate sub-millisecond execution and minimal memory footprint under high concurrency.",
+            "deliverables": [
+                "src/core/VirtualFileSystem.js",
+                "src/core/TemplateEngine.js",
+                "src/elements/TableManager.js",
+                "src/elements/ChartManager.js",
+                "src/writer/OutputWriter.js"
+            ]
+        },
+        {
+            "id": "TASK-RELEASE-006",
+            "title": "Optimize src/ Folder Structure & Consolidate Modules",
+            "status": "completed",
+            "description": "Restructure src/ into a clean, intuitive layout. Eliminate redundant intermediate files, merge fragmented utility files into cohesive domain modules (e.g., coordinate/spatial math, XML helpers), and cleanly partition orchestrator (core/), managers/elements, parsers, and writer.",
+            "deliverables": [
+                "src/",
+                "src/core/",
+                "src/elements/",
+                "src/parsers/",
+                "src/writer/",
+                "src/utils/"
+            ]
+        },
+        {
+            "id": "TASK-RELEASE-007",
+            "title": "Apply Strict Category Renaming Across Repository",
+            "status": "completed",
+            "description": "Enforce the exact 8 standardized category names across codebase JSDocs, TypeScript typings (index.d.ts), documentation site schemas (apiReference.json, features.json, docsNavigation.json), showcase headers, and README.md:\n1. 'Lifecycle & I/O' -> 'Import/Export'\n2. 'Slides'\n3. 'Text & Placeholders'\n4. 'Tables'\n5. 'Charts'\n6. 'Shapes'\n7. 'Images & Media'\n8. 'Elements'",
+            "deliverables": [
+                "docs-site/src/data/apiReference.json",
+                "docs-site/src/data/features.json",
+                "docs-site/src/data/docsNavigation.json",
                 "index.d.ts",
+                "README.md"
+            ]
+        },
+        {
+            "id": "TASK-RELEASE-008",
+            "title": "Optimize and Prune .agent/ Workspace for Current Status",
+            "status": "completed",
+            "description": "Update and prune the .agent/ folder (.agentignore, project_summary.md, AGENTS.md, rules/features.md, rules/general.md, memory/architectural-decisions.md). Remove stale references to deprecated categories, update the 8-category architecture map, and keep token/context usage minimal.",
+            "deliverables": [
                 ".agent/project_summary.md",
-                ".agent/rules/features.md"
+                ".agent/rules/features.md",
+                ".agent/rules/general.md",
+                ".agent/memory/architectural-decisions.md",
+                ".agent/.agentignore"
+            ]
+        },
+        {
+            "id": "TASK-RELEASE-009",
+            "title": "Maximize SEO and AI Search Discoverability (Google & AI Search Modes)",
+            "status": "completed",
+            "description": "Optimize docs-site/, package.json, and README.md for #1 Google ranking and AI search discovery (Perplexity, ChatGPT Search, Gemini, Claude). Incorporate high-intent search queries ('pptx template update nodejs', 'create pptx template programmatic', 'pure javascript powerpoint template engine', 'serverless pptx generator without office'). Add comprehensive JSON-LD Schema.org markup (SoftwareApplication, HowTo, TechArticle), semantic HTML structure, dynamic sitemap.xml, robots.txt, and llms.txt.",
+            "deliverables": [
+                "README.md",
+                "package.json",
+                "docs-site/src/data/siteMeta.json",
+                "docs-site/public/robots.txt",
+                "docs-site/public/sitemap.xml",
+                "docs-site/public/llms.txt"
+            ]
+        },
+        {
+            "id": "TASK-RELEASE-010",
+            "title": "Prepare Final Updates & Release 3.0.0-beta.0",
+            "status": "completed",
+            "description": "Bump package version to '3.0.0-beta.0' in package.json, package-lock.json, and documentation manifests. Run full test suite (`npm test`), build verification (`npm run build`, `npm run docs:build`), and ensure zero regressions or PowerPoint repair warnings.",
+            "deliverables": [
+                "package.json",
+                "CHANGELOG.md",
+                "docs-site/package.json"
             ]
         }
     ]

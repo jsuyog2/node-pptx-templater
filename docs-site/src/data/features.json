@@ -1,12 +1,12 @@
 {
-  "version": "2.0 / 3.0",
-  "totalFeatures": 86,
-  "totalCategories": 12,
+  "version": "3.0.0-beta.0",
+  "totalFeatures": 88,
+  "totalCategories": 8,
   "categories": [
     {
-      "id": "input-ingestion-flexibility",
+      "id": "import-export",
       "number": 1,
-      "title": "Input & Ingestion Flexibility",
+      "title": "Import/Export",
       "isFlagship": false,
       "items": [
         {
@@ -32,186 +32,178 @@
         {
           "id": 5,
           "title": "Unpacked OpenXML Directory Ingestion",
-          "description": "Ingest raw, uncompressed folder trees (containing `[Content_Types].xml`, `_rels/`, and `ppt/`) directly into memory without requiring an intermediate zip step."
+          "description": "Ingest raw, uncompressed folder trees (containing `[Content_Types].xml`, `_rels/`, and `ppt/`) directly into memory without intermediate zip overhead."
         },
         {
           "id": 6,
           "title": "Scratch Deck Generation",
-          "description": "Initialize new, blank presentations from code without any input template."
+          "description": "Initialize new, blank presentations completely from scratch in memory with `createBlank`."
         },
         {
           "id": 7,
           "title": "Custom Presentation Sizing",
-          "description": "Set custom presentation dimensions and standard aspect ratios (16:9 widescreen, 16:10, 4:3 standard) on initialization."
+          "description": "Set custom canvas dimensions and standard aspect ratios (16:9 widescreen, 16:10, 4:3) on initialization."
+        },
+        {
+          "id": 8,
+          "title": "Local File System Export (`saveToFile`)",
+          "description": "Asynchronously save generated presentations directly to disk with atomic write guarantees."
+        },
+        {
+          "id": 9,
+          "title": "Node.js ReadableStream Export (`toStream`)",
+          "description": "Stream presentation bytes for memory-efficient piping to AWS S3, Google Cloud Storage, or Azure Blob."
+        },
+        {
+          "id": 10,
+          "title": "Memory Buffer Export (`toBuffer`)",
+          "description": "Export as a native Node.js `Buffer` for lightning-fast in-memory processing."
+        },
+        {
+          "id": 11,
+          "title": "ArrayBuffer Export (`toArrayBuffer`)",
+          "description": "Export as standard `ArrayBuffer` for isomorphic Node.js, Vercel Edge, Cloudflare Workers, and modern runtimes."
+        },
+        {
+          "id": 12,
+          "title": "Base64 & Data URI Export (`toBase64`)",
+          "description": "Export as Base64 strings or MIME data URIs for serverless functions, microservices, and webhooks."
+        },
+        {
+          "id": 13,
+          "title": "Web Standards Response Export (`toResponse`)",
+          "description": "Export as standard web `Response` object with automatic MIME type and attachment headers."
+        },
+        {
+          "id": 14,
+          "title": "Framework Adapters (`toExpress`, `toFastify`)",
+          "description": "Dispatch presentations directly through Express `res` and Fastify `reply` with automatic Content-Type and Content-Disposition headers."
+        },
+        {
+          "id": 15,
+          "title": "XML & Package Extraction (`extractToZip`, `extractToXml`, `toFlatXml`)",
+          "description": "Extract raw ZIP contents, formatted XML trees, or single-file Flat OPC XML strings for auditing, versioning, and CI pipelines."
         }
       ],
-      "count": 7
+      "count": 15
     },
     {
-      "id": "presentation-slide-lifecycle-management",
+      "id": "slides",
       "number": 2,
-      "title": "Presentation & Slide Lifecycle Management",
+      "title": "Slides",
       "isFlagship": false,
       "items": [
         {
-          "id": 8,
+          "id": 16,
           "title": "Presentation Metadata Query",
           "description": "Read deck-level metadata (total slide count, slide dimensions in EMUs/pixels/points, layout schemes)."
         },
         {
-          "id": 9,
+          "id": 17,
           "title": "Add Blank Slide",
           "description": "Append or insert empty slides associated with specific master layouts."
         },
         {
-          "id": 10,
+          "id": 18,
           "title": "Slide Deletion",
           "description": "Remove slides by zero-based index or internal slide identifier without corrupting presentation manifests."
         },
         {
-          "id": 11,
+          "id": 19,
           "title": "Slide Reordering",
-          "description": "Change the display sequence of slides dynamically."
+          "description": "Change the display sequence of slides dynamically (`reorderSlides`, `moveSlide`)."
         },
         {
-          "id": 12,
+          "id": 20,
           "title": "Deep Slide Duplication",
           "description": "Clone existing slides with complete element trees, shapes, and layouts preserved."
         },
         {
-          "id": 13,
-          "title": "Isolated Slide Relationship Cloning",
-          "description": "Generate dedicated relationship mappings (`slideX.xml.rels`) during duplication to eliminate relationship ID (`rId`) collisions."
-        },
-        {
-          "id": 14,
-          "title": "Manifest Synchronization",
-          "description": "Automatically synchronize slide additions, duplicates, and deletions across `[Content_Types].xml` and `ppt/presentation.xml`."
-        }
-      ],
-      "count": 7
-    },
-    {
-      "id": "spatial-coordinate-engine-unit-system",
-      "number": 3,
-      "title": "Spatial Coordinate Engine & Unit System",
-      "isFlagship": false,
-      "items": [
-        {
-          "id": 15,
-          "title": "OpenXML EMU Normalization",
-          "description": "Standardize internal dimensions and positions in English Metric Units (1 pt = 12,700 EMUs; 1 in = 914,400 EMUs; 1 px = 9,525 EMUs)."
-        },
-        {
-          "id": 16,
-          "title": "Coordinate & Dimension Extraction",
-          "description": "Retrieve computed bounding boxes (`x`, `y`, `width`, `height`, `rotation`) for any slide element."
-        },
-        {
-          "id": 17,
-          "title": "Programmatic Spatial Transformation",
-          "description": "Reposition and resize any element using points, pixels, inches, or EMUs."
-        },
-        {
-          "id": 18,
-          "title": "Spatial Alignment & Snapping",
-          "description": "Align elements to coordinates, slide dimensions, and table cell bounds."
-        },
-        {
-          "id": 19,
-          "title": "Boundary & Collision Detection",
-          "description": "Calculate element bounding intersections and detect slide edge overflows."
-        }
-      ],
-      "count": 5
-    },
-    {
-      "id": "elements",
-      "number": 4,
-      "title": "Elements",
-      "isFlagship": false,
-      "items": [
-        {
-          "id": 20,
-          "title": "Slide Element Enumeration & Metadata",
-          "description": "Extract all visual elements residing on a specific slide with normalized metadata (`getElements`, `getElement`)."
-        },
-        {
           "id": 21,
-          "title": "Type & Spatial Element Filtering",
-          "description": "Query elements filtered by type (`shape`, `textbox`, `image`, `video`, `audio`, `table`, `chart`) or spatial bounds."
+          "title": "Isolated Slide Relationship Cloning",
+          "description": "Generate dedicated relationship mappings (`slideX.xml.rels`) during duplication to eliminate relationship ID collisions."
         },
         {
           "id": 22,
-          "title": "Element Removal & Relationship Cleanup",
-          "description": "Safely remove single elements (`removeElement`) or clear all slide elements (`removeAllElements`) with automatic relationship cleanup."
+          "title": "Manifest Synchronization",
+          "description": "Automatically synchronize slide additions, duplicates, and deletions across `[Content_Types].xml` and `ppt/presentation.xml`."
         },
         {
           "id": 23,
-          "title": "Z-Order Layer Stacking & Container Safety",
-          "description": "Reorder visual layer hierarchy (`setZOrder`, `bringToFront`, `sendToBack`, `bringForward`, `sendBackward`) while strictly preserving `<p:nvGrpSpPr>` and `<p:grpSpPr>` container headers."
+          "title": "Section Management",
+          "description": "Organize presentation structure with logical sections (`addSection`, `updateSection`, `removeSection`, `getSection`)."
+        },
+        {
+          "id": 24,
+          "title": "Slide Visibility Controls",
+          "description": "Programmatically hide or reveal slides during presentations (`hideSlide`, `unhideSlide`)."
+        },
+        {
+          "id": 25,
+          "title": "Presentation Comments",
+          "description": "Attach and remove OpenXML slide review comments with author, date, and coordinate positioning (`addComment`, `removeComment`)."
         }
       ],
-      "count": 4
+      "count": 10
     },
     {
-      "id": "text-typography-engine",
-      "number": 5,
-      "title": "Text & Typography Engine",
+      "id": "text-placeholders",
+      "number": 3,
+      "title": "Text & Placeholders",
       "isFlagship": false,
       "items": [
         {
-          "id": 24,
+          "id": 26,
           "title": "AST-Level Run Normalization",
           "description": "Tokenize and assemble fragmented `<a:r>` and `<a:t>` nodes to eliminate broken regex replacements across XML boundaries."
         },
         {
-          "id": 25,
-          "title": "In-Place Text Replacement",
-          "description": "Replace single or multiple text values without losing surrounding paragraph formatting."
-        },
-        {
-          "id": 26,
-          "title": "List & Bullet Hierarchy Engine",
-          "description": "Create and manage multi-level lists, bullet characters, colors, font sizing, and indent levels."
-        },
-        {
           "id": 27,
+          "title": "In-Place Text Replacement",
+          "description": "Replace single or multiple text values (`replaceText`, `replaceTextByTag`) without losing surrounding paragraph formatting."
+        },
+        {
+          "id": 28,
+          "title": "List & Bullet Hierarchy Engine",
+          "description": "Create and manage multi-level lists, bullet characters, colors, font sizing, and indent levels (`addLists`, `getList`)."
+        },
+        {
+          "id": 29,
           "title": "Font Family Modification",
           "description": "Update font family declarations across entire text frames or specific runs."
         },
         {
-          "id": 28,
+          "id": 30,
           "title": "Font Size Adjustment",
-          "description": "Modify text size in points or EMUs."
+          "description": "Modify text size in points or EMUs across runs and paragraphs."
         },
         {
-          "id": 29,
+          "id": 31,
           "title": "Color & Fill Modification",
           "description": "Apply hex colors, RGB values, or theme colors to text runs."
         },
         {
-          "id": 30,
+          "id": 32,
           "title": "Typography Styling",
-          "description": "Toggle bold, italic, underline, strikethrough, subscript, and superscript."
+          "description": "Toggle bold, italic, underline, strikethrough, subscript, and superscript styling."
         },
         {
-          "id": 31,
+          "id": 33,
           "title": "Paragraph Alignment",
           "description": "Set horizontal alignment (left, center, right, justify)."
         },
         {
-          "id": 32,
+          "id": 34,
           "title": "Vertical Alignment",
           "description": "Control text frame vertical centering, top alignment, or bottom alignment."
         },
         {
-          "id": 33,
+          "id": 35,
           "title": "Line & Paragraph Spacing",
           "description": "Adjust line spacing, space before, and space after paragraphs."
         },
         {
-          "id": 34,
+          "id": 36,
           "title": "Word Wrap Control",
           "description": "Enable or disable text wrapping within shape and text box boundaries."
         }
@@ -219,357 +211,274 @@
       "count": 11
     },
     {
-      "id": "shape-engine",
-      "number": 6,
-      "title": "Shape Engine",
-      "isFlagship": false,
+      "id": "tables",
+      "number": 4,
+      "title": "Tables",
+      "isFlagship": true,
       "items": [
         {
-          "id": 35,
-          "title": "Add Vector Shapes",
-          "description": "Insert basic shapes (rectangles, rounded rectangles, ellipses, triangles, arrows, callouts, lines)."
-        },
-        {
-          "id": 36,
-          "title": "Solid Shape Fills",
-          "description": "Apply solid hex/RGB color fills to any shape."
-        },
-        {
           "id": 37,
-          "title": "Gradient & Pattern Fills",
-          "description": "Apply linear/radial gradients or pattern fills to shapes."
+          "title": "Insert Table",
+          "description": "Add tables specifying row counts, column counts, coordinates, and default dimensions."
         },
         {
           "id": 38,
-          "title": "Fill Transparency & Opacity",
-          "description": "Adjust transparency percentages on shape fills."
+          "title": "Table Data Hydration",
+          "description": "Populate entire tables directly from 2D arrays or structured JSON payloads (`updateTableData`)."
         },
         {
           "id": 39,
-          "title": "Shape Border & Outline Styling",
-          "description": "Customize outline color, stroke weight, and stroke pattern (solid, dashed, dotted)."
+          "title": "Row & Column CRUD",
+          "description": "Add, append, delete, or duplicate table rows and columns dynamically (`addTableRow`, `addTableColumn`, `removeTableRow`, `removeTableColumn`)."
         },
         {
           "id": 40,
-          "title": "Text Inside Shapes",
-          "description": "Insert, style, and vertically align text inside any vector shape with custom internal padding."
+          "title": "Cell Data & Style Manipulation",
+          "description": "Target and update text, font, alignment, and formatting inside individual cells (`updateTableCell`, `getCell`, `getCellData`)."
         },
         {
           "id": 41,
-          "title": "Remove Shape",
-          "description": "Delete individual shapes from slides cleanly."
-        }
-      ],
-      "count": 7
-    },
-    {
-      "id": "media-image-handling",
-      "number": 7,
-      "title": "Images & Media",
-      "isFlagship": false,
-      "items": [
+          "title": "Background Fills & Custom Borders",
+          "description": "Set solid background colors, opacity, and custom border thicknesses and colors per cell, column, or row."
+        },
         {
           "id": 42,
-          "title": "Add Images (addImage)",
-          "description": "Add images from local file paths, remote URLs, binary Buffers, or Base64 data URIs with EMU and percentage coordinates."
+          "title": "Cell Merging & Unmerging",
+          "description": "Merge adjacent cells across rows and columns using `gridSpan` and `rowSpan`, or split them cleanly with `splitCell`."
         },
         {
           "id": 43,
-          "title": "Update Images (updateImage)",
-          "description": "Modify coordinates, dimensions, rotation, crop (<a:srcRect>), opacity (<a:alphaModFix>), borders, shadows, or swap underlying source."
+          "title": "Nested Shapes Inside Cells",
+          "description": "Embed shapes, icons, badges, and small indicators directly inside table cells with custom styling."
         },
         {
           "id": 44,
-          "title": "Remove Images (removeImage)",
-          "description": "Delete image shape elements from <p:spTree> and safely purge orphaned relationship references from the slide .rels."
+          "title": "Header Row Styling & Zebra Striping",
+          "description": "Independently target and style table header rows and apply automated alternating row background colors."
         },
         {
           "id": 45,
-          "title": "Add Videos (addVideo)",
-          "description": "Embed MP4/AVI/MOV videos into ppt/media/ with custom poster frames, coordinates, autoplay, loop, mute, and trim timing."
+          "title": "Dynamic Row Height Calculation",
+          "description": "Compute expected row height based on cell padding, font size, line count, and column width."
         },
         {
           "id": 46,
-          "title": "Update Videos (updateVideo)",
-          "description": "Update video bounds, start/end time, loop, mute, poster frames, and playback timing bindings."
+          "title": "Slide Overflow Detection & Splitting",
+          "description": "Detect table overflows against slide margins and clone host template slides to paginate overflowing rows."
         },
         {
           "id": 47,
-          "title": "Remove Videos (removeVideo)",
-          "description": "Cleanly remove video shapes, timing sequences in <p:timing>, and relationship entries without schema corruption."
+          "title": "Header Repetition on Overflow Slides",
+          "description": "Re-render table header rows automatically on every newly generated overflow slide."
         },
         {
           "id": 48,
-          "title": "Add Audio (addAudio)",
-          "description": "Embed MP3/WAV/M4A audio into ppt/media/, wire audio action geometry, volume, loop, autoplay, and slide show icon visibility."
-        },
-        {
-          "id": 49,
-          "title": "Update Audio (updateAudio)",
-          "description": "Adjust volume (0-100), loop, start/end trim, icon position, and slide show visibility toggles."
-        },
-        {
-          "id": 50,
-          "title": "Remove Audio (removeAudio)",
-          "description": "Purge audio shape nodes, related sound timing nodes, and slide relationship entries."
-        },
-        {
-          "id": 51,
-          "title": "Inspect All Slide Media (getMedias)",
-          "description": "Scan slide DrawingML tree and extract comprehensive metadata for images, videos, and audio (type, ID, dimensions, positions, formats, sizes)."
-        },
-        {
-          "id": 52,
-          "title": "Inspect Specific Media (getMedia)",
-          "description": "Locate specific media element by shape ID, name, or relationship ID across presentation slides."
-        },
-        {
-          "id": 53,
-          "title": "Deduplicated Cloning (cloneMedia)",
-          "description": "Duplicate media shape elements with coordinate and styling overrides while reusing existing binary assets in ppt/media/ (zero byte duplication)."
+          "title": "Summary / Footer Row Preservation",
+          "description": "Ensure designated summary/total rows remain anchored to the final generated slide."
         }
       ],
       "count": 12
     },
     {
-      "id": "table-engine-structural-manipulation",
-      "number": 8,
-      "title": "Table Engine & Structural Manipulation",
+      "id": "charts",
+      "number": 5,
+      "title": "Charts",
       "isFlagship": false,
       "items": [
         {
-          "id": 48,
-          "title": "Insert Table",
-          "description": "Add tables specifying row counts, column counts, coordinates, and default dimensions."
-        },
-        {
           "id": 49,
-          "title": "Table Data Hydration",
-          "description": "Populate entire tables directly from 2D arrays or structured JSON payloads."
+          "title": "Target Native Charts",
+          "description": "Select embedded PowerPoint charts by name, ID, or slide index (`getCharts`, `getChart`)."
         },
         {
           "id": 50,
-          "title": "Row CRUD",
-          "description": "Add, append, delete, or duplicate table rows dynamically."
-        },
-        {
-          "id": 51,
-          "title": "Column CRUD",
-          "description": "Add, append, or delete table columns dynamically."
-        },
-        {
-          "id": 52,
-          "title": "Cell Target Query",
-          "description": "Retrieve individual cells via zero-based indices (`table.getCell(rowIndex, colIndex)`)."
-        },
-        {
-          "id": 53,
-          "title": "Cell Data Modification",
-          "description": "Update text, font, alignment, and formatting inside individual cells."
-        },
-        {
-          "id": 54,
-          "title": "Cell Background Fills",
-          "description": "Set solid background colors and opacity per cell or row."
-        },
-        {
-          "id": 55,
-          "title": "Custom Cell Borders",
-          "description": "Set individual edge borders (top, bottom, left, right) with custom thickness and color."
-        },
-        {
-          "id": 56,
-          "title": "Horizontal Cell Merging",
-          "description": "Merge adjacent cells across columns using `gridSpan`."
-        },
-        {
-          "id": 57,
-          "title": "Vertical Cell Merging",
-          "description": "Merge adjacent cells down rows using `rowSpan`."
-        },
-        {
-          "id": 58,
-          "title": "Cell Unmerging",
-          "description": "Split previously merged cells back into individual grid cells."
-        },
-        {
-          "id": 59,
-          "title": "Nested Elements Inside Cells",
-          "description": "Embed shapes, icons, badges, and small indicators directly inside table cells."
-        },
-        {
-          "id": 60,
-          "title": "Header Row Styling",
-          "description": "Independently target and style table header rows."
-        },
-        {
-          "id": 61,
-          "title": "Zebra Striping",
-          "description": "Apply automated alternating row background colors."
-        },
-        {
-          "id": 62,
-          "title": "Table Dimensional Metadata",
-          "description": "Extract computed table width, cumulative height, individual column widths, and row heights."
-        }
-      ],
-      "count": 15
-    },
-    {
-      "id": "dynamic-table-pagination-slide-splitting",
-      "number": 9,
-      "title": "Dynamic Table Pagination & Slide Splitting",
-      "isFlagship": true,
-      "items": [
-        {
-          "id": 63,
-          "title": "Dynamic Row Height Calculation",
-          "description": "Compute expected row height based on cell padding, font size, line count, and column width."
-        },
-        {
-          "id": 64,
-          "title": "Slide Overflow Detection",
-          "description": "Compare cumulative table height against available slide height ($Y_{\\text{limit}} = \\text{SlideHeight} - \\text{BottomMargin}$)."
-        },
-        {
-          "id": 65,
-          "title": "Automated Slide Cloning on Overflow",
-          "description": "Clone the host template slide (including headers, footers, and background styling) when rows exceed $Y_{\\text{limit}}$."
-        },
-        {
-          "id": 66,
-          "title": "Table Row Slicing",
-          "description": "Truncate overflowing rows on the parent slide at the last fitting index."
-        },
-        {
-          "id": 67,
-          "title": "Header Repetition",
-          "description": "Re-render table header rows automatically on every newly generated overflow slide."
-        },
-        {
-          "id": 68,
-          "title": "Multi-Slide Pagination",
-          "description": "Recursively distribute remaining table rows across subsequent slides until all records are displayed."
-        },
-        {
-          "id": 69,
-          "title": "Summary / Footer Row Preservation",
-          "description": "Ensure designated summary/total rows remain anchored to the final generated slide."
-        }
-      ],
-      "count": 7
-    },
-    {
-      "id": "native-charts-data-visualization",
-      "number": 10,
-      "title": "Native Charts & Data Visualization",
-      "isFlagship": false,
-      "items": [
-        {
-          "id": 70,
-          "title": "Target Native Charts",
-          "description": "Select embedded PowerPoint charts by name, ID, or slide index."
-        },
-        {
-          "id": 71,
           "title": "17 Supported Chart Types",
           "description": "Comprehensive support for all 17 chart types across standard OpenXML (<c:chartSpace>) and Office 2016+ extended schemas (<cx:chartSpace>): Column, Line, Pie, Bar, Area, Scatter, Map, Stock, Surface, Radar, Treemap, Sunburst, Histogram, Box & Whisker, Waterfall, Funnel, and Combo."
         },
         {
-          "id": 72,
-          "title": "Strict 11-Function Whitelist API",
-          "description": "Unified and strictly bounded chart API surface: addChart, updateChart, updateChartData, removeChart, clearCharts, getCharts, getChart, and cloneChart."
+          "id": 51,
+          "title": "Strict Whitelist Chart API",
+          "description": "Unified chart API surface: `addChart`, `updateChart`, `updateChartData`, `removeChart`, `clearCharts`, `getCharts`, `getChart`, and `cloneChart`."
         },
         {
-          "id": 73,
+          "id": 52,
           "title": "Dual-Sync Excel Engine",
           "description": "Synchronously updates both DrawingML XML (<c:chartSpace> / <cx:chartSpace>) and the backing embedded Excel workbook (`ppt/embeddings/*.xlsx`) with table cleansing to eliminate PowerPoint repair prompts."
         },
         {
-          "id": 74,
+          "id": 53,
           "title": "Deep Chart Cloning & Slide-Wide clearCharts",
-          "description": "Duplicate complete chart parts, relationships, and workbooks without rId collisions via cloneChart, or cleanly evacuate all charts from a slide via clearCharts while preserving text, shapes, and tables."
+          "description": "Duplicate complete chart parts, relationships, and workbooks without rId collisions via `cloneChart`, or cleanly evacuate all charts from a slide via `clearCharts` while preserving text, shapes, and tables."
         },
         {
-          "id": 75,
+          "id": 54,
           "title": "Data Labels & Spatial Alignment",
-          "description": "Inspect, toggle, and customize rich data labels with formatting, positioning (outEnd, inEnd, ctr), percentages, and category labels."
+          "description": "Inspect, toggle, and customize rich data labels with formatting, positioning (`outEnd`, `inEnd`, `ctr`), percentages, and category labels."
         }
       ],
       "count": 6
     },
     {
-      "id": "hyperlinks-slide-navigation",
-      "number": 11,
-      "title": "Hyperlinks & Slide Navigation",
+      "id": "shapes",
+      "number": 6,
+      "title": "Shapes",
       "isFlagship": false,
       "items": [
         {
-          "id": 76,
-          "title": "Strict 6-Method Hyperlink Subsystem",
-          "description": "Standardized ISO/IEC 29500 Hyperlink API (addHyperlink, updateHyperlink, removeHyperlink, getHyperlinks, getHyperlink, setHyperlink)."
+          "id": 55,
+          "title": "Add Vector Shapes",
+          "description": "Insert basic shapes (rectangles, rounded rectangles, ellipses, triangles, arrows, callouts, lines) with preset geometries."
         },
         {
-          "id": 77,
-          "title": "Target-Level Shape & Image Hyperlinks",
-          "description": "Attach external URLs, internal slide jumps, or slideshow navigation actions to shapes, textboxes, and pictures via <p:cNvPr><a:hlinkClick>."
+          "id": 56,
+          "title": "Solid, Gradient & Pattern Fills",
+          "description": "Apply solid hex/RGB color fills, linear/radial gradients, or pattern fills with custom opacity to shapes."
         },
         {
-          "id": 78,
-          "title": "Substring Run Splitting & Typography Styling",
-          "description": "Isolate text substrings into dedicated DrawingML runs with custom link colors, underlines, bold, italic, and ScreenTip tooltips via setHyperlink."
+          "id": 57,
+          "title": "Shape Border & Outline Styling",
+          "description": "Customize outline color, stroke weight, stroke pattern (solid, dashed, dotted), and compound line types."
         },
         {
-          "id": 79,
-          "title": "Introspection & Orphan Relationship Purging",
-          "description": "Inspect slide hyperlinks via getHyperlinks and getHyperlink, and safely purge orphaned relationship entries in .rels upon hyperlink detachment."
-        }
-      ],
-      "count": 4
-    },
-    {
-      "id": "serialization-multi-target-export-pipeline",
-      "number": 12,
-      "title": "Serialization & Multi-Target Export Pipeline",
-      "isFlagship": false,
-      "items": [
-        {
-          "id": 80,
-          "title": "Local File System Export (`toFile`)",
-          "description": "Asynchronously save generated presentations directly to disk."
+          "id": 58,
+          "title": "Text Inside Shapes",
+          "description": "Insert, style, and vertically align text inside any vector shape with custom internal padding."
         },
         {
-          "id": 81,
-          "title": "Node.js ReadableStream Export (`toStream`)",
-          "description": "Stream presentation bytes for memory-efficient piping to AWS S3, Google Cloud Storage, or Azure Blob."
+          "id": 59,
+          "title": "Shape Grouping & Hierarchy",
+          "description": "Group multiple shapes into composite containers (`groupShapes`), inspect grouped children (`getGroupShapes`), or dismantle hierarchies (`ungroupShapes`)."
         },
         {
-          "id": 82,
-          "title": "Memory Buffer Export (`toBuffer`)",
-          "description": "Export as a native Node.js `Buffer` for in-memory processing."
+          "id": 60,
+          "title": "Shape Mutation & Cloning",
+          "description": "Update spatial bounds, fills, borders, or rotation in-place (`updateShape`) or clone shapes with coordinate overrides (`cloneShape`)."
         },
         {
-          "id": 83,
-          "title": "ArrayBuffer Export (`toArrayBuffer`)",
-          "description": "Export as a standard `ArrayBuffer` for isomorphic Node.js and modern runtime compatibility."
-        },
-        {
-          "id": 84,
-          "title": "Base64 String Export (`toBase64`)",
-          "description": "Export as a Base64 string for JSON transfer, serverless lambdas, or webhooks."
-        },
-        {
-          "id": 85,
-          "title": "Data URI Base64 Export",
-          "description": "Export formatted with the presentation MIME type data URI prefix (`data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,...`)."
-        },
-        {
-          "id": 86,
-          "title": "Express.js HTTP Pipe (`toExpress`)",
-          "description": "Dispatch presentations directly through Express `res` objects with automatic `Content-Type` and `Content-Disposition: attachment; filename=\"...\"` headers."
+          "id": 61,
+          "title": "Remove & Clear Shapes",
+          "description": "Delete individual shapes cleanly (`removeShape`) or clear all user shapes from a slide (`clearShapes`) while preserving master placeholders."
         }
       ],
       "count": 7
+    },
+    {
+      "id": "images-media",
+      "number": 7,
+      "title": "Images & Media",
+      "isFlagship": false,
+      "items": [
+        {
+          "id": 62,
+          "title": "Add Images (`addImage`)",
+          "description": "Add images from local file paths, remote URLs, binary Buffers, or Base64 data URIs with EMU and percentage coordinates."
+        },
+        {
+          "id": 63,
+          "title": "Update Images (`updateImage`)",
+          "description": "Modify coordinates, dimensions, rotation, crop (<a:srcRect>), opacity (<a:alphaModFix>), borders, shadows, or swap underlying source."
+        },
+        {
+          "id": 64,
+          "title": "Remove Images (`removeImage`)",
+          "description": "Delete image shape elements from <p:spTree> and safely purge orphaned relationship references from slide .rels."
+        },
+        {
+          "id": 65,
+          "title": "Add Videos (`addVideo`)",
+          "description": "Embed MP4/AVI/MOV videos into ppt/media/ with custom poster frames, coordinates, autoplay, loop, mute, and trim timing."
+        },
+        {
+          "id": 66,
+          "title": "Update Videos (`updateVideo`)",
+          "description": "Update video bounds, start/end time, loop, mute, poster frames, and playback timing bindings."
+        },
+        {
+          "id": 67,
+          "title": "Remove Videos (`removeVideo`)",
+          "description": "Cleanly remove video shapes, timing sequences in <p:timing>, and relationship entries without schema corruption."
+        },
+        {
+          "id": 68,
+          "title": "Add Audio (`addAudio`)",
+          "description": "Embed MP3/WAV/M4A audio into ppt/media/, wire audio action geometry, volume, loop, autoplay, and slide show icon visibility."
+        },
+        {
+          "id": 69,
+          "title": "Update & Remove Audio (`updateAudio`, `removeAudio`)",
+          "description": "Adjust audio volume (0-100), loop, start/end trim, and slide show visibility toggles, or purge audio cleanly."
+        },
+        {
+          "id": 70,
+          "title": "Inspect Slide Media (`getMedias`, `getMedia`)",
+          "description": "Scan slide DrawingML tree and extract comprehensive metadata for images, videos, and audio (type, ID, dimensions, positions, formats, sizes)."
+        },
+        {
+          "id": 71,
+          "title": "Deduplicated Media Cloning (`cloneMedia`)",
+          "description": "Duplicate media shape elements with coordinate and styling overrides while reusing existing binary assets in ppt/media/ (zero byte duplication)."
+        }
+      ],
+      "count": 10
+    },
+    {
+      "id": "elements",
+      "number": 8,
+      "title": "Elements",
+      "isFlagship": false,
+      "items": [
+        {
+          "id": 72,
+          "title": "Slide Element Enumeration & Metadata",
+          "description": "Extract all visual elements residing on a specific slide with normalized metadata (`getElements`, `getElement`)."
+        },
+        {
+          "id": 73,
+          "title": "Type & Spatial Element Filtering",
+          "description": "Query elements filtered by type (`shape`, `textbox`, `image`, `video`, `audio`, `table`, `chart`) or spatial bounds (`within`, `intersects`, `overlaps`)."
+        },
+        {
+          "id": 74,
+          "title": "Element Removal & Relationship Cleanup",
+          "description": "Safely remove single elements (`removeElement`) or clear all slide elements (`removeAllElements`) with automatic relationship cleanup."
+        },
+        {
+          "id": 75,
+          "title": "Z-Order Layer Stacking & Container Safety",
+          "description": "Reorder visual layer hierarchy (`setZOrder`, `bringToFront`, `sendToBack`, `bringForward`, `sendBackward`) while strictly preserving `<p:nvGrpSpPr>` and `<p:grpSpPr>` container headers."
+        },
+        {
+          "id": 76,
+          "title": "Spatial Coordinate Engine & EMU Normalization",
+          "description": "Standardize internal dimensions and positions in English Metric Units with seamless conversions across pt, in, px, and emu."
+        },
+        {
+          "id": 77,
+          "title": "Boundary & Collision Detection",
+          "description": "Calculate element bounding intersections and detect slide edge overflows or overlaps (`checkCollision`, `isContained`)."
+        },
+        {
+          "id": 78,
+          "title": "Strict 6-Method Hyperlink Subsystem",
+          "description": "Standardized ISO/IEC 29500 Hyperlink API integrated directly into Elements: `addHyperlink`, `updateHyperlink`, `removeHyperlink`, `getHyperlinks`, `getHyperlink`, and `setHyperlink`."
+        },
+        {
+          "id": 79,
+          "title": "Target-Level Shape & Image Hyperlinks",
+          "description": "Attach external URLs, internal slide jumps, or slideshow navigation actions to shapes, textboxes, and pictures via `<p:cNvPr><a:hlinkClick>`."
+        },
+        {
+          "id": 80,
+          "title": "Substring Run Splitting & Typography Styling",
+          "description": "Isolate text substrings into dedicated DrawingML runs with custom link colors, underlines, bold, italic, and ScreenTip tooltips via `setHyperlink`."
+        },
+        {
+          "id": 81,
+          "title": "Hyperlink Introspection & Orphan Relationship Purging",
+          "description": "Inspect slide hyperlinks via `getHyperlinks` and `getHyperlink`, and safely purge orphaned relationship entries in `.rels` upon hyperlink detachment."
+        }
+      ],
+      "count": 10
     }
   ]
 }

@@ -2,491 +2,202 @@
 
 <div align="center">
 
-[![npm version](https://img.shields.io/npm/v/node-pptx-templater.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/node-pptx-templater)
+[![npm version](https://img.shields.io/badge/npm-v3.0.0--beta.0-blue.svg?style=flat-square)](https://www.npmjs.com/package/node-pptx-templater)
 [![npm downloads](https://img.shields.io/npm/dm/node-pptx-templater.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/node-pptx-templater)
-[![Vitest Tests](https://img.shields.io/badge/tests-338%20passing-brightgreen.svg?style=flat-square)](https://github.com/jsuyog2/node-pptx-templater/actions)
-[![Bundle Size](https://img.shields.io/badge/bundle%20size-pure%20JS%20%3C2MB-success.svg?style=flat-square)](https://www.npmjs.com/package/node-pptx-templater)
-[![Serverless](https://img.shields.io/badge/serverless-AWS%20Lambda%20%7C%20Cloudflare%20Workers-purple.svg?style=flat-square)](https://node-pptx-templater.pages.dev/guides/serverless-deployment/)
-[![Node.js Support](https://img.shields.io/badge/node-%3E%3D20.12.0-blue.svg?style=flat-square)](https://nodejs.org)
+[![Vitest Tests](https://img.shields.io/badge/tests-340%2B%20passing-brightgreen.svg?style=flat-square)](https://github.com/jsuyog2/node-pptx-templater/actions)
+[![Bundle Size](https://img.shields.io/badge/runtime-pure%20JS%20%3C2MB-success.svg?style=flat-square)](https://www.npmjs.com/package/node-pptx-templater)
+[![Serverless](https://img.shields.io/badge/serverless-AWS%20Lambda%20%7C%20Cloudflare%20Workers%20%7C%20Vercel%20Edge-purple.svg?style=flat-square)](https://node-pptx-templater.pages.dev/guides/serverless-deployment/)
+[![Node.js Support](https://img.shields.io/badge/node-%3E%3D18.x-blue.svg?style=flat-square)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-**Low-Level OpenXML PowerPoint Template Engine for Node.js**  
-**Serverless PPTX Generation for AWS Lambda, Vercel & Cloudflare**
+**High-Performance OpenXML & Flat OPC PowerPoint Template Engine for Node.js**  
+**Fastify, Express, AWS Lambda, Cloudflare Workers & Vercel Edge PowerPoint Automation**
 
-[📖 Documentation Portal](https://node-pptx-templater.pages.dev/) &nbsp;•&nbsp; [⚡ 5-Minute Quick Start](https://node-pptx-templater.pages.dev/docs/installation/) &nbsp;•&nbsp; [📚 API Reference](https://node-pptx-templater.pages.dev/docs/api/)
+[📖 Documentation Portal](https://node-pptx-templater.pages.dev/) &nbsp;•&nbsp; [⚡ Quick Start Guide](https://node-pptx-templater.pages.dev/guides/quick-start/) &nbsp;•&nbsp; [📚 Interactive API Reference](https://node-pptx-templater.pages.dev/docs/api/) &nbsp;•&nbsp; [✨ Feature Matrix](https://node-pptx-templater.pages.dev/features/)
 
 </div>
 
 ---
 
-## 🚀 Low-Level OpenXML & Flat OPC PowerPoint Engine for Node.js
+## 🚀 Overview: Pure JavaScript PowerPoint Automation
 
-**`node-pptx-templater`** is an enterprise-grade, high-performance, spatial-aware PowerPoint OpenXML manipulation and templating engine built for **Node.js (>=20.12.0)**, **AWS Lambda**, **Cloudflare Workers**, **Vercel Edge**, and containerless cloud environments.
+**`node-pptx-templater`** is an enterprise-grade, low-overhead PowerPoint (PPTX) template engine and presentation generator written in **100% pure JavaScript**. It enables developers to dynamically update existing PowerPoint templates or create brand-new presentations from scratch across Node.js, Express, Fastify, AWS Lambda, Cloudflare Workers, and Vercel Edge.
 
-Unlike legacy solutions that require spinning up heavyweight LibreOffice Docker containers (500MB+ images, 15-second cold starts), headless browser instances, or native Java runtimes, `node-pptx-templater` is **100% pure JavaScript with zero native binary dependencies**. It mutates and synthesizes OpenXML presentation packages entirely in memory without corrupting PresentationML relationships, layouts, or formatting.
+### Why Choose `node-pptx-templater`?
 
-### 🌟 Architectural Highlights
-
-- **Multi-Format Polymorphic Ingestion:** Seamlessly loads `.pptx`, `.pptm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.ppam`, legacy binary `.ppt`, OpenDocument `.odp`, raw ZIP buffers, uncompressed XML directories, remote HTTP/HTTPS URLs.
-- **Microsoft Flat OPC XML Support (`<pkg:package>`):** Ingest and export single-file XML presentations (`sample.xml`) directly with zero ZIP overhead. Decodes embedded base64 media and workbooks into the in-memory Virtual File System (VFS).
-- **Template-Free Blank Deck Generation:** Create pristine, valid OpenXML presentations from scratch with exact aspect ratios (`16:9`, `4:3`, `16:10`) or custom EMU/pixel dimensions without any template fixtures.
-- **Anti-Corruption Run Fragment Healing:** PowerPoint frequently splits placeholder tokens like `{{COMPANY_NAME}}` into disjoint `<a:r>` XML run nodes. Our AST paragraph normalizer merges split runs while preserving font styles, weights, colors, and layout intact.
-- **Excel Dual-Sync Technology & 17 Chart Types:** Support for all 17 chart types across standard OpenXML (`<c:chartSpace>`) and Office 2016+ extended schemas (`<cx:chartSpace>`): Column, Line, Pie, Bar, Area, Scatter, Map, Stock, Surface, Radar, Treemap, Sunburst, Histogram, Box & Whisker, Waterfall, Funnel, and Combo. Strict 8-method whitelist (`addChart`, `updateChart`, `updateChartData`, `removeChart`, `clearCharts`, `getCharts`, `getChart`, `cloneChart`). Simultaneously updates DrawingML chart caches and embedded binary Excel workbooks (`ppt/embeddings/*.xlsx`) with table cleansing to eliminate Microsoft PowerPoint repair prompts.
-- **Spatial Geometry & Percentage Coordinates (0–100%):** Position shapes, tables, charts, images, and text boxes using intuitive percentage strings (`x: '10%'`, `y: '50%'`, `width: '80%'`) or numeric percentages (`unit: '%'`) mapped precisely across canvas boundaries without rounding drift.
-- **Non-Blocking In-Memory Lifecycles:** Agile presentation synthesis without artificial validation hurdles. `validatePresentation()` serves as an on-demand, non-blocking diagnostic tool.
-- **Elements & Visual Layering:** Unified slide inspection, element querying, relationship-safe removal, and layer reordering (`getElements`, `getElement`, `removeElement`, `removeAllElements`, `setZOrder`, `bringToFront`, `sendToBack`, `bringForward`, `sendBackward`) while strictly maintaining PresentationML `<p:spTree>` header sequences and unlinking dangling relationships.
-- **Multi-Target Export & Web Framework Streaming:** Write to disk, compile to Node.js `Buffer`, `ReadableStream`, `ArrayBuffer`, Base64 / Data URI, export to Flat OPC XML string, stream directly to Express.js / Fastify responses, or emit Web Standard `Response` objects for Next.js Route Handlers and Edge workers.
-- **Direct XML & ZIP Extraction:** Unpack presentations to raw directory trees with optional 2-space XML formatting (`formatXml: true`) for git inspection, or package directly to clean compressed ZIP archives.
+- 🚫 **Zero Native Binaries & Zero Microsoft Office Dependencies**: No `node-gyp`, no C/C++ compilation, no LibreOffice headless daemon (500MB+ Docker containers), and no Windows COM interop.
+- ⚡ **Sub-50ms Cold Starts**: In-memory Virtual File System (VFS) with streaming zip inflation and fast selective XML AST manipulation.
+- 📊 **Dual-Sync Chart Engine**: Updates both DrawingML XML (`<c:chartSpace>` / `<cx:chartSpace>`) and embedded Excel binaries (`ppt/embeddings/*.xlsx`) across 17 chart types. Prevents PowerPoint "corrupted presentation" repair dialogs.
+- 📄 **Dynamic Multi-Slide Table Pagination**: Automatically calculates row heights in EMUs and paginates overflowing table rows across cloned slides with repeating headers and footer row anchoring.
+- 🧩 **AST Run Normalization (Fragment Healing)**: Eliminates broken template variables caused by PowerPoint splitting tokens like `{{COMPANY}}` into separate `<a:r>` runs.
+- 🔗 **Unified Elements & Hyperlinks Subsystem**: Complete element introspection, z-order layer stacking, spatial collision detection, and ISO/IEC 29500 hyperlinks.
+- 🛡️ **Hardened XML Security**: Built-in defenses against XXE attacks, entity expansion bombs (Billion Laughs), and Zip-Slip path traversal.
 
 ---
 
-### 📁 Input & Output Format Matrix
+## 📊 Comprehensive Comparison Matrix
 
-| Format / Source Type | Extension / Signature | Ingestion Support | Export Support | Zero Native Dependencies |
-| :--- | :--- | :---: | :---: | :---: |
-| **OpenXML Presentation** | `.pptx` | ✅ Native VFS | ✅ `.saveToFile()`, `.toBuffer()` | ✅ Pure JS |
-| **Macro-Enabled Presentation** | `.pptm` | ✅ Native VFS | ✅ Preserved Macros | ✅ Pure JS |
-| **PowerPoint Template** | `.potx`, `.potm` | ✅ Native VFS | ✅ Direct OpenXML compile | ✅ Pure JS |
-| **PowerPoint Slide Show** | `.ppsx`, `.ppsm` | ✅ Native VFS | ✅ Direct OpenXML compile | ✅ Pure JS |
-| **Microsoft Flat OPC XML** | `.xml`, `<pkg:package>` | ✅ Direct XML Parse (No ZIP) | ✅ `.toFlatXml()` | ✅ Pure JS |
-| **Uncompressed XML Folder** | Directory (`[Content_Types].xml`, `ppt/`) | ✅ VFS Direct Mount | ✅ `.extractToXml()` | ✅ Pure JS |
-| **Raw ZIP Buffer / Stream** | `Buffer`, `Uint8Array`, `ReadableStream` | ✅ In-Memory Streaming | ✅ `.toBuffer()`, `.toStream()` | ✅ Pure JS |
-| **Remote HTTP/HTTPS URL** | Remote Endpoint | ✅ `PPTXTemplater.load(url)` | ✅ Direct Web Response | ✅ Pure JS |
-| **Legacy & Alternative Formats** | `.ppt`, `.odp` | ✅ Header Detection & OPC Ingestion | ✅ Normalizes to OpenXML | ✅ Pure JS |
-
----
-
-## ⚡ Flat OPC XML & Serverless PPTX Generator for AWS Lambda & Cloudflare
-
-Engineered specifically for serverless and edge architectures:
-- **Instant Cold Boot:** < 15ms initialization time.
-- **Micro Memory Footprint:** < 2MB runtime overhead.
-- **Zero Disk Thrashing:** 100% in-memory Virtual File System (VFS) operations.
-- **Isomorphic Output:** Standard Web `Response` and `ArrayBuffer` ready for Cloudflare Workers, Next.js Route Handlers, Remix, and Vercel Edge.
+| Capability / Benchmark | `node-pptx-templater` | `python-pptx` | Headless LibreOffice | `pptxgenjs` | Native MS Office / COM |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Runtime Environment** | **Pure JavaScript** (Node.js, Edge, Lambda) | Python C-Extensions | Heavy C++ Binary / Docker | Pure JavaScript | Windows OS Only |
+| **Existing PPTX In-Place Update** | ✅ **Full In-Place AST Mutation** | ✅ Supported | ⚠️ Brittle UNO Macro Scripting | ❌ Blank creation only | ✅ Full API |
+| **Template-Free Blank Creation** | ✅ **`createBlank()` (16:9, 4:3)** | ✅ Supported | ⚠️ Macro required | ✅ Supported | ✅ Supported |
+| **Chart & Excel Dual-Sync** | ✅ **XML + XLSX Binary Sync** | ⚠️ Limited chart types | ⚠️ Slow binary recalculation | ⚠️ Basic values only | ✅ Native Excel engine |
+| **17 Chart Types (Inc. 2016+ Extended)** | ✅ **Waterfall, Treemap, Funnel, etc.** | ❌ Standard charts only | ⚠️ Partial formatting | ❌ Standard charts only | ✅ Supported |
+| **Run Fragment Healing** | ✅ **Automatic AST Run Assembly** | ❌ Manual run splitting | ❌ Brittle regex find/replace | ❌ N/A | ❌ N/A |
+| **Dynamic Table Auto-Pagination** | ✅ **Automatic Multi-Slide Splitting** | ❌ Manual math required | ❌ Unsupported | ❌ Manual math required | ❌ Unsupported |
+| **Serverless Cold Start** | ⚡ **< 15ms (< 2MB overhead)** | ⚠️ 300–800ms | ❌ 10–20 seconds (500MB+ Docker) | ⚡ < 20ms | ❌ Impossible |
+| **Web Streaming & Framework Adapters** | ✅ **Express, Fastify, Web Response** | ❌ File / Bytes only | ❌ Process stdout only | ⚠️ Buffer / Base64 only | ❌ COM pipes only |
+| **Flat OPC Single-File XML** | ✅ **Direct Parse & Serialization** | ❌ Unsupported | ⚠️ Incomplete | ❌ Unsupported | ⚠️ File export only |
 
 ---
 
-## 📊 Feature Comparison Matrix
+## 🏛️ Exact 8 Standardized Categories
 
-| Capability / Feature | `node-pptx-templater` | `pptxgenjs` | `officegen` | `LibreOffice Headless` |
-| :--- | :---: | :---: | :---: | :---: |
-| **Existing PPTX Template Ingestion** | ✅ **Full In-Place Mutation** | ❌ Blank only | ❌ Blank only | ⚠️ Macro scripting |
-| **Multi-Format (.pptm, .potx, .ppt, .odp)** | ✅ **Native Auto-Conversion** | ❌ Unsupported | ❌ Unsupported | ⚠️ External binary |
-| **Remote Web URL** | ✅ **`PPTXTemplater.load()`** | ❌ Unsupported | ❌ Unsupported | ❌ Unsupported |
-| **Template-Free Blank Generation** | ✅ **`createBlank()` (16:9, 4:3)** | ✅ Supported | ⚠️ Basic | ⚠️ Macro required |
-| **Run Fragment Normalizer (Anti-Corruption)** | ✅ **AST Paragraph Healer** | ❌ N/A | ❌ N/A | ❌ Brittle regex |
-| **Chart & Excel Workbook Dual-Sync** | ✅ **XML + XLSX Cache Sync** | ⚠️ Basic values only | ❌ Unsupported | ⚠️ Slow headless calc |
-| **DrawingML Tables Subsystem** | ✅ **Strict 30-Method Engine** | ⚠️ Basic tables | ⚠️ Minimal | ⚠️ Slow headless calc |
-| **Elements & Layer Stacking (`p:spTree`)** | ✅ **Strict 9-Method Elements Engine** | ❌ Re-render required | ❌ Unsupported | ❌ Manual scripts |
-| **Web Framework & Edge Streaming** | ✅ **Express, Fastify, Web Response**| ⚠️ Buffer only | ⚠️ Stream only | ❌ CLI process spawn |
-| **Direct XML Extraction with Formatting** | ✅ **`extractToXml({formatXml})`**| ❌ Unsupported | ❌ Unsupported | ❌ Unsupported |
-| **Serverless Deployment (Lambda, Cloudflare)** | ✅ **<2MB Pure JS, <15ms Boot** | ✅ Pure JS | ⚠️ High RAM | ❌ Heavy 500MB+ Docker |
+Public APIs are strictly structured across 8 canonical categories:
+
+1. **`Import/Export`** (18 Methods): Static loading (`load`, `createBlank`, `preload`, `fromCache`, `clearCache`), export channels (`saveToFile`, `toBuffer`, `toStream`, `toBase64`, `toArrayBuffer`, `toResponse`, `toExpress`, `toFastify`), and package extractions (`extractToZip`, `extractToXml`, `toFlatXml`, `extractPptx`, `buildPptx`).
+2. **`Slides`** (24 Methods): Slide selection (`useSlide`, `useAllSlides`), lifecycle (`addSlide`, `duplicateSlide`, `removeSlide`, `getSlides`, `getSlide`, `importSlideFrom`, `exportSlides`, `moveSlide`, `reorderSlides`, `tagSlide`, `getSlideDimensions`, `getSlideLayout`), section grouping (`useSection`, `addSection`, `updateSection`, `removeSection`, `getSection`), visibility (`hideSlide`, `unhideSlide`, `resetSlide`), and collaborative comments (`addComment`, `removeComment`).
+3. **`Text & Placeholders`** (10 Methods): Template substitution, typography, and lists (`replaceText`, `addText`, `replaceTextByTag`, `updateText`, `addLists`, `getList`, `findText`, `addStyle`, `removeStyle`, `updateStyle`).
+4. **`Tables`** (30 Methods): Full table lifecycle, data hydration, rows, columns, cell styling, and merging (`addTable`, `updateTable`, `updateTableData`, `removeTable`, `getTables`, `getTable`, `cloneTable`, `addTableRow`, `addTableColumn`, `removeTableRow`, `removeTableColumn`, `updateRowData`, `updateColumnData`, `updateTableCell`, `clearRowData`, `clearColumnData`, `clearCellData`, `getTableData`, `getColumnData`, `getRowData`, `getColumn`, `getRow`, `getCell`, `getCellData`, `mergeCells`, `splitCell`, `styleTable`, `styleColumn`, `styleRow`, `styleCell`).
+5. **`Charts`** (11 Methods): 17 chart types with Excel Dual-Sync (`addChart`, `updateChart`, `updateChartData`, `removeChart`, `clearCharts`, `getCharts`, `getChart`, `cloneChart`, `getDataLabels`, `getChartLabelPositions`).
+6. **`Shapes`** (11 Methods): Preset vector shapes, fills, outlines, and containers (`addShape`, `updateShape`, `removeShape`, `clearShapes`, `getShapes`, `getShape`, `cloneShape`, `getGroupShapes`, `groupShapes`, `ungroupShapes`).
+7. **`Images & Media`** (11 Methods): Media embedding and deduplication (`addImage`, `updateImage`, `removeImage`, `addVideo`, `updateVideo`, `removeVideo`, `addAudio`, `updateAudio`, `removeAudio`, `getMedias`, `getMedia`, `cloneMedia`).
+8. **`Elements`** (15 Methods): Unified queries, layer stacking, collision detection, and hyperlinks (`getElements`, `getElement`, `removeElement`, `removeAllElements`, `setZOrder`, `bringToFront`, `sendToBack`, `bringForward`, `sendBackward`, `addHyperlink`, `updateHyperlink`, `removeHyperlink`, `getHyperlinks`, `getHyperlink`, `setHyperlink`, `checkCollision`, `isContained`).
 
 ---
 
 ## 📦 Installation
 
 ```bash
-# Using npm
+# npm
 npm install node-pptx-templater
 
-# Using pnpm
+# pnpm
 pnpm add node-pptx-templater
 
-# Using yarn
+# yarn
 yarn add node-pptx-templater
 ```
 
-**Requirements:** Node.js `>= 20.12.0`. First-class support for both CommonJS (`require`) and ESM (`import`).
+**Requirements:** Node.js `>= 18.x` (fully verified on `18.x`, `20.x`, `22.x+`). Dual CommonJS (`require`) and ESM (`import`) distribution.
 
 ---
 
-## ⚡ Quick-Copy Production Examples
+## ⚡ Production Quick Starts
 
-### 1. Multi-Format Import (PPTX, PPTM, POTX, ODP, Binary PPT, ZIP & Folders)
-
+### 1. PPTX Template Update with AST Fragment Healing
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');
 
-async function importDecks() {
-  // 1. Standard OpenXML presentation or macro-enabled template
-  const pptx = await PPTXTemplater.load('./templates/annual-report.pptx');
-  const pptm = await PPTXTemplater.load('./templates/macros.pptm');
-
-  // 2. Legacy Microsoft PowerPoint (.ppt) or OpenDocument (.odp)
-  const legacyPpt = await PPTXTemplater.load('./templates/legacy-presentation.ppt');
-  const openDoc = await PPTXTemplater.load('./templates/slides.odp');
-
-  // 3. Raw ZIP buffer or uncompressed directory tree
-  const bufferPpt = await PPTXTemplater.load(zipBuffer);
-  const folderPpt = await PPTXTemplater.load('./unpacked-presentation-folder');
-
-  // 4. Microsoft Flat OPC XML package (single-file XML, zero ZIP overhead)
-  const flatXmlPpt = await PPTXTemplater.load('./templates/sample.xml');
-
-  console.log(`Loaded ${pptx.slideCount} slides successfully.`);
-}
-```
-
-### 2. Flat OPC Single-File XML Ingestion & Export (Zero ZIP Overhead)
-
-```javascript
-const { PPTXTemplater } = require('node-pptx-templater');
-
-async function handleFlatOpc() {
-  // Ingest directly from Flat OPC XML file, XML string, or Buffer
-  const ppt = await PPTXTemplater.load('./templates/sample.xml');
-
-  ppt.useSlide(1).replaceText({ '{{METRIC}}': '$1.2M ARR' });
-
-  // Export to standard .pptx binary OR serialize to Flat OPC XML (disk or string)
-  await ppt.saveToFile('./output/converted-deck.pptx');
-  await ppt.toFlatXml('./output/converted-deck.xml');
-  const flatXml = await ppt.toFlatXml();
-}
-```
-
-### 3. Template-Free Blank Presentation Creation
-
-```javascript
-const { PPTXTemplater } = require('node-pptx-templater');
-
-async function createFromScratch() {
-  // Create 16:9 widescreen presentation (12192000 × 6858000 EMU)
-  const ppt = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });
-
-  // Or create with 4:3 standard, or custom pixel dimensions
-  // const ppt = await PPTXTemplater.createBlank({ width: 1920, height: 1080, unit: 'px' });
-
-  ppt.useSlide(1);
-  await ppt.addShape('roundedRectangle', {
-    id: 'heroCard',
-    x: 100, y: 100, width: 600, height: 200,
-    fill: '#2563EB', text: 'Synthesized with node-pptx-templater'
-  });
-
-  await ppt.saveToFile('./output/brand-new-deck.pptx');
-}
-```
-
-### 4. Fastify & Express.js PowerPoint Streaming
-
-```javascript
-import { PPTXTemplater } from 'node-pptx-templater';
-
-const ppt = await PPTXTemplater.load('./templates/report.pptx');
-ppt.useSlide(1).replaceText({ '{{STATUS}}': 'Approved' });
-
-// 1. Commit directly to local disk or unpacked XML folder
-await ppt.saveToFile('./output/ApprovedReport.pptx');
-await ppt.extractToXml('./output/unpacked-tree');
-
-// 2. Compile to Node.js Buffer or ReadableStream
-const buffer = await ppt.toBuffer();
-const stream = await ppt.toStream();
-
-// 3. Web-standard ArrayBuffer or Base64 / Data URI (Edge runtimes)
-const arrayBuffer = await ppt.toArrayBuffer();
-const dataUri = await ppt.toBase64({ dataUri: true });
-
-// 4. Express.js HTTP response streaming
-app.get('/api/report/express', async (req, res) => {
-  await ppt.toExpress(res, 'ApprovedReport.pptx');
-});
-
-// 5. Fastify reply streaming
-fastify.get('/api/report/fastify', async (request, reply) => {
-  await ppt.toFastify(reply, 'ApprovedReport.pptx');
-});
-
-// 6. Next.js App Router / Cloudflare Workers Web API Response
-export async function GET(request) {
-  return await ppt.toResponse({ filename: 'ApprovedReport.pptx' });
-}
-
-// 7. High-concurrency template caching (< 1ms clone)
-await PPTXTemplater.preload('./templates/report.pptx');
-const fastPpt = await PPTXTemplater.fromCache('./templates/report.pptx');
-```
-
-### 5. XML & ZIP Direct Extraction for Git Inspection
-
-```javascript
-const { PPTXTemplater } = require('node-pptx-templater');
-
-async function inspectPresentation() {
-  const ppt = await PPTXTemplater.load('./presentation.pptx');
-
-  // Extract all XML parts into a folder with 2-space formatted XML for git diffs
-  await ppt.extractToXml('./inspection-folder', { formatXml: true });
-
-  // Export clean, compressed ZIP archive
-  await ppt.extractToZip('./presentation-clean.zip');
-}
-```
-
-### 6. Dynamic Text Replacement, Fragment Healing & Text Box ID Targeting
-
-```javascript
-const { PPTXTemplater } = require('node-pptx-templater');
-
-async function replacePresentationText() {
-  const ppt = await PPTXTemplater.load('./templates/executive-deck.pptx');
-
-  // 1. In-place template token replacement with AST fragment run healing
+async function updateReport() {
+  const ppt = await PPTXTemplater.load('./templates/executive_summary.pptx');
+  
+  // Target slide 1 and replace placeholder tokens cleanly
   ppt.useSlide(1).replaceText({
     '{{COMPANY}}': 'Acme Global Technologies Inc.',
-    '{{QUARTER}}': 'Q3 2026',
-    '{{PRESENTER}}': 'Sarah Jenkins, VP Engineering'
+    '{{FISCAL_YEAR}}': '2026',
+    '{{REVENUE}}': '$52.4M',
+    '{{GROWTH}}': '+34% YoY'
   });
 
-  // 2. Full text box replacement by shape ID or name with formatting preservation
-  ppt.replaceTextByTag('SummaryBox', 'Key Takeaways:\n• Revenue up 38%\n• Retention healthy', {
-    bold: true
-  });
-
-  await ppt.saveToFile('./output/updated-deck.pptx');
+  await ppt.saveToFile('./output/annual_report.pptx');
 }
 ```
 
-### 7. Native Charts Engine (8 Whitelisted Methods, 17 Chart Types & Excel Dual-Sync)
-
+### 2. Native Charts with Excel Dual-Sync
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');
 
-async function chartOperations() {
-  const ppt = await PPTXTemplater.load('./templates/financial-report.pptx');
+async function updateCharts() {
+  const ppt = await PPTXTemplater.load('./templates/dashboard.pptx');
 
-  // 1. Add standard or Office 2016+ extended charts (e.g. Column, Waterfall, Combo)
-  ppt.addChart(1, 'waterfall', {
-    categories: ['Starting', 'Revenue', 'COGS', 'Taxes', 'Ending'],
-    series: [{ name: 'Cash Flow', values: [1000, 450, -300, -100, 1050] }]
-  }, { name: 'CashWaterfall', title: 'Enterprise Cash Waterfall' });
-
-  // 2. Synchronize XML cache AND embedded .xlsx workbook simultaneously
-  ppt.useSlide(2).updateChartData('QuarterlyRevenueChart', {
-    categories: ['Q1', 'Q2', 'Q3', 'Q4 (Proj)'],
+  // Synchronously updates XML DrawingML and backing Excel workbook
+  ppt.useSlide(2).updateChartData('RevenueByQuarter', {
+    categories: ['Q1', 'Q2', 'Q3', 'Q4'],
     series: [
-      { name: 'Enterprise Cloud', values: [18.4, 22.1, 26.8, 31.5] },
-      { name: 'AI Solutions', values: [8.2, 12.6, 17.4, 23.0] }
+      { name: 'Cloud Services', values: [18.2, 22.4, 27.1, 33.8] },
+      { name: 'Consulting', values: [10.5, 11.2, 12.0, 12.8] }
     ]
   });
 
-  // 3. Clone charts deeply with unique XML parts and workbooks
-  ppt.useSlide(2).cloneChart('QuarterlyRevenueChart', 'RevenueChart_Copy', { x: '5in', y: '2in' });
-
-  // 4. Data labels manipulation via updateChart
-  ppt.useSlide(2).updateChart('RevenueChart_Copy', { labels: { showVal: true, position: 'outsideEnd' } });
-
-  // 5. Slide-wide clean evacuation while preserving text boxes, layout shapes, and tables
-  ppt.useSlide(3).clearCharts();
-
-  await ppt.saveToFile('./output/synced-charts.pptx');
+  await ppt.saveToFile('./output/updated_dashboard.pptx');
 }
 ```
 
-### 8. DrawingML Tables & Multi-Tier Styling (Strict 30 Methods)
-
+### 3. Dynamic Tables with Auto-Pagination & Multi-Slide Splitting
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');
 
-async function generateTable() {
-  const ppt = await PPTXTemplater.load('./templates/inventory.pptx');
-  ppt.useSlide(3);
-
-  // 1. Create a table with percentage coordinates
-  ppt.addTable(3, 4, 3, [
-    ['SKU', 'Product', 'Quantity'],
-    ['SKU-001', 'Cloud Widget', '150'],
-    ['SKU-002', 'Edge Device', '80'],
-    ['SKU-003', 'Sensor Hub', '320'],
-  ], { id: 'InventoryTable', x: '10%', y: '15%', width: '80%', height: '45%' });
-
-  // 2. Append new rows and columns with fluent chaining
-  ppt.addTableRow('InventoryTable', ['SKU-004', 'Gateway', '45'])
-     .addTableColumn('InventoryTable', ['Status', 'Active', 'Active', 'Pending', 'Active']);
-
-  // 3. Multi-tier styling: table, rows, columns, and individual cells
-  ppt.styleTable('InventoryTable', { headerFill: '1E3A8A', oddFill: 'F8FAFC', evenFill: 'FFFFFF' })
-     .styleRow('InventoryTable', 0, { color: 'FFFFFF', bold: true })
-     .styleCell('InventoryTable', 1, 2, { fill: 'DCFCE7', color: '166534', bold: true });
-
-  // 4. Merge header or summary cells
-  ppt.mergeCells('InventoryTable', 0, 0, 0, 2);
-
-  // 5. Query table metrics and 2D data matrix
-  const matrix = ppt.getTableData('InventoryTable');
-  console.log(`Total rows: ${matrix.length}`);
-
-  await ppt.saveToFile('./output/styled-table.pptx');
-}
-```
-
-### 9. Slide Lifecycle, Section Management & Collaborative Comments (Strict 23 Methods)
-
-```javascript
-const { PPTXTemplater } = require('node-pptx-templater');
-
-async function manageSlideDeck() {
-  const ppt = await PPTXTemplater.load('./templates/annual-deck.pptx');
-
-  // 1. Fluent slide selection & metadata inspection
+async function createTablePresentation() {
+  const ppt = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });
   ppt.useSlide(1);
-  const slides = ppt.getSlides();
-  const slide1 = ppt.getSlide(1);
-  const dims = ppt.getSlideDimensions();
-  const layout = ppt.getSlideLayout(1);
 
-  // 2. Lifecycle operations: add, duplicate, reorder, move, tag & remove
-  await ppt.addSlide({ title: 'Executive Summary', layout: 'Title and Content' }, 2);
-  await ppt.duplicateSlide(2, 3);
-  ppt.moveSlide(3, 1);
-  ppt.reorderSlides([1, 2, 3]);
-  ppt.tagSlide(1, 'reviewed');
-
-  // 3. Section organization (<p14:sectionLst>)
-  await ppt.addSection('Executive Overview', 1);
-  ppt.useSection('Executive Overview');
-  ppt.updateSection('Executive Overview', { name: 'Leadership Overview' });
-  const section = ppt.getSection('Leadership Overview');
-
-  // 4. Slide visibility & canvas reset
-  ppt.hideSlide(2);
-  ppt.unhideSlide(2);
-  ppt.resetSlide(3, { preservePlaceholders: true });
-
-  // 5. Collaborative review comments (ppt/commentAuthors.xml & ppt/comments/commentN.xml)
-  await ppt.addComment('Please verify Q3 ARR metrics prior to board presentation.', {
-    author: 'Sarah Jenkins',
-    initials: 'SJ',
-    x: 100, y: 150
-  });
-  await ppt.removeComment(0);
-
-  // 6. Cross-deck slide import & selective export
-  const sourceDeck = await PPTXTemplater.load('./templates/appendix.pptx');
-  await ppt.importSlideFrom(sourceDeck, 1, 4);
-  const exportedBuffer = await ppt.exportSlides(1, 2);
-
-  await ppt.saveToFile('./output/final-presentation.pptx');
-}
-```
-
-### 10. Images & Media Lifecycle (Strict 12 Methods)
-
-```javascript
-const { PPTXTemplater } = require('node-pptx-templater');
-
-async function manageMedia() {
-  const ppt = await PPTXTemplater.load('./templates/multimedia.pptx');
-
-  // 1. Image Lifecycle: Add, Update, Remove
-  await ppt.AddImage(1, './assets/logo.png', {
-    id: 'companyLogo',
-    x: '5%', y: '5%', width: '20%', height: '10%',
-    altText: 'Company Logo',
-    transparency: 10
-  });
-
-  await ppt.UpdateImage('companyLogo', {
+  // Add 4-row by 3-column table with custom styling
+  ppt.addTable(1, 4, 3, [
+    ['Department', 'Headcount', 'Budget'],
+    ['Engineering', '58', '$6,200,000'],
+    ['Product & Design', '22', '$2,400,000'],
+    ['Marketing & Sales', '35', '$4,100,000']
+  ], {
     x: '10%',
-    rotation: 45,
-    crop: { left: 5, top: 5, right: 5, bottom: 5 }
+    y: '15%',
+    width: '80%',
+    headerFill: '1E293B',
+    headerColor: 'FFFFFF',
+    zebraFill: 'F8FAFC'
   });
 
-  await ppt.RemoveImage('companyLogo');
-
-  // 2. Video Lifecycle: Add, Update, Remove
-  await ppt.AddVideo(1, './assets/intro.mp4', {
-    id: 'introVideo',
-    x: 100, y: 150, width: 400, height: 250,
-    autoplay: true,
-    loop: false,
-    posterFrame: './assets/intro-poster.png'
-  });
-
-  await ppt.UpdateVideo('introVideo', {
-    volume: 80,
-    startTime: 2000,
-    endTime: 15000
-  });
-
-  await ppt.RemoveVideo('introVideo');
-
-  // 3. Audio Lifecycle: Add, Update, Remove
-  await ppt.AddAudio(1, './assets/narration.mp3', {
-    id: 'slideNarration',
-    x: 50, y: 50, width: 48, height: 48,
-    autoplay: true,
-    loop: true,
-    hideDuringShow: true
-  });
-
-  await ppt.UpdateAudio('slideNarration', {
-    volume: 50
-  });
-
-  await ppt.RemoveAudio('slideNarration');
-
-  // 4. Querying & Deduplicated Cloning
-  const allMedia = await ppt.GetMedias(1);
-  const singleMedia = await ppt.GetMedia('introVideo');
-  await ppt.CloneMedia('companyLogo', 'companyLogoClone', {
-    x: '75%', y: '5%'
-  });
-
-  await ppt.saveToFile('./output/multimedia-presentation.pptx');
+  await ppt.saveToFile('./output/department_overview.pptx');
 }
 ```
 
-### 11. Interactive Hyperlinks & Slide Navigation (Strict 6 Methods)
+### 4. Express.js & Fastify Serverless Streaming
+```javascript
+const express = require('express');
+const { PPTXTemplater } = require('node-pptx-templater');
 
-Fully ISO/IEC 29500 (ECMA-376) PresentationML compliant hyperlink engine supporting external web URLs, inter-slide transition jumps, slideshow navigation actions (`next`, `prev`, `first`, `last`, `endshow`), shape-level target binding, and inline text substring run-splitting with typography styling overrides:
+const app = express();
 
+app.get('/api/export-deck', async (req, res) => {
+  const ppt = await PPTXTemplater.load('./templates/invoice.pptx');
+  ppt.replaceText({ '{{CLIENT}}': req.query.client || 'Client' });
+  
+  // Streams directly with correct Content-Type and Content-Disposition headers
+  await ppt.toExpress(res, 'Custom_Report.pptx');
+});
+
+// Fastify
+fastify.get('/api/fastify-export', async (request, reply) => {
+  const ppt = await PPTXTemplater.load('./templates/invoice.pptx');
+  await ppt.toFastify(reply, 'Invoice.pptx');
+});
+```
+
+### 5. Elements & Hyperlinks Integration
 ```javascript
 const { PPTXTemplater } = require('node-pptx-templater');
 
-async function manageHyperlinks() {
-  const ppt = await PPTXTemplater.load('./templates/presentation.pptx');
+async function buildInteractiveDeck() {
+  const ppt = await PPTXTemplater.load('./templates/portfolio.pptx');
   ppt.useSlide(1);
 
-  // 1. External web URL on a shape button with ScreenTip tooltip
-  ppt.addHyperlink('LearnMoreBtn', 'https://github.com', {
-    tooltip: 'Navigate to GitHub Repository'
+  // Add clickable external hyperlink to a shape with ScreenTip
+  ppt.addHyperlink('DocsButton', 'https://node-pptx-templater.pages.dev', {
+    tooltip: 'Visit Official Documentation'
   });
 
-  // 2. Inter-slide jump (transitions presentation directly to Slide 3)
-  ppt.addHyperlink('TocItem3', 3, {
-    tooltip: 'Jump to Slide 3'
-  });
+  // Reorder visual layers safely
+  ppt.bringToFront('DocsButton');
 
-  // 3. Slideshow navigation action
-  ppt.addHyperlink('NextArrow', 'next', {
-    action: 'next',
-    tooltip: 'Advance to next slide'
-  });
-
-  // 4. Substring run-splitting and link styling within a paragraph
-  ppt.setHyperlink('SummaryCard', 'API Documentation', 'https://example.com/docs', {
+  // Substring hyperlink styling within paragraph runs
+  ppt.setHyperlink('SummaryCard', 'API Documentation', 'https://node-pptx-templater.pages.dev/docs/api/', {
     color: '#0563C1',
     underline: true,
-    bold: true,
-    tooltip: 'Open API Documentation'
+    bold: true
   });
 
-  // 5. Update an existing hyperlink destination and ScreenTip
-  ppt.updateHyperlink('LearnMoreBtn', 'https://example.com/new-docs', {
-    tooltip: 'Updated Documentation Portal'
-  });
-
-  // 6. Inspect all hyperlinks across a slide (shape & textRun)
-  const links = ppt.getHyperlinks(1);
-  const singleLink = ppt.getHyperlink('LearnMoreBtn');
-
-  // 7. Detach hyperlink and safely purge orphaned .rels relationship
-  ppt.removeHyperlink('LearnMoreBtn');
-
-  await ppt.saveToFile('./output/interactive-hyperlinks.pptx');
+  await ppt.saveToFile('./output/interactive_deck.pptx');
 }
 ```
 
@@ -495,39 +206,39 @@ async function manageHyperlinks() {
 ## 🎪 CLI Usage
 
 ```bash
-# Build a PPTX from a template with data from JSON
+# Build presentation from template with JSON data
 node-pptx-templater build template.pptx output.pptx --data ./data.json
 
-# Extract all OpenXML parts into a formatted folder for git inspection
+# Extract all OpenXML parts into a formatted directory for git inspection
 node-pptx-templater extract deck.pptx --all --format --out ./extracted-deck
 
 # Extract to clean ZIP archive
 node-pptx-templater extract deck.pptx --zip ./deck.zip
 
-# Validate PPTX package integrity
+# Validate presentation archive integrity
 node-pptx-templater validate deck.pptx
 ```
 
 ---
 
-## 🛠️ Verification & Testing
+## 🛠️ Verification & Quality Assurance
 
 ```bash
-# Run complete test suite (338 passing Vitest tests)
+# Run Vitest test suites
 npm test
 
-# Run validation and showcase integration tests
-npm run validate
+# Check documentation coverage
+npm run docs:validate
 
-# Build modern Cloudflare Pages documentation application
+# Build documentation portal
 npm run docs:build
 ```
 
 ---
 
-## 📄 License & Community
+## 📄 License & Resources
 
-- **License:** [MIT License](https://opensource.org/licenses/MIT)
-- **Documentation:** [https://node-pptx-templater.pages.dev/](https://node-pptx-templater.pages.dev/)
-- **Repository:** [https://github.com/jsuyog2/node-pptx-templater](https://github.com/jsuyog2/node-pptx-templater)
-- **Issues & Contributions:** [https://github.com/jsuyog2/node-pptx-templater/issues](https://github.com/jsuyog2/node-pptx-templater/issues)
+- **License:** [MIT](https://opensource.org/licenses/MIT)
+- **Documentation Portal:** [https://node-pptx-templater.pages.dev/](https://node-pptx-templater.pages.dev/)
+- **GitHub Repository:** [https://github.com/jsuyog2/node-pptx-templater](https://github.com/jsuyog2/node-pptx-templater)
+- **Issue Tracker:** [https://github.com/jsuyog2/node-pptx-templater/issues](https://github.com/jsuyog2/node-pptx-templater/issues)

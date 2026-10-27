@@ -1,6 +1,6 @@
 # AGENTS.md — Master AI Operating Manual & Architecture Charter
 
-> **Workspace Target**: `node-pptx-templater` (v3.0.0-alpha.0)  
+> **Workspace Target**: `node-pptx-templater` (v3.0.0-beta.0)  
 > **Standard**: ISO/IEC 29500 (ECMA-376) OPC & PresentationML
 
 ---
@@ -9,9 +9,10 @@
 
 1. **Pure JavaScript Runtime**: Zero native binaries, C/C++ addons, `node-gyp`, LibreOffice, or COM interop. Fully portable across Node.js (`>=18.x`, `20.x`, `22.x+`), AWS Lambda, Cloudflare Workers, Vercel Edge, and Deno.
 2. **Strict 18-Method I/O Whitelist**: Public I/O is locked to exactly 18 methods (7 Static, 8 Export, 3 Extraction). All deprecated aliases (`toFile`, `save`, `exportZip`, `exportXml`, `writeToBuffer`) are strictly prohibited.
-3. **Silent Centralized Logging**: Direct `console.log/warn/error` in `src/` is prohibited. All telemetry routes through `createLogger('ModuleName')` from `src/utils/logger.js`.
-4. **Fluent `this` Chaining**: All presentation and slide mutation methods must return `this` (or `Promise<PPTXTemplater>` when async).
-5. **Hardened XML & Package Security**: Enforce XXE blocking (`safeParseXml`), Billion Laughs / entity bomb protection, and Zip-Slip traversal resistance.
+3. **Canonical 8 Standardized Categories**: All documentation schemas, TypeScript declarations, and JSDoc tags use strictly 8 categories: `Import/Export`, `Slides`, `Text & Placeholders`, `Tables`, `Charts`, `Shapes`, `Images & Media`, `Elements`.
+4. **Silent Centralized Logging**: Direct `console.log/warn/error` in `src/` is prohibited. All telemetry routes through `createLogger('ModuleName')` from `src/utils/logger.js`.
+5. **Fluent `this` Chaining**: All presentation and slide mutation methods must return `this` (or `Promise<PPTXTemplater>` when async).
+6. **Hardened XML & Package Security**: Enforce XXE blocking (`safeParseXml`), Billion Laughs / entity bomb protection, and Zip-Slip traversal resistance.
 
 ---
 
@@ -37,7 +38,7 @@ node-pptx-templater/
 │   ├── cli/                   # CLI (build, validate, inspect, extract, debug)
 │   ├── converters/            # Format bridges (FlatOpcConverter, LegacyConverter)
 │   ├── core/                  # Core engine (PPTXTemplater, PackageLoader, VFS, TemplateEngine, ValidationEngine)
-│   ├── elements/              # Visual managers (TableManager, ChartManager, ShapeManager, TextManager, ImageManager)
+│   ├── elements/              # Visual managers (TableManager, ChartManager, ShapeManager, TextManager, ImageManager, ElementManager, HyperlinkManager)
 │   ├── managers/              # Package managers (SlideManager, ZipManager, ContentTypesManager, RelationshipManager, MediaManager)
 │   ├── parsers/               # Lossless XML AST parser & serializer (XMLParser.js)
 │   ├── spatial/               # EMU math, conversions, and ZOrderManager

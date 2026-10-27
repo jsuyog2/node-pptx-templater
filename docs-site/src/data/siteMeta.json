@@ -1,21 +1,99 @@
 {
   "title": "node-pptx-templater — High-Performance OpenXML PowerPoint Template Engine",
-  "tagline": "Populate PowerPoint templates dynamically in Node.js and serverless runtimes without Microsoft Office dependencies.",
-  "description": "Production-ready, pure JavaScript PowerPoint (PPTX) OpenXML template engine for Node.js and serverless runtimes. Dynamically replace text, update charts with Excel caching, format tables, and merge slides without PowerPoint corruption.",
+  "tagline": "Populate and generate PowerPoint templates dynamically in Node.js and serverless runtimes without Microsoft Office dependencies.",
+  "description": "Production-ready, pure JavaScript PowerPoint (PPTX) OpenXML template engine for Node.js, Express, Fastify, AWS Lambda, Cloudflare Workers, and Vercel Edge. Dynamically replace text, update native charts with Excel Dual-Sync, format tables with multi-slide pagination, manage shapes and media, and merge slides with zero Office dependencies.",
   "domainUrl": "https://node-pptx-templater.pages.dev",
-  "version": "3.0.0-alpha.0",
+  "version": "3.0.0-beta.0",
   "author": "node-pptx-templater contributors",
   "license": "MIT",
   "keywords": [
+    "pptx template update",
+    "pptx template create",
+    "powerpoint template engine nodejs",
+    "pure javascript pptx generator",
+    "openxml powerpoint automation",
+    "serverless pptx",
+    "fastify pptx",
+    "express pptx",
     "node-pptx-templater",
     "pptx templater",
-    "openxml powerpoint generator",
-    "serverless pptx",
     "aws lambda pptx",
-    "chart excel sync",
-    "pure js pptx",
-    "powerpoint template engine nodejs",
     "cloudflare workers pptx",
-    "vercel edge powerpoint"
-  ]
+    "vercel edge powerpoint",
+    "chart excel sync",
+    "presentationml"
+  ],
+  "jsonLd": {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://node-pptx-templater.pages.dev/#software",
+        "name": "node-pptx-templater",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Node.js (>=18.x), AWS Lambda, Cloudflare Workers, Vercel Edge, Bun, Deno",
+        "softwareVersion": "3.0.0-beta.0",
+        "license": "https://opensource.org/licenses/MIT",
+        "description": "Pure JavaScript OpenXML & Flat OPC PowerPoint template engine for Node.js, Express, Fastify, and serverless runtimes with zero Microsoft Office dependencies.",
+        "url": "https://node-pptx-templater.pages.dev",
+        "downloadUrl": "https://www.npmjs.com/package/node-pptx-templater",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@type": "Person",
+          "name": "node-pptx-templater contributors",
+          "url": "https://github.com/jsuyog2/node-pptx-templater"
+        }
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "https://node-pptx-templater.pages.dev/#article",
+        "headline": "High-Performance OpenXML & Flat OPC PowerPoint Automation in Pure JavaScript",
+        "description": "Comprehensive guide to programmatically creating, mutating, and streaming PowerPoint presentations in serverless environments without Microsoft Office.",
+        "url": "https://node-pptx-templater.pages.dev/docs/",
+        "author": {
+          "@type": "Person",
+          "name": "node-pptx-templater contributors",
+          "url": "https://github.com/jsuyog2/node-pptx-templater"
+        },
+        "dependencies": "Zero native binaries, pure JavaScript runtime (Node.js >=18.x)",
+        "proficiencyLevel": "Intermediate"
+      },
+      {
+        "@type": "HowTo",
+        "@id": "https://node-pptx-templater.pages.dev/#howto",
+        "name": "How to Dynamically Populate PowerPoint Templates in Node.js",
+        "description": "Step-by-step instructions to load a PPTX template, perform AST-safe text replacement, update native charts with Excel dual-sync, and export via streams.",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "position": 1,
+            "name": "Install node-pptx-templater",
+            "text": "Install the package using npm: npm install node-pptx-templater"
+          },
+          {
+            "@type": "HowToStep",
+            "position": 2,
+            "name": "Load PowerPoint Template",
+            "text": "Load an existing .pptx file, remote URL, or binary Buffer using PPTXTemplater.load()."
+          },
+          {
+            "@type": "HowToStep",
+            "position": 3,
+            "name": "Perform Templating & Mutations",
+            "text": "Select slides, replace text tags, format tables with automatic pagination, update charts, or inject hyperlinks."
+          },
+          {
+            "@type": "HowToStep",
+            "position": 4,
+            "name": "Export Generated Presentation",
+            "text": "Export cleanly to file (saveToFile), stream (toStream), Buffer (toBuffer), Express res (toExpress), or Fastify reply (toFastify)."
+          }
+        ]
+      }
+    ]
+  }
 }

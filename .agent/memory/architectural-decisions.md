@@ -7,7 +7,7 @@
 ### ADR-001: Pure JavaScript Runtime & Zero Office Dependencies
 - **Context**: Office binaries (LibreOffice, COM, `node-gyp`) fail on serverless platforms (AWS Lambda, Cloudflare Workers, Edge).
 - **Decision**: Zero native dependencies. Operate purely on JS data structures, `fast-xml-parser`, and JSZip.
-- **Consequence**: Sub-100ms startup, instant edge compatibility, no compilation overhead.
+- **Consequence**: Sub-50ms startup, instant edge compatibility, no compilation overhead.
 
 ### ADR-002: In-Memory Virtual File System (VFS)
 - **Context**: Disk I/O causes concurrency bottlenecks and fails in read-only serverless runtimes.
@@ -27,7 +27,7 @@
 ### ADR-005: Dual-Sync for Native Charts & Embedded Workbooks
 - **Context**: Updating only DrawingML `<c:chartSpace>` without updating embedded Excel workbooks causes repair alerts on edit.
 - **Decision**: Synchronize DrawingML cache and embedded `.xlsx` (`sheet1.xml`, `sharedStrings.xml`) concurrently in `ChartManager.js`. Cleanse stale `xl/tables/`.
-- **Consequence**: Zero repair warnings in PowerPoint; immediate editing in Excel supported.
+- **Consequence**: Zero repair warnings in PowerPoint; immediate editing in Excel supported across all 17 chart types.
 
 ### ADR-006: Unique 32-Bit Unsigned `<a16:rowId>` Allocation
 - **Context**: Office 2016+ flags presentations as corrupt if cloned table rows share identical `<a16:rowId>` values.
@@ -54,7 +54,17 @@
 - **Decision**: Implement `FlatOpcConverter.js` for single-file XML packages (`<pkg:package>`).
 - **Consequence**: Git-diffable presentations, direct database text storage, zero-ZIP processing.
 
-### ADR-011: Strict 23-Method Slide Management Whitelist
+### ADR-011: Strict 24-Method Slide Management Whitelist
 - **Context**: Slide methods had accumulated deprecated aliases and lacked structured section, visibility, and comment management.
-- **Decision**: Enforce strict 23-method whitelist (1-based indexing). Implement section grouping via `<p14:sectionLst>`, visibility via `show="0"`, canvas reset (`resetSlide`), and `CommentManager`.
+- **Decision**: Enforce strict 24-method whitelist (1-based indexing). Implement section grouping via `<p14:sectionLst>`, visibility via `show="0"`, canvas reset (`resetSlide`), and `CommentManager`.
 - **Consequence**: Predictable slide manipulation with zero repair alerts.
+
+### ADR-012: Unified Elements & Hyperlinks Subsystem
+- **Context**: Hyperlinks and visual layer manipulation were previously separated across managers, causing fragmented API surfaces and duplicate relationship traversal routines.
+- **Decision**: Integrate Hyperlinks (`addHyperlink`, `updateHyperlink`, `removeHyperlink`, `getHyperlinks`, `getHyperlink`, `setHyperlink`) into the `src/elements/` subsystem and group them under the canonical `Elements` category alongside element queries and z-ordering (15 methods total).
+- **Consequence**: Unified slide object lifecycle, centralized relationship cleanup, streamlined fluent chaining.
+
+### ADR-013: Canonical 8 Standardized Categories Architecture
+- **Context**: Discrepancies between documentation categories, TypeScript definitions, and internal module categorizations caused navigational confusion and schema drift.
+- **Decision**: Enforce strictly 8 approved categories across all schemas (`apiReference.json`, `features.json`, `docsNavigation.json`), TypeScript definitions (`src/index.d.ts`), and JSDoc annotations: `Import/Export`, `Slides`, `Text & Placeholders`, `Tables`, `Charts`, `Shapes`, `Images & Media`, `Elements`. Deprecate and remove standalone "Diagnostics & Validation" category while maintaining embedded ingestion security guards.
+- **Consequence**: 100% schema consistency, deterministic documentation generation, clean developer experience.

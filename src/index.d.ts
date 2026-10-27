@@ -120,6 +120,7 @@ export type TableCellPrimitive = string | number | boolean | null | undefined;
 export type TableCellData = TableCellPrimitive | TableCellStyledValue | TableCellShapeOptions;
 
 export class PPTXTemplater {
+  // 1. Import/Export (Strict Whitelisted Methods: 7 Static, 8 Export, 3 Extraction)
   static load(source: string | Buffer | any, options?: any): Promise<PPTXTemplater>;
   static createBlank(options?: any): Promise<PPTXTemplater>;
   static extractPptx(pptxPath: string, outputPath: string, options?: any): Promise<void>;
@@ -129,6 +130,19 @@ export class PPTXTemplater {
   static clearCache(): void;
   static setLogLevel(level: string): void;
 
+  saveToFile(filePath: string, options?: any): Promise<void>;
+  toBuffer(options?: any): Promise<Buffer>;
+  toStream(options?: any): Promise<any>;
+  toBase64(options?: { dataUri?: boolean }): Promise<string>;
+  toArrayBuffer(options?: any): Promise<ArrayBuffer>;
+  toResponse(options?: any): Promise<Response>;
+  toExpress(res: any, filename?: string, options?: any): Promise<void>;
+  toFastify(reply: any, filename?: string, options?: any): Promise<void>;
+  extractToZip(destinationPath: string, options?: any): Promise<void>;
+  extractToXml(destinationDir: string, options?: any): Promise<void>;
+  toFlatXml(destinationPathOrOptions?: string | any, options?: any): Promise<string>;
+
+  // 2. Slides
   slideCount: number;
   useSlide(...slideRefs: (number | string)[]): this;
   useAllSlides(): this;
@@ -154,8 +168,8 @@ export class PPTXTemplater {
   resetSlide(slideRef?: number | string | { preservePlaceholders?: boolean }, options?: { preservePlaceholders?: boolean }): this;
   addComment(text: string, options?: { author?: string; initials?: string; x?: number | string; y?: number | string; dateTime?: string }): Promise<this>;
   removeComment(commentIdentifier: number | string, options?: { author?: string }): Promise<this>;
-  checkCollision(idA: string, idB: string): boolean;
-  isContained(innerId: string, outerId: string): boolean;
+
+  // 3. Text & Placeholders
   replaceText(replacements: Record<string, string | number>): this;
   addText(textContent: string, options?: any): this;
   replaceTextByTag(tagOrId: string | number, newText: string | number, options?: any): this;
@@ -175,24 +189,8 @@ export class PPTXTemplater {
   clearList(tag: string): this;
   replaceList(tag: string, newItems: any[] | any, options?: any): this;
   getTextElements(): any[];
-  // Charts (Strict 11 Whitelisted Methods)
-  addChart(chartType: string, data: any, options?: any): this;
-  addChart(slideId: number | string, chartType: string, data: any, options?: any): this;
-  updateChart(chartId: string, options: any): this;
-  updateChartData(chartId: string, data: any): this;
-  removeChart(chartId: string): this;
-  clearCharts(slideRefOrChartId?: number | string): this;
-  getCharts(slideId?: number | string): any[];
-  getChart(chartId: string): any;
-  cloneChart(chartId: string, clonedChartId?: string, clonedOptions?: any): this;
-  // Hyperlinks (Strict 6 Whitelisted Methods)
-  addHyperlink(targetId: string | number, urlOrAction: string | number | ActionPreset | HyperlinkOptions, options?: HyperlinkOptions): this;
-  updateHyperlink(targetId: string | number, urlOrAction?: string | number | ActionPreset | HyperlinkOptions, options?: HyperlinkOptions): this;
-  removeHyperlink(targetId: string | number | { targetId?: string | number; shapeName?: string; text?: string; slide?: number }): this;
-  getHyperlinks(slideId?: number): HyperlinkDescriptor[];
-  getHyperlink(targetId: string | number): HyperlinkDescriptor | null;
-  setHyperlink(targetId: string | number | null, text: string, urlOrAction: string | number | ActionPreset | TextHyperlinkOptions, options?: TextHyperlinkOptions): this;
-  // Tables (Strict 30 Whitelisted Methods)
+
+  // 4. Tables (Strict 30 Whitelisted Methods)
   addTable(slideId: number | string, rows: number, columns: number, data?: TableCellData[][], options?: any): this;
   addTable(rows: number, columns: number, data?: TableCellData[][], options?: any): this;
   addTable(options: any): this;
@@ -225,24 +223,21 @@ export class PPTXTemplater {
   styleColumn(tableId: string, columnIndex: number, options: any): this;
   styleRow(tableId: string, rowIndex: number, options: any): this;
   styleCell(tableId: string, rowIndex: number, columnIndex: number, options: any): this;
-  saveToFile(filePath: string, options?: any): Promise<void>;
-  toBuffer(options?: any): Promise<Buffer>;
-  toStream(options?: any): Promise<any>;
-  toBase64(options?: { dataUri?: boolean }): Promise<string>;
-  toArrayBuffer(options?: any): Promise<ArrayBuffer>;
-  toResponse(options?: any): Promise<Response>;
-  toExpress(res: any, filename?: string, options?: any): Promise<void>;
-  toFastify(reply: any, filename?: string, options?: any): Promise<void>;
-  extractToZip(destinationPath: string, options?: any): Promise<void>;
-  extractToXml(destinationDir: string, options?: any): Promise<void>;
-  toFlatXml(destinationPathOrOptions?: string | any, options?: any): Promise<string>;
-  repair(): Promise<this>;
-  inspectXML(xmlPath: string): Promise<any>;
+
+  // 5. Charts
+  addChart(chartType: string, data: any, options?: any): this;
+  addChart(slideId: number | string, chartType: string, data: any, options?: any): this;
+  updateChart(chartId: string, options: any): this;
+  updateChartData(chartId: string, data: any): this;
+  removeChart(chartId: string): this;
+  clearCharts(slideRefOrChartId?: number | string): this;
+  getCharts(slideId?: number | string): any[];
+  getChart(chartId: string): any;
+  cloneChart(chartId: string, clonedChartId?: string, clonedOptions?: any): this;
   getDataLabels(chartId: string, options?: any): Promise<any>;
-  validateDataLabels(chartId: string, options?: any): Promise<any>;
-  validateChartLabels(chartId: string, options?: any): Promise<any>;
-  validateSeriesNameLabels(chartId: string, options?: any): Promise<any>;
   getChartLabelPositions(chartId: string): Promise<any>;
+
+  // 6. Shapes
   addShape(slideId: number | string, type: string, options?: any): this;
   addShape(typeOrOptions: any, options?: any): this;
   updateShape(targetId: string, options: any): this;
@@ -254,6 +249,8 @@ export class PPTXTemplater {
   getGroupShapes(groupId: string): any[];
   groupShapes(shapeIds: string[], groupOptions?: any): this;
   ungroupShapes(groupId: string): this;
+
+  // 7. Images & Media
   addImage(slideId: number | string, source: string | Buffer | Uint8Array, options?: any): Promise<this>;
   addImage(source: string | Buffer | Uint8Array, options?: any): Promise<this>;
   updateImage(imageId: string | number, options?: any): Promise<this>;
@@ -284,7 +281,8 @@ export class PPTXTemplater {
   GetMedias(slideId?: number | string): any[];
   GetMedia(mediaId: string | number): any;
   CloneMedia(mediaId: string | number, clonedMediaId?: string | number, clonedOptions?: any): this;
-  // Elements (Strict 9 Whitelisted Methods)
+
+  // 8. Elements (Element Queries, Z-Ordering, Hyperlinks)
   getElements(slideIdOrFilter?: number | string | ElementFilterOptions, filter?: ElementFilterOptions): ElementDescriptor[];
   getElement(elementId: string | number, slideId?: number | string): ElementDescriptor | null;
   removeElement(elementIdOrOptions: string | number | { slide?: number | string; elementId?: string | number; objectId?: string | number; id?: string | number }, slideId?: number | string): this;
@@ -294,11 +292,14 @@ export class PPTXTemplater {
   sendToBack(optionsOrId: string | number | { slide?: number | string; elementId?: string | number; objectId?: string | number; id?: string | number }, slideId?: number | string): this;
   bringForward(optionsOrId: string | number | { slide?: number | string; elementId?: string | number; objectId?: string | number; id?: string | number }, slideId?: number | string): this;
   sendBackward(optionsOrId: string | number | { slide?: number | string; elementId?: string | number; objectId?: string | number; id?: string | number }, slideId?: number | string): this;
-  validatePresentation(): Promise<any>;
-  validatePresentationXml(): Promise<any>;
-  validateSlide(slideIndex: number): Promise<any>;
-  validateTable(tableId: string): Promise<any>;
-  validateArchive(): Promise<any>;
+  addHyperlink(targetId: string | number, urlOrAction: string | number | ActionPreset | HyperlinkOptions, options?: HyperlinkOptions): this;
+  updateHyperlink(targetId: string | number, urlOrAction?: string | number | ActionPreset | HyperlinkOptions, options?: HyperlinkOptions): this;
+  removeHyperlink(targetId: string | number | { targetId?: string | number; shapeName?: string; text?: string; slide?: number }): this;
+  getHyperlinks(slideId?: number): HyperlinkDescriptor[];
+  getHyperlink(targetId: string | number): HyperlinkDescriptor | null;
+  setHyperlink(targetId: string | number | null, text: string, urlOrAction: string | number | ActionPreset | TextHyperlinkOptions, options?: TextHyperlinkOptions): this;
+  checkCollision(idA: string, idB: string): boolean;
+  isContained(innerId: string, outerId: string): boolean;
 }
 
 export const PPTXTemplate: typeof PPTXTemplater;
