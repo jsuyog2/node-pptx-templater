@@ -148,4 +148,142 @@ describe('Substring Text Hyperlink & Styling API Integration Tests (TASK-HYPERLI
     expect(slideXml).toContain('action="ppaction://hlinksldjump"')
     expect(relsXml).toContain('Target="slide2.xml"')
   })
+
+  it('4. should apply text color via options.color and options.style.color with strict ECMA-376 schema sequence', async () => {
+    const ppt = await PPTXTemplater.createBlank()
+    ppt.useSlide(1)
+
+    await ppt.addShape('rect', {
+      id: 'ColorTestBox',
+      name: 'ColorTestBox',
+      x: 100,
+      y: 100,
+      width: 500,
+      height: 80,
+      text: 'Explore Alpha, Beta, and Gamma documentation.',
+    })
+
+    // Substring 1: Root options.color with hex '#'
+    ppt.setHyperlink('ColorTestBox', 'Alpha', 'https://example.com/alpha', {
+      color: '#E11D48',
+      underline: true,
+      bold: true,
+    })
+
+    // Substring 2: Nested options.style.color
+    ppt.setHyperlink('ColorTestBox', 'Beta', 'https://example.com/beta', {
+      style: {
+        color: '#2563EB',
+        italic: true,
+      },
+    })
+
+    // Substring 3: Named color string 'red'
+    ppt.setHyperlink('ColorTestBox', 'Gamma', 'https://example.com/gamma', {
+      color: 'red',
+    })
+
+    const buffer = await ppt.toBuffer()
+    const zip = await JSZip.loadAsync(buffer)
+    const slideXml = await zip.file('ppt/slides/slide1.xml').async('text')
+
+    // Verify hex colors normalized without '#' and uppercase
+    expect(slideXml).toContain('val="E11D48"')
+    expect(slideXml).toContain('val="2563EB"')
+    expect(slideXml).toContain('val="FF0000"') // 'red' normalized to 'FF0000', NOT 'RREEDD'
+
+    // Verify ECMA-376 sequence: <a:solidFill> MUST appear before <a:hlinkClick> in each run
+    const alphaRunMatch = slideXml.match(
+      /<a:rPr[^>]*>[\s\S]*?<a:solidFill>[\s\S]*?val="E11D48"[\s\S]*?<\/a:solidFill>[\s\S]*?<a:hlinkClick[\s\S]*?<\/a:rPr>/
+    )
+    expect(alphaRunMatch).not.toBeNull()
+
+    const betaRunMatch = slideXml.match(
+      /<a:rPr[^>]*>[\s\S]*?<a:solidFill>[\s\S]*?val="2563EB"[\s\S]*?<\/a:solidFill>[\s\S]*?<a:hlinkClick[\s\S]*?<\/a:rPr>/
+    )
+    expect(betaRunMatch).not.toBeNull()
+
+    const gammaRunMatch = slideXml.match(
+      /<a:rPr[^>]*>[\s\S]*?<a:solidFill>[\s\S]*?val="FF0000"[\s\S]*?<\/a:solidFill>[\s\S]*?<a:hlinkClick[\s\S]*?<\/a:rPr>/
+    )
+    expect(gammaRunMatch).not.toBeNull()
+  })
+
+  it('5. should support custom colors on slideshow action hyperlinks without corruption', async () => {
+    const ppt = await PPTXTemplater.createBlank()
+    ppt.addSlide() // Slide 2
+    ppt.useSlide(1)
+
+    await ppt.addShape('rect', {
+      id: 'ActionTextBox',
+      name: 'ActionTextBox',
+      x: 100,
+      y: 100,
+      width: 400,
+      height: 60,
+      text: 'Click Next to proceed to the following slide.',
+    })
+
+    ppt.setHyperlink('ActionTextBox', 'Next', 'nextSlide', {
+      color: '#10B981',
+      bold: true,
+      underline: true,
+    })
+
+    const buffer = await ppt.toBuffer()
+    const zip = await JSZip.loadAsync(buffer)
+    const slideXml = await zip.file('ppt/slides/slide1.xml').async('text')
+
+    expect(slideXml).toContain('val="10B981"')
+    expect(slideXml).toContain('b="1"')
+    expect(slideXml).toContain('u="sng"')
+    expect(slideXml).toContain('action="ppaction://hlinkshowjump?jump=nextslide"')
+
+    // Ensure solidFill precedes hlinkClick
+    const actionRunMatch = slideXml.match(
+      /<a:rPr[^>]*>[\s\S]*?<a:solidFill>[\s\S]*?val="10B981"[\s\S]*?<\/a:solidFill>[\s\S]*?<a:hlinkClick[\s\S]*?<\/a:rPr>/
+    )
+    expect(actionRunMatch).not.toBeNull()
+  })
+
+  it('6. should format rose hyperlink (#F43F5E) with synchronized underline fill preceding hlinkClick', async () => {
+    const ppt = await PPTXTemplater.createBlank()
+    ppt.useSlide(1)
+
+    await ppt.addShape('rect', {
+      id: 'RoseLinkBox',
+      name: 'RoseLinkBox',
+      x: 100,
+      y: 100,
+      width: 450,
+      height: 70,
+      text: 'Run the ValidationEngine suite.',
+    })
+
+    // Exact invocation pattern from showcase/hyperlinks_advanced.js lines 121-127
+    ppt.setHyperlink('RoseLinkBox', 'ValidationEngine', 'first', {
+      action: 'first',
+      color: '#F43F5E',
+      underline: true,
+      italic: true,
+      tooltip: 'Slideshow jump to First Slide',
+    })
+
+    const buffer = await ppt.toBuffer()
+    const zip = await JSZip.loadAsync(buffer)
+    const slideXml = await zip.file('ppt/slides/slide1.xml').async('text')
+
+    // 1. Text color sanitized to 6-digit hex without #
+    expect(slideXml).toContain('val="F43F5E"')
+    expect(slideXml).not.toContain('val="#F43F5E"')
+
+    // 2. Both solidFill and uFill present with F43F5E
+    expect(slideXml).toContain('<a:solidFill><a:srgbClr val="F43F5E"')
+    expect(slideXml).toContain('<a:uFill><a:solidFill><a:srgbClr val="F43F5E"')
+
+    // 3. Strict schema order: solidFill -> uFill -> hlinkClick
+    const sequenceRegex =
+      /<a:rPr[^>]*>[\s\S]*?<a:solidFill>[\s\S]*?val="F43F5E"[\s\S]*?<\/a:solidFill>[\s\S]*?<a:uFill>[\s\S]*?val="F43F5E"[\s\S]*?<\/a:uFill>[\s\S]*?<a:hlinkClick[^>]*action="ppaction:\/\/hlinkshowjump\?jump=firstslide"[\s\S]*?<\/a:rPr>/
+    expect(slideXml).toMatch(sequenceRegex)
+  })
 })

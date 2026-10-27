@@ -120,10 +120,22 @@ async function runHyperlinksShowcase() {
   // Substring 2: "ValidationEngine" with direct action preset and typography styling
   ppt.setHyperlink('TextHyperlink', 'ValidationEngine', 'first', {
     action: 'first',
-    color: '#F43F5E',
-    underline: true,
-    italic: true,
+    style: {
+      color: '#F43F5E',
+      underline: true,
+      italic: true,
+    },
     tooltip: 'Slideshow jump to First Slide',
+  })
+
+  // Substring 3: "VirtualFileSystem" with nested options.style.color
+  ppt.setHyperlink('TextHyperlink', 'VirtualFileSystem', 'https://node-pptx-templater.pages.dev', {
+    style: {
+      color: '#10B981',
+      bold: true,
+      underline: true,
+    },
+    tooltip: 'In-Memory Virtual File System Architecture',
   })
   console.log('  → Split text runs and applied custom colored hyperlinks to target substrings')
 

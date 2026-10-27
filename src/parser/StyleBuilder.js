@@ -88,20 +88,63 @@ function orderRunProperties(rPr) {
 }
 
 /**
- * Normalizes a hex color string to RRGGBB uppercase.
- * @param {string} hex
- * @returns {string}
+ * Standard CSS / HTML color names mapped to 6-character hex uppercase.
+ */
+const NAMED_COLORS = {
+  black: '000000',
+  white: 'FFFFFF',
+  red: 'FF0000',
+  green: '008000',
+  blue: '0000FF',
+  yellow: 'FFFF00',
+  cyan: '00FFFF',
+  magenta: 'FF00FF',
+  gray: '808080',
+  grey: '808080',
+  silver: 'C0C0C0',
+  orange: 'FFA500',
+  purple: '800080',
+  navy: '000080',
+  teal: '008080',
+  maroon: '800000',
+  olive: '808000',
+  lime: '00FF00',
+  aqua: '00FFFF',
+  gold: 'FFD700',
+}
+
+/**
+ * Normalizes a hex color string or number to RRGGBB uppercase.
+ * Handles numbers (e.g. 0xFF0000), standard color names (e.g. 'red'),
+ * 3-digit hex ('#F00'), and 6-digit hex ('#FF0000').
+ *
+ * @param {string|number} hex
+ * @returns {string} 6-character uppercase hex string (RRGGBB).
  */
 function normalizeHexColor(hex) {
-  if (!hex || typeof hex !== 'string') return '000000'
-  const clean = hex.replace('#', '').trim().toUpperCase()
-  if (clean.length === 3) {
+  if (hex === undefined || hex === null) return '000000'
+  if (typeof hex === 'number') {
+    return Math.max(0, Math.floor(hex)).toString(16).padStart(6, '0').slice(-6).toUpperCase()
+  }
+  if (typeof hex !== 'string') return '000000'
+  const raw = hex.trim().toLowerCase()
+  if (NAMED_COLORS[raw]) {
+    return NAMED_COLORS[raw]
+  }
+  const clean = raw.replace(/#/g, '').trim().toUpperCase()
+  if (/^[0-9A-F]{3}$/.test(clean)) {
     return clean
       .split('')
       .map(c => c + c)
       .join('')
   }
-  return clean.padStart(6, '0').slice(0, 6)
+  if (/^[0-9A-F]{6}$/.test(clean)) {
+    return clean
+  }
+  if (/^[0-9A-F]+$/.test(clean)) {
+    return clean.padStart(6, '0').slice(0, 6)
+  }
+  return '000000'
 }
 
 /**
@@ -157,52 +200,93 @@ class StyleBuilder {
    */
   static buildRunProperties(existingRPr = {}, style = {}) {
     const rPr = { ...(existingRPr || {}) }
+    const flatStyle =
+      style && typeof style === 'object' && style.style && typeof style.style === 'object'
+        ? { ...style.style, ...style }
+        : style || {}
 
     // 1. Font Size (points -> hundredths of a point in @_sz)
-    if (style.fontSize !== undefined && style.fontSize !== null) {
-      rPr['@_sz'] = String(Math.round(Number(style.fontSize) * 100))
+    const fontSize = flatStyle.fontSize !== undefined ? flatStyle.fontSize : flatStyle.size
+    if (fontSize !== undefined && fontSize !== null) {
+      rPr['@_sz'] = String(Math.round(Number(fontSize) * 100))
     }
 
     // 2. Text Color
-    if (style.color !== undefined && style.color !== null) {
-      const hex = normalizeHexColor(style.color)
+    const textColor =
+      flatStyle.color !== undefined
+        ? flatStyle.color
+        : flatStyle.fontColor !== undefined
+          ? flatStyle.fontColor
+          : flatStyle.textColor
+    if (textColor !== undefined && textColor !== null) {
+      const hex = normalizeHexColor(textColor)
+      // EG_FillProperties is an XML choice: purge conflicting fill types & scheme colors
+      delete rPr['a:noFill']
+      delete rPr['a:gradFill']
+      delete rPr['a:blipFill']
+      delete rPr['a:pattFill']
+      delete rPr['a:grpFill']
+      delete rPr['a:schemeClr']
       rPr['a:solidFill'] = { 'a:srgbClr': { '@_val': hex } }
     }
 
     // 3. Highlight Color
-    if (style.highlight !== undefined && style.highlight !== null) {
-      if (style.highlight === false || style.highlight === 'none') {
+    if (flatStyle.highlight !== undefined && flatStyle.highlight !== null) {
+      if (flatStyle.highlight === false || flatStyle.highlight === 'none') {
         delete rPr['a:highlight']
       } else {
-        const hex = normalizeHexColor(style.highlight)
+        const hex = normalizeHexColor(flatStyle.highlight)
         rPr['a:highlight'] = { 'a:srgbClr': { '@_val': hex } }
       }
     }
 
-    // 4. Underline
-    if (style.underline !== undefined) {
-      if (style.underline === false || style.underline === 'none') {
+    // 4. Underline & Underline Color
+    if (flatStyle.underline !== undefined) {
+      if (flatStyle.underline === false || flatStyle.underline === 'none') {
         delete rPr['@_u']
-      } else if (typeof style.underline === 'string') {
-        rPr['@_u'] = style.underline
-      } else if (style.underline) {
+        delete rPr['a:uFill']
+        delete rPr['a:uFillTx']
+      } else if (typeof flatStyle.underline === 'string') {
+        rPr['@_u'] = flatStyle.underline
+      } else if (flatStyle.underline) {
         rPr['@_u'] = 'sng'
       }
     }
+    const underlineColor =
+      flatStyle.underlineColor !== undefined
+        ? flatStyle.underlineColor
+        : flatStyle.uColor !== undefined
+          ? flatStyle.uColor
+          : flatStyle.underline &&
+              flatStyle.underline !== 'none' &&
+              textColor !== undefined &&
+              textColor !== null
+            ? textColor
+            : undefined
+
+    if (underlineColor !== undefined && underlineColor !== null) {
+      delete rPr['a:uFillTx']
+      const uHex = normalizeHexColor(underlineColor)
+      rPr['a:uFill'] = { 'a:solidFill': { 'a:srgbClr': { '@_val': uHex } } }
+    } else if (flatStyle.underline && flatStyle.underline !== 'none') {
+      delete rPr['a:uFill']
+      rPr['a:uFillTx'] = {}
+    }
 
     // 5. Bold
-    if (style.bold !== undefined) {
-      rPr['@_b'] = style.bold ? '1' : '0'
+    if (flatStyle.bold !== undefined) {
+      rPr['@_b'] = flatStyle.bold ? '1' : '0'
     }
 
     // 6. Italic
-    if (style.italic !== undefined) {
-      rPr['@_i'] = style.italic ? '1' : '0'
+    if (flatStyle.italic !== undefined) {
+      rPr['@_i'] = flatStyle.italic ? '1' : '0'
     }
 
     // 7. Strikethrough
-    if (style.strikethrough !== undefined || style.strike !== undefined) {
-      const strikeVal = style.strikethrough !== undefined ? style.strikethrough : style.strike
+    if (flatStyle.strikethrough !== undefined || flatStyle.strike !== undefined) {
+      const strikeVal =
+        flatStyle.strikethrough !== undefined ? flatStyle.strikethrough : flatStyle.strike
       if (strikeVal === false || strikeVal === 'none' || strikeVal === 'noStrike') {
         delete rPr['@_strike']
       } else if (strikeVal === 'double' || strikeVal === 'dblStrike') {
@@ -213,51 +297,51 @@ class StyleBuilder {
     }
 
     // 8. Superscript / Subscript
-    if (style.superscript) {
+    if (flatStyle.superscript) {
       rPr['@_baseline'] = '30000'
-    } else if (style.subscript) {
+    } else if (flatStyle.subscript) {
       rPr['@_baseline'] = '-25000'
-    } else if (style.superscript === false || style.subscript === false) {
+    } else if (flatStyle.superscript === false || flatStyle.subscript === false) {
       delete rPr['@_baseline']
     }
 
     // 9. Casing: smallCaps & uppercase
-    if (style.smallCaps !== undefined) {
-      if (style.smallCaps) {
+    if (flatStyle.smallCaps !== undefined) {
+      if (flatStyle.smallCaps) {
         rPr['@_cap'] = 'small'
       } else if (rPr['@_cap'] === 'small') {
         delete rPr['@_cap']
       }
     }
-    if (style.uppercase && !style.smallCaps) {
+    if (flatStyle.uppercase && !flatStyle.smallCaps) {
       rPr['@_cap'] = 'all'
     }
 
     // 10. Character Spacing (points -> hundredths of a point in @_spc)
-    if (style.charSpacing !== undefined && style.charSpacing !== null) {
-      rPr['@_spc'] = String(Math.round(Number(style.charSpacing) * 100))
+    if (flatStyle.charSpacing !== undefined && flatStyle.charSpacing !== null) {
+      rPr['@_spc'] = String(Math.round(Number(flatStyle.charSpacing) * 100))
     }
 
     // 11. Shadows & Effects (shadowColor, textShadow, blur, shadowRadius, shadowOffsetX, shadowOffsetY)
     const hasShadow =
-      style.textShadow ||
-      style.shadowColor !== undefined ||
-      style.shadowRadius !== undefined ||
-      style.shadowOffsetX !== undefined ||
-      style.shadowOffsetY !== undefined
+      flatStyle.textShadow ||
+      flatStyle.shadowColor !== undefined ||
+      flatStyle.shadowRadius !== undefined ||
+      flatStyle.shadowOffsetX !== undefined ||
+      flatStyle.shadowOffsetY !== undefined
 
     if (hasShadow) {
-      const shadowHex = normalizeHexColor(style.shadowColor || '000000')
+      const shadowHex = normalizeHexColor(flatStyle.shadowColor || '000000')
       const blurVal =
-        style.blur !== undefined
-          ? Number(style.blur)
-          : style.shadowRadius !== undefined
-            ? Number(style.shadowRadius)
+        flatStyle.blur !== undefined
+          ? Number(flatStyle.blur)
+          : flatStyle.shadowRadius !== undefined
+            ? Number(flatStyle.shadowRadius)
             : 3
       const blurRad = Math.round(blurVal * PT_EMU)
 
-      const offsetX = style.shadowOffsetX !== undefined ? Number(style.shadowOffsetX) : 2
-      const offsetY = style.shadowOffsetY !== undefined ? Number(style.shadowOffsetY) : 2
+      const offsetX = flatStyle.shadowOffsetX !== undefined ? Number(flatStyle.shadowOffsetX) : 2
+      const offsetY = flatStyle.shadowOffsetY !== undefined ? Number(flatStyle.shadowOffsetY) : 2
       const dist = Math.round(Math.hypot(offsetX, offsetY) * PT_EMU)
       const dirAngle = Math.round(
         (((Math.atan2(offsetY, offsetX) * 180) / Math.PI + 360) % 360) * 60000
@@ -272,12 +356,12 @@ class StyleBuilder {
           'a:srgbClr': { '@_val': shadowHex },
         },
       }
-    } else if (style.textShadow === false) {
+    } else if (flatStyle.textShadow === false) {
       delete rPr['a:effectLst']
     }
 
     // 12. Font Face / Family
-    const font = style.fontFace || style.fontFamily || style.font
+    const font = flatStyle.fontFace || flatStyle.fontFamily || flatStyle.font
     if (font) {
       rPr['a:latin'] = { '@_typeface': String(font) }
       rPr['a:ea'] = { '@_typeface': String(font) }
@@ -295,6 +379,16 @@ class StyleBuilder {
    */
   static orderRunProperties(rPr) {
     return orderRunProperties(rPr)
+  }
+
+  /**
+   * Normalizes a hex color string or number to RRGGBB uppercase.
+   *
+   * @param {string|number} hex
+   * @returns {string} 6-character uppercase hex string (RRGGBB).
+   */
+  static normalizeHexColor(hex) {
+    return normalizeHexColor(hex)
   }
 
   /**

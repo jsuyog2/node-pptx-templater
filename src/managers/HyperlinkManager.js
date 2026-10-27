@@ -144,6 +144,35 @@ function orderCnvPrChildren(cNvPr) {
 }
 
 /**
+ * Sanitizes a color value to a valid DrawingML 6-character hex string without leading '#'.
+ * Supports strings ('#F43F5E', 'F43F5E', '#F00'), numbers, and standard color names.
+ *
+ * @param {string|number|null|undefined} hex - Input color representation.
+ * @returns {string|null} 6-character uppercase hex string (e.g. 'F43F5E'), or null if empty/invalid.
+ */
+function sanitizeHexColor(hex) {
+  if (hex === undefined || hex === null || hex === '') return null
+  if (typeof hex === 'number') {
+    return Math.max(0, Math.floor(hex)).toString(16).padStart(6, '0').slice(-6).toUpperCase()
+  }
+  if (typeof hex !== 'string') return null
+  let clean = hex.replace(/^#+/, '').trim()
+  if (clean.length === 3 && /^[0-9A-Fa-f]{3}$/.test(clean)) {
+    clean = clean
+      .split('')
+      .map(c => c + c)
+      .join('')
+  }
+  if (/^[0-9A-Fa-f]{6}$/.test(clean)) {
+    return clean.toUpperCase()
+  }
+  const fallback = StyleBuilder.normalizeHexColor(hex)
+  return fallback !== '000000' || hex.toLowerCase() === 'black'
+    ? fallback
+    : clean.slice(0, 6).toUpperCase()
+}
+
+/**
  * Applies text formatting styles (color, underline, bold, italic, fontSize, fontFace)
  * to all text runs within a shape's txBody if style properties are passed.
  *
@@ -152,17 +181,21 @@ function orderCnvPrChildren(cNvPr) {
  */
 function applyTextStyleToShape(shape, style) {
   if (!shape || !shape['p:txBody'] || !style || typeof style !== 'object') return
+  const flatStyle =
+    style.style && typeof style.style === 'object' ? { ...style.style, ...style } : style
   const hasStyle =
-    style.color !== undefined ||
-    style.underline !== undefined ||
-    style.bold !== undefined ||
-    style.italic !== undefined ||
-    style.fontSize !== undefined ||
-    style.fontFace !== undefined ||
-    style.fontFamily !== undefined ||
-    style.highlight !== undefined ||
-    style.strikethrough !== undefined ||
-    style.strike !== undefined
+    flatStyle.color !== undefined ||
+    flatStyle.fontColor !== undefined ||
+    flatStyle.textColor !== undefined ||
+    flatStyle.underline !== undefined ||
+    flatStyle.bold !== undefined ||
+    flatStyle.italic !== undefined ||
+    flatStyle.fontSize !== undefined ||
+    flatStyle.fontFace !== undefined ||
+    flatStyle.fontFamily !== undefined ||
+    flatStyle.highlight !== undefined ||
+    flatStyle.strikethrough !== undefined ||
+    flatStyle.strike !== undefined
 
   if (!hasStyle) return
 
@@ -179,7 +212,7 @@ function applyTextStyleToShape(shape, style) {
       p['a:r'] = runs
     }
     for (const r of runs) {
-      r['a:rPr'] = StyleBuilder.buildRunProperties(r['a:rPr'] || {}, style)
+      r['a:rPr'] = StyleBuilder.buildRunProperties(r['a:rPr'] || {}, flatStyle)
     }
   }
 }
@@ -862,17 +895,50 @@ class HyperlinkManager {
     // Helper to build styled and schema-ordered run properties
     const buildStyledRunProperties = existingRPr => {
       let targetRPr = this.#xmlParser.deepClone(existingRPr || {})
-      const styleOverrides = { ...effectiveOptions }
+      delete targetRPr['@_err']
+
+      const styleObj =
+        effectiveOptions.style && typeof effectiveOptions.style === 'object'
+          ? effectiveOptions.style
+          : {}
+      const styleOverrides = { ...styleObj, ...effectiveOptions }
+
+      const rawColor =
+        effectiveOptions.color ??
+        styleObj.color ??
+        effectiveOptions.fontColor ??
+        styleObj.fontColor ??
+        effectiveOptions.textColor ??
+        styleObj.textColor
+
+      const sanitizedColor = sanitizeHexColor(rawColor)
+
       const isAction =
         effectiveOptions.action ||
         (typeof effectiveUrl === 'string' && isShowJumpAction(effectiveUrl)) ||
         effectiveOptions.targetSlide !== undefined ||
         typeof effectiveUrl === 'number'
 
-      if (!isAction) {
-        if (styleOverrides.color === undefined) styleOverrides.color = '0563C1'
-        if (styleOverrides.underline === undefined) styleOverrides.underline = true
+      if (sanitizedColor) {
+        styleOverrides.color = sanitizedColor
+      } else if (!isAction) {
+        styleOverrides.color = '0563C1'
       }
+
+      if (styleOverrides.underline === undefined && !isAction) {
+        styleOverrides.underline = true
+      }
+
+      // If underline is enabled and no explicit underlineColor provided, match text color
+      if (
+        styleOverrides.underline &&
+        styleOverrides.underline !== 'none' &&
+        styleOverrides.underlineColor === undefined &&
+        styleOverrides.color
+      ) {
+        styleOverrides.underlineColor = styleOverrides.color
+      }
+
       targetRPr = StyleBuilder.buildRunProperties(targetRPr, styleOverrides)
       targetRPr['a:hlinkClick'] = hlinkClickObj
       return StyleBuilder.orderRunProperties(targetRPr)

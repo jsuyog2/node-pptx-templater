@@ -20,21 +20,33 @@ export interface HyperlinkOptions {
   isInternal?: boolean;
   slide?: number;
   url?: string | number;
-  color?: string;
+  color?: string | number;
+  fontColor?: string | number;
+  textColor?: string | number;
   underline?: boolean | string;
+  underlineColor?: string | number;
   bold?: boolean;
   italic?: boolean;
   fontSize?: number;
   fontFace?: string;
+  fontFamily?: string;
+  highlight?: string | boolean;
+  style?: Partial<HyperlinkOptions>;
 }
 
 export interface TextHyperlinkOptions extends HyperlinkOptions {
-  color?: string;
+  color?: string | number;
+  fontColor?: string | number;
+  textColor?: string | number;
   underline?: boolean | string;
+  underlineColor?: string | number;
   bold?: boolean;
   italic?: boolean;
   fontSize?: number;
   fontFace?: string;
+  fontFamily?: string;
+  highlight?: string | boolean;
+  style?: Partial<TextHyperlinkOptions>;
 }
 
 export interface HyperlinkDescriptor {

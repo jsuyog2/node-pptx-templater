@@ -1,72 +1,47 @@
 {
     "project": "node-pptx-templater",
-    "version": "3.8.1",
-    "category": "Hyperlinks & Actions",
-    "scope": "Decouple Action Arguments from Options, Fix Action Styling, and Eliminate PowerPoint OpenXML Repair Dialog Warnings",
+    "version": "3.8.4",
+    "category": "Hyperlink",
+    "scope": "Fix Text Run Color Application in setHyperlink and Verify showcase/hyperlinks_advanced.js (Lines 121-127)",
     "tasks": [
         {
-            "id": "TASK-ACTION-001",
-            "title": "Decouple 'action' parameter from options bag",
+            "id": "TASK-HYPERLINK-COLOR-001",
+            "title": "Audit showcase/hyperlinks_advanced.js (lines 121-127) and setHyperlink parameter parsing",
             "status": "completed",
-            "description": "Refactor hyperlink/action method signatures and internal argument normalizers across HyperlinkManager.js and PPTXTemplater.js delegates. Allow users to pass actions directly as standalone arguments, positional parameters, or action string presets (e.g., 'nextSlide', 'previousSlide', 'firstSlide', 'lastSlide', 'endShow', internal slide indices, or custom URI schemes) without requiring them to be wrapped inside options, while maintaining backward compatibility if passed inside options.",
+            "description": "Inspect lines 121-127 of showcase/hyperlinks_advanced.js to determine how arguments and styling options are passed into setHyperlink. Audit src/managers/HyperlinkManager.js and PPTXTemplater.js to ensure setHyperlink resolves color from all argument patterns (options.color, options.style?.color, options.fontColor, options.style?.fontColor) and preserves the value through run splitting.",
             "deliverables": [
                 "src/managers/HyperlinkManager.js",
-                "src/core/PPTXTemplater.js",
-                "index.d.ts"
+                "showcase/hyperlinks_advanced.js"
             ]
         },
         {
-            "id": "TASK-ACTION-002",
-            "title": "Fix OpenXML DrawingML action attribute generation",
+            "id": "TASK-HYPERLINK-COLOR-002",
+            "title": "Fix hex color sanitization and DrawingML srgbClr generation",
             "status": "completed",
-            "description": "Ensure that DrawingML action elements (<a:hlinkClick>) correctly map preset actions without requiring manual URI/protocol plumbing. Specifically generate the correct DrawingML/OpenXML action attributes (e.g., action='ppaction://hlinksldjump', 'ppaction://hlinkshowjump?jump=nextslide', etc.) and slide relationship r:id targets when action is passed directly.",
+            "description": "Ensure hex color strings such as '#F43F5E' are sanitized by stripping any leading '#' and converting shorthand 3-digit hex to 6-digit uppercase hex ('F43F5E'). When '#' is retained in val='#F43F5E', PowerPoint considers it invalid ST_HexColorRGB and reverts to the default hyperlink theme blue (#0563C1). Ensure <a:solidFill><a:srgbClr val='F43F5E'/></a:solidFill> is generated.",
             "deliverables": [
                 "src/managers/HyperlinkManager.js",
                 "src/parser/StyleBuilder.js"
             ]
         },
         {
-            "id": "TASK-ACTION-003",
-            "title": "Fix styling application on actions & action-linked runs",
+            "id": "TASK-HYPERLINK-COLOR-003",
+            "title": "Enforce strict ECMA-376 child element ordering inside <a:rPr>",
             "status": "completed",
-            "description": "Fix DrawingML run property (<a:rPr>) generation when styling is applied alongside actions. Ensure that text styles (color, underline, bold, italic, fontSize, etc.) are properly merged and preserved within the run properties alongside the <a:hlinkClick> node rather than being stripped, overwritten, or omitted during action injection.",
+            "description": "Enforce strict ECMA-376 schema sequence inside <a:rPr>. Text fill elements (<a:solidFill>) must precede <a:uFill> and <a:hlinkClick>. If <a:hlinkClick> precedes <a:solidFill>, PowerPoint defaults the text color to theme blue or reports a corruption error. Ensure existing <a:schemeClr> elements on the split run are completely replaced by <a:solidFill><a:srgbClr val='F43F5E'/></a:solidFill>.",
             "deliverables": [
                 "src/managers/HyperlinkManager.js",
-                "src/elements/TextManager.js",
-                "src/parser/StyleBuilder.js"
+                "src/elements/TextManager.js"
             ]
         },
         {
-            "id": "TASK-ACTION-004",
-            "title": "Diagnose and eliminate PowerPoint repair errors on exported action decks",
+            "id": "TASK-HYPERLINK-COLOR-004",
+            "title": "Verify showcase/output/hyperlinks_advanced.pptx XML and color rendering",
             "status": "completed",
-            "description": "Investigate and resolve the OpenXML schema violations causing Microsoft PowerPoint to trigger the 'PowerPoint found a problem with content... PowerPoint can attempt to repair the presentation' warning. Ensure that: (1) internal slide jump actions do not create dangling or duplicate relationship IDs in slideN.xml.rels; (2) target slide relationships use the valid OpenXML slide relationship type (http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide) rather than malformed external hyperlink relationships; (3) child element ordering within <a:rPr> strictly conforms to ECMA-376 (e.g., <a:solidFill>, <a:uFill>, <a:hlinkClick> in valid sequence); (4) shape-level <a:hlinkClick> in <p:cNvPr> does not conflict with existing non-visual drawing properties.",
+            "description": "Run `node showcase/hyperlinks_advanced.js` to generate showcase/output/hyperlinks_advanced.pptx. Unpack and inspect ppt/slides/slideN.xml to confirm the target text run contains <a:rPr><a:solidFill><a:srgbClr val='F43F5E'/></a:solidFill>...<a:hlinkClick .../></a:rPr>. Verify in PowerPoint that the text displays in rose color (#F43F5E) instead of default blue without any repair warning dialogs.",
             "deliverables": [
-                "src/managers/HyperlinkManager.js",
-                "src/managers/RelationshipManager.js",
-                "src/parsers/XMLParser.js",
-                "src/writer/OutputWriter.js"
-            ]
-        },
-        {
-            "id": "TASK-ACTION-005",
-            "title": "Integration test coverage for actions, styling, and schema repair prevention",
-            "status": "completed",
-            "description": "Create automated integration tests validating: 1) Invoking action links directly without nesting inside options; 2) Applying custom font colors, underlines, and typography styles to action elements and verifying <a:rPr> markup; 3) Verifying package relationship integrity, schema compliance, and ensuring generated presentations open cleanly without repair flags.",
-            "deliverables": [
-                "tests/integration/hyperlinkActions.test.js",
-                "tests/integration/hyperlinkRepair.test.js"
-            ]
-        },
-        {
-            "id": "TASK-ACTION-006",
-            "title": "Update showcase and documentation",
-            "status": "completed",
-            "description": "Update showcase scripts (e.g., showcase/hyperlinks_advanced.js), TypeScript definitions (index.d.ts), and documentation to reflect direct action parameter usage, verified styling capabilities, and clean zero-repair exports.",
-            "deliverables": [
-                "showcase/hyperlinks_advanced.js",
-                "index.d.ts",
-                "docs-site/src/data/apiReference.json"
+                "showcase/output/hyperlinks_advanced.pptx",
+                "tests/integration/textHyperlinks.test.js"
             ]
         }
     ]
