@@ -216,21 +216,21 @@ describe('Shape Management Integration Tests', () => {
     })
 
     // Order initially: [Title 1, layer-1, layer-2]
-    let order = ppt.getObjectOrder(slideIndex)
-    expect(order[1].id).toBe('layer-1')
-    expect(order[2].id).toBe('layer-2')
+    let order = ppt.getElements(slideIndex)
+    expect(order[1].name).toBe('layer-1')
+    expect(order[2].name).toBe('layer-2')
 
     // Bring layer-1 to front
     await ppt.bringToFront('layer-1')
-    order = ppt.getObjectOrder(slideIndex)
-    expect(order[2].id).toBe('layer-1')
-    expect(order[1].id).toBe('layer-2')
+    order = ppt.getElements(slideIndex)
+    expect(order[2].name).toBe('layer-1')
+    expect(order[1].name).toBe('layer-2')
 
     // Send layer-1 backward
     await ppt.sendBackward('layer-1')
-    order = ppt.getObjectOrder(slideIndex)
-    expect(order[1].id).toBe('layer-1')
-    expect(order[2].id).toBe('layer-2')
+    order = ppt.getElements(slideIndex)
+    expect(order[1].name).toBe('layer-1')
+    expect(order[2].name).toBe('layer-2')
   })
 
   test('should always include p:txBody in generated shapes (OOXML compliance)', async () => {

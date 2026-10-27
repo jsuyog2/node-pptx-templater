@@ -1,6 +1,6 @@
 {
   "version": "3.0.0-alpha.0",
-  "totalMethods": 150,
+  "totalMethods": 147,
   "categories": [
     "Lifecycle & I/O",
     "Slides",
@@ -9,7 +9,7 @@
     "Charts",
     "Shapes & Geometry",
     "Images & Media",
-    "Z-Order & Layering",
+    "Elements",
     "Hyperlinks",
     "Diagnostics & Validation"
   ],
@@ -2722,24 +2722,198 @@
         "exampleCode": "ppt.useSlide(1).cloneMedia('CompanyLogo', 'SecondaryLogo', { x: '50%', y: '50%' });"
       }
     ],
-    "Z-Order & Layering": [
+    "Elements": [
       {
-        "id": "bringtofront",
-        "name": "bringToFront",
-        "signature": "ppt.bringToFront(objectId)",
-        "category": "Z-Order & Layering",
-        "description": "Moves an object (shape, image, table, chart, group) to the very top of the visual stacking order on the active slide, ensuring it renders above all other elements.",
-        "openXmlImpact": "Repositions the element XML node to the end of child elements in &lt;p:spTree&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "id": "getelements",
+        "name": "getElements",
+        "signature": "ppt.getElements(slideIdOrFilter, filter)",
+        "category": "Elements",
+        "description": "Queries all visual elements (shapes, images, videos, audio, tables, charts) residing on targeted slide(s) with complete normalized metadata.",
+        "openXmlImpact": "Traverses child nodes of <p:spTree> across <p:sp>, <p:pic>, <p:graphicFrame>, <p:grpSp>, and <p:cxnSp>.",
+        "edgeCases": "Returns empty array if slide has no visual elements. Supports spatial bounds and type filters.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "objectId",
-            "type": "string",
+            "name": "slideIdOrFilter",
+            "type": "number | string | Object",
+            "required": false,
+            "default": "—",
+            "description": "1-based slide index, tag, or filter options object."
+          },
+          {
+            "name": "filter",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Optional filter criteria: { type, name, id, within, intersects }."
+          }
+        ],
+        "returns": {
+          "type": "ElementDescriptor[]",
+          "description": "Array of normalized element metadata descriptors."
+        },
+        "exampleCode": "const elements = ppt.useSlide(1).getElements();\nconst shapes = ppt.getElements(1, { type: 'shape' });"
+      },
+      {
+        "id": "getelement",
+        "name": "getElement",
+        "signature": "ppt.getElement(elementId, slideId)",
+        "category": "Elements",
+        "description": "Inspects and retrieves detailed metadata for a single element by its ID or name on targeted slide(s).",
+        "openXmlImpact": "Locates the matching node in <p:spTree> and computes its bounding coordinates.",
+        "edgeCases": "Returns null if element identifier is not found on targeted slide.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "elementId",
+            "type": "string | number",
             "required": true,
             "default": "—",
-            "description": "Shape ID or object name."
+            "description": "Element ID or shape name."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
+          }
+        ],
+        "returns": {
+          "type": "ElementDescriptor | null",
+          "description": "Normalized element descriptor or null."
+        },
+        "exampleCode": "const header = ppt.useSlide(1).getElement('HeroHeader');\nconsole.log(header.type, header.bounds);"
+      },
+      {
+        "id": "removeelement",
+        "name": "removeElement",
+        "signature": "ppt.removeElement(elementId, slideId)",
+        "category": "Elements",
+        "description": "Safely purges any visual element type from the slide canvas and unlinks orphaned relationship references in ppt/slides/_rels/slideN.xml.rels.",
+        "openXmlImpact": "Deletes element node from <p:spTree> and unlinks unreferenced relationship IDs from slide .rels.",
+        "edgeCases": "Preserves slide layout relationships and shared assets. No-op with warning if element not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "elementId",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeElement('TemporaryLogo');\nppt.removeElement({ slide: 2, elementId: 'OldChart' });"
+      },
+      {
+        "id": "removeallelements",
+        "name": "removeAllElements",
+        "signature": "ppt.removeAllElements(slideId, options)",
+        "category": "Elements",
+        "description": "Clears all visual elements from the slide canvas while strictly preserving <p:nvGrpSpPr>, <p:grpSpPr>, and layout bindings.",
+        "openXmlImpact": "Empties visual child arrays in <p:spTree> and unlinks orphaned element relationships.",
+        "edgeCases": "Retains slide layout references and optionally preserves layout placeholders with { preservePlaceholders: true }.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number | string | Object",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index, tag, or options object."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Options: { preservePlaceholders?: boolean }."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeAllElements();\nppt.removeAllElements(2, { preservePlaceholders: true });"
+      },
+      {
+        "id": "setzorder",
+        "name": "setZOrder",
+        "signature": "ppt.setZOrder(elementId, zIndex, slideId)",
+        "category": "Elements",
+        "description": "Sets the explicit visual stacking order (Z-index) of an element within the slide shape tree.",
+        "openXmlImpact": "Reorders child nodes inside <p:spTree> without altering required leading group properties.",
+        "edgeCases": "Clamps index within valid bounds [1, count]. Protects non-visual container headers.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "elementId",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "zIndex",
+            "type": "number",
+            "required": false,
+            "default": "—",
+            "description": "Target stacking order index."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).setZOrder('WatermarkShape', 1);\nppt.setZOrder('ForegroundCard', 4);"
+      },
+      {
+        "id": "bringtofront",
+        "name": "bringToFront",
+        "signature": "ppt.bringToFront(elementId, slideId)",
+        "category": "Elements",
+        "description": "Moves an element to the very top of the visual stacking order, ensuring it renders above all other elements.",
+        "openXmlImpact": "Repositions element node to the end of child elements in <p:spTree>.",
+        "edgeCases": "Safe no-op if element is already at the topmost layer.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "elementId",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
           }
         ],
         "returns": {
@@ -2751,20 +2925,27 @@
       {
         "id": "sendtoback",
         "name": "sendToBack",
-        "signature": "ppt.sendToBack(objectId)",
-        "category": "Z-Order & Layering",
-        "description": "Moves an object to the bottom of the visual stacking order, behind all other shapes and content on the active slide.",
-        "openXmlImpact": "Repositions element XML node to the beginning of child elements in &lt;p:spTree&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "signature": "ppt.sendToBack(elementId, slideId)",
+        "category": "Elements",
+        "description": "Moves an element to the bottom of the visual stacking order, behind all other shapes and content.",
+        "openXmlImpact": "Repositions element node to the beginning of drawing child elements in <p:spTree> directly after group headers.",
+        "edgeCases": "Safe no-op if element is already at the bottommost layer.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "objectId",
-            "type": "string",
+            "name": "elementId",
+            "type": "string | number | Object",
             "required": true,
             "default": "—",
-            "description": "Shape ID or object name."
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
           }
         ],
         "returns": {
@@ -2776,20 +2957,27 @@
       {
         "id": "bringforward",
         "name": "bringForward",
-        "signature": "ppt.bringForward(objectId)",
-        "category": "Z-Order & Layering",
-        "description": "Increments the visual layer of an object by one step in the stacking hierarchy.",
-        "openXmlImpact": "Swaps element node with its immediate next sibling in &lt;p:spTree&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "signature": "ppt.bringForward(elementId, slideId)",
+        "category": "Elements",
+        "description": "Increments the visual layer of an element by one step forward in the stacking hierarchy.",
+        "openXmlImpact": "Swaps element node with its immediate next sibling in <p:spTree>.",
+        "edgeCases": "Safe no-op if element is already at the topmost position.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "objectId",
-            "type": "string",
+            "name": "elementId",
+            "type": "string | number | Object",
             "required": true,
             "default": "—",
-            "description": "Object ID."
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
           }
         ],
         "returns": {
@@ -2801,20 +2989,27 @@
       {
         "id": "sendbackward",
         "name": "sendBackward",
-        "signature": "ppt.sendBackward(objectId)",
-        "category": "Z-Order & Layering",
-        "description": "Decrements the visual layer of an object by one step in the stacking hierarchy.",
-        "openXmlImpact": "Swaps element node with its immediate previous sibling in &lt;p:spTree&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "signature": "ppt.sendBackward(elementId, slideId)",
+        "category": "Elements",
+        "description": "Decrements the visual layer of an element by one step backward in the stacking hierarchy.",
+        "openXmlImpact": "Swaps element node with its immediate previous sibling in <p:spTree>.",
+        "edgeCases": "Safe no-op if element is already at the bottommost position.",
         "isStatic": false,
         "isAsync": false,
         "parameters": [
           {
-            "name": "objectId",
-            "type": "string",
+            "name": "elementId",
+            "type": "string | number | Object",
             "required": true,
             "default": "—",
-            "description": "Object ID."
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
           }
         ],
         "returns": {
@@ -2822,236 +3017,6 @@
           "description": "this (chainable)."
         },
         "exampleCode": "ppt.useSlide(1).sendBackward('shadow_shape');"
-      },
-      {
-        "id": "setzindex",
-        "name": "setZIndex",
-        "signature": "ppt.setZIndex(objectId, targetIndex)",
-        "category": "Z-Order & Layering",
-        "description": "Moves an object to an explicit 0-based position in the visual stack array.",
-        "openXmlImpact": "Slices and splices object node within &lt;p:spTree&gt; child nodes array.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "objectId",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Object ID."
-          },
-          {
-            "name": "targetIndex",
-            "type": "number",
-            "required": true,
-            "default": "—",
-            "description": "0-based index in stacking order."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(1).setZIndex('watermark', 0);"
-      },
-      {
-        "id": "reorderobjects",
-        "name": "reorderObjects",
-        "signature": "ppt.reorderObjects(orderedIds)",
-        "category": "Z-Order & Layering",
-        "description": "Re-orders all objects on the active slide according to an explicit back-to-front array of IDs.",
-        "openXmlImpact": "Re-sorts child nodes of &lt;p:spTree&gt; matching the order of orderedIds.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "orderedIds",
-            "type": "string[]",
-            "required": true,
-            "default": "—",
-            "description": "Array of object IDs ordered from bottom-most to top-most."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(1).reorderObjects(['bg', 'chart1', 'overlay', 'title']);"
-      },
-      {
-        "id": "swapobjects",
-        "name": "swapObjects",
-        "signature": "ppt.swapObjects(objectIdA, objectIdB)",
-        "category": "Z-Order & Layering",
-        "description": "Swaps the visual layers of two specified objects.",
-        "openXmlImpact": "Exchanges position indices of two nodes within &lt;p:spTree&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "objectIdA",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "First object ID."
-          },
-          {
-            "name": "objectIdB",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Second object ID."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(1).swapObjects('shapeA', 'shapeB');"
-      },
-      {
-        "id": "getobjectorder",
-        "name": "getObjectOrder",
-        "signature": "ppt.getObjectOrder()",
-        "category": "Z-Order & Layering",
-        "description": "Returns the current back-to-front visual order of object IDs on the active slide.",
-        "openXmlImpact": "Maps child node IDs in &lt;p:spTree&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [],
-        "returns": {
-          "type": "string[]",
-          "description": "Array of object IDs in layer order."
-        },
-        "exampleCode": "const order = ppt.useSlide(1).getObjectOrder();\nconsole.log('Stacking order:', order);"
-      },
-      {
-        "id": "normalizezorder",
-        "name": "normalizeZOrder",
-        "signature": "ppt.normalizeZOrder()",
-        "category": "Z-Order & Layering",
-        "description": "Normalizes and cleans shape IDs and child node ordering to prevent Office repair warnings after heavy additions and deletions.",
-        "openXmlImpact": "Recompacts shape IDs and structural ordering in &lt;p:spTree&gt;.",
-        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "this (chainable)."
-        },
-        "exampleCode": "ppt.useSlide(1).normalizeZOrder();"
-      },
-      {
-        "id": "stepforward",
-        "name": "stepForward",
-        "category": "Z-Order & Layering",
-        "signature": "ppt.stepForward(objectIdOrName)",
-        "description": "Moves an element one step forward in the visual stacking order (Z-index) within the slide shape tree.",
-        "openXmlImpact": "Permutes the child nodes inside p:spTree forward by one position.",
-        "edgeCases": "No-op if element is already at the topmost position.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "objectIdOrName",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Target element identifier."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "Chainable instance."
-        },
-        "exampleCode": "ppt.useSlide(1).stepForward('WatermarkShape');"
-      },
-      {
-        "id": "stepbackward",
-        "name": "stepBackward",
-        "category": "Z-Order & Layering",
-        "signature": "ppt.stepBackward(objectIdOrName)",
-        "description": "Moves an element one step backward in the visual stacking order (Z-index) within the slide shape tree.",
-        "openXmlImpact": "Permutes the child nodes inside p:spTree backward by one position.",
-        "edgeCases": "No-op if element is already at the bottommost layer.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "objectIdOrName",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Target element identifier."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "Chainable instance."
-        },
-        "exampleCode": "ppt.useSlide(1).stepBackward('OverlayBox');"
-      },
-      {
-        "id": "getbounds",
-        "name": "getBounds",
-        "signature": "ppt.getBounds(objectIdOrName)",
-        "category": "Z-Order & Layering",
-        "description": "Calculates the pixel bounding box (x, y, width, height) of an element on the currently active slide.",
-        "openXmlImpact": "Queries a:off (offset) and a:ext (extent) coordinates and converts EMUs to integer pixels.",
-        "edgeCases": "Returns null if element identifier is not found on targeted slide.",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "objectIdOrName",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Element name or spId."
-          }
-        ],
-        "returns": {
-          "type": "{ x: number, y: number, width: number, height: number }",
-          "description": "Pixel bounding box coordinates."
-        },
-        "exampleCode": "ppt.useSlide(1);\nconst bounds = ppt.getBounds('HeaderTitle');\nconsole.log(bounds.width, bounds.height);"
-      },
-      {
-        "id": "setbounds",
-        "name": "setBounds",
-        "signature": "ppt.setBounds(objectIdOrName, options)",
-        "category": "Z-Order & Layering",
-        "description": "Updates position and dimensions of an element using integer pixels or string units (e.g. \"2in\", \"100px\", \"5cm\").",
-        "openXmlImpact": "Translates units into English Metric Units (EMU) and mutates a:off / a:ext XML nodes.",
-        "edgeCases": "Safely handles partial coordinate overrides (e.g. updating only width without affecting position).",
-        "isStatic": false,
-        "isAsync": false,
-        "parameters": [
-          {
-            "name": "objectIdOrName",
-            "type": "string",
-            "required": true,
-            "default": "—",
-            "description": "Element identifier."
-          },
-          {
-            "name": "options",
-            "type": "Object",
-            "required": true,
-            "default": "—",
-            "description": "Coordinates { x, y, width, height }."
-          }
-        ],
-        "returns": {
-          "type": "PPTXTemplater",
-          "description": "Chainable instance."
-        },
-        "exampleCode": "ppt.setBounds('HeaderBox', { width: '8in', height: '1.5in' });"
       }
     ],
     "Hyperlinks": [

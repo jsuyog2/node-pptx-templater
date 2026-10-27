@@ -16,6 +16,7 @@ export const {
   MediaManager,
   RelationshipManager,
   ZOrderManager,
+  ElementManager,
   OutputWriter,
   formatXml,
   sendExpress,

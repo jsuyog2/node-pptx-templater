@@ -16,8 +16,8 @@ Ingestion (PackageLoader, FlatOpcConverter, LegacyConverter)
   └─► In-Memory VFS (VirtualFileSystem)
         └─► AST Parsing & Serializing (XMLParser: standard & ordered [Z_ORDER_SYMBOL])
               ├─► Core: TemplateEngine (run healing, lists), ValidationEngine (XXE, integrity)
-              ├─► Slide Subsystems: SlideManager, ZOrderManager, CommentManager
-              ├─► Element Subsystems: TextManager, TableManager, ChartManager, ShapeManager, ImageManager, MediaManager, HyperlinkManager
+              ├─► Slide Subsystems: SlideManager, CommentManager
+              ├─► Element Subsystems: ElementManager, ZOrderManager, TextManager, TableManager, ChartManager, ShapeManager, ImageManager, MediaManager, HyperlinkManager
               ├─► Package Manifests: RelationshipManager, ContentTypesManager, ZipManager
               └─► Output Pipeline: OutputWriter & FrameworkAdapters (18-method I/O boundary)
 ```
@@ -33,6 +33,7 @@ Ingestion (PackageLoader, FlatOpcConverter, LegacyConverter)
 - **`ChartManager`** (`src/elements/ChartManager.js`): DrawingML (`<c:chartSpace>`) and extended (`<cx:chartSpace>`) chart types with Dual-Sync updating of embedded Excel workbooks.
 - **`ShapeManager`** (`src/elements/ShapeManager.js`): Vector geometry, fills, borders, text, alignment, grouping, and coordinate math.
 - **`TextManager`** (`src/elements/TextManager.js`): Run substitutions, full text box replacement (`replaceTextByTag`), and 31-property DrawingML styling.
+- **`ElementManager`** (`src/managers/ElementManager.js`): Unified slide element inspection, querying, relationship-safe removal, and canvas resets.
 - **`ZOrderManager`** (`src/spatial/ZOrderManager.js`): Visual stacking operations while preserving `<p:nvGrpSpPr>` and `<p:grpSpPr>` header invariants.
 - **`ImageManager`** & **`MediaManager`** (`src/elements/ImageManager.js`, `src/managers/MediaManager.js`): Image, audio, and video insertion, MIME detection, aspect ratio, and timing tracks.
 - **`HyperlinkManager`** (`src/managers/HyperlinkManager.js`): External web URLs, internal slide jumps (`action="ppaction://hlinksldjump"`), and slideshow actions.
@@ -70,6 +71,19 @@ All slide manipulations use 1-based indexing and strictly adhere to these 23 app
 
 ---
 
-## 4. Documentation Portal (`docs-site/`)
+## 4. Strict 9-Method Elements Whitelist
+
+Slide visual element inspection, querying, removal, and layer stacking strictly adhere to these 9 approved methods under the unified "Elements" category (legacy "Z-Order & Layering" and unapproved methods are deprecated and prohibited):
+
+- **Inspection & Query (2)**:
+  `ppt.getElements(slideIdOrFilter, filter)` • `ppt.getElement(elementId, slideId)`
+- **Removal & Reset (2)**:
+  `ppt.removeElement(elementId, slideId)` • `ppt.removeAllElements(slideId, options)`
+- **Visual Stacking & Layering (5)**:
+  `ppt.setZOrder(elementId, zIndex, slideId)` • `ppt.bringToFront(elementId, slideId)` • `ppt.sendToBack(elementId, slideId)` • `ppt.bringForward(elementId, slideId)` • `ppt.sendBackward(elementId, slideId)`
+
+---
+
+## 5. Documentation Portal (`docs-site/`)
 
 The documentation site is a static export built with Next.js 14+ App Router (`output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`). All documentation content is driven by decoupled JSON schemas in `docs-site/src/data/` (`apiReference.json`, `features.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`) and verified by `npm run docs:validate`.

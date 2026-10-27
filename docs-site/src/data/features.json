@@ -114,8 +114,8 @@
         },
         {
           "id": 18,
-          "title": "Z-Index Layer Management",
-          "description": "Reorder element rendering hierarchy (bring to front, send to back, step forward, step backward)."
+          "title": "Spatial Alignment & Snapping",
+          "description": "Align elements to coordinates, slide dimensions, and table cell bounds."
         },
         {
           "id": 19,
@@ -126,30 +126,30 @@
       "count": 5
     },
     {
-      "id": "element-tree-traversal-inspection",
+      "id": "elements",
       "number": 4,
-      "title": "Element Tree Traversal & Inspection",
+      "title": "Elements",
       "isFlagship": false,
       "items": [
         {
           "id": 20,
-          "title": "Slide Element Enumeration",
-          "description": "Extract all visual elements residing on a specific slide."
+          "title": "Slide Element Enumeration & Metadata",
+          "description": "Extract all visual elements residing on a specific slide with normalized metadata (`getElements`, `getElement`)."
         },
         {
           "id": 21,
-          "title": "Type-Based Element Filtering",
-          "description": "Query elements filtered by type (`text`, `shape`, `image`, `table`, `chart`, `group`)."
+          "title": "Type & Spatial Element Filtering",
+          "description": "Query elements filtered by type (`shape`, `textbox`, `image`, `video`, `audio`, `table`, `chart`) or spatial bounds."
         },
         {
           "id": 22,
-          "title": "Name & ID Selectors",
-          "description": "Query elements by their PowerPoint shape name (e.g., `Title 1`, `Picture 3`) or unique non-visual shape ID."
+          "title": "Element Removal & Relationship Cleanup",
+          "description": "Safely remove single elements (`removeElement`) or clear all slide elements (`removeAllElements`) with automatic relationship cleanup."
         },
         {
           "id": 23,
-          "title": "Template Token Selectors",
-          "description": "Target and match text boxes, shapes, or tables bound to placeholder identifiers (e.g., `{{variable_name}}`)."
+          "title": "Z-Order Layer Stacking & Container Safety",
+          "description": "Reorder visual layer hierarchy (`setZOrder`, `bringToFront`, `sendToBack`, `bringForward`, `sendBackward`) while strictly preserving `<p:nvGrpSpPr>` and `<p:grpSpPr>` container headers."
         }
       ],
       "count": 4

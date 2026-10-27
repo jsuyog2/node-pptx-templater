@@ -40,6 +40,7 @@ const { HyperlinkManager } = require('./managers/HyperlinkManager.js')
 const { MediaManager } = require('./managers/MediaManager.js')
 const { RelationshipManager } = require('./managers/RelationshipManager.js')
 const { ZOrderManager } = require('./spatial/ZOrderManager.js')
+const { ElementManager } = require('./managers/ElementManager.js')
 const { OutputWriter, formatXml } = require('./writer/OutputWriter.js')
 const {
   sendExpress,
@@ -95,6 +96,7 @@ module.exports = {
   MediaManager,
   RelationshipManager,
   ZOrderManager,
+  ElementManager,
   OutputWriter,
   formatXml,
   sendExpress,

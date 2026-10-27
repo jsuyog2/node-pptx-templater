@@ -34,7 +34,7 @@ Unlike legacy solutions that require spinning up heavyweight LibreOffice Docker 
 - **Excel Dual-Sync Technology & 17 Chart Types:** Support for all 17 chart types across standard OpenXML (`<c:chartSpace>`) and Office 2016+ extended schemas (`<cx:chartSpace>`): Column, Line, Pie, Bar, Area, Scatter, Map, Stock, Surface, Radar, Treemap, Sunburst, Histogram, Box & Whisker, Waterfall, Funnel, and Combo. Strict 8-method whitelist (`addChart`, `updateChart`, `updateChartData`, `removeChart`, `clearCharts`, `getCharts`, `getChart`, `cloneChart`). Simultaneously updates DrawingML chart caches and embedded binary Excel workbooks (`ppt/embeddings/*.xlsx`) with table cleansing to eliminate Microsoft PowerPoint repair prompts.
 - **Spatial Geometry & Percentage Coordinates (0–100%):** Position shapes, tables, charts, images, and text boxes using intuitive percentage strings (`x: '10%'`, `y: '50%'`, `width: '80%'`) or numeric percentages (`unit: '%'`) mapped precisely across canvas boundaries without rounding drift.
 - **Non-Blocking In-Memory Lifecycles:** Agile presentation synthesis without artificial validation hurdles. `validatePresentation()` serves as an on-demand, non-blocking diagnostic tool.
-- **Spatial Geometry & Z-Order Layering:** Reorder visual stack depth (`bringToFront`, `sendToBack`, `stepForward`, `stepBackward`) and calculate coordinates using English Metric Units (EMU), pixels, inches, and millimeters with zero floating-point rounding drift.
+- **Elements & Visual Layering:** Unified slide inspection, element querying, relationship-safe removal, and layer reordering (`getElements`, `getElement`, `removeElement`, `removeAllElements`, `setZOrder`, `bringToFront`, `sendToBack`, `bringForward`, `sendBackward`) while strictly maintaining PresentationML `<p:spTree>` header sequences and unlinking dangling relationships.
 - **Multi-Target Export & Web Framework Streaming:** Write to disk, compile to Node.js `Buffer`, `ReadableStream`, `ArrayBuffer`, Base64 / Data URI, export to Flat OPC XML string, stream directly to Express.js / Fastify responses, or emit Web Standard `Response` objects for Next.js Route Handlers and Edge workers.
 - **Direct XML & ZIP Extraction:** Unpack presentations to raw directory trees with optional 2-space XML formatting (`formatXml: true`) for git inspection, or package directly to clean compressed ZIP archives.
 
@@ -77,7 +77,7 @@ Engineered specifically for serverless and edge architectures:
 | **Run Fragment Normalizer (Anti-Corruption)** | ✅ **AST Paragraph Healer** | ❌ N/A | ❌ N/A | ❌ Brittle regex |
 | **Chart & Excel Workbook Dual-Sync** | ✅ **XML + XLSX Cache Sync** | ⚠️ Basic values only | ❌ Unsupported | ⚠️ Slow headless calc |
 | **DrawingML Tables Subsystem** | ✅ **Strict 30-Method Engine** | ⚠️ Basic tables | ⚠️ Minimal | ⚠️ Slow headless calc |
-| **Z-Order Layer Stacking (`p:spTree`)** | ✅ **`bringToFront` / `sendToBack`** | ❌ Re-render required | ❌ Unsupported | ❌ Manual scripts |
+| **Elements & Layer Stacking (`p:spTree`)** | ✅ **Strict 9-Method Elements Engine** | ❌ Re-render required | ❌ Unsupported | ❌ Manual scripts |
 | **Web Framework & Edge Streaming** | ✅ **Express, Fastify, Web Response**| ⚠️ Buffer only | ⚠️ Stream only | ❌ CLI process spawn |
 | **Direct XML Extraction with Formatting** | ✅ **`extractToXml({formatXml})`**| ❌ Unsupported | ❌ Unsupported | ❌ Unsupported |
 | **Serverless Deployment (Lambda, Cloudflare)** | ✅ **<2MB Pure JS, <15ms Boot** | ✅ Pure JS | ⚠️ High RAM | ❌ Heavy 500MB+ Docker |

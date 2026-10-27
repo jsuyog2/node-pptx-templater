@@ -39,6 +39,7 @@ const { ShapeManager } = require('../elements/ShapeManager.js')
 const { ImageManager } = require('../elements/ImageManager.js')
 const { TextManager } = require('../elements/TextManager.js')
 const { ZOrderManager } = require('../spatial/ZOrderManager.js')
+const { ElementManager } = require('../managers/ElementManager.js')
 const { ValidationEngine } = require('./ValidationEngine.js')
 const { OutputWriter } = require('./OutputWriter.js')
 const { TemplateEngine } = require('./TemplateEngine.js')
@@ -133,6 +134,12 @@ class PPTXTemplater {
 
   /**
    * @private
+   * @type {ElementManager}
+   */
+  #elementManager
+
+  /**
+   * @private
    * @type {RelationshipManager}
    */
   #relationshipManager
@@ -199,6 +206,12 @@ class PPTXTemplater {
     this.#textManager = new TextManager(this.#xmlParser)
     this.#templateEngine = new TemplateEngine(this.#xmlParser)
     this.#zOrderManager = new ZOrderManager(this.#xmlParser)
+    this.#elementManager = new ElementManager(
+      this.#slideManager,
+      this.#relationshipManager,
+      this.#zipManager,
+      this.#xmlParser
+    )
     this.#outputWriter = new OutputWriter(
       this.#zipManager,
       this.#contentTypesManager,
@@ -2526,54 +2539,6 @@ class PPTXTemplater {
   }
 
   /**
-   * Retrieves all elements on targeted slides, optionally filtered by type, name, or spatial bounds.
-   *
-   * @param {Object} [filter] - Filter options: `{ type, name, bounds, within, intersects, slideIndex }`.
-   * @returns {Array<Object>} List of element descriptors.
-   */
-  getElements(filter = {}) {
-    this.#assertLoaded()
-    const targetIndices =
-      filter.slideIndex !== undefined ? [filter.slideIndex] : this.#getTargetSlideIndices()
-    const all = []
-    for (const idx of targetIndices) {
-      const elems = this.#slideManager.getSlideElements(idx, filter)
-      for (const el of elems) {
-        all.push({ ...el, slideIndex: idx })
-      }
-    }
-    return all
-  }
-
-  /**
-   * Finds slide elements matching a filter object or custom predicate function.
-   *
-   * @param {Object|Function} filterOrPredicate - Filter criteria or predicate function.
-   * @returns {Array<Object>} List of matched element descriptors.
-   */
-  findElements(filterOrPredicate) {
-    if (typeof filterOrPredicate === 'function') {
-      const elements = this.getElements()
-      return elements.filter(filterOrPredicate)
-    }
-    return this.getElements(filterOrPredicate)
-  }
-
-  /**
-   * Alias for bringForward. Moves element one layer forward.
-   */
-  stepForward(optionsOrId) {
-    return this.bringForward(optionsOrId)
-  }
-
-  /**
-   * Alias for sendBackward. Moves element one layer backward.
-   */
-  stepBackward(optionsOrId) {
-    return this.sendBackward(optionsOrId)
-  }
-
-  /**
    * Replaces a placeholder shape with an image, locking its bounding box.
    * @param {string} shapeIdOrName
    * @param {string|Buffer} sourcePathOrBuffer
@@ -4741,56 +4706,242 @@ class PPTXTemplater {
     return this.#mediaManager
   }
 
-  // Z-Order / Layer Management APIs
+  /**
+   * Element manager instance.
+   * @type {ElementManager}
+   */
+  get elementManager() {
+    return this.#elementManager
+  }
+
+  // ==========================================
+  // Elements (Strict 9 Whitelisted Methods)
+  // ==========================================
 
   /**
-   * Moves slide element one layer forward.
+   * Retrieves all visual elements on targeted slide(s) with normalized metadata.
+   *
+   * @param {number|string|Object} [slideIdOrFilter] - 1-based slide index, slide tag, or filter options.
+   * @param {Object} [filter] - Filter options if slide index is provided.
+   * @returns {Array<Object>} List of normalized element descriptors.
+   *
+   * @example
+   * const elements = ppt.useSlide(1).getElements();
+   * const shapes = ppt.getElements(1, { type: 'shape' });
    */
-  bringForward(optionsOrId) {
+  getElements(slideIdOrFilter, filter) {
     this.#assertLoaded()
-    let slideIndex, objectId
-    if (typeof optionsOrId === 'object' && optionsOrId !== null) {
-      slideIndex =
-        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId.objectId
+    let targetIndices = []
+    let filterOptions = {}
+
+    if (typeof slideIdOrFilter === 'number' || typeof slideIdOrFilter === 'string') {
+      targetIndices =
+        typeof slideIdOrFilter === 'number'
+          ? [slideIdOrFilter]
+          : this.#slideManager.resolveSlideRef(slideIdOrFilter)
+      filterOptions = filter || {}
+    } else if (typeof slideIdOrFilter === 'object' && slideIdOrFilter !== null) {
+      if (slideIdOrFilter.slideIndex !== undefined) {
+        targetIndices = [slideIdOrFilter.slideIndex]
+      } else if (slideIdOrFilter.slide !== undefined) {
+        targetIndices =
+          typeof slideIdOrFilter.slide === 'number'
+            ? [slideIdOrFilter.slide]
+            : this.#slideManager.resolveSlideRef(slideIdOrFilter.slide)
+      } else {
+        targetIndices = this.#getTargetSlideIndices()
+      }
+      filterOptions = slideIdOrFilter
     } else {
-      slideIndex = this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId
+      targetIndices = this.#getTargetSlideIndices()
+      filterOptions = {}
     }
-    this.#zOrderManager.bringForward(slideIndex, objectId, this.#slideManager)
+
+    const all = []
+    for (const idx of targetIndices) {
+      const elems = this.#elementManager.getElements(idx, filterOptions)
+      all.push(...elems)
+    }
+    return all
+  }
+
+  /**
+   * Retrieves normalized metadata for a single visual element by ID or name.
+   *
+   * @param {string|number} elementId - Element ID or name.
+   * @param {number|string} [slideId] - 1-based slide index or tag. Defaults to active slide.
+   * @returns {Object|null} Normalized element descriptor, or null if not found.
+   *
+   * @example
+   * const el = ppt.useSlide(1).getElement('HeaderTitle');
+   * console.log(el.type, el.bounds);
+   */
+  getElement(elementId, slideId) {
+    this.#assertLoaded()
+    const targetIdx =
+      slideId !== undefined
+        ? typeof slideId === 'number'
+          ? slideId
+          : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+        : this.#getTargetSlideIndices()[0] || 1
+    return this.#elementManager.getElement(elementId, targetIdx)
+  }
+
+  /**
+   * Safely purges an element from the slide and unlinks orphaned relationships.
+   *
+   * @param {string|number|Object} elementIdOrOptions - Element ID, name, or options object.
+   * @param {number|string} [slideId] - 1-based slide index or tag. Defaults to active slide.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).removeElement('OutdatedLogo');
+   * ppt.removeElement({ slide: 2, elementId: 'OldChart' });
+   */
+  removeElement(elementIdOrOptions, slideId) {
+    this.#assertLoaded()
+    let targetIdx, elementId
+    if (typeof elementIdOrOptions === 'object' && elementIdOrOptions !== null) {
+      targetIdx =
+        elementIdOrOptions.slide !== undefined
+          ? typeof elementIdOrOptions.slide === 'number'
+            ? elementIdOrOptions.slide
+            : this.#slideManager.resolveSlideRef(elementIdOrOptions.slide)[0] || 1
+          : slideId !== undefined
+            ? typeof slideId === 'number'
+              ? slideId
+              : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+            : this.#getTargetSlideIndices()[0] || 1
+      elementId =
+        elementIdOrOptions.elementId || elementIdOrOptions.objectId || elementIdOrOptions.id
+    } else {
+      targetIdx =
+        slideId !== undefined
+          ? typeof slideId === 'number'
+            ? slideId
+            : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+          : this.#getTargetSlideIndices()[0] || 1
+      elementId = elementIdOrOptions
+    }
+    this.#elementManager.removeElement(elementId, targetIdx)
     return this
   }
 
   /**
-   * Moves slide element one layer backward.
+   * Clears all visual elements from targeted slide while preserving group headers and layout bindings.
+   *
+   * @param {number|string|Object} [slideIdOrOptions] - 1-based slide index, tag, or options object.
+   * @param {Object} [options] - Removal options (e.g. { preservePlaceholders: true }).
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).removeAllElements();
+   * ppt.removeAllElements(2, { preservePlaceholders: true });
    */
-  sendBackward(optionsOrId) {
+  removeAllElements(slideIdOrOptions, options = {}) {
     this.#assertLoaded()
-    let slideIndex, objectId
-    if (typeof optionsOrId === 'object' && optionsOrId !== null) {
-      slideIndex =
-        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId.objectId
+    let targetIndices = []
+    let opts = options
+
+    if (typeof slideIdOrOptions === 'number' || typeof slideIdOrOptions === 'string') {
+      targetIndices =
+        typeof slideIdOrOptions === 'number'
+          ? [slideIdOrOptions]
+          : this.#slideManager.resolveSlideRef(slideIdOrOptions)
+    } else if (typeof slideIdOrOptions === 'object' && slideIdOrOptions !== null) {
+      opts = slideIdOrOptions
+      if (slideIdOrOptions.slide !== undefined) {
+        targetIndices =
+          typeof slideIdOrOptions.slide === 'number'
+            ? [slideIdOrOptions.slide]
+            : this.#slideManager.resolveSlideRef(slideIdOrOptions.slide)
+      } else {
+        targetIndices = this.#getTargetSlideIndices()
+      }
     } else {
-      slideIndex = this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId
+      targetIndices = this.#getTargetSlideIndices()
     }
-    this.#zOrderManager.sendBackward(slideIndex, objectId, this.#slideManager)
+
+    for (const idx of targetIndices) {
+      this.#elementManager.removeAllElements(idx, opts)
+    }
     return this
   }
 
   /**
-   * Moves slide element above all other objects.
+   * Sets the explicit stacking order (Z-index) of an element on the slide.
+   *
+   * @param {string|number|Object} optionsOrId - Element ID/name, or options object.
+   * @param {number} [zIndex] - Target 1-based or 0-based stacking index.
+   * @param {number|string} [slideId] - 1-based slide index or tag.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).setZOrder('WatermarkShape', 1);
+   * ppt.setZOrder({ slide: 2, elementId: 'Badge', zIndex: 5 });
    */
-  bringToFront(optionsOrId) {
+  setZOrder(optionsOrId, zIndex, slideId) {
+    this.#assertLoaded()
+    let slideIndex, objectId, targetZIndex
+    if (typeof optionsOrId === 'object' && optionsOrId !== null) {
+      slideIndex =
+        optionsOrId.slide !== undefined
+          ? typeof optionsOrId.slide === 'number'
+            ? optionsOrId.slide
+            : this.#slideManager.resolveSlideRef(optionsOrId.slide)[0] || 1
+          : slideId !== undefined
+            ? typeof slideId === 'number'
+              ? slideId
+              : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+            : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.elementId || optionsOrId.objectId || optionsOrId.id
+      targetZIndex = optionsOrId.zIndex !== undefined ? optionsOrId.zIndex : zIndex
+    } else {
+      slideIndex =
+        slideId !== undefined
+          ? typeof slideId === 'number'
+            ? slideId
+            : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+          : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId
+      targetZIndex = zIndex
+    }
+    this.#zOrderManager.setZOrder(slideIndex, objectId, targetZIndex, this.#slideManager)
+    return this
+  }
+
+  /**
+   * Moves a slide element above all other objects in the visual stack.
+   *
+   * @param {string|number|Object} optionsOrId - Element ID/name, or options object.
+   * @param {number|string} [slideId] - 1-based slide index or tag.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).bringToFront('active_badge');
+   */
+  bringToFront(optionsOrId, slideId) {
     this.#assertLoaded()
     let slideIndex, objectId
     if (typeof optionsOrId === 'object' && optionsOrId !== null) {
       slideIndex =
-        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId.objectId
+        optionsOrId.slide !== undefined
+          ? typeof optionsOrId.slide === 'number'
+            ? optionsOrId.slide
+            : this.#slideManager.resolveSlideRef(optionsOrId.slide)[0] || 1
+          : slideId !== undefined
+            ? typeof slideId === 'number'
+              ? slideId
+              : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+            : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.elementId || optionsOrId.objectId || optionsOrId.id
     } else {
-      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      slideIndex =
+        slideId !== undefined
+          ? typeof slideId === 'number'
+            ? slideId
+            : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+          : this.#getTargetSlideIndices()[0] || 1
       objectId = optionsOrId
     }
     this.#zOrderManager.bringToFront(slideIndex, objectId, this.#slideManager)
@@ -4798,17 +4949,37 @@ class PPTXTemplater {
   }
 
   /**
-   * Moves slide element behind all other objects.
+   * Moves a slide element behind all other objects in the visual stack.
+   *
+   * @param {string|number|Object} optionsOrId - Element ID/name, or options object.
+   * @param {number|string} [slideId] - 1-based slide index or tag.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).sendToBack('background_card');
    */
-  sendToBack(optionsOrId) {
+  sendToBack(optionsOrId, slideId) {
     this.#assertLoaded()
     let slideIndex, objectId
     if (typeof optionsOrId === 'object' && optionsOrId !== null) {
       slideIndex =
-        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId.objectId
+        optionsOrId.slide !== undefined
+          ? typeof optionsOrId.slide === 'number'
+            ? optionsOrId.slide
+            : this.#slideManager.resolveSlideRef(optionsOrId.slide)[0] || 1
+          : slideId !== undefined
+            ? typeof slideId === 'number'
+              ? slideId
+              : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+            : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.elementId || optionsOrId.objectId || optionsOrId.id
     } else {
-      slideIndex = this.#getTargetSlideIndices()[0] || 1
+      slideIndex =
+        slideId !== undefined
+          ? typeof slideId === 'number'
+            ? slideId
+            : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+          : this.#getTargetSlideIndices()[0] || 1
       objectId = optionsOrId
     }
     this.#zOrderManager.sendToBack(slideIndex, objectId, this.#slideManager)
@@ -4816,252 +4987,78 @@ class PPTXTemplater {
   }
 
   /**
-   * Moves slide element to the specific 1-based stacking position.
+   * Moves a slide element one layer forward in the stacking order.
+   *
+   * @param {string|number|Object} optionsOrId - Element ID/name, or options object.
+   * @param {number|string} [slideId] - 1-based slide index or tag.
+   * @returns {PPTXTemplater} this (chainable)
+   *
+   * @example
+   * ppt.useSlide(1).bringForward('icon_overlay');
    */
-  setZIndex(optionsOrId, zIndex) {
+  bringForward(optionsOrId, slideId) {
     this.#assertLoaded()
-    let slideIndex, objectId, targetZIndex
-    if (
-      typeof optionsOrId === 'object' &&
-      optionsOrId !== null &&
-      optionsOrId.zIndex !== undefined
-    ) {
+    let slideIndex, objectId
+    if (typeof optionsOrId === 'object' && optionsOrId !== null) {
       slideIndex =
-        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId.objectId
-      targetZIndex = optionsOrId.zIndex
+        optionsOrId.slide !== undefined
+          ? typeof optionsOrId.slide === 'number'
+            ? optionsOrId.slide
+            : this.#slideManager.resolveSlideRef(optionsOrId.slide)[0] || 1
+          : slideId !== undefined
+            ? typeof slideId === 'number'
+              ? slideId
+              : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+            : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.elementId || optionsOrId.objectId || optionsOrId.id
     } else {
-      slideIndex = this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId
-      targetZIndex = zIndex
-    }
-    this.#zOrderManager.setZIndex(slideIndex, objectId, targetZIndex, this.#slideManager)
-    return this
-  }
-
-  /**
-   * Moves slide element directly before (below) a target element.
-   */
-  moveObjectBefore(optionsOrId, targetId) {
-    this.#assertLoaded()
-    let slideIndex, objectId, target
-    if (
-      typeof optionsOrId === 'object' &&
-      optionsOrId !== null &&
-      optionsOrId.targetId !== undefined
-    ) {
       slideIndex =
-        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId.objectId
-      target = optionsOrId.targetId
-    } else {
-      slideIndex = this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId
-      target = targetId
-    }
-    this.#zOrderManager.moveObjectBefore(slideIndex, objectId, target, this.#slideManager)
-    return this
-  }
-
-  /**
-   * Moves slide element directly after (above) a target element.
-   */
-  moveObjectAfter(optionsOrId, targetId) {
-    this.#assertLoaded()
-    let slideIndex, objectId, target
-    if (
-      typeof optionsOrId === 'object' &&
-      optionsOrId !== null &&
-      optionsOrId.targetId !== undefined
-    ) {
-      slideIndex =
-        optionsOrId.slide !== undefined ? optionsOrId.slide : this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId.objectId
-      target = optionsOrId.targetId
-    } else {
-      slideIndex = this.#getTargetSlideIndices()[0] || 1
-      objectId = optionsOrId
-      target = targetId
-    }
-    this.#zOrderManager.moveObjectAfter(slideIndex, objectId, target, this.#slideManager)
-    return this
-  }
-
-  /**
-   * Reorders slide objects exactly as specified in the array.
-   */
-  reorderObjects(optionsOrOrder) {
-    this.#assertLoaded()
-    let slideIndex, order
-    if (
-      typeof optionsOrOrder === 'object' &&
-      optionsOrOrder !== null &&
-      Array.isArray(optionsOrOrder.order)
-    ) {
-      slideIndex =
-        optionsOrOrder.slide !== undefined
-          ? optionsOrOrder.slide
+        slideId !== undefined
+          ? typeof slideId === 'number'
+            ? slideId
+            : this.#slideManager.resolveSlideRef(slideId)[0] || 1
           : this.#getTargetSlideIndices()[0] || 1
-      order = optionsOrOrder.order
-    } else {
-      slideIndex = this.#getTargetSlideIndices()[0] || 1
-      order = optionsOrOrder
+      objectId = optionsOrId
     }
-    this.#zOrderManager.reorderObjects(slideIndex, order, this.#slideManager)
+    this.#zOrderManager.bringForward(slideIndex, objectId, this.#slideManager)
     return this
   }
 
   /**
-   * Gets the ordered metadata of all objects on the slide.
-   */
-  /**
-   * Returns an ordered array of all slide objects (shapes, images, charts, tables)
-   * from bottom to top of the stacking order.
+   * Moves a slide element one layer backward in the stacking order.
    *
-   * @param {number} [slideIndex] - 1-based slide index. Defaults to the active slide.
-   * @returns {Array<{id: string, name: string, type: string, zIndex: number}>}
-   *
-   * @example
-   * const order = ppt.getObjectOrder(1);
-   * order.forEach(o => console.log(`[${o.zIndex}] ${o.name}`));
-   */
-  getObjectOrder(slideIndex) {
-    this.#assertLoaded()
-    const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
-    return this.#zOrderManager.getObjectOrder(targetIdx, this.#slideManager)
-  }
-
-  /**
-   * Applies bulk template configurations for slide elements stacking layers.
-   */
-  applyZOrder(slideOrConfigs, configsOption) {
-    this.#assertLoaded()
-    let slideIndex, configs
-    if (Array.isArray(slideOrConfigs)) {
-      slideIndex = this.#getTargetSlideIndices()[0] || 1
-      configs = slideOrConfigs
-    } else {
-      slideIndex = slideOrConfigs
-      configs = configsOption
-    }
-    this.#zOrderManager.applyZOrder(slideIndex, configs, this.#slideManager)
-    return this
-  }
-
-  /**
-   * Retrieves the info of the top-most object on the slide.
-   */
-  /**
-   * Returns the top-most (front) object on the slide.
-   *
-   * @param {number} [slideIndex] - 1-based slide index. Defaults to the active slide.
-   * @returns {{id: string, name: string, type: string, zIndex: number}|null}
-   *
-   * @example
-   * const top = ppt.getTopMostObject(1);
-   * console.log('Front-most shape:', top.name);
-   */
-  getTopMostObject(slideIndex) {
-    this.#assertLoaded()
-    const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
-    return this.#zOrderManager.getTopMostObject(targetIdx, this.#slideManager)
-  }
-
-  /**
-   * Retrieves the info of the bottom-most object on the slide.
-   */
-  /**
-   * Returns the bottom-most (back) object on the slide.
-   *
-   * @param {number} [slideIndex] - 1-based slide index. Defaults to the active slide.
-   * @returns {{id: string, name: string, type: string, zIndex: number}|null}
-   *
-   * @example
-   * const bottom = ppt.getBottomMostObject(1);
-   * console.log('Back-most shape:', bottom.name);
-   */
-  getBottomMostObject(slideIndex) {
-    this.#assertLoaded()
-    const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
-    return this.#zOrderManager.getBottomMostObject(targetIdx, this.#slideManager)
-  }
-
-  /**
-   * Swaps stacking positions of two slide objects.
-   */
-  /**
-   * Swaps the stacking positions of two slide objects.
-   *
-   * @param {number|string} slideIndexOrId1 - Slide index (if 3 args) or first object ID (if 2 args).
-   * @param {string} id1OrId2 - First object ID (if 3 args) or second object ID (if 2 args).
-   * @param {string} [id2] - Second object ID (only if slide index is provided as first arg).
+   * @param {string|number|Object} optionsOrId - Element ID/name, or options object.
+   * @param {number|string} [slideId] - 1-based slide index or tag.
    * @returns {PPTXTemplater} this (chainable)
    *
    * @example
-   * ppt.swapObjects(1, 'logo', 'background'); // On slide 1, swap 'logo' and 'background'
-   * ppt.swapObjects('logo', 'background');     // On active slide
+   * ppt.useSlide(1).sendBackward('shadow_shape');
    */
-  swapObjects(slideIndexOrId1, id1OrId2, id2) {
+  sendBackward(optionsOrId, slideId) {
     this.#assertLoaded()
-    let slideIndex, objectId1, objectId2
-    if (id2 !== undefined) {
-      slideIndex = slideIndexOrId1
-      objectId1 = id1OrId2
-      objectId2 = id2
+    let slideIndex, objectId
+    if (typeof optionsOrId === 'object' && optionsOrId !== null) {
+      slideIndex =
+        optionsOrId.slide !== undefined
+          ? typeof optionsOrId.slide === 'number'
+            ? optionsOrId.slide
+            : this.#slideManager.resolveSlideRef(optionsOrId.slide)[0] || 1
+          : slideId !== undefined
+            ? typeof slideId === 'number'
+              ? slideId
+              : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+            : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId.elementId || optionsOrId.objectId || optionsOrId.id
     } else {
-      slideIndex = this.#getTargetSlideIndices()[0] || 1
-      objectId1 = slideIndexOrId1
-      objectId2 = id1OrId2
+      slideIndex =
+        slideId !== undefined
+          ? typeof slideId === 'number'
+            ? slideId
+            : this.#slideManager.resolveSlideRef(slideId)[0] || 1
+          : this.#getTargetSlideIndices()[0] || 1
+      objectId = optionsOrId
     }
-    this.#zOrderManager.swapObjects(slideIndex, objectId1, objectId2, this.#slideManager)
-    return this
-  }
-
-  /**
-   * Sorts stacking order using a custom comparison function.
-   */
-  /**
-   * Sorts all slide objects using a custom comparison function.
-   *
-   * @param {number|Function} slideIndexOrCompareFn - Slide index (if 2 args) or compare function (if 1 arg).
-   * @param {Function} [compareFnOption] - Compare function when slide index is provided.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * // Sort alphabetically by name on the active slide
-   * ppt.sortObjects((a, b) => a.name.localeCompare(b.name));
-   */
-  sortObjects(slideIndexOrCompareFn, compareFnOption) {
-    this.#assertLoaded()
-    let slideIndex, compareFn
-    if (typeof slideIndexOrCompareFn === 'function') {
-      slideIndex = this.#getTargetSlideIndices()[0] || 1
-      compareFn = slideIndexOrCompareFn
-    } else {
-      slideIndex = slideIndexOrCompareFn
-      compareFn = compareFnOption
-    }
-    this.#zOrderManager.sortObjects(slideIndex, compareFn, this.#slideManager)
-    return this
-  }
-
-  /**
-   * Cleans up and normalizes stacking order consistency.
-   */
-  /**
-   * Normalizes the stacking order of all objects on a slide, removing gaps
-   * and ensuring Z-index values are sequential (1, 2, 3, ...).
-   *
-   * @param {number} [slideIndex] - 1-based slide index. Defaults to the active slide.
-   * @returns {PPTXTemplater} this (chainable)
-   *
-   * @example
-   * ppt.normalizeZOrder(1); // Clean up stacking order on slide 1
-   */
-  normalizeZOrder(slideIndex) {
-    this.#assertLoaded()
-    const targetIdx = slideIndex !== undefined ? slideIndex : this.#getTargetSlideIndices()[0] || 1
-    this.#zOrderManager.normalizeZOrder(targetIdx, this.#slideManager)
+    this.#zOrderManager.sendBackward(slideIndex, objectId, this.#slideManager)
     return this
   }
 

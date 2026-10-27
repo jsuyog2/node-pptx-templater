@@ -251,7 +251,7 @@ class ZOrderManager {
     })
   }
 
-  setZIndex(slideIndex, objectId, zIndex, slideManager) {
+  setZOrder(slideIndex, objectId, zIndex, slideManager) {
     this.#modifyZOrder(slideIndex, objectId, slideManager, (zOrder, elementId) => {
       const idx = zOrder.indexOf(elementId)
       if (idx !== -1) {
@@ -260,6 +260,10 @@ class ZOrderManager {
         zOrder.splice(targetIdx, 0, elementId)
       }
     })
+  }
+
+  setZIndex(slideIndex, objectId, zIndex, slideManager) {
+    return this.setZOrder(slideIndex, objectId, zIndex, slideManager)
   }
 
   moveObjectBefore(slideIndex, objectId, targetId, slideManager) {

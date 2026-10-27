@@ -156,8 +156,6 @@ export class PPTXTemplater {
   removeComment(commentIdentifier: number | string, options?: { author?: string }): Promise<this>;
   checkCollision(idA: string, idB: string): boolean;
   isContained(innerId: string, outerId: string): boolean;
-  getElements(filter?: any): any[];
-  findElements(filterOrPredicate?: any): any[];
   replaceText(replacements: Record<string, string | number>): this;
   addText(textContent: string, options?: any): this;
   replaceTextByTag(tagOrId: string | number, newText: string | number, options?: any): this;
@@ -187,7 +185,6 @@ export class PPTXTemplater {
   getCharts(slideId?: number | string): any[];
   getChart(chartId: string): any;
   cloneChart(chartId: string, clonedChartId?: string, clonedOptions?: any): this;
-  applyZOrder(slideNumber: number, zOrderConfig: any[]): this;
   // Hyperlinks (Strict 6 Whitelisted Methods)
   addHyperlink(targetId: string | number, urlOrAction: string | number | ActionPreset | HyperlinkOptions, options?: HyperlinkOptions): this;
   updateHyperlink(targetId: string | number, urlOrAction?: string | number | ActionPreset | HyperlinkOptions, options?: HyperlinkOptions): this;
@@ -287,6 +284,16 @@ export class PPTXTemplater {
   GetMedias(slideId?: number | string): any[];
   GetMedia(mediaId: string | number): any;
   CloneMedia(mediaId: string | number, clonedMediaId?: string | number, clonedOptions?: any): this;
+  // Elements (Strict 9 Whitelisted Methods)
+  getElements(slideIdOrFilter?: number | string | ElementFilterOptions, filter?: ElementFilterOptions): ElementDescriptor[];
+  getElement(elementId: string | number, slideId?: number | string): ElementDescriptor | null;
+  removeElement(elementIdOrOptions: string | number | { slide?: number | string; elementId?: string | number; objectId?: string | number; id?: string | number }, slideId?: number | string): this;
+  removeAllElements(slideIdOrOptions?: number | string | { slide?: number | string; preservePlaceholders?: boolean }, options?: { preservePlaceholders?: boolean }): this;
+  setZOrder(optionsOrId: string | number | { slide?: number | string; elementId?: string | number; objectId?: string | number; id?: string | number; zIndex?: number }, zIndex?: number, slideId?: number | string): this;
+  bringToFront(optionsOrId: string | number | { slide?: number | string; elementId?: string | number; objectId?: string | number; id?: string | number }, slideId?: number | string): this;
+  sendToBack(optionsOrId: string | number | { slide?: number | string; elementId?: string | number; objectId?: string | number; id?: string | number }, slideId?: number | string): this;
+  bringForward(optionsOrId: string | number | { slide?: number | string; elementId?: string | number; objectId?: string | number; id?: string | number }, slideId?: number | string): this;
+  sendBackward(optionsOrId: string | number | { slide?: number | string; elementId?: string | number; objectId?: string | number; id?: string | number }, slideId?: number | string): this;
   validatePresentation(): Promise<any>;
   validatePresentationXml(): Promise<any>;
   validateSlide(slideIndex: number): Promise<any>;
@@ -384,6 +391,40 @@ export class RelationshipManager {
 
 export class ZOrderManager {
   [key: string]: any;
+}
+
+export class ElementManager {
+  [key: string]: any;
+}
+
+export interface ElementDescriptor {
+  id: string;
+  name: string;
+  type: string;
+  bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation?: number;
+    flipH?: boolean;
+    flipV?: boolean;
+  };
+  slideIndex: number;
+  element: any;
+  frame?: any;
+}
+
+export interface ElementFilterOptions {
+  type?: string;
+  name?: string | RegExp;
+  id?: string | number;
+  slideIndex?: number;
+  slide?: number | string;
+  bounds?: any;
+  within?: any;
+  intersects?: any;
+  overlaps?: any;
 }
 
 export class OutputWriter {

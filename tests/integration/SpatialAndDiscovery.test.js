@@ -48,8 +48,8 @@ describe('Spatial Layout & Element Discovery', () => {
       expect(['shape', 'textbox']).toContain(s.type)
     }
 
-    // findElements with predicate
-    const found = ppt.findElements(el => el.type === 'shape' || el.type === 'textbox')
+    // find elements with predicate filter
+    const found = ppt.getElements().filter(el => el.type === 'shape' || el.type === 'textbox')
     expect(found.length).toBe(shapes.length)
   })
 

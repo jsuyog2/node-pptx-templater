@@ -32,11 +32,14 @@
 - **Mapping**: `(0, 0)` Top-Left, `(100%, 0)` Top-Right, `(0, 100%)` Bottom-Left, `(100%, 100%)` Bottom-Right.
 - **Integer EMUs**: Conversions use exact integer EMUs (`1 pt = 12700`, `1 px = 9525`, `1 in = 914400`, `1 cm = 360000`). Never emit floating-point EMUs.
 
-## 6. Z-Order & `<p:spTree>` Container Order
-- **ECMA-376 Header Order**: Inside `<p:spTree>` and `<p:grpSp>`, non-visual headers must appear before drawing children:
+## 6. Elements & `<p:spTree>` Container Order
+- **Strict 9-Method Elements Whitelist**: Public element operations are strictly locked to exactly 9 approved functions:
+  `getElements`, `getElement`, `removeElement`, `removeAllElements`, `setZOrder`, `bringToFront`, `sendToBack`, `bringForward`, `sendBackward`. All legacy categories ("Z-Order & Layering", "Layer Ordering", "Z-Index Shift") and unapproved methods are deprecated and prohibited.
+- **ECMA-376 Header Invariant**: Inside `<p:spTree>` and `<p:grpSp>`, non-visual headers must appear before drawing children:
   1. `<p:nvGrpSpPr>` (Non-visual group properties)
   2. `<p:grpSpPr>` (Group shape transform & visual properties)
   3. Visual shapes (`<p:sp>`, `<p:pic>`, `<p:graphicFrame>`, `<p:grpSp>`, `<p:cxnSp>`) in Z-order sequence.
+- **Relationship Cleanup on Removal**: When purging elements (`removeElement`, `removeAllElements`), extract all referenced `rId` values and unlink orphaned relationship definitions in `ppt/slides/_rels/slideN.xml.rels`, while strictly preserving slide layout bindings and group headers.
 - **Symbol Preservation**: `XMLParser` tracks element stacking with `[Z_ORDER_SYMBOL]`. Serialization must prepend container headers.
 
 ## 7. Full Text Box Replacement (`replaceTextByTag`)
