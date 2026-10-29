@@ -96,8 +96,8 @@ export default function SlideThumbnailSidebar({
                 </div>
 
                 {/* Mini Layout Mockup / Visual Indicator */}
-                <div className="flex items-center justify-between pt-1 border-t border-[var(--ppt-card-border)]/50 text-[8px] text-[var(--ppt-text-secondary)]">
-                  <span className="truncate">{slide.signature || '16:9 PresentationML'}</span>
+                <div className="flex items-center justify-end pt-1 border-t border-[var(--ppt-card-border)]/50 text-[8px] text-[var(--ppt-text-secondary)]">
+
                   <FileCode className="w-2.5 h-2.5 opacity-60 flex-shrink-0" />
                 </div>
               </div>

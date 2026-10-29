@@ -19,8 +19,6 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
         e.preventDefault();
         if (isOpen) {
           onClose();
-        } else {
-          // Open handled by caller or state
         }
       } else if (e.key === 'Escape' && isOpen) {
         e.preventDefault();
@@ -47,10 +45,25 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
   // Update results on query change
   useEffect(() => {
     if (!isOpen) return;
-    const res = searchItems(query, 10);
+    const res = searchItems(query, 12);
     setResults(res);
     setSelectedIndex(0);
   }, [query, isOpen]);
+
+  const handleSelect = (item) => {
+    if (!item) return;
+    onClose();
+    if (item.href) {
+      router.push(item.href);
+      if (typeof window !== 'undefined' && item.href.includes('#')) {
+        const hash = item.href.slice(item.href.indexOf('#'));
+        setTimeout(() => {
+          window.location.hash = hash;
+          window.dispatchEvent(new HashChangeEvent('hashchange'));
+        }, 100);
+      }
+    }
+  };
 
   // Keyboard navigation through search results
   const handleInputKeyDown = (e) => {
@@ -62,16 +75,10 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
       setSelectedIndex((prev) => (results.length > 0 ? (prev - 1 + results.length) % results.length : 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (results[selectedIndex]) {
-        handleSelect(results[selectedIndex]);
+      const targetItem = results[selectedIndex] || results[0];
+      if (targetItem) {
+        handleSelect(targetItem);
       }
-    }
-  };
-
-  const handleSelect = (item) => {
-    onClose();
-    if (item.href) {
-      router.push(item.href);
     }
   };
 
@@ -121,7 +128,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="p-1 rounded text-[var(--ppt-text-secondary)] hover:text-[var(--ppt-text-primary)]"
+              className="p-1 rounded text-[var(--ppt-text-secondary)] hover:text-[var(--ppt-text-primary)] cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -137,6 +144,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             results.map((item, index) => {
               const isSelected = index === selectedIndex;
               const isApi = item.type === 'api';
+              const isCat = item.type === 'category';
               return (
                 <div
                   key={item.id}
@@ -153,10 +161,18 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
                       className={`w-7 h-7 rounded flex items-center justify-center flex-shrink-0 ${
                         isApi
                           ? 'bg-[#D24726]/15 text-[#D24726]'
+                          : isCat
+                          ? 'bg-blue-500/15 text-blue-500'
                           : 'bg-emerald-500/15 text-emerald-500'
                       }`}
                     >
-                      {isApi ? <Code2 className="w-3.5 h-3.5" /> : <BookOpen className="w-3.5 h-3.5" />}
+                      {isApi ? (
+                        <Code2 className="w-3.5 h-3.5" />
+                      ) : isCat ? (
+                        <Layers className="w-3.5 h-3.5" />
+                      ) : (
+                        <BookOpen className="w-3.5 h-3.5" />
+                      )}
                     </div>
 
                     <div className="truncate">
@@ -199,7 +215,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             <span>↵ Select</span>
             <span>ESC Close</span>
           </div>
-          <span className="font-mono text-[#D24726] font-semibold">Omnisearch v4.2</span>
+          <span className="font-mono text-[#D24726] font-semibold">Omnisearch v4.3</span>
         </div>
       </div>
     </div>

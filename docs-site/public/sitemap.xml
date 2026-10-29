@@ -21,12 +21,6 @@
     <priority>0.8500</priority>
   </url>
   <url>
-    <loc>https://node-pptx-templater.pages.dev/docs/capabilities/</loc>
-    <lastmod>2026-10-29T00:00:00+00:00</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8500</priority>
-  </url>
-  <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api-reference/</loc>
     <lastmod>2026-10-29T00:00:00+00:00</lastmod>
     <changefreq>weekly</changefreq>
@@ -38,44 +32,94 @@
     <changefreq>weekly</changefreq>
     <priority>0.9000</priority>
   </url>
+  <!-- Dedicated Category Routes -->
+  <url>
+    <loc>https://node-pptx-templater.pages.dev/docs/api-reference/import-export/</loc>
+    <lastmod>2026-10-29T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9000</priority>
+  </url>
+  <url>
+    <loc>https://node-pptx-templater.pages.dev/docs/api-reference/slides/</loc>
+    <lastmod>2026-10-29T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9000</priority>
+  </url>
+  <url>
+    <loc>https://node-pptx-templater.pages.dev/docs/api-reference/text-placeholders/</loc>
+    <lastmod>2026-10-29T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9000</priority>
+  </url>
+  <url>
+    <loc>https://node-pptx-templater.pages.dev/docs/api-reference/tables/</loc>
+    <lastmod>2026-10-29T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9000</priority>
+  </url>
+  <url>
+    <loc>https://node-pptx-templater.pages.dev/docs/api-reference/charts/</loc>
+    <lastmod>2026-10-29T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9000</priority>
+  </url>
+  <url>
+    <loc>https://node-pptx-templater.pages.dev/docs/api-reference/shapes/</loc>
+    <lastmod>2026-10-29T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9000</priority>
+  </url>
+  <url>
+    <loc>https://node-pptx-templater.pages.dev/docs/api-reference/images-media/</loc>
+    <lastmod>2026-10-29T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9000</priority>
+  </url>
+  <url>
+    <loc>https://node-pptx-templater.pages.dev/docs/api-reference/elements/</loc>
+    <lastmod>2026-10-29T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9000</priority>
+  </url>
+  <!-- Backward Compatibility Query Routes -->
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api-reference/?category=Import%2FExport</loc>
     <lastmod>2026-10-29T00:00:00+00:00</lastmod>
-    <priority>0.8000</priority>
+    <priority>0.7500</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api-reference/?category=Slides</loc>
     <lastmod>2026-10-29T00:00:00+00:00</lastmod>
-    <priority>0.8000</priority>
+    <priority>0.7500</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api-reference/?category=Text%20%26%20Placeholders</loc>
     <lastmod>2026-10-29T00:00:00+00:00</lastmod>
-    <priority>0.8000</priority>
+    <priority>0.7500</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api-reference/?category=Tables</loc>
     <lastmod>2026-10-29T00:00:00+00:00</lastmod>
-    <priority>0.8000</priority>
+    <priority>0.7500</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api-reference/?category=Charts</loc>
     <lastmod>2026-10-29T00:00:00+00:00</lastmod>
-    <priority>0.8000</priority>
+    <priority>0.7500</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api-reference/?category=Shapes</loc>
     <lastmod>2026-10-29T00:00:00+00:00</lastmod>
-    <priority>0.8000</priority>
+    <priority>0.7500</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api-reference/?category=Images%20%26%20Media</loc>
     <lastmod>2026-10-29T00:00:00+00:00</lastmod>
-    <priority>0.8000</priority>
+    <priority>0.7500</priority>
   </url>
   <url>
     <loc>https://node-pptx-templater.pages.dev/docs/api-reference/?category=Elements</loc>
     <lastmod>2026-10-29T00:00:00+00:00</lastmod>
-    <priority>0.8000</priority>
+    <priority>0.7500</priority>
   </url>
 </urlset>

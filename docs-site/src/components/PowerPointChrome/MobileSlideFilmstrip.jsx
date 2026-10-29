@@ -22,7 +22,7 @@ export default function MobileSlideFilmstrip({
 
   return (
     <div
-      className="lg:hidden fixed bottom-0 inset-x-0 z-30 h-24 sm:h-24 ppt-chrome-surface border-t border-[var(--ppt-card-border)] backdrop-blur-md flex flex-col justify-center shadow-lg select-none"
+      className="lg:hidden fixed bottom-0 inset-x-0 z-30 h-26 sm:h-26 ppt-chrome-surface border-t border-[var(--ppt-card-border)] backdrop-blur-md flex flex-col justify-center shadow-lg select-none"
       aria-label="Mobile Slide Navigation Filmstrip"
     >
       {/* Filmstrip Header Bar */}
@@ -45,8 +45,8 @@ export default function MobileSlideFilmstrip({
               type="button"
               onClick={() => onSelectSlide(index)}
               className={`snap-center flex-shrink-0 w-28 sm:w-32 aspect-[16/9] rounded p-1.5 flex flex-col justify-between text-left transition-all duration-200 ppt-card-surface border ${isActive
-                  ? 'border-[#D24726] ring-2 ring-[#D24726] scale-105 shadow-md'
-                  : 'border-[var(--ppt-card-border)] opacity-70 hover:opacity-100'
+                ? 'border-[#D24726] ring-2 ring-[#D24726] scale-105 shadow-md'
+                : 'border-[var(--ppt-card-border)] opacity-70 hover:opacity-100'
                 }`}
               aria-label={`Go to slide ${index + 1}: ${slide.title || ''}`}
             >

@@ -5,10 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   ArrowRight,
-  Sparkles,
-  Zap,
-  Cpu,
-  Layers,
   Terminal,
   Copy,
   Check,
@@ -16,16 +12,15 @@ import {
   CheckCircle2,
   BookOpen,
   Code2,
-  ChevronLeft,
-  ChevronRight
 } from 'lucide-react';
 import CodeBlock from './CodeBlock';
 import comparisonData from '../data/comparison.json';
 import featuresData from '../data/features.json';
 import {
-  initHorizontalFolderScrollTrigger,
   slideToFolder,
-} from '../animations/horizontalFolderTransitions';
+  checkScrollBoundary,
+  findScrollableContainer,
+} from '../animations/homeFolderScroll';
 import StatusBar from './PowerPointChrome/StatusBar';
 
 const CODE_EXAMPLES = `import { PPTXTemplater } from 'node-pptx-templater';
@@ -65,22 +60,26 @@ const CORE_MODULES = [
 ];
 
 const FOLDERS = [
-  { id: 'overview', title: '01. Overview', label: 'Overview' },
-  { id: 'features', title: '02. Features', label: 'Features' },
-  { id: 'benchmarks', title: '03. Benchmarks', label: 'Benchmarks' },
-  { id: 'docs', title: '04. Documentation', label: 'Docs Suite' },
+  { id: 'hero', title: 'Folder 01 • Hero & Template Engine' },
+  { id: 'features', title: 'Folder 02 • Features & Capabilities' },
+  { id: 'architecture', title: 'Folder 03 • Architectural Benchmarks & Matrix' },
+  { id: 'quickstart', title: 'Folder 04 • Documentation & Quickstart' },
 ];
 
 export default function HomeFolderDeck() {
   const containerRef = useRef(null);
   const trackRef = useRef(null);
+  const cardRefs = useRef([]);
   const [activeFolderIndex, setActiveFolderIndex] = useState(0);
   const [copied, setCopied] = useState(false);
-  const touchStartXRef = useRef(0);
-  const touchStartYRef = useRef(0);
 
   const [viewMode, setViewMode] = useState('normal');
   const [zoomLevel, setZoomLevel] = useState(100);
+
+  const lastTransitionTimeRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const touchStartXRef = useRef(0);
+  const COOLDOWN_MS = 350;
 
   const handleCopyInstall = async () => {
     try {
@@ -92,68 +91,173 @@ export default function HomeFolderDeck() {
     }
   };
 
-  const jumpToFolder = useCallback((index) => {
-    const clamped = Math.max(0, Math.min(FOLDERS.length - 1, index));
-    setActiveFolderIndex(clamped);
-    slideToFolder(trackRef.current, clamped, FOLDERS.length);
-  }, []);
+  const jumpToFolder = useCallback(
+    (index) => {
+      const now = Date.now();
+      if (now - lastTransitionTimeRef.current < COOLDOWN_MS) return;
+      if (index < 0 || index >= FOLDERS.length || index === activeFolderIndex) return;
 
-  // Initialize Desktop Horizontal ScrollTrigger
-  useEffect(() => {
-    if (trackRef.current) {
-      slideToFolder(trackRef.current, 0, FOLDERS.length, 0);
+      lastTransitionTimeRef.current = now;
+      setActiveFolderIndex(index);
+      slideToFolder(trackRef.current, index, FOLDERS.length, 0.45);
+
+      // Reset scroll position of the destination card to top
+      const nextCard = cardRefs.current[index];
+      if (nextCard) {
+        nextCard.scrollTop = 0;
+      }
+    },
+    [activeFolderIndex]
+  );
+
+  const nextFolder = useCallback(() => {
+    if (activeFolderIndex < FOLDERS.length - 1) {
+      jumpToFolder(activeFolderIndex + 1);
     }
+  }, [activeFolderIndex, jumpToFolder]);
 
-    const cleanup = initHorizontalFolderScrollTrigger(
-      containerRef.current,
-      trackRef.current,
-      FOLDERS.length,
-      (idx) => setActiveFolderIndex(idx)
-    );
-    return cleanup;
-  }, []);
+  const prevFolder = useCallback(() => {
+    if (activeFolderIndex > 0) {
+      jumpToFolder(activeFolderIndex - 1);
+    }
+  }, [activeFolderIndex, jumpToFolder]);
 
-  // Touch swipe handling for mobile
+  // Wheel Boundary Snapping
+  const handleWheel = useCallback(
+    (e) => {
+      if (Math.abs(e.deltaY) < 15) return;
+
+      const activeCard = cardRefs.current[activeFolderIndex];
+      const scrollEl = findScrollableContainer(e.target, activeCard) || activeCard;
+      const { isAtTop, isAtBottom, isScrollable } = checkScrollBoundary(scrollEl);
+
+      if (isScrollable) {
+        if (e.deltaY > 0) {
+          // Scrolling down: if not at bottom, permit natural vertical scrolling
+          if (!isAtBottom) return;
+          // Reached bottom boundary: advance to next folder
+          e.preventDefault();
+          nextFolder();
+        } else {
+          // Scrolling up: if not at top, permit natural vertical scrolling
+          if (!isAtTop) return;
+          // Reached top boundary: revert to previous folder
+          e.preventDefault();
+          prevFolder();
+        }
+      } else {
+        // Not internally scrollable: transition immediately
+        if (e.deltaY > 0) {
+          e.preventDefault();
+          nextFolder();
+        } else {
+          e.preventDefault();
+          prevFolder();
+        }
+      }
+    },
+    [activeFolderIndex, nextFolder, prevFolder]
+  );
+
+  // Touch Gesture Handling with Boundary Snapping
   const handleTouchStart = (e) => {
     if (e.touches && e.touches[0]) {
-      touchStartXRef.current = e.touches[0].clientX;
       touchStartYRef.current = e.touches[0].clientY;
+      touchStartXRef.current = e.touches[0].clientX;
     }
   };
 
-  const handleTouchEnd = (e) => {
-    if (!e.changedTouches || !e.changedTouches[0]) return;
-    const deltaX = touchStartXRef.current - e.changedTouches[0].clientX;
-    const deltaY = touchStartYRef.current - e.changedTouches[0].clientY;
+  const handleTouchMove = (e) => {
+    if (!e.touches || !e.touches[0]) return;
+    const currentY = e.touches[0].clientY;
+    const currentX = e.touches[0].clientX;
+    const deltaY = touchStartYRef.current - currentY; // positive = swipe up = scroll down
+    const deltaX = touchStartXRef.current - currentX;
 
-    // Horizontal swipe gesture on mobile
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
-      if (deltaX > 0 && activeFolderIndex < FOLDERS.length - 1) {
-        jumpToFolder(activeFolderIndex + 1);
-      } else if (deltaX < 0 && activeFolderIndex > 0) {
-        jumpToFolder(activeFolderIndex - 1);
+    // Horizontal swipe gesture prioritization
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 45) {
+      if (deltaX > 0) {
+        nextFolder();
+      } else {
+        prevFolder();
+      }
+      touchStartXRef.current = currentX;
+      return;
+    }
+
+    if (Math.abs(deltaY) < 25) return;
+
+    const activeCard = cardRefs.current[activeFolderIndex];
+    const scrollEl = findScrollableContainer(e.target, activeCard) || activeCard;
+    const { isAtTop, isAtBottom, isScrollable } = checkScrollBoundary(scrollEl);
+
+    if (isScrollable) {
+      if (deltaY > 0) {
+        if (!isAtBottom) return;
+        nextFolder();
+        touchStartYRef.current = currentY;
+      } else {
+        if (!isAtTop) return;
+        prevFolder();
+        touchStartYRef.current = currentY;
+      }
+    } else {
+      if (deltaY > 0) {
+        nextFolder();
+        touchStartYRef.current = currentY;
+      } else {
+        prevFolder();
+        touchStartYRef.current = currentY;
       }
     }
   };
 
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextFolder();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevFolder();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [nextFolder, prevFolder]);
+
+  // Initial alignment
+  useEffect(() => {
+    if (trackRef.current) {
+      slideToFolder(trackRef.current, 0, FOLDERS.length, 0);
+    }
+  }, []);
+
   return (
     <div
       ref={containerRef}
-      className="relative w-full overflow-hidden min-h-[calc(100vh-70px)] flex flex-col justify-between"
+      onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      className="relative w-full overflow-hidden min-h-[calc(100vh-104px)] flex flex-col justify-between select-none"
     >
-
       {/* Horizontal Folders Presentation Track */}
       <div
         ref={trackRef}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        className="flex w-[400%] h-full flex-1"
+        className="flex w-[400%] h-full flex-1 transition-transform"
       >
-        {/* ==================== FOLDER 01: OVERVIEW ==================== */}
-        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-center overflow-hidden">
-          <div className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto">
-            {/* Fake Desktop Title Bar */}
-            <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0">
+        {/* ==================== FOLDER 01: HERO & OVERVIEW ==================== */}
+        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden">
+          <div
+            ref={(el) => (cardRefs.current[0] = el)}
+            style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain transition-transform duration-150"
+          >
+            {/* Folder Chrome Header */}
+            <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#D24726] inline-block opacity-80" />
@@ -161,12 +265,12 @@ export default function HomeFolderDeck() {
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
                 </div>
                 <span className="font-semibold text-[11px] text-[var(--ppt-text-secondary)]">
-                  Folder 01 • Overview &amp; Template Engine
+                  {FOLDERS[0].title}
                 </span>
               </div>
             </div>
 
-            <div className="p-4 sm:p-8 lg:p-10 space-y-6 overflow-y-auto">
+            <div className="p-4 sm:p-8 lg:p-10 space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 justify-center items-center gap-6">
                 <div className="text-center lg:text-start space-y-4">
                   {/* Headline */}
@@ -199,7 +303,7 @@ export default function HomeFolderDeck() {
                     <button
                       type="button"
                       onClick={handleCopyInstall}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono bg-black/10 dark:bg-black/30 border border-[var(--ppt-card-border)] hover:border-[#D24726] text-[var(--ppt-text-primary)] transition-all"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono bg-black/10 dark:bg-black/30 border border-[var(--ppt-card-border)] hover:border-[#D24726] text-[var(--ppt-text-primary)] transition-all cursor-pointer"
                       title="Click to copy npm install command"
                     >
                       {copied ? (
@@ -251,10 +355,14 @@ export default function HomeFolderDeck() {
         </section>
 
         {/* ==================== FOLDER 02: FEATURES ==================== */}
-        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-center">
-          <div className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto">
-            {/* Fake Desktop Title Bar */}
-            <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0">
+        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden">
+          <div
+            ref={(el) => (cardRefs.current[1] = el)}
+            style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain transition-transform duration-150"
+          >
+            {/* Folder Chrome Header */}
+            <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#D24726] inline-block opacity-80" />
@@ -262,12 +370,12 @@ export default function HomeFolderDeck() {
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
                 </div>
                 <span className="font-semibold text-[11px] text-[var(--ppt-text-secondary)]">
-                  Folder 02 • Features &amp; Capabilities
+                  {FOLDERS[1].title}
                 </span>
               </div>
             </div>
 
-            <div className="p-4 sm:p-8 space-y-6 overflow-y-auto">
+            <div className="p-4 sm:p-8 space-y-6">
               <div className="text-center max-w-2xl mx-auto mb-4">
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--ppt-text-primary)] tracking-tight">
                   Built for Speed. Designed for Flexibility.
@@ -299,11 +407,15 @@ export default function HomeFolderDeck() {
           </div>
         </section>
 
-        {/* ==================== FOLDER 03: BENCHMARKS ==================== */}
-        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-center overflow-y-auto">
-          <div className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto">
-            {/* Fake Desktop Title Bar */}
-            <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0">
+        {/* ==================== FOLDER 03: ARCHITECTURE & BENCHMARKS ==================== */}
+        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden">
+          <div
+            ref={(el) => (cardRefs.current[2] = el)}
+            style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain transition-transform duration-150"
+          >
+            {/* Folder Chrome Header */}
+            <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#D24726] inline-block opacity-80" />
@@ -311,7 +423,7 @@ export default function HomeFolderDeck() {
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
                 </div>
                 <span className="font-semibold text-[11px] text-[var(--ppt-text-secondary)]">
-                  Folder 03 • Architectural Benchmarks &amp; Matrix
+                  {FOLDERS[2].title}
                 </span>
               </div>
             </div>
@@ -372,11 +484,15 @@ export default function HomeFolderDeck() {
           </div>
         </section>
 
-        {/* ==================== FOLDER 04: DOCUMENTATION ==================== */}
-        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-center overflow-y-auto">
-          <div className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto">
-            {/* Fake Desktop Title Bar */}
-            <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0">
+        {/* ==================== FOLDER 04: DOCUMENTATION & QUICKSTART ==================== */}
+        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden">
+          <div
+            ref={(el) => (cardRefs.current[3] = el)}
+            style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain transition-transform duration-150"
+          >
+            {/* Folder Chrome Header */}
+            <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#D24726] inline-block opacity-80" />
@@ -384,7 +500,7 @@ export default function HomeFolderDeck() {
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
                 </div>
                 <span className="font-semibold text-[11px] text-[var(--ppt-text-secondary)]">
-                  Folder 04 • Documentation Presentations
+                  {FOLDERS[3].title}
                 </span>
               </div>
             </div>
@@ -395,7 +511,7 @@ export default function HomeFolderDeck() {
                   Comprehensive Documentation Suite
                 </h2>
                 <p className="text-sm text-[var(--ppt-text-secondary)] mt-1">
-                  Structured into 3 focused PowerPoint slide presentations for instant developer productivity.
+                  Structured into focused PowerPoint slide presentations for instant developer productivity.
                 </p>
               </div>
 
@@ -431,6 +547,7 @@ export default function HomeFolderDeck() {
           </div>
         </section>
       </div>
+
       {/* Bottom Status Bar (Desktop) */}
       <StatusBar
         currentSlide={activeFolderIndex + 1}

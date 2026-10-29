@@ -1,69 +1,75 @@
 {
     "project": "node-pptx-templater-docs-site",
-    "version": "4.2.0",
-    "scope": "Documentation Portal UI/UX Polish, Responsive Viewport Optimization, Internal Scroll Snapping, and Global Omnisearch",
+    "version": "4.3.0",
+    "scope": "Documentation Site UX Overhaul: Scroll Snap Jumps, Category Routing, Responsive Function Viewer, Global Search Deep Links, and Workspace Cleanup",
+    "rules": {
+        "preserveContent": true,
+        "scopeStrict": "docs-site/"
+    },
     "tasks": [
         {
-            "id": "TASK-DOCS-001",
-            "title": "Nested Content Scroll Isolation with Snapping Slide Transitions",
+            "id": "TASK-DOCS-HOME-001",
+            "title": "Home Page Folder Deck Scroll Snapping & Navigation Cleanup",
             "status": "completed",
-            "description": "Fix wheel/touch event propagation within the PowerPoint documentation slide container. When the active slide content overflows vertically, wheel and touch gestures must scroll internal card content smoothly without advancing the deck. Only when the scroll position hits the boundary (scrollTop === 0 on upward scroll, or scrollTop + clientHeight >= scrollHeight - 2 on downward scroll) should the GSAP slide-change animation advance or revert the active slide.",
-            "deliverables": [
-                "docs-site/src/components/PowerPointSlideDeck.jsx",
-                "docs-site/src/animations/gsapSlideTransitions.js"
-            ]
-        },
-        {
-            "id": "TASK-DOCS-002",
-            "title": "Fix Left Slide Thumbnail Strip Boundary & Header Collision",
-            "status": "completed",
-            "description": "Resolve the visual glitch where scrolling slide thumbnails upward causes the first slide thumbnail card to slip underneath or collide with the fixed sidebar header and filter input. Apply strict boundary positioning (`sticky top-0 z-10` with matching backdrop surface fill or `overflow-y-auto` with explicit top padding/margins) on the thumbnail list container so cards stay cleanly contained.",
-            "deliverables": [
-                "docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx"
-            ]
-        },
-        {
-            "id": "TASK-DOCS-003",
-            "title": "Implement Horizontal Folder-Style ScrollTrigger Section Flow on Home Page",
-            "status": "completed",
-            "description": "Restructure the Home page landing sections ('/' route) into a horizontal folder deck flow. Pin the section container using GSAP ScrollTrigger and translate sections horizontally (`xPercent: -100 * (sections.length - 1)`). On mobile touch viewports, allow vertical touch drag within cards, advancing horizontally only when the user swipes or scrolls to the terminal boundary of the active folder section.",
+            "description": "On the Home Page ('/'), remove the top sub-tab bar and button navigation controls. Restructure sections into full-screen folder panels with snap-jump behavior: when a folder contains overflowing card content, native vertical scroll operates inside the folder until reaching the bottom edge (scrollTop + clientHeight >= scrollHeight - 2), at which point further downward scroll/wheel immediately triggers a clean snap-jump transition directly to the next folder section (and vice versa when scrolling up from the top edge).",
             "deliverables": [
                 "docs-site/src/app/page.jsx",
                 "docs-site/src/components/HomeFolderDeck.jsx",
-                "docs-site/src/animations/horizontalFolderTransitions.js"
+                "docs-site/src/animations/homeFolderScroll.js"
             ]
         },
         {
-            "id": "TASK-DOCS-004",
-            "title": "Responsive Layout Refactor for Mobile & Tablet Viewports",
+            "id": "TASK-DOCS-API-HEADER-002",
+            "title": "Relocate Search and Category Title to API Slide Card Header",
             "status": "completed",
-            "description": "Audit and adapt the desktop PowerPoint frame for tablet (< 1024px) and mobile (< 768px) screens. Eliminate desktop clipping, horizontal overflow, and fixed 1440px width constraints. Re-architect the application shell into fluid percentage/flex layouts, adjust font scale clamps, ensure code blocks scroll horizontally with touch-friendly paddings, and adjust the PowerPoint title and ribbon bars for small-screen ergonomics.",
+            "description": "Inside the API Reference interface, move the category search/filter input directly into the top bar/header of the active Slide Card, alongside the active Category Name. Remove all method counters and approved method count badges (e.g., '18 Approved Methods', '23 Methods') from the slide card frame to prioritize presentation space for function details.",
             "deliverables": [
-                "docs-site/src/components/PowerPointChrome/TitleBar.jsx",
-                "docs-site/src/components/PowerPointChrome/RibbonHeader.jsx",
-                "docs-site/src/app/docs/layout.jsx",
-                "docs-site/src/app/globals.css"
+                "docs-site/src/components/ApiReferenceCard.jsx",
+                "docs-site/src/components/PowerPointSlideDeck.jsx"
             ]
         },
         {
-            "id": "TASK-DOCS-005",
-            "title": "Bottom Horizontal Slide Filmstrip for Mobile and Tablet Viewports",
+            "id": "TASK-DOCS-API-MOBILE-003",
+            "title": "Mobile Horizontal Function Reel & Immediate Function Detail Focus",
             "status": "completed",
-            "description": "Implement responsive breakpoint switching for the slide deck navigation: hide the vertical 280px left thumbnail sidebar on screens narrower than 1024px, and render an anchored bottom horizontal slide filmstrip (`h-20` to `h-24`, horizontal scroll snap, 16:9 mini thumbnail cards). Ensure selecting or auto-advancing slides centers the active card horizontally in the filmstrip.",
+            "description": "Fix mobile view (< 768px) inside the API Reference so scrolling through functions does not hide or obscure function details: (1) Render function tabs/chips in a compact horizontal scrolling ribbon above the slide card, (2) Keep the primary viewport dedicated exclusively to the active function's signature, parameter table, OpenXML impact notes, and code editor, and (3) Ensure parameter tables and code editors scroll horizontally inside the card without page layout reflow.",
             "deliverables": [
-                "docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx",
-                "docs-site/src/components/PowerPointChrome/MobileSlideFilmstrip.jsx"
+                "docs-site/src/components/MobileFunctionReel.jsx",
+                "docs-site/src/components/ApiReferenceCard.jsx",
+                "docs-site/src/styles/globals.css"
             ]
         },
         {
-            "id": "TASK-DOCS-006",
-            "title": "Global Omnisearch Modal with Deep-Link Navigation",
+            "id": "TASK-DOCS-SEARCH-REDIRECT-004",
+            "title": "Fix Global Header Search Bar Redirection & Deep Linking",
             "status": "completed",
-            "description": "Upgrade the top header search bar into a universal omnisearch dialog (triggered via click or `Cmd+K` / `Ctrl+K`). Build a fast in-memory search index aggregating all routes, sections, guide headings, and API functions from `docs-site/src/data/*.json`. Display categorized results with keyboard arrow navigation and redirect directly to the matched route and specific slide/section anchor.",
+            "description": "Fix the global header search input so selecting any matched search result immediately navigates to the exact target route (e.g., '/docs/api-reference/tables#addTable') and automatically scrolls to/activates that specific function or section slide card. Support direct URL hash anchors and query parameter sync on page load.",
             "deliverables": [
                 "docs-site/src/components/GlobalSearchModal.jsx",
                 "docs-site/src/components/PowerPointChrome/TitleBar.jsx",
                 "docs-site/src/utils/searchIndex.js"
+            ]
+        },
+        {
+            "id": "TASK-DOCS-CATEGORY-PAGES-005",
+            "title": "Generate Dedicated Dynamic/Static Pages for Each API Category",
+            "status": "completed",
+            "description": "Restructure API Reference routes so every API category has its own dedicated URL path under '/docs/api-reference/[category]' (e.g., '/docs/api-reference/lifecycle', '/docs/api-reference/slides', '/docs/api-reference/text', '/docs/api-reference/tables', '/docs/api-reference/charts', '/docs/api-reference/shapes', '/docs/api-reference/images', '/docs/api-reference/elements'). Implement generateStaticParams() for static export, preserving deep links, sitemaps, and breadcrumbs.",
+            "deliverables": [
+                "docs-site/src/app/docs/api-reference/[category]/page.jsx",
+                "docs-site/src/app/docs/api-reference/page.jsx",
+                "docs-site/src/app/sitemap.js"
+            ]
+        },
+        {
+            "id": "TASK-DOCS-CLEANUP-006",
+            "title": "Purge Orphaned, Redundant & Unused Files from docs-site",
+            "status": "completed",
+            "description": "Audit the entire `docs-site/` directory tree and delete all unused legacy components, dead test fixtures, orphaned static images/assets, unreferenced CSS files, and outdated data schemas that are no longer utilized by the active Next.js App Router.",
+            "deliverables": [
+                "docs-site/src/components/",
+                "docs-site/src/data/",
+                "docs-site/public/"
             ]
         }
     ]

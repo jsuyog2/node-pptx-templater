@@ -5,6 +5,17 @@ export default function sitemap() {
   const now = new Date();
 
   // Strict 8 Standardized Categories
+  const categorySlugs = [
+    'import-export',
+    'slides',
+    'text-placeholders',
+    'tables',
+    'charts',
+    'shapes',
+    'images-media',
+    'elements',
+  ];
+
   const standardCategories = [
     'Import/Export',
     'Slides',
@@ -36,29 +47,30 @@ export default function sitemap() {
       priority: 0.85,
     },
     {
-      url: `${baseUrl}/docs/capabilities/`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.85,
-    },
-    {
       url: `${baseUrl}/docs/api-reference/`,
       lastModified: now,
       changeFrequency: 'weekly',
       priority: 0.95,
     },
-    // Also include canonical /api-reference alias / query entries
     {
       url: `${baseUrl}/api-reference/`,
       lastModified: now,
       changeFrequency: 'weekly',
       priority: 0.9,
     },
+    // Dedicated static category routes
+    ...categorySlugs.map((slug) => ({
+      url: `${baseUrl}/docs/api-reference/${slug}/`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    })),
+    // Backward compatibility query entries
     ...standardCategories.map((category) => ({
       url: `${baseUrl}/docs/api-reference/?category=${encodeURIComponent(category)}`,
       lastModified: now,
       changeFrequency: 'weekly',
-      priority: 0.8,
+      priority: 0.75,
     })),
   ];
 
