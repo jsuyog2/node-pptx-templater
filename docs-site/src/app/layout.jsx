@@ -4,6 +4,13 @@ import TitleBar from '../components/PowerPointChrome/TitleBar';
 import RibbonHeader from '../components/PowerPointChrome/RibbonHeader';
 import siteMeta from '../data/siteMeta.json';
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1.0,
+  maximumScale: 5.0,
+  viewportFit: 'cover',
+};
+
 export const metadata = {
   metadataBase: new URL(siteMeta.domainUrl),
   title: {
@@ -61,20 +68,21 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(siteMeta.jsonLd) }}
         />
       </head>
-      <body className="flex flex-col min-h-screen antialiased selection:bg-[#D24726]/30 selection:text-white">
+      <body className="flex flex-col min-h-screen w-full max-w-full overflow-x-hidden antialiased selection:bg-[#D24726]/30 selection:text-white">
         <ThemeProvider>
           {/* PowerPoint Desktop Application Chrome */}
           <TitleBar />
           <RibbonHeader />
 
           {/* Main Application Canvas */}
-          <main className="flex-1 w-full overflow-x-hidden">
+          <main className="flex-1 w-full max-w-full overflow-x-hidden">
             {children}
           </main>
         </ThemeProvider>

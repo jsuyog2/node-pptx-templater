@@ -300,7 +300,7 @@ export default function PowerPointSlideDeck({
   const activeSlide = slides[activeIndex] || slides[0] || {};
 
   return (
-    <div className="flex h-[calc(100vh-104px)] overflow-hidden relative w-full">
+    <div className="flex h-[calc(100vh-104px)] overflow-hidden relative w-full max-w-full">
       {/* Pinned Left Slide Thumbnail Sidebar (Desktop only) */}
       <SlideThumbnailSidebar
         slides={slides}
@@ -316,7 +316,7 @@ export default function PowerPointSlideDeck({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="flex-1 flex flex-col items-center justify-start p-3 sm:p-6 lg:p-8 overflow-hidden pb-16 relative w-full max-w-full overscroll-contain isolate"
+        className="flex-1 flex flex-col items-center justify-start p-2 sm:p-6 lg:p-8 overflow-hidden pb-16 relative w-full max-w-full overscroll-contain isolate box-border"
       >
         {/* Stage Directional Arrow Navigation Controls (Accessible on Mobile, Tablet & Desktop) */}
         <div className="fixed right-4 sm:right-6 top-[110px] sm:top-[120px] z-20">
@@ -333,16 +333,16 @@ export default function PowerPointSlideDeck({
         <div
           ref={stageRef}
           style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-          className="w-full max-w-5xl ppt-slide-card rounded-xl p-4 sm:p-6 lg:p-8 border border-[var(--ppt-card-border)] relative my-auto min-h-[460px] max-h-[calc(100vh-140px)] flex flex-col justify-between overflow-hidden max-w-full overscroll-contain isolate transition-transform duration-150"
+          className="w-full max-w-5xl ppt-slide-card rounded-xl p-2.5 sm:p-6 lg:p-8 border border-[var(--ppt-card-border)] relative my-auto min-h-[460px] max-h-[calc(100vh-140px)] flex flex-col justify-between overflow-hidden max-w-full overscroll-contain isolate transition-transform duration-150 box-border"
         >
           {activeSlide.hideDefaultHeader ? (
             /* Custom Slide Card Header & Content (Used by ApiReferenceCard for Unified Header) */
-            <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden w-full max-w-full overscroll-contain isolate">
+            <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden w-full max-w-full overscroll-contain isolate box-border">
               {activeSlide.content}
             </div>
           ) : (
             /* Standard Presentation Slide Layout (Used by Guides & Installation Decks) */
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain isolate w-full max-w-full">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain isolate w-full max-w-full box-border">
               {/* Slide Top Accent Bar & Meta */}
               <div className="flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-4 border-b border-[var(--ppt-card-border)]">
                 <div className="flex items-center gap-2">

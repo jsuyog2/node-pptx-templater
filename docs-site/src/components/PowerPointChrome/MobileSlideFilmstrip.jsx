@@ -25,7 +25,7 @@ export default function MobileSlideFilmstrip({
 
   return (
     <div
-      className="lg:hidden fixed bottom-0 inset-x-0 z-30 select-none transition-transform duration-300 ease-out"
+      className="lg:hidden fixed bottom-0 inset-x-0 w-full max-w-full overflow-hidden z-30 select-none transition-transform duration-300 ease-out"
       aria-label="Mobile Slide Navigation Filmstrip"
     >
       {/* Collapsible Drawer Container */}
@@ -67,7 +67,7 @@ export default function MobileSlideFilmstrip({
           }`}
           aria-hidden={!isExpanded}
         >
-          <div className="flex items-center gap-2 overflow-x-auto px-3 py-2 no-scrollbar snap-x snap-mandatory border-t border-[var(--ppt-card-border)]/50 bg-black/10 dark:bg-black/20">
+          <div className="flex items-center gap-2 overflow-x-auto max-w-full overscroll-x-contain px-3 py-2 no-scrollbar snap-x snap-mandatory border-t border-[var(--ppt-card-border)]/50 bg-black/10 dark:bg-black/20">
             {slides.map((slide, index) => {
               const isActive = index === activeSlideIndex;
               return (

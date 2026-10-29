@@ -35,7 +35,7 @@ export default function TitleBar({ title = 'node-pptx-templater.pptx — PowerPo
 
   return (
     <>
-      <header className="h-[36px] min-h-[36px] ppt-chrome-surface border-b border-[var(--ppt-chrome-border)] flex items-center justify-between px-2 text-xs select-none z-50 sticky top-0 w-full">
+      <header className="h-[36px] min-h-[36px] ppt-chrome-surface border-b border-[var(--ppt-chrome-border)] flex items-center justify-between px-2 text-xs select-none z-50 sticky top-0 w-full max-w-full overflow-hidden">
         {/* Left: PPT Badge, Quick Access Toolbar, AutoSave */}
         <div className="flex items-center gap-1 sm:gap-2 overflow-hidden flex-shrink-0">
           {/* PowerPoint App Badge */}

@@ -34,7 +34,7 @@ export default function NavigationArrows({
     <div
       role="group"
       aria-label={`${label} Navigation Controls`}
-      className={`inline-flex items-center gap-2 select-none ${className}`}
+      className={`inline-flex items-center gap-1.5 sm:gap-2 select-none max-w-full ${className}`}
     >
       {/* Previous Button */}
       <button

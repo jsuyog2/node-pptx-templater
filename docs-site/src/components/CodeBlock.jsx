@@ -17,7 +17,7 @@ export default function CodeBlock({ code = '', language = 'javascript', filename
   };
 
   return (
-    <div className="relative group my-4 text-start rounded-lg border border-[var(--ppt-card-border)] bg-black/40 dark:bg-black/60 overflow-hidden shadow-md">
+    <div className="relative group my-4 text-start rounded-lg border border-[var(--ppt-card-border)] bg-black/40 dark:bg-black/60 overflow-hidden shadow-md w-full max-w-full box-border">
       {/* Code Header Bar */}
       <div className="flex items-center justify-between px-3.5 py-1.5 border-b border-[var(--ppt-card-border)] bg-black/20 dark:bg-black/40 text-xs font-mono text-[var(--ppt-text-secondary)]">
         <div className="flex items-center gap-2">
@@ -55,9 +55,9 @@ export default function CodeBlock({ code = '', language = 'javascript', filename
         onTouchStart={(e) => e.stopPropagation()}
         onTouchMove={(e) => e.stopPropagation()}
         onTouchEnd={(e) => e.stopPropagation()}
-        className="p-4 overflow-x-auto text-xs sm:text-sm text-[var(--ppt-text-primary)] leading-relaxed font-mono selection:bg-[#D24726]/30 selection:text-white"
+        className="p-3 sm:p-4 overflow-x-auto max-w-full overscroll-x-contain text-xs sm:text-sm text-[var(--ppt-text-primary)] leading-relaxed font-mono selection:bg-[#D24726]/30 selection:text-white box-border"
       >
-        <pre className="whitespace-pre">
+        <pre className="whitespace-pre overflow-x-auto max-w-full overscroll-x-contain">
           <code>{code}</code>
         </pre>
       </div>

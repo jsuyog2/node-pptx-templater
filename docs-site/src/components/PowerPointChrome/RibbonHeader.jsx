@@ -46,9 +46,9 @@ export default function RibbonHeader() {
   };
 
   return (
-    <div className="ppt-chrome-surface border-b border-[var(--ppt-chrome-border)] flex flex-col justify-between px-2 sm:px-4 py-1 select-none z-40 sticky top-[36px]">
+    <div className="ppt-chrome-surface border-b border-[var(--ppt-chrome-border)] flex flex-col justify-between px-2 sm:px-4 py-1 select-none z-40 sticky top-[36px] w-full max-w-full overflow-hidden">
       {/* Top Row: File Tab + Primary Navigation Tabs + Actions */}
-      <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+      <div className="flex items-center justify-between gap-2 overflow-x-auto max-w-full overscroll-x-contain no-scrollbar">
         {/* Left: File Button & Primary Tabs */}
         <div className="flex items-center gap-1 sm:gap-2">
           {/* Persistent File Tab */}

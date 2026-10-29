@@ -232,7 +232,7 @@ export default function ApiReferenceCard({
                   onTouchStart={stopTouchPropagation}
                   onTouchMove={stopTouchPropagation}
                   onTouchEnd={stopTouchPropagation}
-                  className="font-mono text-xs text-[#D24726] mt-2 bg-black/20 dark:bg-black/40 p-2.5 rounded border border-[var(--ppt-card-border)]/50 overflow-x-auto whitespace-nowrap scrollbar-none"
+                  className="font-mono text-xs text-[#D24726] mt-2 bg-black/20 dark:bg-black/40 p-2.5 rounded border border-[var(--ppt-card-border)]/50 overflow-x-auto max-w-full overscroll-x-contain whitespace-nowrap scrollbar-none"
                 >
                   {activeMethod.signature}
                 </div>
@@ -253,9 +253,9 @@ export default function ApiReferenceCard({
                     onTouchStart={stopTouchPropagation}
                     onTouchMove={stopTouchPropagation}
                     onTouchEnd={stopTouchPropagation}
-                    className="overflow-x-auto rounded border border-[var(--ppt-card-border)]/60 scrollbar-none"
+                    className="overflow-x-auto max-w-full overscroll-x-contain rounded border border-[var(--ppt-card-border)]/60 scrollbar-none"
                   >
-                    <table className="w-full text-left text-xs border-collapse min-w-[420px]">
+                    <table className="w-full text-left text-xs border-collapse min-w-[360px] sm:min-w-[420px]">
                       <thead>
                         <tr className="border-b border-[var(--ppt-card-border)] bg-black/10 dark:bg-white/5 text-[var(--ppt-text-secondary)]">
                           <th className="py-2 px-3 font-mono font-semibold">Name</th>
@@ -308,7 +308,7 @@ export default function ApiReferenceCard({
                   <div className="text-xs font-semibold text-[var(--ppt-text-primary)]">
                     Usage Example:
                   </div>
-                  <div className="overflow-x-auto scrollbar-none rounded-lg">
+                  <div className="overflow-x-auto max-w-full overscroll-x-contain scrollbar-none rounded-lg">
                     <CodeBlock
                       code={activeMethod.example}
                       language="javascript"

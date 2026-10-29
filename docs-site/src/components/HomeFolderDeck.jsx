@@ -310,7 +310,7 @@ export default function HomeFolderDeck() {
       onWheel={handleWheel}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
-      className="relative w-full overflow-hidden min-h-[calc(100vh-104px)] flex flex-col justify-between select-none"
+      className="relative w-full max-w-full overflow-hidden min-h-[calc(100vh-104px)] flex flex-col justify-between select-none"
     >
       {/* Horizontal Folders Presentation Track */}
       <div
@@ -318,11 +318,11 @@ export default function HomeFolderDeck() {
         className="flex w-[400%] h-full flex-1 transition-transform"
       >
         {/* ==================== FOLDER 01: HERO & OVERVIEW ==================== */}
-        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden">
+        <section className="w-1/4 max-w-full h-full flex-shrink-0 px-2 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden box-border">
           <div
             ref={(el) => (cardRefs.current[0] = el)}
             style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150"
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150 box-border"
           >
             {/* Folder Chrome Header */}
             <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
@@ -423,11 +423,11 @@ export default function HomeFolderDeck() {
         </section>
 
         {/* ==================== FOLDER 02: FEATURES ==================== */}
-        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden">
+        <section className="w-1/4 max-w-full h-full flex-shrink-0 px-2 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden box-border">
           <div
             ref={(el) => (cardRefs.current[1] = el)}
             style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150"
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150 box-border"
           >
             {/* Folder Chrome Header */}
             <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
@@ -476,11 +476,11 @@ export default function HomeFolderDeck() {
         </section>
 
         {/* ==================== FOLDER 03: ARCHITECTURE & BENCHMARKS ==================== */}
-        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden">
+        <section className="w-1/4 max-w-full h-full flex-shrink-0 px-2 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden box-border">
           <div
             ref={(el) => (cardRefs.current[2] = el)}
             style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150"
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150 box-border"
           >
             {/* Folder Chrome Header */}
             <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
@@ -509,7 +509,12 @@ export default function HomeFolderDeck() {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              <div
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                className="overflow-x-auto max-w-full overscroll-x-contain"
+              >
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--ppt-card-border)] text-[var(--ppt-text-secondary)]">
@@ -553,11 +558,11 @@ export default function HomeFolderDeck() {
         </section>
 
         {/* ==================== FOLDER 04: DOCUMENTATION & QUICKSTART ==================== */}
-        <section className="w-screen h-full flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden">
+        <section className="w-1/4 max-w-full h-full flex-shrink-0 px-2 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden box-border">
           <div
             ref={(el) => (cardRefs.current[3] = el)}
             style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150"
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150 box-border"
           >
             {/* Folder Chrome Header */}
             <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
