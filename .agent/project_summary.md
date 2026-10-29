@@ -95,3 +95,9 @@ The documentation portal is redesigned into an authentic Microsoft PowerPoint de
   - `docs-site/public/llms.txt`: Machine-optimized LLM crawler documentation for Perplexity, Google AI Overviews, Claude, and ChatGPT Search.
   - Schema.org JSON-LD structured data (`SoftwareApplication`, `TechArticle`, `FAQPage`).
   - Standard `sitemap.xml` and `robots.txt` generated automatically via Next.js route handlers.
+- **v4.2.0 UI/UX & Responsive Enhancements**:
+  - **Internal Card Scroll Guard**: Slide deck detects boundary conditions (`scrollTop <= 0` and `scrollTop + clientHeight >= scrollHeight - 2`) so internal content scrolls naturally before deck snapping triggers.
+  - **Thumbnail Collision Fix**: Sidebar header has opaque backdrop fill (`bg-[#E6DEC8] dark:bg-[rgba(38,38,38,0.98)]`) and thumbnails sit in an isolated flex scroll sub-container with `pt-3` and `overscroll-contain`.
+  - **Horizontal Folder Deck**: Landing page converts sections into a horizontal presentation folder flow powered by GSAP ScrollTrigger and touch swipes.
+  - **Mobile Slide Filmstrip**: Responsive breakpoint switching (`max-lg:hidden` on left sidebar, bottom horizontal 16:9 filmstrip with auto-centering on `< 1024px`).
+  - **Global Omnisearch**: Universal search dialog (`Cmd+K` / `Ctrl+K` and header trigger button) indexing all 135+ methods, categories, and slides with keyboard navigation and instant deep linking.

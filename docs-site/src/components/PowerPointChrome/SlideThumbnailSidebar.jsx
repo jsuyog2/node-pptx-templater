@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { Layers, FileCode, CheckCircle2 } from 'lucide-react';
+import { Layers, FileCode } from 'lucide-react';
 
 export default function SlideThumbnailSidebar({
   slides = [],
@@ -22,22 +22,22 @@ export default function SlideThumbnailSidebar({
 
   return (
     <aside
-      className={`w-[280px] min-w-[280px] max-w-[280px] ppt-chrome-surface border-r border-[var(--ppt-chrome-border)] flex flex-col h-[calc(100vh-105x)] overflow-y-auto select-none ${className}`}
+      className={`hidden lg:flex w-[280px] min-w-[280px] max-w-[280px] ppt-chrome-surface border-r border-[var(--ppt-chrome-border)] flex-col h-[calc(100vh-104px)] select-none relative ${className}`}
       aria-label="Presentation Slide Thumbnails"
     >
-      {/* Sidebar Header */}
-      <div className="p-3 border-b border-[var(--ppt-chrome-border)] flex items-center justify-between sticky top-0 bg-[var(--ppt-chrome-bg)] backdrop-blur-md z-10">
+      {/* Sidebar Header with Opaque Theme Surface to prevent thumbnail collision */}
+      <div className="sticky top-0 z-10 bg-[#E6DEC8] dark:bg-[rgba(38,38,38,0.98)] border-b border-[var(--ppt-chrome-border)] p-3 flex items-center justify-between shadow-sm flex-shrink-0">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--ppt-text-primary)]">
           <Layers className="w-3.5 h-3.5 text-[#D24726]" />
           <span>Slides</span>
         </div>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#D24726]/10 text-[#D24726] font-medium">
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#D24726]/10 text-[#D24726] font-medium font-mono">
           {slides.length} slides
         </span>
       </div>
 
-      {/* Vertical 16:9 Slide Thumbnails */}
-      <div className="p-3 space-y-3">
+      {/* Dedicated Scroll Container for Thumbnails with Explicit Padding */}
+      <div className="flex-1 overflow-y-auto p-3 pt-3 space-y-3 overscroll-contain">
         {slides.map((slide, index) => {
           const isActive = index === activeSlideIndex;
           return (

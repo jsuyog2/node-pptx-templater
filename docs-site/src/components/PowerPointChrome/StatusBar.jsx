@@ -20,9 +20,10 @@ export default function StatusBar({
   onViewModeChange = () => { },
   zoomLevel = 100,
   onZoomChange = () => { },
+  className = '',
 }) {
   return (
-    <footer className="h-[32px] min-h-[32px] ppt-chrome-surface border-t border-[var(--ppt-chrome-border)] flex items-center justify-between px-3 text-[11px] text-[var(--ppt-text-secondary)] select-none z-50 fixed bottom-0 left-0 right-0">
+    <footer className={`h-[32px] min-h-[32px] ppt-chrome-surface border-t border-[var(--ppt-chrome-border)] items-center justify-between px-3 text-[11px] text-[var(--ppt-text-secondary)] select-none z-50 fixed bottom-0 left-0 right-0 ${className || 'flex'}`}>
       {/* Left: Slide Counter & OpenXML Indicator */}
       <div className="flex items-center gap-3 sm:gap-5 overflow-hidden">
         {/* Slide Counter */}

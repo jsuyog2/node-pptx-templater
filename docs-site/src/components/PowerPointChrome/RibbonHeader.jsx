@@ -128,8 +128,8 @@ export default function RibbonHeader() {
             <ExternalLink className="w-3 h-3 opacity-60" />
           </a>
 
-          <div className="flex items-center gap-1 text-[10px]">
-            <span className="hidden sm:inline opacity-70">Engine:</span>
+          <div className="hidden lg:flex items-center gap-1 text-[10px]">
+            <span className="opacity-70">Engine:</span>
             <span className="font-semibold text-[var(--ppt-text-primary)]">v3.0.0-beta.0</span>
           </div>
         </div>

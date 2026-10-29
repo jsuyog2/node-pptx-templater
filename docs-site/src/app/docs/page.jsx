@@ -9,6 +9,44 @@ import CodeBlock from '../../components/CodeBlock';
 const OVERVIEW_SLIDES = [
   {
     id: 'slide-1',
+    category: 'Quickstart',
+    title: 'Under 15 Lines of Code',
+    subtitle: 'End-to-End Ingest, Mutation, and Export Pipeline',
+    signature: 'PPTXTemplater Pipeline',
+    content: (
+      <div className="space-y-3">
+        <p className="text-xs sm:text-sm text-[var(--ppt-text-secondary)]">
+          Load an existing template, substitute text variables with AST run-fragment healing, update native charts with Excel sheet dual-sync, and export cleanly:
+        </p>
+        <CodeBlock
+          code={`import { PPTXTemplater } from 'node-pptx-templater';
+
+// 1. Ingest existing template into memory (Zero disk writes)
+const ppt = await PPTXTemplater.load('./templates/quarterly-report.pptx');
+
+// 2. Perform text replacement
+ppt.useSlide(1).replaceText({
+  '{{COMPANY}}': 'Acme Global AI',
+  '{{REVENUE}}': '$48.5M ARR'
+});
+
+// 3. Update native charts
+ppt.useSlide(2);
+await ppt.updateChart('ARRChart', {
+  categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+  series: [{ name: 'ARR ($M)', values: [24.5, 31.2, 39.8, 48.5] }]
+});
+
+// 4. Export cleanly
+await ppt.saveToFile('./output/Quarterly_Report_2026.pptx');`}
+          language="javascript"
+          filename="quickstart.mjs"
+        />
+      </div>
+    ),
+  },
+  {
+    id: 'slide-2',
     category: 'Zero Dependencies',
     title: 'Zero Office Dependencies & Pure JavaScript Runtime',
     subtitle: 'Serverless, Edge & Node.js Native Execution',
@@ -43,44 +81,6 @@ const OVERVIEW_SLIDES = [
             Eliminates complex container builds and native binary compilation (`node-gyp`). Operates directly within standard V8 isolates with zero temporary disk writes to <code className="font-mono text-[#D24726]">/tmp</code>.
           </p>
         </div>
-      </div>
-    ),
-  },
-  {
-    id: 'slide-2',
-    category: 'Quickstart',
-    title: 'Under 15 Lines of Code',
-    subtitle: 'End-to-End Ingest, Mutation, and Export Pipeline',
-    signature: 'PPTXTemplater Pipeline',
-    content: (
-      <div className="space-y-3">
-        <p className="text-xs sm:text-sm text-[var(--ppt-text-secondary)]">
-          Load an existing template, substitute text variables with AST run-fragment healing, update native charts with Excel sheet dual-sync, and export cleanly:
-        </p>
-        <CodeBlock
-          code={`import { PPTXTemplater } from 'node-pptx-templater';
-
-// 1. Ingest existing template into memory (Zero disk writes)
-const ppt = await PPTXTemplater.load('./templates/quarterly-report.pptx');
-
-// 2. Perform text replacement
-ppt.useSlide(1).replaceText({
-  '{{COMPANY}}': 'Acme Global AI',
-  '{{REVENUE}}': '$48.5M ARR'
-});
-
-// 3. Update native charts
-ppt.useSlide(2);
-await ppt.updateChart('ARRChart', {
-  categories: ['Q1', 'Q2', 'Q3', 'Q4'],
-  series: [{ name: 'ARR ($M)', values: [24.5, 31.2, 39.8, 48.5] }]
-});
-
-// 4. Export cleanly
-await ppt.saveToFile('./output/Quarterly_Report_2026.pptx');`}
-          language="javascript"
-          filename="quickstart.mjs"
-        />
       </div>
     ),
   },

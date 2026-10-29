@@ -1,84 +1,69 @@
 {
-    "project": "node-pptx-templater-docs-powerpoint-redesign",
-    "version": "4.1.0",
-    "framework": "Next.js (App Router, Static HTML Export)",
-    "animationEngine": "GSAP + ScrollTrigger",
-    "targetHost": "Cloudflare Pages",
+    "project": "node-pptx-templater-docs-site",
+    "version": "4.2.0",
+    "scope": "Documentation Portal UI/UX Polish, Responsive Viewport Optimization, Internal Scroll Snapping, and Global Omnisearch",
     "tasks": [
         {
-            "id": "TASK-UI-001",
-            "title": "Strict Microsoft PowerPoint Desktop Layout & Color Token System",
+            "id": "TASK-DOCS-001",
+            "title": "Nested Content Scroll Isolation with Snapping Slide Transitions",
             "status": "completed",
-            "description": "Redesign the documentation workspace into a full-fidelity Microsoft PowerPoint application shell across both themes. Strictly enforce the exact design tokens and linear/radial CSS gradients: Dark Mode (Page background gradient: linear-gradient(180deg, rgba(210, 71, 38, 0.3) 0%, rgba(54, 54, 54, 0.2) 100%), #000000; chrome: rgba(38, 38, 38, 0.5); cards: rgba(54, 54, 54, 0.5); primary accent: #D24726; primary text: #E6E6E6; secondary text: #929299) and Light Mode (Page background: radial-gradient(206.32% 100% at 100% 100%, #797568 0%, #DFD8C0 100%), #FFFFFF; chrome: #E6DEC8; cards: rgba(245, 240, 230, 0.5); primary accent: #D24726; primary text: #302F28; secondary text: #797568). Implement the PowerPoint top title bar, ribbon toolbar, fixed left slide thumbnail strip (16:9 previews with active #D24726 selection outline), center presentation canvas, and bottom status bar with slide counter and zoom controls.",
+            "description": "Fix wheel/touch event propagation within the PowerPoint documentation slide container. When the active slide content overflows vertically, wheel and touch gestures must scroll internal card content smoothly without advancing the deck. Only when the scroll position hits the boundary (scrollTop === 0 on upward scroll, or scrollTop + clientHeight >= scrollHeight - 2 on downward scroll) should the GSAP slide-change animation advance or revert the active slide.",
             "deliverables": [
-                "docs-site/tailwind.config.mjs",
-                "docs-site/src/components/PowerPointChrome/TitleBar.jsx",
-                "docs-site/src/components/PowerPointChrome/RibbonHeader.jsx",
-                "docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx",
-                "docs-site/src/components/PowerPointChrome/StatusBar.jsx"
+                "docs-site/src/components/PowerPointSlideDeck.jsx",
+                "docs-site/src/animations/gsapSlideTransitions.js"
             ]
         },
         {
-            "id": "TASK-ANIM-002",
-            "title": "GSAP Slide Transition Engine & Hero ScrollTrigger Animations",
+            "id": "TASK-DOCS-002",
+            "title": "Fix Left Slide Thumbnail Strip Boundary & Header Collision",
             "status": "completed",
-            "description": "Integrate GSAP and ScrollTrigger. On the landing/home hero section, implement staggered headline and code block entry animations triggered via ScrollTrigger. In the documentation viewport, implement a PowerPoint slide-change presentation experience: while the ribbon header and thumbnail sidebar remain stationary and pinned, scrolling vertically advances between presentation slide decks using smooth GSAP wipe/push transitions and snaps to subsequent documentation topics.",
+            "description": "Resolve the visual glitch where scrolling slide thumbnails upward causes the first slide thumbnail card to slip underneath or collide with the fixed sidebar header and filter input. Apply strict boundary positioning (`sticky top-0 z-10` with matching backdrop surface fill or `overflow-y-auto` with explicit top padding/margins) on the thumbnail list container so cards stay cleanly contained.",
             "deliverables": [
-                "docs-site/src/animations/gsapSlideTransitions.js",
-                "docs-site/src/components/HeroSection.jsx",
-                "docs-site/src/components/PowerPointSlideDeck.jsx"
+                "docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx"
             ]
         },
         {
-            "id": "TASK-ROUTING-003",
-            "title": "Consolidate Strict 4-Route Structure & Purge Extraneous Pages",
+            "id": "TASK-DOCS-003",
+            "title": "Implement Horizontal Folder-Style ScrollTrigger Section Flow on Home Page",
             "status": "completed",
-            "description": "Reconfigure Next.js App Router to strictly support ONLY the requested routes: '/' (Main home landing page), '/docs' (Documentation overview default), '/docs/installation' (Installation and project setup), '/docs/capabilities' (Capabilities and architectural features), and '/docs/api-reference' (Interactive API reference with all functions and examples). Completely delete and purge any legacy routes, orphaned pages, and unused data files (such as /features, /guides, /docs/api, and legacy test assets).",
+            "description": "Restructure the Home page landing sections ('/' route) into a horizontal folder deck flow. Pin the section container using GSAP ScrollTrigger and translate sections horizontally (`xPercent: -100 * (sections.length - 1)`). On mobile touch viewports, allow vertical touch drag within cards, advancing horizontally only when the user swipes or scrolls to the terminal boundary of the active folder section.",
             "deliverables": [
                 "docs-site/src/app/page.jsx",
-                "docs-site/src/app/docs/page.jsx",
-                "docs-site/src/app/docs/installation/page.jsx",
-                "docs-site/src/app/docs/capabilities/page.jsx",
-                "docs-site/src/app/docs/api-reference/page.jsx"
+                "docs-site/src/components/HomeFolderDeck.jsx",
+                "docs-site/src/animations/horizontalFolderTransitions.js"
             ]
         },
         {
-            "id": "TASK-DATA-004",
-            "title": "Refine Content JSON Schemas & Prune Unused Text",
+            "id": "TASK-DOCS-004",
+            "title": "Responsive Layout Refactor for Mobile & Tablet Viewports",
             "status": "completed",
-            "description": "Align documentation data files under docs-site/src/data/ strictly to the approved routes. Audit apiReference.json, docsNavigation.json, and siteMeta.json to delete all obsolete categories, extraneous diagnostic methods, dead text, and placeholder stubs. Keep only clean, copyable code examples, exact method signatures, parameter tables, and valid OpenXML DOM impact details.",
+            "description": "Audit and adapt the desktop PowerPoint frame for tablet (< 1024px) and mobile (< 768px) screens. Eliminate desktop clipping, horizontal overflow, and fixed 1440px width constraints. Re-architect the application shell into fluid percentage/flex layouts, adjust font scale clamps, ensure code blocks scroll horizontally with touch-friendly paddings, and adjust the PowerPoint title and ribbon bars for small-screen ergonomics.",
             "deliverables": [
-                "docs-site/src/data/docsNavigation.json",
-                "docs-site/src/data/apiReference.json",
-                "docs-site/src/data/siteMeta.json"
+                "docs-site/src/components/PowerPointChrome/TitleBar.jsx",
+                "docs-site/src/components/PowerPointChrome/RibbonHeader.jsx",
+                "docs-site/src/app/docs/layout.jsx",
+                "docs-site/src/app/globals.css"
             ]
         },
         {
-            "id": "TASK-SEO-005",
-            "title": "Comprehensive High-Ranking SEO, AI-Search Mode & Structured Data Engine",
+            "id": "TASK-DOCS-005",
+            "title": "Bottom Horizontal Slide Filmstrip for Mobile and Tablet Viewports",
             "status": "completed",
-            "description": "Optimize the entire portal to dominate #1 organic search rankings on Google/Bing and qualify for top generative citations in Google AI Overviews, Perplexity, Claude, and ChatGPT Search. Embed rich JSON-LD schemas (SoftwareApplication, TechArticle, FAQPage), compile docs-site/public/llms.txt specifically for LLM scrapers, generate standard sitemap.xml and robots.txt, implement 1200x630 OpenGraph and Twitter cards, and optimize package.json / README.md keywords targeting pure JavaScript PPTX template engine and serverless slide automation.",
+            "description": "Implement responsive breakpoint switching for the slide deck navigation: hide the vertical 280px left thumbnail sidebar on screens narrower than 1024px, and render an anchored bottom horizontal slide filmstrip (`h-20` to `h-24`, horizontal scroll snap, 16:9 mini thumbnail cards). Ensure selecting or auto-advancing slides centers the active card horizontally in the filmstrip.",
             "deliverables": [
-                "docs-site/src/app/sitemap.js",
-                "docs-site/src/app/robots.js",
-                "docs-site/public/llms.txt",
-                "docs-site/src/components/SEOHead.jsx",
-                "package.json",
-                "README.md"
+                "docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx",
+                "docs-site/src/components/PowerPointChrome/MobileSlideFilmstrip.jsx"
             ]
         },
         {
-            "id": "TASK-BUILD-006",
-            "title": "Static Export Verification, Agent Memory Sync & Final Build",
+            "id": "TASK-DOCS-006",
+            "title": "Global Omnisearch Modal with Deep-Link Navigation",
             "status": "completed",
-            "description": "Execute static compilation with `next build` verifying zero hydration errors and clean static HTML emission under docs-site/out/. Synchronize the .agent knowledge base (.agent/project_summary.md, .agent/rules/features.md) to reflect the PowerPoint layout, strict route layout, and GSAP slide transitions.",
+            "description": "Upgrade the top header search bar into a universal omnisearch dialog (triggered via click or `Cmd+K` / `Ctrl+K`). Build a fast in-memory search index aggregating all routes, sections, guide headings, and API functions from `docs-site/src/data/*.json`. Display categorized results with keyboard arrow navigation and redirect directly to the matched route and specific slide/section anchor.",
             "deliverables": [
-                "docs-site/out/index.html",
-                "docs-site/out/docs/index.html",
-                "docs-site/out/docs/installation/index.html",
-                "docs-site/out/docs/capabilities/index.html",
-                "docs-site/out/docs/api-reference/index.html",
-                ".agent/project_summary.md"
+                "docs-site/src/components/GlobalSearchModal.jsx",
+                "docs-site/src/components/PowerPointChrome/TitleBar.jsx",
+                "docs-site/src/utils/searchIndex.js"
             ]
         }
     ]

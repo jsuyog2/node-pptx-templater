@@ -39,9 +39,6 @@ function CategorySlideContent({ categoryName, methods = [] }) {
           <span className="text-xs font-semibold text-[var(--ppt-text-secondary)]">
             {methods.length} Public API Methods
           </span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#D24726]/10 text-[#D24726] font-mono">
-            ISO/IEC 29500
-          </span>
         </div>
 
         {/* Search Input */}
@@ -52,7 +49,7 @@ function CategorySlideContent({ categoryName, methods = [] }) {
             placeholder={`Filter ${categoryName} methods...`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 pr-3 py-1 rounded text-xs ppt-card-surface border border-[var(--ppt-card-border)] text-[var(--ppt-text-primary)] placeholder-[var(--ppt-text-secondary)]/50 focus:border-[#D24726] focus:outline-none w-48 sm:w-60"
+            className="pl-8 pr-3 py-1 rounded text-xs ppt-card-surface border border-[var(--ppt-card-border)] text-[var(--ppt-text-primary)] placeholder-[var(--ppt-text-secondary)]/50 focus:border-[#D24726] focus:outline-none w-full sm:w-60"
           />
         </div>
       </div>
@@ -68,20 +65,18 @@ function CategorySlideContent({ categoryName, methods = [] }) {
                 key={m.name}
                 type="button"
                 onClick={() => setSelectedMethodName(m.name)}
-                className={`w-full text-left px-3 py-2 rounded text-xs transition-all flex items-center justify-between border ${
-                  isSelected
-                    ? 'border-[#D24726] bg-[#D24726]/10 text-[var(--ppt-text-primary)] font-semibold'
-                    : 'border-transparent hover:border-[var(--ppt-card-border)] text-[var(--ppt-text-secondary)] hover:text-[var(--ppt-text-primary)]'
-                }`}
+                className={`w-full text-left px-3 py-2 rounded text-xs transition-all flex items-center justify-between border ${isSelected
+                  ? 'border-[#D24726] bg-[#D24726]/10 text-[var(--ppt-text-primary)] font-semibold'
+                  : 'border-transparent hover:border-[var(--ppt-card-border)] text-[var(--ppt-text-secondary)] hover:text-[var(--ppt-text-primary)]'
+                  }`}
               >
                 <div className="truncate mr-2">
                   <div className="font-mono text-[11px] truncate">{m.name}()</div>
                   <div className="text-[9px] opacity-70 truncate">{m.description}</div>
                 </div>
                 <ChevronRight
-                  className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${
-                    isSelected ? 'text-[#D24726] translate-x-0.5' : 'opacity-40'
-                  }`}
+                  className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isSelected ? 'text-[#D24726] translate-x-0.5' : 'opacity-40'
+                    }`}
                 />
               </button>
             );
