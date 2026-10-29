@@ -74,4 +74,24 @@ The public API surface of `PPTXTemplater` is strictly organized across 8 categor
 
 ## 3. Documentation Portal (`docs-site/`)
 
-The documentation site is a static export built with Next.js 14+ App Router (`output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`). All documentation content is driven by decoupled JSON schemas in `docs-site/src/data/` (`apiReference.json`, `features.json`, `docsNavigation.json`, `compatibility.json`, `siteMeta.json`) and verified by `npm run docs:validate`.
+The documentation portal is redesigned into an authentic Microsoft PowerPoint desktop software environment built with Next.js 14+ App Router (`output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`).
+
+### Architecture & UI System:
+- **Microsoft PowerPoint Desktop Chrome**:
+  - **Top Title Bar (36px)**: Quick Access icons (Save, Undo, Redo, Slide Show), file title `"node-pptx-templater.pptx — PowerPoint"`, AutoSave indicator, Theme Toggle, and Window Controls (`—`, `□`, `✕`).
+  - **Subheader Ribbon (68px)**: Persistent `#D24726` "File" tab, primary navigation tabs, and quick action ribbon tools (npm copy, GitHub, npm).
+  - **Fixed Left Slide Thumbnail Strip (280px)**: Vertical 16:9 thumbnail previews showing method/section titles with slide numbers and active `#D24726` selection outline.
+  - **Center Slide Stage (16:9 Aspect Ratio)**: Centered presentation slide cards with syntax-highlighted code blocks, parameter tables, and 1-click Copy buttons.
+  - **Bottom Status Bar (32px)**: Slide counter (`"Slide X of Y"`), pure JS OpenXML engine indicator, view mode selectors, and zoom controls.
+- **Strict 4-Route Hierarchy**:
+  - `/` — Main Home Landing Page with HeroSection, ScrollTrigger reveals, interactive recipe playground, and comparison matrix.
+  - `/docs` — Documentation Overview presentation deck.
+  - `/docs/installation` — Dedicated Installation & Setup presentation deck.
+  - `/docs/capabilities` — Capabilities, Architecture & Runtime Compatibility Matrix.
+  - `/docs/api-reference` — Complete API Reference presentation deck covering all 8 canonical categories.
+- **GSAP Animation Engine**:
+  - `docs-site/src/animations/gsapSlideTransitions.js`: ScrollTrigger staggered reveals on the hero section and smooth vertical push / slide-up slide transitions on wheel/keyboard navigation synchronizing with the thumbnail sidebar.
+- **Comprehensive SEO & AI Ingestion**:
+  - `docs-site/public/llms.txt`: Machine-optimized LLM crawler documentation for Perplexity, Google AI Overviews, Claude, and ChatGPT Search.
+  - Schema.org JSON-LD structured data (`SoftwareApplication`, `TechArticle`, `FAQPage`).
+  - Standard `sitemap.xml` and `robots.txt` generated automatically via Next.js route handlers.

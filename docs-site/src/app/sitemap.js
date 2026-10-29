@@ -1,11 +1,10 @@
 import siteMeta from '../data/siteMeta.json';
-import guidesData from '../data/guides.json';
 
 export default function sitemap() {
   const baseUrl = siteMeta.domainUrl.replace(/\/+$/, '');
   const now = new Date();
 
-  // Exact 8 Standardized Categories
+  // Strict 8 Standardized Categories
   const standardCategories = [
     'Import/Export',
     'Slides',
@@ -28,43 +27,38 @@ export default function sitemap() {
       url: `${baseUrl}/docs/`,
       lastModified: now,
       changeFrequency: 'weekly',
-      priority: 0.8,
+      priority: 0.9,
     },
-    {
-      url: `${baseUrl}/features/`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/docs/api/`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    ...standardCategories.map((category) => ({
-      url: `${baseUrl}/docs/api/?category=${encodeURIComponent(category)}`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    })),
     {
       url: `${baseUrl}/docs/installation/`,
       lastModified: now,
       changeFrequency: 'weekly',
-      priority: 0.64,
+      priority: 0.85,
     },
     {
-      url: `${baseUrl}/docs/compatibility/`,
+      url: `${baseUrl}/docs/capabilities/`,
       lastModified: now,
       changeFrequency: 'weekly',
-      priority: 0.64,
+      priority: 0.85,
     },
-    ...guidesData.map((guide) => ({
-      url: `${baseUrl}/guides/${guide.slug}/`,
+    {
+      url: `${baseUrl}/docs/api-reference/`,
       lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.7,
+      changeFrequency: 'weekly',
+      priority: 0.95,
+    },
+    // Also include canonical /api-reference alias / query entries
+    {
+      url: `${baseUrl}/api-reference/`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
+    ...standardCategories.map((category) => ({
+      url: `${baseUrl}/docs/api-reference/?category=${encodeURIComponent(category)}`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.8,
     })),
   ];
 

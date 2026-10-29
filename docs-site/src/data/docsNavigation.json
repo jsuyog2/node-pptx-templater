@@ -5,88 +5,97 @@
       "href": "/"
     },
     {
-      "title": "Docs",
+      "title": "Overview",
       "href": "/docs"
     },
     {
-      "title": "Features",
-      "href": "/features"
+      "title": "Installation",
+      "href": "/docs/installation"
+    },
+    {
+      "title": "Capabilities",
+      "href": "/docs/capabilities"
     },
     {
       "title": "API Reference",
-      "href": "/docs/api"
+      "href": "/docs/api-reference"
     }
   ],
   "sidebar": [
     {
-      "title": "Getting Started",
+      "title": "Documentation",
       "items": [
         {
           "title": "Overview",
           "href": "/docs",
-          "icon": "BookOpen"
+          "icon": "FileText"
         },
         {
-          "title": "Installation Guides",
+          "title": "Installation",
           "href": "/docs/installation",
-          "icon": "Download"
+          "icon": "Terminal"
         },
         {
-          "title": "Compatibility Matrix",
-          "href": "/docs/compatibility",
+          "title": "Capabilities & Matrix",
+          "href": "/docs/capabilities",
           "icon": "Cpu"
+        },
+        {
+          "title": "API Reference",
+          "href": "/docs/api-reference",
+          "icon": "Code2"
         }
       ]
     },
     {
-      "title": "API Reference",
-      "href": "/docs/api",
+      "title": "Standard Categories",
+      "href": "/docs/api-reference",
       "items": [
         {
           "title": "Import/Export",
-          "href": "/docs/api#Import%2FExport",
+          "href": "/docs/api-reference#Import%2FExport",
           "category": "Import/Export",
           "count": 18
         },
         {
           "title": "Slides",
-          "href": "/docs/api#Slides",
+          "href": "/docs/api-reference#Slides",
           "category": "Slides",
           "count": 24
         },
         {
           "title": "Text & Placeholders",
-          "href": "/docs/api#Text%20%26%20Placeholders",
+          "href": "/docs/api-reference#Text%20%26%20Placeholders",
           "category": "Text & Placeholders",
           "count": 10
         },
         {
           "title": "Tables",
-          "href": "/docs/api#Tables",
+          "href": "/docs/api-reference#Tables",
           "category": "Tables",
           "count": 30
         },
         {
           "title": "Charts",
-          "href": "/docs/api#Charts",
+          "href": "/docs/api-reference#Charts",
           "category": "Charts",
           "count": 11
         },
         {
           "title": "Shapes",
-          "href": "/docs/api#Shapes",
+          "href": "/docs/api-reference#Shapes",
           "category": "Shapes",
           "count": 11
         },
         {
           "title": "Images & Media",
-          "href": "/docs/api#Images%20%26%20Media",
+          "href": "/docs/api-reference#Images%20%26%20Media",
           "category": "Images & Media",
           "count": 3
         },
         {
           "title": "Elements",
-          "href": "/docs/api#Elements",
+          "href": "/docs/api-reference#Elements",
           "category": "Elements",
           "count": 15
         }

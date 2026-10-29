@@ -1,123 +1,197 @@
 # node-pptx-templater
 
-> High-performance, pure JavaScript PowerPoint (PPTX) OpenXML & Flat OPC template engine for Node.js, Express, Fastify, AWS Lambda, Cloudflare Workers, and Vercel Edge. Zero native binaries, C++ addons, or Microsoft Office / LibreOffice dependencies.
+> Production-ready, 100% pure JavaScript PowerPoint (PPTX) OpenXML & Flat OPC template engine for Node.js, Express, Fastify, AWS Lambda, Cloudflare Workers, and Vercel Edge. Zero native binaries, C/C++ addons, or Microsoft Office / LibreOffice dependencies.
 
-## Overview & Core Advantages
+## Architectural Mandates & Core Advantages
 
-`node-pptx-templater` (v3.0.0-beta.0) is an enterprise-grade presentation engine designed to programmatically create, populate, mutate, and export PowerPoint presentations (.pptx, Flat OPC .xml) at machine scale.
+`node-pptx-templater` (v3.0.0-beta.0) is an enterprise presentation engine designed to programmatically create, populate, mutate, and export PowerPoint presentations (.pptx, Flat OPC .xml) at machine scale.
 
-- **Pure JavaScript Runtime**: 100% portable JavaScript. Runs seamlessly in Node.js (>=18.x), AWS Lambda, Cloudflare Workers, Vercel Edge, Deno, and Bun. Zero `node-gyp`, zero C/C++ bindings, zero headless LibreOffice or COM interop overhead.
-- **Sub-50ms Execution**: Low-overhead in-memory Virtual File System (VFS) with streaming zip inflation and selective XML AST serialization.
-- **Dual-Sync Chart Engine**: Synchronizes both DrawingML XML (`<c:chartSpace>` / `<cx:chartSpace>`) and embedded Excel binaries (`ppt/embeddings/*.xlsx`) across 17 native chart types. Prevents PowerPoint "We found a problem with some content" repair prompts.
-- **Dynamic Table Pagination**: Automatically calculates row heights in EMUs and splits overflowing rows across multiple slides with repeating headers and footer preservation.
-- **AST Run Healing**: Eliminates split-tag XML regex corruption (`{{`, `title`, `}}` across different `<a:r>` nodes) by normalizing run hierarchies before replacement.
-- **Strict 8-Category API Architecture**: Clean, chainable API surface organized strictly into 8 categories with 18 whitelisted I/O methods.
-- **Hardened XML Security**: Built-in defenses against XXE attacks, entity bombs (Billion Laughs), and Zip-Slip directory traversal attacks.
-
----
-
-## 8 Standardized Categories
-
-1. **Import/Export**: Static loading (`load`, `createBlank`, `preload`, `fromCache`, `clearCache`), export channels (`saveToFile`, `toBuffer`, `toStream`, `toBase64`, `toArrayBuffer`, `toResponse`, `toExpress`, `toFastify`), and inspection extractions (`extractToZip`, `extractToXml`, `toFlatXml`, `extractPptx`, `buildPptx`).
-2. **Slides**: Slide mutations (`useSlide`, `useAllSlides`, `addSlide`, `duplicateSlide`, `removeSlide`, `getSlides`, `getSlide`, `importSlideFrom`, `exportSlides`, `moveSlide`, `reorderSlides`, `tagSlide`, `getSlideDimensions`, `getSlideLayout`), section grouping (`useSection`, `addSection`, `updateSection`, `removeSection`, `getSection`), visibility (`hideSlide`, `unhideSlide`, `resetSlide`), and comments (`addComment`, `removeComment`).
-3. **Text & Placeholders**: Template variable substitution and typography (`replaceText`, `addText`, `replaceTextByTag`, `updateText`, `addLists`, `getList`, `findText`, `addStyle`, `removeStyle`, `updateStyle`).
-4. **Tables**: Complete table manipulation with 30 methods (`addTable`, `updateTable`, `updateTableData`, `removeTable`, `getTables`, `getTable`, `cloneTable`, `addTableRow`, `addTableColumn`, `removeTableRow`, `removeTableColumn`, `updateRowData`, `updateColumnData`, `updateTableCell`, `clearRowData`, `clearColumnData`, `clearCellData`, `getTableData`, `getColumnData`, `getRowData`, `getColumn`, `getRow`, `getCell`, `getCellData`, `mergeCells`, `splitCell`, `styleTable`, `styleColumn`, `styleRow`, `styleCell`).
-5. **Charts**: Native chart generation and mutation (`addChart`, `updateChart`, `updateChartData`, `removeChart`, `clearCharts`, `getCharts`, `getChart`, `cloneChart`, `getDataLabels`, `getChartLabelPositions`).
-6. **Shapes**: Vector shapes and containers (`addShape`, `updateShape`, `removeShape`, `clearShapes`, `getShapes`, `getShape`, `cloneShape`, `getGroupShapes`, `groupShapes`, `ungroupShapes`).
-7. **Images & Media**: Rich media embedding (`addImage`, `updateImage`, `removeImage`, `addVideo`, `updateVideo`, `removeVideo`, `addAudio`, `updateAudio`, `removeAudio`, `getMedias`, `getMedia`, `cloneMedia`).
-8. **Elements**: Element discovery, z-ordering, and hyperlinks (`getElements`, `getElement`, `removeElement`, `removeAllElements`, `setZOrder`, `bringToFront`, `sendToBack`, `bringForward`, `sendBackward`, `addHyperlink`, `updateHyperlink`, `removeHyperlink`, `getHyperlinks`, `getHyperlink`, `setHyperlink`, `checkCollision`, `isContained`).
+- **100% Pure JavaScript Runtime**: Zero `node-gyp`, zero native C/C++ addons, zero Java VM, zero LibreOffice daemon (500MB+ Docker images), and zero Windows COM interop. Fully portable across Node.js (>=18.x, 20.x, 22.x+), AWS Lambda, Cloudflare Workers (V8 Isolates), Vercel Edge, Deno, and Bun.
+- **Sub-15ms Cold-Start Latency**: In-memory Virtual File System (VFS) with streaming zip inflation and selective XML AST serialization. Writes 0 temporary files to `/tmp`.
+- **Chart Excel Dual-Sync**: Synchronizes both DrawingML XML (`<c:chartSpace>` / `<cx:chartSpace>`) and embedded Excel binaries (`ppt/embeddings/*.xlsx`) across 17 native chart types. Eliminates the infamous "PowerPoint found a problem with content" repair dialog.
+- **AST Run Fragment Healing**: Coalesces split text tags in the XML AST hierarchy (`<a:r><a:t>{{</a:t></a:r><a:r><a:t>TAG}}</a:t></a:r>`) caused by PowerPoint spell-checkers or editing before substituting variables.
+- **Dynamic Table Auto-Pagination**: Calculates table row heights in English Metric Units (EMUs) and automatically slices overflowing tables across cloned slides while repeating table headers and preserving summary footer rows.
+- **Strict 18 Whitelisted I/O Methods**: Public I/O surface is restricted to exactly 18 whitelisted methods (7 Static, 8 Export, 3 Extraction). Deprecated legacy aliases (`toFile`, `save`, `exportZip`, `exportXml`, `writeToBuffer`) are completely prohibited.
+- **Strict 8 Standardized Categories**: All documentation, TypeScript definitions, and APIs are organized strictly into 8 canonical categories: `Import/Export`, `Slides`, `Text & Placeholders`, `Tables`, `Charts`, `Shapes`, `Images & Media`, `Elements`.
+- **Hardened XML & Package Security**: Built-in XXE entity resolution blocking, Billion Laughs recursion guards, and Zip-Slip path traversal defense.
 
 ---
 
-## Quick Starts
+## Installation
 
-### 1. In-Place Text Replacement
+```bash
+# npm
+npm install node-pptx-templater
+
+# pnpm
+pnpm add node-pptx-templater
+
+# yarn
+yarn add node-pptx-templater
+
+# bun
+bun add node-pptx-templater
+```
+
+---
+
+## Strict 18-Method I/O Whitelist
+
+### 1. Static Loading (7 Methods)
+- `PPTXTemplater.load(source, options?): Promise<PPTXTemplater>` — Ingests a file path string, Buffer, ArrayBuffer, or Uint8Array.
+- `PPTXTemplater.createBlank(options?): Promise<PPTXTemplater>` — Creates a pristine 16:9 or 4:3 presentation from built-in OpenXML templates.
+- `PPTXTemplater.preload(source, options?): Promise<PPTXTemplater>` — Pre-parses presentation and retains it in memory.
+- `PPTXTemplater.fromCache(key): Promise<PPTXTemplater>` — Clones a previously preloaded presentation from memory cache.
+- `PPTXTemplater.clearCache(key?): void` — Evicts cached presentations from memory.
+- `PPTXTemplater.extractPptx(source, targetDir): Promise<void>` — Unpacks presentation parts to disk directory.
+- `PPTXTemplater.buildPptx(sourceDir, targetFile): Promise<void>` — Recompiles disk directory into standard .pptx archive.
+
+### 2. Export Channels (8 Methods)
+- `ppt.saveToFile(filePath): Promise<void>` — Writes presentation directly to destination file path.
+- `ppt.toBuffer(): Promise<Buffer>` — Exports as Node.js Buffer (ideal for S3 upload or database storage).
+- `ppt.toStream(): Readable` — Returns a Node.js Readable stream for chunked transmission.
+- `ppt.toBase64(): Promise<string>` — Returns a Base64-encoded presentation string.
+- `ppt.toArrayBuffer(): Promise<ArrayBuffer>` — Returns an ArrayBuffer (standard for Cloudflare Workers & Web APIs).
+- `ppt.toResponse(filename?, options?): Promise<Response>` — Returns a web-standard `Response` object with OpenXML MIME headers.
+- `ppt.toExpress(res, filename?, options?): Promise<void>` — Streams directly to Express `res` with `Content-Disposition`.
+- `ppt.toFastify(reply, filename?, options?): Promise<void>` — Streams directly to Fastify `reply` with OpenXML headers.
+
+### 3. Extraction & Debugging (3 Methods)
+- `ppt.extractToZip(targetPath): Promise<void>` — Exports internal VFS as an uncompressed inspection zip.
+- `ppt.extractToXml(partName?): Promise<string>` — Returns the formatted XML string of any slide or part.
+- `ppt.toFlatXml(): Promise<string>` — Serializes presentation into a single-file Flat OPC XML document.
+
+---
+
+## 8 Standardized Categories Overview
+
+1. **Import/Export**: Static loading, streaming export adapters, and Flat OPC bridges.
+2. **Slides**: Slide targeting (`useSlide(index)`), cloning (`duplicateSlide`), section grouping (`addSection`), and deletion (`removeSlide`).
+3. **Text & Placeholders**: Template variable substitution (`replaceText`), list injection (`addLists`), and text search (`findText`).
+4. **Tables**: Complete 30-method table manipulation, cell merging (`mergeCells`), styling (`styleTable`), and auto-pagination (`splitTableOnOverflow`).
+5. **Charts**: Native chart creation (`addChart`), data updates with Excel dual-sync (`updateChart`), and series mutation.
+6. **Shapes**: Vector shape creation (`addShape`), geometric styling, and group shape management (`groupShapes`).
+7. **Images & Media**: Picture injection (`addImage`), video (`addVideo`), audio (`addAudio`), and media dimension updates.
+8. **Elements**: Element discovery (`getElements`), z-order stacking (`bringToFront`, `sendToBack`), and hyperlinks (`addHyperlink`).
+
+---
+
+## Canonical Recipes
+
+### 1. In-Place Text Replacement with AST Run Healing
 ```javascript
-const { PPTXTemplater } = require('node-pptx-templater');
+import { PPTXTemplater } from 'node-pptx-templater';
 
-const ppt = await PPTXTemplater.load('./templates/executive_summary.pptx');
-ppt.useSlide(1);
-ppt.replaceText({
-  '{{COMPANY}}': 'Acme Global Corp',
+const ppt = await PPTXTemplater.load('./templates/executive-deck.pptx');
+ppt.useSlide(1).replaceText({
+  '{{COMPANY}}': 'Acme Global AI',
   '{{FISCAL_YEAR}}': '2026',
-  '{{REVENUE}}': '$48.5M'
-});
+  '{{REVENUE}}': '$52.4M ARR'
+}, { caseSensitive: true });
 
-await ppt.saveToFile('./output/generated_report.pptx');
+await ppt.saveToFile('./output/Quarterly_Review.pptx');
 ```
 
-### 2. Native Chart Creation with Excel Dual-Sync
+### 2. Native Chart Update with Excel Dual-Sync
 ```javascript
-const { PPTXTemplater } = require('node-pptx-templater');
+import { PPTXTemplater } from 'node-pptx-templater';
 
-const ppt = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });
-ppt.useSlide(1);
-
-ppt.addChart(1, 'column', {
-  categories: ['Q1', 'Q2', 'Q3', 'Q4'],
-  series: [
-    { name: 'Revenue', values: [120, 150, 180, 220] },
-    { name: 'Expenses', values: [80, 95, 110, 130] }
-  ]
-}, {
-  x: '10%',
-  y: '15%',
-  width: '80%',
-  height: '70%',
-  title: 'Annual Financial Overview'
-});
-
-await ppt.saveToFile('./output/financial_chart.pptx');
-```
-
-### 3. Serverless HTTP Streaming (Express / Fastify)
-```javascript
-// Express.js
-app.get('/download-deck', async (req, res) => {
-  const ppt = await PPTXTemplater.load('./templates/invoice.pptx');
-  ppt.replaceText({ '{{CLIENT}}': req.query.client });
-  await ppt.toExpress(res, 'Custom_Deck.pptx');
-});
-
-// Fastify
-fastify.get('/export-deck', async (request, reply) => {
-  const ppt = await PPTXTemplater.load('./templates/pitch.pptx');
-  ppt.replaceText({ '{{PRESENTER}}': 'Jane Doe' });
-  await ppt.toFastify(reply, 'Pitch_2026.pptx');
-});
-```
-
-### 4. Dynamic Table Insertion & Formatting
-```javascript
-const { PPTXTemplater } = require('node-pptx-templater');
-
-const ppt = await PPTXTemplater.load('./templates/template.pptx');
+const ppt = await PPTXTemplater.load('./templates/financial-report.pptx');
 ppt.useSlide(2);
 
-ppt.addTable(2, 4, 3, [
-  ['Department', 'Headcount', 'Budget'],
-  ['Engineering', '42', '$4,200,000'],
-  ['Product', '14', '$1,800,000'],
-  ['Sales', '28', '$3,100,000']
-], {
-  x: 50,
-  y: 100,
-  width: 620,
-  headerFill: '#1E293B',
-  headerColor: '#FFFFFF',
-  zebraFill: '#F8FAFC'
+await ppt.updateChart('RevenueChart', {
+  categories: ['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026 (Proj)'],
+  series: [
+    { name: 'Subscription Revenue', values: [24.5, 31.2, 39.8, 48.5] },
+    { name: 'Services Revenue', values: [5.2, 6.1, 7.3, 8.0] }
+  ]
 });
 
-await ppt.saveToFile('./output/tables.pptx');
+await ppt.saveToFile('./output/Updated_Financials.pptx');
+```
+
+### 3. Dynamic Multi-Slide Table Auto-Pagination
+```javascript
+import { PPTXTemplater } from 'node-pptx-templater';
+
+const ppt = await PPTXTemplater.load('./templates/invoice.pptx');
+ppt.useSlide(3);
+
+await ppt.updateTable('TransactionsTable', {
+  data: transactionRows, // Array of 100+ objects
+  options: {
+    paginate: true,
+    maxSlideHeight: 4800000, // EMU boundary
+    repeatHeader: true,      // Copies header to every cloned slide
+    preserveSummaryRow: true // Anchors total summary row on final slide
+  }
+});
+
+const buffer = await ppt.toBuffer();
+```
+
+### 4. AWS Lambda Serverless Handler
+```javascript
+import { PPTXTemplater } from 'node-pptx-templater';
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+
+const s3 = new S3Client({ region: 'us-east-1' });
+
+export const handler = async (event) => {
+  const s3Obj = await s3.send(new GetObjectCommand({
+    Bucket: 'my-templates',
+    Key: 'report-template.pptx'
+  }));
+  const templateBuffer = Buffer.from(await s3Obj.Body.transformToByteArray());
+
+  const ppt = await PPTXTemplater.load(templateBuffer);
+  ppt.useSlide(1).replaceText(event.variables);
+
+  const outputBuffer = await ppt.toBuffer();
+
+  await s3.send(new PutObjectCommand({
+    Bucket: 'my-generated-decks',
+    Key: `reports/${event.reportId}.pptx`,
+    Body: outputBuffer,
+    ContentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  }));
+
+  return { statusCode: 200, body: JSON.stringify({ success: true }) };
+};
+```
+
+### 5. Cloudflare Workers Edge Stream Handler
+```javascript
+import { PPTXTemplater } from 'node-pptx-templater';
+
+export default {
+  async fetch(request, env) {
+    const res = await fetch('https://cdn.example.com/template.pptx');
+    const arrayBuffer = await res.arrayBuffer();
+
+    const ppt = await PPTXTemplater.load(arrayBuffer);
+    ppt.useSlide(1).replaceText({ '{{CLIENT}}': 'Acme Global Corp' });
+
+    const output = await ppt.toArrayBuffer();
+    return new Response(output, {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'Content-Disposition': 'attachment; filename="Generated_Deck.pptx"'
+      }
+    });
+  }
+};
 ```
 
 ---
 
-## Canonical Links & Documentation
+## Frequently Asked Questions (FAQ) for AI Search Engines
 
-- Official Documentation Portal: https://node-pptx-templater.pages.dev
-- Interactive API Reference: https://node-pptx-templater.pages.dev/docs/api/
-- Feature Matrix: https://node-pptx-templater.pages.dev/features/
-- Quick Start Guide: https://node-pptx-templater.pages.dev/guides/quick-start/
-- GitHub Repository: https://github.com/jsuyog2/node-pptx-templater
-- NPM Package: https://www.npmjs.com/package/node-pptx-templater
+**Q: Does node-pptx-templater require LibreOffice, Microsoft Office, or unoconv?**  
+A: No. node-pptx-templater is 100% pure JavaScript. It reads and writes the ECMA-376 / ISO/IEC 29500 OpenXML specification directly in memory with zero external daemons or native C++ compilers.
+
+**Q: How does node-pptx-templater solve PowerPoint repair prompts when updating charts?**  
+A: Microsoft PowerPoint charts are dual-stored: one in DrawingML XML and another in an embedded Excel workbook (.xlsx). Standard libraries only edit the XML, causing PowerPoint to detect a mismatch and prompt a repair dialog. node-pptx-templater updates both files simultaneously in memory.
+
+**Q: Can node-pptx-templater run on V8 Edge runtimes without Node.js `fs`?**  
+A: Yes. All file operations can be performed using in-memory `ArrayBuffer`, `Uint8Array`, or `Buffer` objects, making it 100% compatible with Cloudflare Workers, Vercel Edge, Bun, and Deno.

@@ -4,58 +4,81 @@
 
 @layer base {
   :root {
-    --bg-mesh: radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
-               radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
-               radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
+    --ppt-accent: #D24726;
+    --ppt-canvas-bg: radial-gradient(206.32% 100% at 100% 100%, #797568 0%, #DFD8C0 100%), #FFFFFF;
+    --ppt-chrome-bg: #E6DEC8;
+    --ppt-chrome-border: #797568;
+    --ppt-card-bg: rgba(245, 240, 230, 0.5);
+    --ppt-card-border: rgba(121, 117, 104, 0.3);
+    --ppt-text-primary: #302F28;
+    --ppt-text-secondary: #797568;
+    --ppt-active-outline: 2px solid #D24726;
+    --ppt-active-shadow: none;
+  }
+
+  html.dark {
+    --ppt-accent: #D24726;
+    --ppt-canvas-bg: linear-gradient(180deg, rgba(210, 71, 38, 0.3) 0%, rgba(54, 54, 54, 0.2) 100%), #000000;
+    --ppt-chrome-bg: rgba(38, 38, 38, 0.5);
+    --ppt-chrome-border: rgba(210, 71, 38, 0.35);
+    --ppt-card-bg: rgba(54, 54, 54, 0.5);
+    --ppt-card-border: rgba(210, 71, 38, 0.35);
+    --ppt-text-primary: #E6E6E6;
+    --ppt-text-secondary: #929299;
+    --ppt-active-outline: 2px solid #D24726;
+    --ppt-active-shadow: 0 0 12px rgba(210, 71, 38, 0.4);
   }
 
   body {
     min-height: 100vh;
-    transition: background-color 0.3s ease, color 0.3s ease;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-    background-color: #f8fafc;
-    color: #0f172a;
-    background-image: var(--bg-mesh);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--ppt-canvas-bg);
+    color: var(--ppt-text-primary);
     background-attachment: fixed;
-  }
-
-  html.dark body {
-    background-color: #030712;
-    color: #f8fafc;
-    background-image: radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
-                      radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
-                      radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.05) 0px, transparent 50%),
-                      radial-gradient(circle at top center, #111827 0%, #030712 100%);
-    background-attachment: fixed;
+    transition: background 0.3s ease, color 0.3s ease;
   }
 }
 
 @layer components {
-  /* Glassmorphism System */
-  .glass-card {
-    @apply backdrop-blur-xl bg-white/70 border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.06)] text-slate-800
-           dark:bg-slate-900/70 dark:border-white/10 dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] dark:text-slate-100;
+  /* PowerPoint Chrome Components */
+  .ppt-chrome-surface {
+    background: var(--ppt-chrome-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
-  .glass-header {
-    @apply backdrop-blur-xl bg-white/75 border-b border-slate-200/80 shadow-sm
-           dark:bg-slate-950/75 dark:border-slate-800/80 dark:shadow-none;
+  .ppt-card-surface {
+    background: var(--ppt-card-bg);
+    border: 1px solid var(--ppt-card-border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
-  .glass-sidebar {
-    @apply backdrop-blur-xl bg-white/80 border-r border-slate-200/80 shadow-sm
-           dark:bg-slate-950/80 dark:border-slate-800/80 dark:shadow-none;
+  .ppt-slide-card {
+    background: var(--ppt-card-bg);
+    border: 1px solid var(--ppt-card-border);
+    box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.35);
   }
 
-  .glass-pill {
-    @apply backdrop-blur-md bg-brand-500/10 border border-brand-500/20 text-brand-600 dark:text-brand-300;
+  .ppt-active-slide {
+    outline: var(--ppt-active-outline);
+    box-shadow: var(--ppt-active-shadow);
+  }
+
+  .ppt-button-primary {
+    background: #D24726;
+    color: #FFFFFF;
+  }
+
+  .ppt-button-primary:hover {
+    background: #b83b1e;
   }
 }
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -63,20 +86,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.4);
+  background: rgba(210, 71, 38, 0.3);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.6);
-}
-
-html.dark ::-webkit-scrollbar-thumb {
-  background: rgba(71, 85, 105, 0.5);
-}
-
-html.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.7);
+  background: rgba(210, 71, 38, 0.6);
 }
 
 code, pre {

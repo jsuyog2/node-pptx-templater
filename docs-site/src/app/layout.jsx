@@ -1,7 +1,7 @@
 import './globals.css';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
 import { ThemeProvider } from '../context/ThemeContext';
+import TitleBar from '../components/PowerPointChrome/TitleBar';
+import RibbonHeader from '../components/PowerPointChrome/RibbonHeader';
 import siteMeta from '../data/siteMeta.json';
 
 export const metadata = {
@@ -57,27 +57,6 @@ export const metadata = {
   },
 };
 
-const jsonLd = siteMeta.jsonLd || {
-  '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: 'node-pptx-templater',
-  applicationCategory: 'DeveloperApplication',
-  operatingSystem: 'Node.js, AWS Lambda, Cloudflare Workers, Vercel Edge, Bun, Deno',
-  softwareVersion: siteMeta.version,
-  license: 'https://opensource.org/licenses/MIT',
-  description: siteMeta.description,
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'USD',
-  },
-  author: {
-    '@type': 'Person',
-    name: 'node-pptx-templater contributors',
-    url: 'https://github.com/jsuyog2/node-pptx-templater',
-  },
-};
-
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark">
@@ -85,14 +64,19 @@ export default function RootLayout({ children }) {
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteMeta.jsonLd) }}
         />
       </head>
-      <body className="flex flex-col min-h-screen antialiased selection:bg-brand-500/30 selection:text-brand-200">
+      <body className="flex flex-col min-h-screen antialiased selection:bg-[#D24726]/30 selection:text-white">
         <ThemeProvider>
-          <Header />
-          <main className="flex-grow pt-16">{children}</main>
-          <Footer />
+          {/* PowerPoint Desktop Application Chrome */}
+          <TitleBar />
+          <RibbonHeader />
+
+          {/* Main Application Canvas */}
+          <main className="flex-1 w-full overflow-x-hidden">
+            {children}
+          </main>
         </ThemeProvider>
       </body>
     </html>

@@ -1,142 +1,84 @@
 {
-    "project": "node-pptx-templater",
-    "version": "3.0.0-beta.0",
-    "category": "Refactoring, Optimization, SEO & Release Preparation",
-    "scope": "Elements consolidation, category reclassification, codebase cleanup, performance/memory optimization, SEO/AI-readiness, and 3.0.0-beta.0 release prep",
-    "approvedCategories": [
-        "Import/Export",
-        "Slides",
-        "Text & Placeholders",
-        "Tables",
-        "Charts",
-        "Shapes",
-        "Images & Media",
-        "Elements"
-    ],
+    "project": "node-pptx-templater-docs-powerpoint-redesign",
+    "version": "4.1.0",
+    "framework": "Next.js (App Router, Static HTML Export)",
+    "animationEngine": "GSAP + ScrollTrigger",
+    "targetHost": "Cloudflare Pages",
     "tasks": [
         {
-            "id": "TASK-RELEASE-001",
-            "title": "Consolidate Hyperlinks into Elements Category",
+            "id": "TASK-UI-001",
+            "title": "Strict Microsoft PowerPoint Desktop Layout & Color Token System",
             "status": "completed",
-            "description": "Move and reclassify all Hyperlink methods (addHyperlink, updateHyperlink, removeHyperlink, getHyperlinks, getHyperlink, setHyperlink) strictly under the 'Elements' category. Relocate or merge logic from src/managers/HyperlinkManager.js into the Elements subsystem. Update docs-site/src/data/apiReference.json, features.json, README.md, and .agent memory.",
+            "description": "Redesign the documentation workspace into a full-fidelity Microsoft PowerPoint application shell across both themes. Strictly enforce the exact design tokens and linear/radial CSS gradients: Dark Mode (Page background gradient: linear-gradient(180deg, rgba(210, 71, 38, 0.3) 0%, rgba(54, 54, 54, 0.2) 100%), #000000; chrome: rgba(38, 38, 38, 0.5); cards: rgba(54, 54, 54, 0.5); primary accent: #D24726; primary text: #E6E6E6; secondary text: #929299) and Light Mode (Page background: radial-gradient(206.32% 100% at 100% 100%, #797568 0%, #DFD8C0 100%), #FFFFFF; chrome: #E6DEC8; cards: rgba(245, 240, 230, 0.5); primary accent: #D24726; primary text: #302F28; secondary text: #797568). Implement the PowerPoint top title bar, ribbon toolbar, fixed left slide thumbnail strip (16:9 previews with active #D24726 selection outline), center presentation canvas, and bottom status bar with slide counter and zoom controls.",
             "deliverables": [
-                "src/elements/",
-                "src/core/PPTXTemplater.js",
-                "docs-site/src/data/apiReference.json",
-                "docs-site/src/data/features.json",
-                "index.d.ts"
+                "docs-site/tailwind.config.mjs",
+                "docs-site/src/components/PowerPointChrome/TitleBar.jsx",
+                "docs-site/src/components/PowerPointChrome/RibbonHeader.jsx",
+                "docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx",
+                "docs-site/src/components/PowerPointChrome/StatusBar.jsx"
             ]
         },
         {
-            "id": "TASK-RELEASE-002",
-            "title": "Remove Diagnostics & Validation Category",
+            "id": "TASK-ANIM-002",
+            "title": "GSAP Slide Transition Engine & Hero ScrollTrigger Animations",
             "status": "completed",
-            "description": "Deprecate and remove the 'Diagnostics & Validation' category from public documentation, features lists, and API manifests. Remove or internalize non-whitelisted standalone diagnostic routines while retaining necessary internal XML security guards (XXE/entity limits) in core ingestion.",
+            "description": "Integrate GSAP and ScrollTrigger. On the landing/home hero section, implement staggered headline and code block entry animations triggered via ScrollTrigger. In the documentation viewport, implement a PowerPoint slide-change presentation experience: while the ribbon header and thumbnail sidebar remain stationary and pinned, scrolling vertically advances between presentation slide decks using smooth GSAP wipe/push transitions and snaps to subsequent documentation topics.",
             "deliverables": [
-                "docs-site/src/data/apiReference.json",
-                "docs-site/src/data/features.json",
-                "README.md",
-                "index.d.ts"
+                "docs-site/src/animations/gsapSlideTransitions.js",
+                "docs-site/src/components/HeroSection.jsx",
+                "docs-site/src/components/PowerPointSlideDeck.jsx"
             ]
         },
         {
-            "id": "TASK-RELEASE-003",
-            "title": "Purge Unnecessary Examples and Test Files",
+            "id": "TASK-ROUTING-003",
+            "title": "Consolidate Strict 4-Route Structure & Purge Extraneous Pages",
             "status": "completed",
-            "description": "Audit examples/, showcase/, and tests/ directories. Remove obsolete, duplicate, experimental, or unmaintained example scripts and test fixtures. Keep showcase scripts aligned strictly with the official public API boundary and ensure tests cleanly cover production modules.",
+            "description": "Reconfigure Next.js App Router to strictly support ONLY the requested routes: '/' (Main home landing page), '/docs' (Documentation overview default), '/docs/installation' (Installation and project setup), '/docs/capabilities' (Capabilities and architectural features), and '/docs/api-reference' (Interactive API reference with all functions and examples). Completely delete and purge any legacy routes, orphaned pages, and unused data files (such as /features, /guides, /docs/api, and legacy test assets).",
             "deliverables": [
-                "examples/",
-                "showcase/",
-                "tests/"
+                "docs-site/src/app/page.jsx",
+                "docs-site/src/app/docs/page.jsx",
+                "docs-site/src/app/docs/installation/page.jsx",
+                "docs-site/src/app/docs/capabilities/page.jsx",
+                "docs-site/src/app/docs/api-reference/page.jsx"
             ]
         },
         {
-            "id": "TASK-RELEASE-004",
-            "title": "Remove Unwanted Files from Project Root and Workspace",
+            "id": "TASK-DATA-004",
+            "title": "Refine Content JSON Schemas & Prune Unused Text",
             "status": "completed",
-            "description": "Audit repository tree and delete abandoned config files, stale build artifacts, temporary log files, obsolete scratch scripts, legacy documentation relics, and stray XML/presentation dump files across the root and subdirectories.",
+            "description": "Align documentation data files under docs-site/src/data/ strictly to the approved routes. Audit apiReference.json, docsNavigation.json, and siteMeta.json to delete all obsolete categories, extraneous diagnostic methods, dead text, and placeholder stubs. Keep only clean, copyable code examples, exact method signatures, parameter tables, and valid OpenXML DOM impact details.",
             "deliverables": [
-                ".",
-                "scratch/",
-                "tmp/"
-            ]
-        },
-        {
-            "id": "TASK-RELEASE-005",
-            "title": "Performance Tuning & Memory Leak Elimination",
-            "status": "completed",
-            "description": "Audit AST parsing, VFS Map operations, JSZip buffering, and stream handling. Ensure large object references, XML caches, and temporary Buffer allocations are freed or garbage-collected efficiently. Optimize tight loops in text run healing, cell matrix traversals, and embedded workbook updates. Validate sub-millisecond execution and minimal memory footprint under high concurrency.",
-            "deliverables": [
-                "src/core/VirtualFileSystem.js",
-                "src/core/TemplateEngine.js",
-                "src/elements/TableManager.js",
-                "src/elements/ChartManager.js",
-                "src/writer/OutputWriter.js"
-            ]
-        },
-        {
-            "id": "TASK-RELEASE-006",
-            "title": "Optimize src/ Folder Structure & Consolidate Modules",
-            "status": "completed",
-            "description": "Restructure src/ into a clean, intuitive layout. Eliminate redundant intermediate files, merge fragmented utility files into cohesive domain modules (e.g., coordinate/spatial math, XML helpers), and cleanly partition orchestrator (core/), managers/elements, parsers, and writer.",
-            "deliverables": [
-                "src/",
-                "src/core/",
-                "src/elements/",
-                "src/parsers/",
-                "src/writer/",
-                "src/utils/"
-            ]
-        },
-        {
-            "id": "TASK-RELEASE-007",
-            "title": "Apply Strict Category Renaming Across Repository",
-            "status": "completed",
-            "description": "Enforce the exact 8 standardized category names across codebase JSDocs, TypeScript typings (index.d.ts), documentation site schemas (apiReference.json, features.json, docsNavigation.json), showcase headers, and README.md:\n1. 'Lifecycle & I/O' -> 'Import/Export'\n2. 'Slides'\n3. 'Text & Placeholders'\n4. 'Tables'\n5. 'Charts'\n6. 'Shapes'\n7. 'Images & Media'\n8. 'Elements'",
-            "deliverables": [
-                "docs-site/src/data/apiReference.json",
-                "docs-site/src/data/features.json",
                 "docs-site/src/data/docsNavigation.json",
-                "index.d.ts",
+                "docs-site/src/data/apiReference.json",
+                "docs-site/src/data/siteMeta.json"
+            ]
+        },
+        {
+            "id": "TASK-SEO-005",
+            "title": "Comprehensive High-Ranking SEO, AI-Search Mode & Structured Data Engine",
+            "status": "completed",
+            "description": "Optimize the entire portal to dominate #1 organic search rankings on Google/Bing and qualify for top generative citations in Google AI Overviews, Perplexity, Claude, and ChatGPT Search. Embed rich JSON-LD schemas (SoftwareApplication, TechArticle, FAQPage), compile docs-site/public/llms.txt specifically for LLM scrapers, generate standard sitemap.xml and robots.txt, implement 1200x630 OpenGraph and Twitter cards, and optimize package.json / README.md keywords targeting pure JavaScript PPTX template engine and serverless slide automation.",
+            "deliverables": [
+                "docs-site/src/app/sitemap.js",
+                "docs-site/src/app/robots.js",
+                "docs-site/public/llms.txt",
+                "docs-site/src/components/SEOHead.jsx",
+                "package.json",
                 "README.md"
             ]
         },
         {
-            "id": "TASK-RELEASE-008",
-            "title": "Optimize and Prune .agent/ Workspace for Current Status",
+            "id": "TASK-BUILD-006",
+            "title": "Static Export Verification, Agent Memory Sync & Final Build",
             "status": "completed",
-            "description": "Update and prune the .agent/ folder (.agentignore, project_summary.md, AGENTS.md, rules/features.md, rules/general.md, memory/architectural-decisions.md). Remove stale references to deprecated categories, update the 8-category architecture map, and keep token/context usage minimal.",
+            "description": "Execute static compilation with `next build` verifying zero hydration errors and clean static HTML emission under docs-site/out/. Synchronize the .agent knowledge base (.agent/project_summary.md, .agent/rules/features.md) to reflect the PowerPoint layout, strict route layout, and GSAP slide transitions.",
             "deliverables": [
-                ".agent/project_summary.md",
-                ".agent/rules/features.md",
-                ".agent/rules/general.md",
-                ".agent/memory/architectural-decisions.md",
-                ".agent/.agentignore"
-            ]
-        },
-        {
-            "id": "TASK-RELEASE-009",
-            "title": "Maximize SEO and AI Search Discoverability (Google & AI Search Modes)",
-            "status": "completed",
-            "description": "Optimize docs-site/, package.json, and README.md for #1 Google ranking and AI search discovery (Perplexity, ChatGPT Search, Gemini, Claude). Incorporate high-intent search queries ('pptx template update nodejs', 'create pptx template programmatic', 'pure javascript powerpoint template engine', 'serverless pptx generator without office'). Add comprehensive JSON-LD Schema.org markup (SoftwareApplication, HowTo, TechArticle), semantic HTML structure, dynamic sitemap.xml, robots.txt, and llms.txt.",
-            "deliverables": [
-                "README.md",
-                "package.json",
-                "docs-site/src/data/siteMeta.json",
-                "docs-site/public/robots.txt",
-                "docs-site/public/sitemap.xml",
-                "docs-site/public/llms.txt"
-            ]
-        },
-        {
-            "id": "TASK-RELEASE-010",
-            "title": "Prepare Final Updates & Release 3.0.0-beta.0",
-            "status": "completed",
-            "description": "Bump package version to '3.0.0-beta.0' in package.json, package-lock.json, and documentation manifests. Run full test suite (`npm test`), build verification (`npm run build`, `npm run docs:build`), and ensure zero regressions or PowerPoint repair warnings.",
-            "deliverables": [
-                "package.json",
-                "CHANGELOG.md",
-                "docs-site/package.json"
+                "docs-site/out/index.html",
+                "docs-site/out/docs/index.html",
+                "docs-site/out/docs/installation/index.html",
+                "docs-site/out/docs/capabilities/index.html",
+                "docs-site/out/docs/api-reference/index.html",
+                ".agent/project_summary.md"
             ]
         }
     ]

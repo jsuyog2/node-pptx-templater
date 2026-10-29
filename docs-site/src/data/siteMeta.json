@@ -1,26 +1,28 @@
 {
   "title": "node-pptx-templater — High-Performance OpenXML PowerPoint Template Engine",
-  "tagline": "Populate and generate PowerPoint templates dynamically in Node.js and serverless runtimes without Microsoft Office dependencies.",
+  "tagline": "Pure JavaScript PowerPoint OpenXML template engine for Node.js, AWS Lambda, and Cloudflare Workers.",
   "description": "Production-ready, pure JavaScript PowerPoint (PPTX) OpenXML template engine for Node.js, Express, Fastify, AWS Lambda, Cloudflare Workers, and Vercel Edge. Dynamically replace text, update native charts with Excel Dual-Sync, format tables with multi-slide pagination, manage shapes and media, and merge slides with zero Office dependencies.",
   "domainUrl": "https://node-pptx-templater.pages.dev",
   "version": "3.0.0-beta.0",
   "author": "node-pptx-templater contributors",
   "license": "MIT",
   "keywords": [
+    "node-pptx-templater",
+    "pure javascript pptx generator",
+    "openxml powerpoint template engine",
+    "serverless pptx lambda",
+    "powerpoint chart excel sync",
+    "powerpoint template engine nodejs",
     "pptx template update",
     "pptx template create",
-    "powerpoint template engine nodejs",
-    "pure javascript pptx generator",
     "openxml powerpoint automation",
     "serverless pptx",
     "fastify pptx",
     "express pptx",
-    "node-pptx-templater",
     "pptx templater",
     "aws lambda pptx",
     "cloudflare workers pptx",
     "vercel edge powerpoint",
-    "chart excel sync",
     "presentationml"
   ],
   "jsonLd": {
@@ -63,34 +65,40 @@
         "proficiencyLevel": "Intermediate"
       },
       {
-        "@type": "HowTo",
-        "@id": "https://node-pptx-templater.pages.dev/#howto",
-        "name": "How to Dynamically Populate PowerPoint Templates in Node.js",
-        "description": "Step-by-step instructions to load a PPTX template, perform AST-safe text replacement, update native charts with Excel dual-sync, and export via streams.",
-        "step": [
+        "@type": "FAQPage",
+        "@id": "https://node-pptx-templater.pages.dev/#faq",
+        "mainEntity": [
           {
-            "@type": "HowToStep",
-            "position": 1,
-            "name": "Install node-pptx-templater",
-            "text": "Install the package using npm: npm install node-pptx-templater"
+            "@type": "Question",
+            "name": "Does node-pptx-templater require Microsoft Office or LibreOffice?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. node-pptx-templater is written in 100% pure JavaScript and directly parses and serializes OpenXML (ISO/IEC 29500) ZIP packages in memory. It requires zero native binaries, C/C++ addons, LibreOffice, or Microsoft Office."
+            }
           },
           {
-            "@type": "HowToStep",
-            "position": 2,
-            "name": "Load PowerPoint Template",
-            "text": "Load an existing .pptx file, remote URL, or binary Buffer using PPTXTemplater.load()."
+            "@type": "Question",
+            "name": "How does Chart Excel Dual-Sync prevent PowerPoint repair prompts?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "PowerPoint stores native charts in both DrawingML XML and an embedded Excel workbook (.xlsx). node-pptx-templater synchronizes both parts simultaneously in memory, eliminating repair warnings when opening slides in Microsoft PowerPoint."
+            }
           },
           {
-            "@type": "HowToStep",
-            "position": 3,
-            "name": "Perform Templating & Mutations",
-            "text": "Select slides, replace text tags, format tables with automatic pagination, update charts, or inject hyperlinks."
+            "@type": "Question",
+            "name": "Can node-pptx-templater run in AWS Lambda and Cloudflare Workers?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. With a sub-15ms cold start and an in-memory Virtual File System (VFS), node-pptx-templater operates seamlessly on AWS Lambda, Cloudflare Workers, Vercel Edge, Bun, and Deno without writing to temporary disk files."
+            }
           },
           {
-            "@type": "HowToStep",
-            "position": 4,
-            "name": "Export Generated Presentation",
-            "text": "Export cleanly to file (saveToFile), stream (toStream), Buffer (toBuffer), Express res (toExpress), or Fastify reply (toFastify)."
+            "@type": "Question",
+            "name": "What is AST Run Fragment Healing?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "When template variables like {{COMPANY}} are typed or spell-checked in PowerPoint, Microsoft Office often fragments them across multiple XML run elements (<a:r>). node-pptx-templater automatically normalizes and coalesces these runs before performing substitution."
+            }
           }
         ]
       }
