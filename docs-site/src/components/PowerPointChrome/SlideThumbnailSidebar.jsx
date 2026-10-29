@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { Layers, FileCode } from 'lucide-react';
+import { Layers } from 'lucide-react';
 
 export default function SlideThumbnailSidebar({
   slides = [],
   activeSlideIndex = 0,
   onSelectSlide = () => { },
+  sectionTitle = 'API Reference',
   className = '',
 }) {
   const activeItemRef = useRef(null);
@@ -29,7 +30,7 @@ export default function SlideThumbnailSidebar({
       <div className="sticky top-0 z-10 bg-[#E6DEC8] dark:bg-[rgba(38,38,38,0.98)] border-b border-[var(--ppt-chrome-border)] p-3 flex items-center justify-between shadow-sm flex-shrink-0">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--ppt-text-primary)]">
           <Layers className="w-3.5 h-3.5 text-[#D24726]" />
-          <span>Slides</span>
+          <span className="font-bold tracking-tight">{sectionTitle}</span>
         </div>
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#D24726]/10 text-[#D24726] font-medium font-mono">
           {slides.length} slides
@@ -97,8 +98,7 @@ export default function SlideThumbnailSidebar({
 
                 {/* Mini Layout Mockup / Visual Indicator */}
                 <div className="flex items-center justify-end pt-1 border-t border-[var(--ppt-card-border)]/50 text-[8px] text-[var(--ppt-text-secondary)]">
-
-                  <FileCode className="w-2.5 h-2.5 opacity-60 flex-shrink-0" />
+                  <span className="font-mono">#{index + 1}</span>
                 </div>
               </div>
             </div>

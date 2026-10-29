@@ -58,6 +58,8 @@
     background: var(--ppt-card-bg);
     border: 1px solid var(--ppt-card-border);
     box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.35);
+    contain: layout paint;
+    box-sizing: border-box;
   }
 
   .ppt-active-slide {

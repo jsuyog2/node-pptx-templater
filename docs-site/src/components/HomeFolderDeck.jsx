@@ -79,7 +79,12 @@ export default function HomeFolderDeck() {
   const lastTransitionTimeRef = useRef(0);
   const touchStartYRef = useRef(0);
   const touchStartXRef = useRef(0);
-  const COOLDOWN_MS = 350;
+  const wheelAccumulatorRef = useRef(0);
+  const lastScrollDirectionRef = useRef(0);
+  const boundaryReachedTimeRef = useRef(0);
+
+  const COOLDOWN_MS = 380;
+  const WHEEL_THRESHOLD = 50;
 
   const handleCopyInstall = async () => {
     try {
@@ -122,31 +127,85 @@ export default function HomeFolderDeck() {
     }
   }, [activeFolderIndex, jumpToFolder]);
 
-  // Wheel Boundary Snapping
+  // Wheel Boundary Snapping with explicit damping
   const handleWheel = useCallback(
     (e) => {
-      if (Math.abs(e.deltaY) < 15) return;
+      if (Math.abs(e.deltaY) < 10) return;
+
+      const currentDirection = e.deltaY > 0 ? 1 : -1;
+      if (lastScrollDirectionRef.current !== currentDirection) {
+        wheelAccumulatorRef.current = 0;
+        lastScrollDirectionRef.current = currentDirection;
+        boundaryReachedTimeRef.current = 0;
+      }
 
       const activeCard = cardRefs.current[activeFolderIndex];
       const scrollEl = findScrollableContainer(e.target, activeCard) || activeCard;
       const { isAtTop, isAtBottom, isScrollable } = checkScrollBoundary(scrollEl);
+      const now = Date.now();
 
       if (isScrollable) {
         if (e.deltaY > 0) {
           // Scrolling down: if not at bottom, permit natural vertical scrolling
-          if (!isAtBottom) return;
-          // Reached bottom boundary: advance to next folder
+          if (!isAtBottom) {
+            wheelAccumulatorRef.current = 0;
+            boundaryReachedTimeRef.current = 0;
+            return;
+          }
+
+          if (!boundaryReachedTimeRef.current) {
+            boundaryReachedTimeRef.current = now;
+            wheelAccumulatorRef.current = 0;
+            return;
+          }
+
+          wheelAccumulatorRef.current += e.deltaY;
+          if (
+            wheelAccumulatorRef.current < WHEEL_THRESHOLD ||
+            now - boundaryReachedTimeRef.current < 200
+          ) {
+            return;
+          }
+
+          wheelAccumulatorRef.current = 0;
+          boundaryReachedTimeRef.current = 0;
           e.preventDefault();
           nextFolder();
         } else {
           // Scrolling up: if not at top, permit natural vertical scrolling
-          if (!isAtTop) return;
-          // Reached top boundary: revert to previous folder
+          if (!isAtTop) {
+            wheelAccumulatorRef.current = 0;
+            boundaryReachedTimeRef.current = 0;
+            return;
+          }
+
+          if (!boundaryReachedTimeRef.current) {
+            boundaryReachedTimeRef.current = now;
+            wheelAccumulatorRef.current = 0;
+            return;
+          }
+
+          wheelAccumulatorRef.current += Math.abs(e.deltaY);
+          if (
+            wheelAccumulatorRef.current < WHEEL_THRESHOLD ||
+            now - boundaryReachedTimeRef.current < 200
+          ) {
+            return;
+          }
+
+          wheelAccumulatorRef.current = 0;
+          boundaryReachedTimeRef.current = 0;
           e.preventDefault();
           prevFolder();
         }
       } else {
-        // Not internally scrollable: transition immediately
+        // Not internally scrollable: transition after threshold
+        wheelAccumulatorRef.current += Math.abs(e.deltaY);
+        if (wheelAccumulatorRef.current < WHEEL_THRESHOLD) return;
+
+        wheelAccumulatorRef.current = 0;
+        boundaryReachedTimeRef.current = 0;
+
         if (e.deltaY > 0) {
           e.preventDefault();
           nextFolder();

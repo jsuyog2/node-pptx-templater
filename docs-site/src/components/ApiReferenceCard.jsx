@@ -1,26 +1,32 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, ChevronRight, X, Layers, Cpu, ShieldAlert } from 'lucide-react';
+import { Search, ChevronRight, X } from 'lucide-react';
 import CodeBlock from './CodeBlock';
 import MobileFunctionReel from './MobileFunctionReel';
 
 /**
  * ApiReferenceCard
- * Presentation card dedicated solely to API function details
+ * Presentation card dedicated solely to API function details with strict containment
  *
  * @param {{
  *   categoryName: string,
  *   categorySlug: string,
+ *   categoryDescription?: string,
  *   methods: Array<any>,
- *   initialMethodName?: string
+ *   initialMethodName?: string,
+ *   slideNumber?: number,
+ *   totalSlides?: number
  * }} props
  */
 export default function ApiReferenceCard({
   categoryName,
   categorySlug,
+  categoryDescription = '',
   methods = [],
   initialMethodName = '',
+  slideNumber = 1,
+  totalSlides = 8,
 }) {
   const [search, setSearch] = useState('');
   const [selectedMethodName, setSelectedMethodName] = useState(
@@ -83,53 +89,96 @@ export default function ApiReferenceCard({
     }
   };
 
+  // Helper to stop touch propagation on horizontally scrollable elements
+  const stopTouchPropagation = (e) => {
+    e.stopPropagation();
+  };
+
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col flex-1 min-h-0 min-w-0 w-full max-w-full overflow-hidden">
       {/* =========================================================================
           Top Header Bar of the Slide Card:
-          Prominently displays Category Name + Filter Input (No method count badges)
+          Unified header with Category Name + Search Input alongside each other,
+          Slide indicator on the right, and Category Description beneath
          ========================================================================= */}
-      <div className="flex flex-wrap items-center justify-end gap-3 pb-3 border-b border-[var(--ppt-card-border)]/60 flex-shrink-0">
-        {/* Method Filter / Search Input */}
-        <div className="relative flex-1 sm:flex-initial sm:w-64 max-w-full">
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--ppt-text-secondary)] opacity-60" />
-          <input
-            type="text"
-            placeholder={`Filter ${categoryName} methods...`}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-7 py-1 rounded text-xs ppt-card-surface border border-[var(--ppt-card-border)] text-[var(--ppt-text-primary)] placeholder-[var(--ppt-text-secondary)]/50 focus:border-[#D24726] focus:outline-none transition-colors"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--ppt-text-secondary)] hover:text-[var(--ppt-text-primary)]"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
+      <div className="pb-3 border-b border-[var(--ppt-card-border)]/70 flex-shrink-0 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Category Badge & Title */}
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <span className="px-2.5 py-1 rounded text-xs font-bold bg-[#D24726] text-white tracking-wide shadow-sm">
+              {categoryName}
+            </span>
+          </div>
+
+          {/* Integrated Search / Filter Input alongside Category Name */}
+          <div className="relative flex-1 sm:flex-initial sm:w-72 max-w-full">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--ppt-text-secondary)] opacity-60 pointer-events-none" />
+            <input
+              type="text"
+              placeholder={`Filter ${categoryName} methods...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-7 py-1.5 rounded text-xs ppt-card-surface border border-[var(--ppt-card-border)] text-[var(--ppt-text-primary)] placeholder-[var(--ppt-text-secondary)]/60 focus:border-[#D24726] focus:outline-none transition-colors"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--ppt-text-secondary)] hover:text-[var(--ppt-text-primary)] cursor-pointer p-0.5"
+                aria-label="Clear method filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Slide Indicator Badge */}
+          <div className="hidden sm:flex items-center gap-2 text-xs text-[var(--ppt-text-secondary)] flex-shrink-0">
+            <span className="font-mono text-[11px]">
+              Slide #{slideNumber} of {totalSlides}
+            </span>
+            <div className="w-2 h-2 rounded-full bg-[#D24726]" />
+          </div>
         </div>
+
+        {/* Category Description cleanly beneath the category title */}
+        {categoryName && (
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[var(--ppt-text-primary)] tracking-tight">
+            {categoryName}
+          </h1>
+        )}
+        {/* Category Description cleanly beneath the category title */}
+        {categoryDescription && (
+          <p className="text-xs sm:text-sm text-[var(--ppt-text-secondary)] leading-relaxed max-w-4xl">
+            {categoryDescription}
+          </p>
+        )}
       </div>
 
       {/* =========================================================================
           Mobile Horizontal Function Reel (< 768px):
-          Allows horizontal scrolling through method chips
+          Horizontal scrolling through method chips with touch isolation
          ========================================================================= */}
-      <MobileFunctionReel
-        methods={filteredMethods}
-        activeMethodName={activeMethod.name}
-        onSelectMethod={handleSelectMethod}
-      />
+      <div
+        className="flex-shrink-0"
+        onTouchStart={stopTouchPropagation}
+        onTouchMove={stopTouchPropagation}
+        onTouchEnd={stopTouchPropagation}
+      >
+        <MobileFunctionReel
+          methods={filteredMethods}
+          activeMethodName={activeMethod.name}
+          onSelectMethod={handleSelectMethod}
+        />
+      </div>
 
       {/* =========================================================================
           Main Content Layout:
-          Desktop: 2-column (Left selector + Right detail)
-          Mobile: Full-width dedicated function detail stage
+          Two-column grid with strict containment (No overflow outside the slide card)
          ========================================================================= */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-3 flex-1 overflow-hidden min-h-0">
-        {/* Desktop Method Selector (hidden on mobile, uses MobileFunctionReel instead) */}
-        <div className="hidden md:block md:col-span-4 lg:col-span-3 max-h-[500px] overflow-y-auto space-y-1.5 pr-1 overscroll-contain">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 pt-3 flex-1 min-h-0 min-w-0 overflow-hidden w-full max-w-full">
+        {/* Desktop Method Selector Sidebar */}
+        <div className="hidden md:flex md:col-span-4 lg:col-span-3 flex-col h-full min-h-0 overflow-y-auto space-y-1.5 pr-1 overscroll-contain">
           {filteredMethods.map((m) => {
             const isSelected = m.name === activeMethod.name;
             return (
@@ -160,14 +209,14 @@ export default function ApiReferenceCard({
           )}
         </div>
 
-        {/* Function Details Card: Primary Visual Focus */}
+        {/* Function Details Card: Strictly Contained Viewport */}
         <div
           ref={detailContainerRef}
-          className="col-span-1 md:col-span-8 lg:col-span-9 ppt-card-surface p-4 sm:p-6 rounded-lg border border-[var(--ppt-card-border)] space-y-4 overflow-y-auto max-h-[500px] overscroll-contain"
+          className="col-span-1 md:col-span-8 lg:col-span-9 ppt-card-surface p-4 sm:p-5 rounded-lg border border-[var(--ppt-card-border)] space-y-4 h-full min-h-0 overflow-y-auto overscroll-contain flex-1 min-w-0 max-w-full"
         >
           {activeMethod.name ? (
             <>
-              {/* Method Title, Signature & Async Badge */}
+              {/* Method Title & Signature (Clean, with static/async pill badges removed) */}
               <div id={activeMethod.name} className="scroll-mt-4">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <h3 className="font-mono text-base sm:text-lg font-bold text-[var(--ppt-text-primary)] flex items-center gap-1.5">
@@ -176,38 +225,36 @@ export default function ApiReferenceCard({
                     </span>
                     <span>{activeMethod.name}()</span>
                   </h3>
-                  <div className="flex items-center gap-1.5">
-                    {activeMethod.isStatic && (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                        static
-                      </span>
-                    )}
-                    {activeMethod.isAsync && (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                        async
-                      </span>
-                    )}
-                  </div>
                 </div>
 
-                {/* Full Signature Box with Horizontal Scrolling */}
-                <div className="font-mono text-xs text-[#D24726] mt-2 bg-black/20 dark:bg-black/40 p-2.5 rounded border border-[var(--ppt-card-border)]/50 overflow-x-auto whitespace-nowrap scrollbar-none">
+                {/* Full Signature Box with Horizontal Scrolling (touch-isolated) */}
+                <div
+                  onTouchStart={stopTouchPropagation}
+                  onTouchMove={stopTouchPropagation}
+                  onTouchEnd={stopTouchPropagation}
+                  className="font-mono text-xs text-[#D24726] mt-2 bg-black/20 dark:bg-black/40 p-2.5 rounded border border-[var(--ppt-card-border)]/50 overflow-x-auto whitespace-nowrap scrollbar-none"
+                >
                   {activeMethod.signature}
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Description flows directly into parameter table */}
               <p className="text-xs sm:text-sm text-[var(--ppt-text-secondary)] leading-relaxed">
                 {activeMethod.description}
               </p>
 
-              {/* Parameter Table with Touch-Friendly Horizontal Scrolling */}
+              {/* Parameter Table with Touch-Friendly Horizontal Scrolling (touch-isolated) */}
               {activeMethod.parameters && activeMethod.parameters.length > 0 && (
                 <div className="space-y-1.5">
                   <div className="text-xs font-semibold text-[var(--ppt-text-primary)]">
                     Parameters:
                   </div>
-                  <div className="overflow-x-auto rounded border border-[var(--ppt-card-border)]/60 scrollbar-none">
+                  <div
+                    onTouchStart={stopTouchPropagation}
+                    onTouchMove={stopTouchPropagation}
+                    onTouchEnd={stopTouchPropagation}
+                    className="overflow-x-auto rounded border border-[var(--ppt-card-border)]/60 scrollbar-none"
+                  >
                     <table className="w-full text-left text-xs border-collapse min-w-[420px]">
                       <thead>
                         <tr className="border-b border-[var(--ppt-card-border)] bg-black/10 dark:bg-white/5 text-[var(--ppt-text-secondary)]">
@@ -250,9 +297,14 @@ export default function ApiReferenceCard({
                 </div>
               )}
 
-              {/* Code Example with Horizontal Scrolling and Copy Button */}
+              {/* Code Example with Horizontal Scrolling and Copy Button (touch-isolated) */}
               {activeMethod.example && (
-                <div className="pt-2 space-y-1.5">
+                <div
+                  onTouchStart={stopTouchPropagation}
+                  onTouchMove={stopTouchPropagation}
+                  onTouchEnd={stopTouchPropagation}
+                  className="pt-2 space-y-1.5"
+                >
                   <div className="text-xs font-semibold text-[var(--ppt-text-primary)]">
                     Usage Example:
                   </div>

@@ -20,10 +20,20 @@ export default function PowerPointSlideDeck({
   const mainRef = useRef(null);
   const isTransitioningRef = useRef(false);
   const lastTransitionTimeRef = useRef(0);
-  const touchStartYRef = useRef(0);
+
+  // Wheel damping and boundary threshold refs
+  const wheelAccumulatorRef = useRef(0);
+  const lastScrollDirectionRef = useRef(0);
+  const boundaryReachedTimeRef = useRef(0);
+
+  // Touch gesture tracking refs
   const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const touchStartTimeRef = useRef(0);
+  const touchIgnoredRef = useRef(false);
 
   const COOLDOWN_MS = 380;
+  const WHEEL_THRESHOLD = 50;
   const totalSlides = slides.length || 1;
 
   // Jump to specific slide with GSAP transition and cooldown debounce
@@ -36,6 +46,8 @@ export default function PowerPointSlideDeck({
 
       lastTransitionTimeRef.current = now;
       isTransitioningRef.current = true;
+      wheelAccumulatorRef.current = 0;
+      boundaryReachedTimeRef.current = 0;
       setActiveIndex(newIndex);
       onSlideChange(newIndex);
 
@@ -82,34 +94,115 @@ export default function PowerPointSlideDeck({
     return stageRef.current;
   };
 
-  // Handle Mouse Wheel with Boundary Snapping
+  // Helper to detect if touch originated inside horizontally scrollable element
+  const isInsideHorizontalScrollable = (target) => {
+    let el = target;
+    while (el && el !== document.body && el !== stageRef.current) {
+      if (el.tagName === 'PRE' || el.tagName === 'CODE' || el.tagName === 'TABLE') {
+        return true;
+      }
+      const overflowX = window.getComputedStyle(el).overflowX;
+      if (
+        (overflowX === 'auto' || overflowX === 'scroll') &&
+        el.scrollWidth > el.clientWidth + 2
+      ) {
+        return true;
+      }
+      el = el.parentElement;
+    }
+    return false;
+  };
+
+  // Handle Mouse Wheel with Explicit Threshold Damping and Direction Reset
   const handleWheel = useCallback(
     (e) => {
-      if (Math.abs(e.deltaY) < 15) return;
+      if (Math.abs(e.deltaY) < 10) return;
+
+      const currentDirection = e.deltaY > 0 ? 1 : -1;
+      // Reset accumulator if user reverses scroll direction
+      if (lastScrollDirectionRef.current !== currentDirection) {
+        wheelAccumulatorRef.current = 0;
+        lastScrollDirectionRef.current = currentDirection;
+        boundaryReachedTimeRef.current = 0;
+      }
 
       const scrollEl = getScrollableElement(e.target);
       const isScrollable = scrollEl && scrollEl.scrollHeight > scrollEl.clientHeight + 2;
-      const isAtTop = scrollEl ? scrollEl.scrollTop <= 0 : true;
+      const isAtTop = scrollEl ? scrollEl.scrollTop <= 1 : true;
       const isAtBottom = scrollEl
         ? scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 2
         : true;
 
+      const now = Date.now();
+
       if (isScrollable) {
         if (e.deltaY > 0) {
-          // Scrolling downward: if not yet at bottom of card, permit native card scroll
-          if (!isAtBottom) return;
-          // Reached bottom boundary: advance to next slide
+          // Scrolling downward: if not yet at bottom of card, permit free native scroll
+          if (!isAtBottom) {
+            wheelAccumulatorRef.current = 0;
+            boundaryReachedTimeRef.current = 0;
+            return;
+          }
+
+          // User reached the bottom boundary
+          if (!boundaryReachedTimeRef.current) {
+            boundaryReachedTimeRef.current = now;
+            wheelAccumulatorRef.current = 0;
+            return;
+          }
+
+          wheelAccumulatorRef.current += e.deltaY;
+
+          // Require intentional extra delta and delay before advancing slide
+          if (
+            wheelAccumulatorRef.current < WHEEL_THRESHOLD ||
+            now - boundaryReachedTimeRef.current < 200
+          ) {
+            return;
+          }
+
+          wheelAccumulatorRef.current = 0;
+          boundaryReachedTimeRef.current = 0;
           e.preventDefault();
           nextSlide();
         } else {
-          // Scrolling upward: if not yet at top of card, permit native card scroll
-          if (!isAtTop) return;
-          // Reached top boundary: revert to previous slide
+          // Scrolling upward: if not yet at top of card, permit free native scroll
+          if (!isAtTop) {
+            wheelAccumulatorRef.current = 0;
+            boundaryReachedTimeRef.current = 0;
+            return;
+          }
+
+          // User reached the top boundary
+          if (!boundaryReachedTimeRef.current) {
+            boundaryReachedTimeRef.current = now;
+            wheelAccumulatorRef.current = 0;
+            return;
+          }
+
+          wheelAccumulatorRef.current += Math.abs(e.deltaY);
+
+          // Require intentional extra delta and delay before reverting slide
+          if (
+            wheelAccumulatorRef.current < WHEEL_THRESHOLD ||
+            now - boundaryReachedTimeRef.current < 200
+          ) {
+            return;
+          }
+
+          wheelAccumulatorRef.current = 0;
+          boundaryReachedTimeRef.current = 0;
           e.preventDefault();
           prevSlide();
         }
       } else {
-        // Not internally scrollable: transition directly
+        // Not internally scrollable: require deliberate wheel threshold
+        wheelAccumulatorRef.current += Math.abs(e.deltaY);
+        if (wheelAccumulatorRef.current < WHEEL_THRESHOLD) return;
+
+        wheelAccumulatorRef.current = 0;
+        boundaryReachedTimeRef.current = 0;
+
         if (e.deltaY > 0) {
           e.preventDefault();
           nextSlide();
@@ -122,60 +215,64 @@ export default function PowerPointSlideDeck({
     [nextSlide, prevSlide]
   );
 
-  // Handle Touch Gestures with Boundary Snapping
+  // Handle Touch Gestures with Horizontal Drag & Swipe Detection
   const handleTouchStart = (e) => {
     if (e.touches && e.touches[0]) {
-      touchStartYRef.current = e.touches[0].clientY;
+      // If touch originates in horizontally scrollable table or code block, ignore slide swipe
+      if (isInsideHorizontalScrollable(e.target)) {
+        touchIgnoredRef.current = true;
+        return;
+      }
+      touchIgnoredRef.current = false;
       touchStartXRef.current = e.touches[0].clientX;
+      touchStartYRef.current = e.touches[0].clientY;
+      touchStartTimeRef.current = Date.now();
     }
   };
 
   const handleTouchMove = (e) => {
-    if (!e.touches || !e.touches[0]) return;
-    const currentY = e.touches[0].clientY;
-    const currentX = e.touches[0].clientX;
-    const deltaY = touchStartYRef.current - currentY; // positive = swipe up = scroll down
-    const deltaX = touchStartXRef.current - currentX;
+    if (touchIgnoredRef.current || !e.touches || !e.touches[0]) return;
+    // Native vertical scrolling occurs uninterrupted during move
+  };
 
-    // Horizontal swipe gesture prioritization on mobile decks
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 45) {
+  const handleTouchEnd = (e) => {
+    if (touchIgnoredRef.current) return;
+    if (!e.changedTouches || !e.changedTouches[0]) return;
+
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const deltaX = touchStartXRef.current - endX; // positive = swipe right-to-left
+    const deltaY = touchStartYRef.current - endY; // positive = swipe bottom-to-top
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    // Mobile Horizontal Swipe: absX >= 60px and predominantly horizontal (absX > absY * 1.5)
+    if (absX >= 60 && absX > absY * 1.5) {
       if (deltaX > 0) {
+        // Swiping right-to-left -> Next Slide
         nextSlide();
       } else {
+        // Swiping left-to-right -> Previous Slide
         prevSlide();
       }
-      touchStartXRef.current = currentX;
       return;
     }
 
-    if (Math.abs(deltaY) < 30) return;
+    // Mobile Vertical Boundary Swipe: absY >= 75px, predominantly vertical, and card at boundary
+    if (absY >= 75 && absY > absX * 1.5) {
+      const scrollEl = getScrollableElement(e.target);
+      const isScrollable = scrollEl && scrollEl.scrollHeight > scrollEl.clientHeight + 2;
+      const isAtTop = scrollEl ? scrollEl.scrollTop <= 1 : true;
+      const isAtBottom = scrollEl
+        ? scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 2
+        : true;
 
-    const scrollEl = getScrollableElement(e.target);
-    const isScrollable = scrollEl && scrollEl.scrollHeight > scrollEl.clientHeight + 2;
-    const isAtTop = scrollEl ? scrollEl.scrollTop <= 0 : true;
-    const isAtBottom = scrollEl
-      ? scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 2
-      : true;
-
-    if (isScrollable) {
-      if (deltaY > 0) {
-        // Scrolling down: allow native card scroll until bottom boundary is hit
-        if (!isAtBottom) return;
-        nextSlide();
-        touchStartYRef.current = currentY;
-      } else {
-        // Scrolling up: allow native card scroll until top boundary is hit
-        if (!isAtTop) return;
-        prevSlide();
-        touchStartYRef.current = currentY;
-      }
-    } else {
-      if (deltaY > 0) {
-        nextSlide();
-        touchStartYRef.current = currentY;
-      } else {
-        prevSlide();
-        touchStartYRef.current = currentY;
+      if (isScrollable) {
+        if (deltaY > 0 && isAtBottom) {
+          nextSlide();
+        } else if (deltaY < 0 && isAtTop) {
+          prevSlide();
+        }
       }
     }
   };
@@ -209,6 +306,7 @@ export default function PowerPointSlideDeck({
         slides={slides}
         activeSlideIndex={activeIndex}
         onSelectSlide={(idx) => goToSlide(idx, idx > activeIndex ? 'next' : 'prev')}
+        sectionTitle="API Reference"
       />
 
       {/* Center Slide Stage Canvas */}
@@ -217,7 +315,8 @@ export default function PowerPointSlideDeck({
         onWheel={handleWheel}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 flex flex-col items-center justify-start p-3 sm:p-6 lg:p-8 overflow-y-auto pb-28 lg:pb-16 relative w-full max-w-full"
+        onTouchEnd={handleTouchEnd}
+        className="flex-1 flex flex-col items-center justify-start p-3 sm:p-6 lg:p-8 overflow-y-auto pb-16 relative w-full max-w-full"
       >
         {/* Stage Floating Navigation Controls (Desktop) */}
         <div className="fixed right-6 top-[120px] hidden lg:flex flex-col gap-2 z-20">
@@ -227,7 +326,7 @@ export default function PowerPointSlideDeck({
             disabled={activeIndex === 0}
             aria-label="Previous Slide (Arrow Up)"
             title="Previous Slide (Arrow Up)"
-            className="p-2 rounded-full ppt-card-surface hover:border-[#D24726] text-[var(--ppt-text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md"
+            className="p-2 rounded-full ppt-card-surface hover:border-[#D24726] text-[var(--ppt-text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md cursor-pointer"
           >
             <ChevronUp className="w-4 h-4" />
           </button>
@@ -240,53 +339,61 @@ export default function PowerPointSlideDeck({
             disabled={activeIndex === totalSlides - 1}
             aria-label="Next Slide (Arrow Down)"
             title="Next Slide (Arrow Down)"
-            className="p-2 rounded-full ppt-card-surface hover:border-[#D24726] text-[var(--ppt-text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md"
+            className="p-2 rounded-full ppt-card-surface hover:border-[#D24726] text-[var(--ppt-text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md cursor-pointer"
           >
             <ChevronDown className="w-4 h-4" />
           </button>
         </div>
 
-        {/* 16:9 Aspect Ratio Center Presentation Slide Card */}
+        {/* 16:9 Aspect Ratio Center Presentation Slide Card with Strict Boundary Containment */}
         <div
           ref={stageRef}
           style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-          className="w-full max-w-5xl ppt-slide-card rounded-xl p-4 sm:p-8 lg:p-10 border border-[var(--ppt-card-border)] overflow-y-auto relative my-auto min-h-[460px] max-h-[calc(100vh-140px)] flex flex-col justify-between transition-transform duration-150"
+          className="w-full max-w-5xl ppt-slide-card rounded-xl p-4 sm:p-6 lg:p-8 border border-[var(--ppt-card-border)] relative my-auto min-h-[460px] max-h-[calc(100vh-140px)] flex flex-col justify-between overflow-hidden max-w-full transition-transform duration-150"
         >
-          {/* Slide Top Accent Bar & Meta */}
-          <div>
-            <div className="flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-4 border-b border-[var(--ppt-card-border)]">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded text-[10px] sm:text-[11px] font-bold bg-[#D24726] text-white tracking-wide">
-                  {activeSlide.category || categoryTitle}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs text-[var(--ppt-text-secondary)]">
-                <span className="font-mono text-[11px]">Slide #{activeIndex + 1} of {totalSlides}</span>
-                <div className="w-2 h-2 rounded-full bg-[#D24726]" />
-              </div>
-            </div>
-
-            {/* Slide Title & Subtitle */}
-            <div className="space-y-1 mb-4">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[var(--ppt-text-primary)] tracking-tight">
-                {activeSlide.title}
-              </h1>
-              {activeSlide.subtitle && (
-                <p className="text-xs sm:text-sm text-[var(--ppt-text-secondary)]">
-                  {activeSlide.subtitle}
-                </p>
-              )}
-            </div>
-
-            {/* Slide Body / Main Content */}
-            <div className="text-xs sm:text-sm text-[var(--ppt-text-primary)] leading-relaxed space-y-4">
+          {activeSlide.hideDefaultHeader ? (
+            /* Custom Slide Card Header & Content (Used by ApiReferenceCard for Unified Header) */
+            <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden w-full max-w-full">
               {activeSlide.content}
             </div>
-          </div>
+          ) : (
+            /* Standard Presentation Slide Layout (Used by Guides & Installation Decks) */
+            <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-full">
+              {/* Slide Top Accent Bar & Meta */}
+              <div className="flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-4 border-b border-[var(--ppt-card-border)]">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded text-[10px] sm:text-[11px] font-bold bg-[#D24726] text-white tracking-wide">
+                    {activeSlide.category || categoryTitle}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-[var(--ppt-text-secondary)]">
+                  <span className="font-mono text-[11px]">Slide #{activeIndex + 1} of {totalSlides}</span>
+                  <div className="w-2 h-2 rounded-full bg-[#D24726]" />
+                </div>
+              </div>
+
+              {/* Slide Title & Subtitle / Category Description */}
+              <div className="space-y-1 mb-4">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[var(--ppt-text-primary)] tracking-tight">
+                  {activeSlide.title}
+                </h1>
+                {(activeSlide.categoryDescription || activeSlide.subtitle) && (
+                  <p className="text-xs sm:text-sm text-[var(--ppt-text-secondary)] leading-relaxed max-w-3xl">
+                    {activeSlide.categoryDescription || activeSlide.subtitle}
+                  </p>
+                )}
+              </div>
+
+              {/* Slide Body / Main Content */}
+              <div className="text-xs sm:text-sm text-[var(--ppt-text-primary)] leading-relaxed space-y-4">
+                {activeSlide.content}
+              </div>
+            </div>
+          )}
 
           {/* Slide Footer Info Bar */}
-          <div className="pt-4 sm:pt-6 mt-6 border-t border-[var(--ppt-card-border)]/60 flex items-center justify-between text-[10px] sm:text-[11px] text-[var(--ppt-text-secondary)]">
+          <div className="pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-[var(--ppt-card-border)]/60 flex items-center justify-between text-[10px] sm:text-[11px] text-[var(--ppt-text-secondary)] flex-shrink-0">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-[var(--ppt-text-primary)]">node-pptx-templater</span>
             </div>

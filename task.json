@@ -1,75 +1,59 @@
 {
     "project": "node-pptx-templater-docs-site",
-    "version": "4.3.0",
-    "scope": "Documentation Site UX Overhaul: Scroll Snap Jumps, Category Routing, Responsive Function Viewer, Global Search Deep Links, and Workspace Cleanup",
+    "version": "4.5.0",
+    "scope": "Documentation Site UI Polish: Purge Diagnostic Callouts, Restore Sidebar Header Branding, Mobile Filmstrip Collapsible Drawer, Tag Simplification, and Card Containment",
     "rules": {
         "preserveContent": true,
         "scopeStrict": "docs-site/"
     },
     "tasks": [
         {
-            "id": "TASK-DOCS-HOME-001",
-            "title": "Home Page Folder Deck Scroll Snapping & Navigation Cleanup",
+            "id": "TASK-DOCS-CALLOUT-PURGE-001",
+            "title": "Remove Edge Cases and OpenXML Impact Callout Boxes",
             "status": "completed",
-            "description": "On the Home Page ('/'), remove the top sub-tab bar and button navigation controls. Restructure sections into full-screen folder panels with snap-jump behavior: when a folder contains overflowing card content, native vertical scroll operates inside the folder until reaching the bottom edge (scrollTop + clientHeight >= scrollHeight - 2), at which point further downward scroll/wheel immediately triggers a clean snap-jump transition directly to the next folder section (and vice versa when scrolling up from the top edge).",
-            "deliverables": [
-                "docs-site/src/app/page.jsx",
-                "docs-site/src/components/HomeFolderDeck.jsx",
-                "docs-site/src/animations/homeFolderScroll.js"
-            ]
-        },
-        {
-            "id": "TASK-DOCS-API-HEADER-002",
-            "title": "Relocate Search and Category Title to API Slide Card Header",
-            "status": "completed",
-            "description": "Inside the API Reference interface, move the category search/filter input directly into the top bar/header of the active Slide Card, alongside the active Category Name. Remove all method counters and approved method count badges (e.g., '18 Approved Methods', '23 Methods') from the slide card frame to prioritize presentation space for function details.",
+            "description": "In docs-site/src/components/ApiReferenceCard.jsx and PowerPointSlideDeck components, remove the 'Edge Cases' and 'OpenXML Impact' callout containers/boxes from the slide presentation view. Ensure that removing these sections leaves clean spacing and maximizes vertical breathing room for method descriptions, parameter tables, and code snippets without altering the core documentation copy.",
             "deliverables": [
                 "docs-site/src/components/ApiReferenceCard.jsx",
                 "docs-site/src/components/PowerPointSlideDeck.jsx"
             ]
         },
         {
-            "id": "TASK-DOCS-API-MOBILE-003",
-            "title": "Mobile Horizontal Function Reel & Immediate Function Detail Focus",
+            "id": "TASK-DOCS-SIDEBAR-TITLE-002",
+            "title": "Fix SlideThumbnailSidebar Header Title to Display 'API Reference'",
             "status": "completed",
-            "description": "Fix mobile view (< 768px) inside the API Reference so scrolling through functions does not hide or obscure function details: (1) Render function tabs/chips in a compact horizontal scrolling ribbon above the slide card, (2) Keep the primary viewport dedicated exclusively to the active function's signature, parameter table, OpenXML impact notes, and code editor, and (3) Ensure parameter tables and code editors scroll horizontally inside the card without page layout reflow.",
+            "description": "In docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx, fix the sidebar header title rendering. It currently mirrors or duplicates the active category name; update it to permanently display 'API Reference' as the top structural section title, keeping the category and filter indicators secondary.",
             "deliverables": [
-                "docs-site/src/components/MobileFunctionReel.jsx",
+                "docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx"
+            ]
+        },
+        {
+            "id": "TASK-DOCS-MOBILE-COLLAPSE-003",
+            "title": "Implement Expandable/Collapsible Mobile Slide Filmstrip",
+            "status": "completed",
+            "description": "In docs-site/src/components/PowerPointChrome/MobileSlideFilmstrip.jsx (and related mobile navigation bars), make the bottom slide filmstrip drawer collapsible: clicking or tapping on the toggle/header expands the horizontal filmstrip tray, and tapping it again collapses it to a minimal, non-intrusive bottom bar to free up viewport space for reading slide function details.",
+            "deliverables": [
+                "docs-site/src/components/PowerPointChrome/MobileSlideFilmstrip.jsx",
+                "docs-site/src/components/PowerPointSlideDeck.jsx"
+            ]
+        },
+        {
+            "id": "TASK-DOCS-TAG-CLEANUP-004",
+            "title": "Remove 'static' and 'async' Tags from Method Badges",
+            "status": "completed",
+            "description": "In docs-site/src/components/ApiReferenceCard.jsx and docs-site/src/data/apiReference.json rendering logic, remove standalone 'static' and 'async' pill badges from the method header. Ensure asynchronous invocation is clearly shown through the code signature (e.g., using 'await ppt.method(...)') rather than cluttering the header with redundant static/async tags.",
+            "deliverables": [
+                "docs-site/src/components/ApiReferenceCard.jsx"
+            ]
+        },
+        {
+            "id": "TASK-DOCS-CONTAINMENT-005",
+            "title": "Enforce Strict Card Boundaries for Function Sidebar and Details View",
+            "status": "completed",
+            "description": "Fix CSS layout constraints in docs-site/src/components/ApiReferenceCard.jsx and docs-site/src/components/PowerPointSlideDeck.jsx to prevent inner submenus, function lists, or Function Details cards from overflowing outside the slide card boundaries. Apply strict containment (`overflow-hidden`, `max-w-full`, inner `overflow-y-auto` with clean scroll padding) so all function listings and parameter details remain strictly within the parent PowerPoint presentation slide frame.",
+            "deliverables": [
                 "docs-site/src/components/ApiReferenceCard.jsx",
+                "docs-site/src/components/PowerPointSlideDeck.jsx",
                 "docs-site/src/styles/globals.css"
-            ]
-        },
-        {
-            "id": "TASK-DOCS-SEARCH-REDIRECT-004",
-            "title": "Fix Global Header Search Bar Redirection & Deep Linking",
-            "status": "completed",
-            "description": "Fix the global header search input so selecting any matched search result immediately navigates to the exact target route (e.g., '/docs/api-reference/tables#addTable') and automatically scrolls to/activates that specific function or section slide card. Support direct URL hash anchors and query parameter sync on page load.",
-            "deliverables": [
-                "docs-site/src/components/GlobalSearchModal.jsx",
-                "docs-site/src/components/PowerPointChrome/TitleBar.jsx",
-                "docs-site/src/utils/searchIndex.js"
-            ]
-        },
-        {
-            "id": "TASK-DOCS-CATEGORY-PAGES-005",
-            "title": "Generate Dedicated Dynamic/Static Pages for Each API Category",
-            "status": "completed",
-            "description": "Restructure API Reference routes so every API category has its own dedicated URL path under '/docs/api-reference/[category]' (e.g., '/docs/api-reference/lifecycle', '/docs/api-reference/slides', '/docs/api-reference/text', '/docs/api-reference/tables', '/docs/api-reference/charts', '/docs/api-reference/shapes', '/docs/api-reference/images', '/docs/api-reference/elements'). Implement generateStaticParams() for static export, preserving deep links, sitemaps, and breadcrumbs.",
-            "deliverables": [
-                "docs-site/src/app/docs/api-reference/[category]/page.jsx",
-                "docs-site/src/app/docs/api-reference/page.jsx",
-                "docs-site/src/app/sitemap.js"
-            ]
-        },
-        {
-            "id": "TASK-DOCS-CLEANUP-006",
-            "title": "Purge Orphaned, Redundant & Unused Files from docs-site",
-            "status": "completed",
-            "description": "Audit the entire `docs-site/` directory tree and delete all unused legacy components, dead test fixtures, orphaned static images/assets, unreferenced CSS files, and outdated data schemas that are no longer utilized by the active Next.js App Router.",
-            "deliverables": [
-                "docs-site/src/components/",
-                "docs-site/src/data/",
-                "docs-site/public/"
             ]
         }
     ]

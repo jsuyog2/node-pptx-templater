@@ -7,6 +7,7 @@ import ApiReferenceCard from './ApiReferenceCard';
 import apiReferenceData from '../data/apiReference.json';
 import {
   CATEGORIES,
+  CATEGORY_DESCRIPTIONS,
   CATEGORY_SLUG_MAP,
   SLUG_TO_CATEGORY_MAP,
 } from '../utils/categoryMapping';
@@ -37,19 +38,30 @@ export default function CategoryDeckClient({ activeCategorySlug = 'import-export
 
   // Construct 8 slides, one for each standardized category
   const slides = useMemo(() => {
-    return CATEGORIES.map((cat) => {
+    return CATEGORIES.map((cat, idx) => {
       const slug = CATEGORY_SLUG_MAP[cat];
       const methods = apiReferenceData.methodsByCategory?.[cat] || [];
+      const description =
+        CATEGORY_DESCRIPTIONS[cat] ||
+        apiReferenceData.categoryDescriptions?.[cat] ||
+        '';
+
       return {
         id: `slide-cat-${slug}`,
         category: 'API Reference',
         title: cat,
-        subtitle: cat.description,
+        subtitle: description,
+        categoryDescription: description,
+        signature: `${cat} Module`,
+        hideDefaultHeader: true,
         content: (
           <ApiReferenceCard
             categoryName={cat}
             categorySlug={slug}
+            categoryDescription={description}
             methods={methods}
+            slideNumber={idx + 1}
+            totalSlides={CATEGORIES.length}
           />
         ),
       };

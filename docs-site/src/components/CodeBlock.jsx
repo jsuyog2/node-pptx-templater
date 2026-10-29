@@ -51,7 +51,12 @@ export default function CodeBlock({ code = '', language = 'javascript', filename
       </div>
 
       {/* Code Contents */}
-      <div className="p-4 overflow-x-auto text-xs sm:text-sm text-[var(--ppt-text-primary)] leading-relaxed font-mono selection:bg-[#D24726]/30 selection:text-white">
+      <div
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        className="p-4 overflow-x-auto text-xs sm:text-sm text-[var(--ppt-text-primary)] leading-relaxed font-mono selection:bg-[#D24726]/30 selection:text-white"
+      >
         <pre className="whitespace-pre">
           <code>{code}</code>
         </pre>
