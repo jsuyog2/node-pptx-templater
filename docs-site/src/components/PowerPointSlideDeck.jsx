@@ -5,7 +5,7 @@ import SlideThumbnailSidebar from './PowerPointChrome/SlideThumbnailSidebar';
 import MobileSlideFilmstrip from './PowerPointChrome/MobileSlideFilmstrip';
 import StatusBar from './PowerPointChrome/StatusBar';
 import { transitionSlide } from '../animations/gsapSlideTransitions';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import NavigationArrows from './NavigationArrows';
 
 export default function PowerPointSlideDeck({
   slides = [],
@@ -316,49 +316,33 @@ export default function PowerPointSlideDeck({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="flex-1 flex flex-col items-center justify-start p-3 sm:p-6 lg:p-8 overflow-y-auto pb-16 relative w-full max-w-full"
+        className="flex-1 flex flex-col items-center justify-start p-3 sm:p-6 lg:p-8 overflow-hidden pb-16 relative w-full max-w-full overscroll-contain isolate"
       >
-        {/* Stage Floating Navigation Controls (Desktop) */}
-        <div className="fixed right-6 top-[120px] hidden lg:flex flex-col gap-2 z-20">
-          <button
-            type="button"
-            onClick={prevSlide}
-            disabled={activeIndex === 0}
-            aria-label="Previous Slide (Arrow Up)"
-            title="Previous Slide (Arrow Up)"
-            className="p-2 rounded-full ppt-card-surface hover:border-[#D24726] text-[var(--ppt-text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md cursor-pointer"
-          >
-            <ChevronUp className="w-4 h-4" />
-          </button>
-          <span className="text-[10px] font-mono text-center text-[var(--ppt-text-secondary)]">
-            {activeIndex + 1}/{totalSlides}
-          </span>
-          <button
-            type="button"
-            onClick={nextSlide}
-            disabled={activeIndex === totalSlides - 1}
-            aria-label="Next Slide (Arrow Down)"
-            title="Next Slide (Arrow Down)"
-            className="p-2 rounded-full ppt-card-surface hover:border-[#D24726] text-[var(--ppt-text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md cursor-pointer"
-          >
-            <ChevronDown className="w-4 h-4" />
-          </button>
+        {/* Stage Directional Arrow Navigation Controls (Accessible on Mobile, Tablet & Desktop) */}
+        <div className="fixed right-4 sm:right-6 top-[110px] sm:top-[120px] z-20">
+          <NavigationArrows
+            currentIndex={activeIndex}
+            totalItems={totalSlides}
+            onPrev={prevSlide}
+            onNext={nextSlide}
+            label="Slide"
+          />
         </div>
 
         {/* 16:9 Aspect Ratio Center Presentation Slide Card with Strict Boundary Containment */}
         <div
           ref={stageRef}
           style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-          className="w-full max-w-5xl ppt-slide-card rounded-xl p-4 sm:p-6 lg:p-8 border border-[var(--ppt-card-border)] relative my-auto min-h-[460px] max-h-[calc(100vh-140px)] flex flex-col justify-between overflow-hidden max-w-full transition-transform duration-150"
+          className="w-full max-w-5xl ppt-slide-card rounded-xl p-4 sm:p-6 lg:p-8 border border-[var(--ppt-card-border)] relative my-auto min-h-[460px] max-h-[calc(100vh-140px)] flex flex-col justify-between overflow-hidden max-w-full overscroll-contain isolate transition-transform duration-150"
         >
           {activeSlide.hideDefaultHeader ? (
             /* Custom Slide Card Header & Content (Used by ApiReferenceCard for Unified Header) */
-            <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden w-full max-w-full">
+            <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden w-full max-w-full overscroll-contain isolate">
               {activeSlide.content}
             </div>
           ) : (
             /* Standard Presentation Slide Layout (Used by Guides & Installation Decks) */
-            <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-full">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain isolate w-full max-w-full">
               {/* Slide Top Accent Bar & Meta */}
               <div className="flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-4 border-b border-[var(--ppt-card-border)]">
                 <div className="flex items-center gap-2">

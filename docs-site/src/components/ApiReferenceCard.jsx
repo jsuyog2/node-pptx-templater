@@ -95,7 +95,7 @@ export default function ApiReferenceCard({
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 min-w-0 w-full max-w-full overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 min-w-0 w-full max-w-full overflow-hidden overscroll-contain isolate">
       {/* =========================================================================
           Top Header Bar of the Slide Card:
           Unified header with Category Name + Search Input alongside each other,
@@ -178,7 +178,7 @@ export default function ApiReferenceCard({
          ========================================================================= */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 pt-3 flex-1 min-h-0 min-w-0 overflow-hidden w-full max-w-full">
         {/* Desktop Method Selector Sidebar */}
-        <div className="hidden md:flex md:col-span-4 lg:col-span-3 flex-col h-full min-h-0 overflow-y-auto space-y-1.5 pr-1 overscroll-contain">
+        <div className="hidden md:flex md:col-span-4 lg:col-span-3 flex-col h-full min-h-0 overflow-y-auto space-y-1.5 pr-1 overscroll-contain isolate">
           {filteredMethods.map((m) => {
             const isSelected = m.name === activeMethod.name;
             return (
@@ -212,7 +212,7 @@ export default function ApiReferenceCard({
         {/* Function Details Card: Strictly Contained Viewport */}
         <div
           ref={detailContainerRef}
-          className="col-span-1 md:col-span-8 lg:col-span-9 ppt-card-surface p-4 sm:p-5 rounded-lg border border-[var(--ppt-card-border)] space-y-4 h-full min-h-0 overflow-y-auto overscroll-contain flex-1 min-w-0 max-w-full"
+          className="col-span-1 md:col-span-8 lg:col-span-9 ppt-card-surface p-4 sm:p-5 rounded-lg border border-[var(--ppt-card-border)] space-y-4 h-full min-h-0 overflow-y-auto overscroll-contain isolate flex-1 min-w-0 max-w-full"
         >
           {activeMethod.name ? (
             <>

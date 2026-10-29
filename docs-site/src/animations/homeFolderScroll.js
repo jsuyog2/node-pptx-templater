@@ -1,6 +1,11 @@
 'use client';
 
 import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 /**
  * Checks vertical scroll boundary for a DOM container
@@ -58,4 +63,49 @@ export function slideToFolder(trackEl, targetIndex = 0, totalPanels = 4, duratio
     ease: 'power2.out',
     overwrite: 'auto',
   });
+}
+
+/**
+ * Responsive ScrollTrigger setup using gsap.matchMedia()
+ * Desktop (>= 1024px): Enabled with pin/scrub
+ * Mobile/Tablet (< 1024px): Completely killed and reverted for natural touch scrolling
+ */
+export function initResponsiveFolderScrollTrigger(
+  containerEl,
+  trackEl,
+  panelCount = 4,
+  onProgress = () => {}
+) {
+  if (!containerEl || !trackEl || typeof window === 'undefined') return () => {};
+
+  const mm = gsap.matchMedia();
+
+  // Desktop only (>= 1024px): pin & horizontal scrub
+  mm.add('(min-width: 1024px)', () => {
+    gsap.to(trackEl, {
+      xPercent: -100 * (panelCount - 1) / panelCount,
+      ease: 'none',
+      scrollTrigger: {
+        trigger: containerEl,
+        pin: true,
+        scrub: 0.8,
+        start: 'top top',
+        end: () => `+=${window.innerWidth * (panelCount - 1) * 0.85}`,
+        onUpdate: (self) => {
+          const activeIdx = Math.min(
+            panelCount - 1,
+            Math.floor(self.progress * panelCount)
+          );
+          onProgress(activeIdx, self.progress);
+        },
+      },
+    });
+  });
+
+  // Mobile / Tablet (< 1024px): ScrollTrigger completely inactive
+  mm.add('(max-width: 1023px)', () => {
+    gsap.set(trackEl, { clearProps: 'transform' });
+  });
+
+  return () => mm.revert();
 }

@@ -8,7 +8,7 @@ export default function MobileSlideFilmstrip({
   activeSlideIndex = 0,
   onSelectSlide = () => { },
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const activeThumbnailRef = useRef(null);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export default function MobileSlideFilmstrip({
 
   return (
     <div
-      className="lg:hidden fixed bottom-0 inset-x-0 z-30 select-none transition-all duration-300 ease-in-out"
+      className="lg:hidden fixed bottom-0 inset-x-0 z-30 select-none transition-transform duration-300 ease-out"
       aria-label="Mobile Slide Navigation Filmstrip"
     >
       {/* Collapsible Drawer Container */}
@@ -51,16 +51,23 @@ export default function MobileSlideFilmstrip({
           <div className="flex items-center gap-1 text-[11px] text-[#D24726] font-medium flex-shrink-0">
             <span>{isExpanded ? 'Hide' : 'Slides'}</span>
             {isExpanded ? (
-              <ChevronDown className="w-3.5 h-3.5" />
+              <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200" />
             ) : (
-              <ChevronUp className="w-3.5 h-3.5" />
+              <ChevronUp className="w-3.5 h-3.5 transition-transform duration-200" />
             )}
           </div>
         </button>
 
-        {/* Expandable Horizontal Filmstrip Tray */}
-        {isExpanded && (
-          <div className="flex items-center gap-2 overflow-x-auto px-3 py-2 no-scrollbar snap-x snap-mandatory border-t border-[var(--ppt-card-border)]/50 bg-black/10 dark:bg-black/20 animate-in slide-in-from-bottom-2 duration-200">
+        {/* Expandable Horizontal Filmstrip Tray with Hardware-Accelerated Slide-Up / Slide-Down Animation */}
+        <div
+          className={`overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] transform ${
+            isExpanded
+              ? 'max-h-40 opacity-100 translate-y-0'
+              : 'max-h-0 opacity-0 translate-y-4 pointer-events-none'
+          }`}
+          aria-hidden={!isExpanded}
+        >
+          <div className="flex items-center gap-2 overflow-x-auto px-3 py-2 no-scrollbar snap-x snap-mandatory border-t border-[var(--ppt-card-border)]/50 bg-black/10 dark:bg-black/20">
             {slides.map((slide, index) => {
               const isActive = index === activeSlideIndex;
               return (
@@ -93,7 +100,7 @@ export default function MobileSlideFilmstrip({
               );
             })}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -1,59 +1,53 @@
 {
     "project": "node-pptx-templater-docs-site",
-    "version": "4.5.0",
-    "scope": "Documentation Site UI Polish: Purge Diagnostic Callouts, Restore Sidebar Header Branding, Mobile Filmstrip Collapsible Drawer, Tag Simplification, and Card Containment",
+    "version": "4.6.0",
+    "scope": "Documentation Site UX Optimization: Viewport-Scoped ScrollTrigger Disable, Arrow Navigation Controls, Contained Card/Folder Window Scrolling, and Slide Filmstrip Up/Down Transitions",
     "rules": {
         "preserveContent": true,
         "scopeStrict": "docs-site/"
     },
     "tasks": [
         {
-            "id": "TASK-DOCS-CALLOUT-PURGE-001",
-            "title": "Remove Edge Cases and OpenXML Impact Callout Boxes",
+            "id": "TASK-DOCS-RESPONSIVE-SCROLLTRIGGER-001",
+            "title": "Disable GSAP ScrollTrigger on Mobile and Tablet Viewports",
             "status": "completed",
-            "description": "In docs-site/src/components/ApiReferenceCard.jsx and PowerPointSlideDeck components, remove the 'Edge Cases' and 'OpenXML Impact' callout containers/boxes from the slide presentation view. Ensure that removing these sections leaves clean spacing and maximizes vertical breathing room for method descriptions, parameter tables, and code snippets without altering the core documentation copy.",
+            "description": "Conditionally disable or kill GSAP ScrollTrigger pin/scrub animations on mobile and tablet screen widths (window.innerWidth < 1024px or via gsap.matchMedia). On mobile and tablet devices, fall back to native smooth touch scrolling so users are not trapped by desktop horizontal pin scrubbers, ensuring that card contents and documentation text scroll naturally without scroll jank.",
             "deliverables": [
-                "docs-site/src/components/ApiReferenceCard.jsx",
-                "docs-site/src/components/PowerPointSlideDeck.jsx"
+                "docs-site/src/components/HomeFolderDeck.jsx",
+                "docs-site/src/animations/homeFolderScroll.js",
+                "docs-site/src/animations/gsapSlideTransitions.js"
             ]
         },
         {
-            "id": "TASK-DOCS-SIDEBAR-TITLE-002",
-            "title": "Fix SlideThumbnailSidebar Header Title to Display 'API Reference'",
+            "id": "TASK-DOCS-NAV-ARROWS-002",
+            "title": "Add Accessible Navigation Arrow Controls for Slides and Folders",
             "status": "completed",
-            "description": "In docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx, fix the sidebar header title rendering. It currently mirrors or duplicates the active category name; update it to permanently display 'API Reference' as the top structural section title, keeping the category and filter indicators secondary.",
+            "description": "Implement floating/docked directional navigation arrow controls (<button aria-label='Previous'> and <button aria-label='Next'>) on both the Home Page folder flow and the Documentation slide deck presentation views. The buttons must allow direct previous/next jumping across slides and folder sections, remain accessible across mobile, tablet, and desktop, dynamically disable when at bounds (index 0 or last index), and synchronize active thumbnail/progress indicators.",
             "deliverables": [
-                "docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx"
-            ]
-        },
-        {
-            "id": "TASK-DOCS-MOBILE-COLLAPSE-003",
-            "title": "Implement Expandable/Collapsible Mobile Slide Filmstrip",
-            "status": "completed",
-            "description": "In docs-site/src/components/PowerPointChrome/MobileSlideFilmstrip.jsx (and related mobile navigation bars), make the bottom slide filmstrip drawer collapsible: clicking or tapping on the toggle/header expands the horizontal filmstrip tray, and tapping it again collapses it to a minimal, non-intrusive bottom bar to free up viewport space for reading slide function details.",
-            "deliverables": [
-                "docs-site/src/components/PowerPointChrome/MobileSlideFilmstrip.jsx",
-                "docs-site/src/components/PowerPointSlideDeck.jsx"
-            ]
-        },
-        {
-            "id": "TASK-DOCS-TAG-CLEANUP-004",
-            "title": "Remove 'static' and 'async' Tags from Method Badges",
-            "status": "completed",
-            "description": "In docs-site/src/components/ApiReferenceCard.jsx and docs-site/src/data/apiReference.json rendering logic, remove standalone 'static' and 'async' pill badges from the method header. Ensure asynchronous invocation is clearly shown through the code signature (e.g., using 'await ppt.method(...)') rather than cluttering the header with redundant static/async tags.",
-            "deliverables": [
-                "docs-site/src/components/ApiReferenceCard.jsx"
-            ]
-        },
-        {
-            "id": "TASK-DOCS-CONTAINMENT-005",
-            "title": "Enforce Strict Card Boundaries for Function Sidebar and Details View",
-            "status": "completed",
-            "description": "Fix CSS layout constraints in docs-site/src/components/ApiReferenceCard.jsx and docs-site/src/components/PowerPointSlideDeck.jsx to prevent inner submenus, function lists, or Function Details cards from overflowing outside the slide card boundaries. Apply strict containment (`overflow-hidden`, `max-w-full`, inner `overflow-y-auto` with clean scroll padding) so all function listings and parameter details remain strictly within the parent PowerPoint presentation slide frame.",
-            "deliverables": [
-                "docs-site/src/components/ApiReferenceCard.jsx",
+                "docs-site/src/components/HomeFolderDeck.jsx",
                 "docs-site/src/components/PowerPointSlideDeck.jsx",
+                "docs-site/src/components/NavigationArrows.jsx"
+            ]
+        },
+        {
+            "id": "TASK-DOCS-SCROLL-CONTAINMENT-003",
+            "title": "Isolate Internal Card/Folder Window Scroll from Main Component Container",
+            "status": "completed",
+            "description": "Ensure that vertical scrolling inside an active slide card or home folder panel is completely isolated and strictly contained within its dedicated inner window frame. Apply `overscroll-behavior: contain` and CSS containment (`isolate`, `overflow-y-auto`, hiding outer document scrollbars or setting parent viewport overflow to hidden) so internal content scrolling does not bubble up, cause window bounce, or show visible parent page scrollbars on the main component canvas.",
+            "deliverables": [
+                "docs-site/src/components/PowerPointSlideDeck.jsx",
+                "docs-site/src/components/ApiReferenceCard.jsx",
+                "docs-site/src/components/HomeFolderDeck.jsx",
                 "docs-site/src/styles/globals.css"
+            ]
+        },
+        {
+            "id": "TASK-DOCS-FILMSTRIP-SLIDE-ANIM-004",
+            "title": "Implement Slide-Up & Slide-Down Show/Hide Animations for Mobile Slide Filmstrip",
+            "status": "completed",
+            "description": "Upgrade the collapsible mobile/tablet slide filmstrip with smooth slide-up and slide-down transition animations using GSAP or CSS hardware-accelerated transitions (transform: translateY(0) to translateY(100%)). When expanding, the filmstrip smoothly slides up from the bottom; when collapsing, it smoothly slides down into the minimized handle/bar without jarring pop-in or layout thrashing.",
+            "deliverables": [
+                "docs-site/src/components/PowerPointChrome/MobileSlideFilmstrip.jsx"
             ]
         }
     ]

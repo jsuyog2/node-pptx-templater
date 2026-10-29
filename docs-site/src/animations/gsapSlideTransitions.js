@@ -14,7 +14,10 @@ if (typeof window !== 'undefined') {
 export function animateHeroScrollTrigger(containerRef) {
   if (!containerRef?.current || typeof window === 'undefined') return () => {};
 
-  const ctx = gsap.context(() => {
+  const mm = gsap.matchMedia();
+
+  // Desktop only (>= 1024px): staggered reveal with ScrollTrigger
+  mm.add('(min-width: 1024px)', () => {
     // 1. PowerPoint Window Chrome Reveal
     gsap.from('.hero-window-chrome', {
       opacity: 0,
@@ -68,9 +71,24 @@ export function animateHeroScrollTrigger(containerRef) {
       delay: 0.75,
       ease: 'back.out(1.5)',
     });
-  }, containerRef);
+  });
 
-  return () => ctx.revert();
+  // Mobile/Tablet (< 1024px): ScrollTrigger disabled, clear props for natural layout flow
+  mm.add('(max-width: 1023px)', () => {
+    gsap.set(
+      [
+        '.hero-window-chrome',
+        '.hero-headline',
+        '.hero-subheadline',
+        '.hero-action-buttons',
+        '.hero-playground-card',
+        '.hero-stat-badge',
+      ],
+      { clearProps: 'all' }
+    );
+  });
+
+  return () => mm.revert();
 }
 
 /**

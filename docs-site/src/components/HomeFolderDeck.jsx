@@ -22,6 +22,7 @@ import {
   findScrollableContainer,
 } from '../animations/homeFolderScroll';
 import StatusBar from './PowerPointChrome/StatusBar';
+import NavigationArrows from './NavigationArrows';
 
 const CODE_EXAMPLES = `import { PPTXTemplater } from 'node-pptx-templater';
 
@@ -130,6 +131,8 @@ export default function HomeFolderDeck() {
   // Wheel Boundary Snapping with explicit damping
   const handleWheel = useCallback(
     (e) => {
+      // On mobile and tablet (< 1024px), disable scroll-jacking to permit natural vertical scrolling
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) return;
       if (Math.abs(e.deltaY) < 10) return;
 
       const currentDirection = e.deltaY > 0 ? 1 : -1;
@@ -244,6 +247,12 @@ export default function HomeFolderDeck() {
       return;
     }
 
+    // On mobile and tablet viewports (< 1024px), vertical touch scrolling remains completely
+    // native and unhindered to prevent scroll-jacking or accidental folder jumps.
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      return;
+    }
+
     if (Math.abs(deltaY) < 25) return;
 
     const activeCard = cardRefs.current[activeFolderIndex];
@@ -313,7 +322,7 @@ export default function HomeFolderDeck() {
           <div
             ref={(el) => (cardRefs.current[0] = el)}
             style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain transition-transform duration-150"
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150"
           >
             {/* Folder Chrome Header */}
             <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
@@ -418,7 +427,7 @@ export default function HomeFolderDeck() {
           <div
             ref={(el) => (cardRefs.current[1] = el)}
             style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain transition-transform duration-150"
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150"
           >
             {/* Folder Chrome Header */}
             <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
@@ -471,7 +480,7 @@ export default function HomeFolderDeck() {
           <div
             ref={(el) => (cardRefs.current[2] = el)}
             style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain transition-transform duration-150"
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150"
           >
             {/* Folder Chrome Header */}
             <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
@@ -548,7 +557,7 @@ export default function HomeFolderDeck() {
           <div
             ref={(el) => (cardRefs.current[3] = el)}
             style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain transition-transform duration-150"
+            className="w-full max-w-7xl ppt-card-surface rounded-xl overflow-hidden shadow-2xl border border-[var(--ppt-card-border)] max-h-[calc(100vh-170px)] overflow-y-auto overscroll-contain overscroll-y-contain isolate transition-transform duration-150"
           >
             {/* Folder Chrome Header */}
             <div className="h-8 bg-black/20 dark:bg-black/40 border-b border-[var(--ppt-card-border)] flex items-center justify-between px-3 text-xs flex-shrink-0 sticky top-0 z-10 backdrop-blur-md">
@@ -605,6 +614,17 @@ export default function HomeFolderDeck() {
             </div>
           </div>
         </section>
+      </div>
+
+      {/* Floating Directional Arrow Navigation Controls (Accessible on Mobile, Tablet & Desktop) */}
+      <div className="fixed bottom-12 sm:bottom-14 right-4 sm:right-6 z-30">
+        <NavigationArrows
+          currentIndex={activeFolderIndex}
+          totalItems={FOLDERS.length}
+          onPrev={prevFolder}
+          onNext={nextFolder}
+          label="Folder"
+        />
       </div>
 
       {/* Bottom Status Bar (Desktop) */}

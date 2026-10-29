@@ -36,6 +36,7 @@
     color: var(--ppt-text-primary);
     background-attachment: fixed;
     transition: background 0.3s ease, color 0.3s ease;
+    overscroll-behavior-y: none;
   }
 }
 
@@ -60,6 +61,17 @@
     box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.35);
     contain: layout paint;
     box-sizing: border-box;
+    overscroll-behavior: contain;
+    isolation: isolate;
+  }
+
+  /* Scroll Containment & Isolation */
+  .overscroll-contain {
+    overscroll-behavior: contain;
+  }
+
+  .overscroll-y-contain {
+    overscroll-behavior-y: contain;
   }
 
   .ppt-active-slide {
