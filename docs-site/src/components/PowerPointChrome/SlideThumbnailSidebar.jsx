@@ -6,7 +6,7 @@ import { Layers, FileCode, CheckCircle2 } from 'lucide-react';
 export default function SlideThumbnailSidebar({
   slides = [],
   activeSlideIndex = 0,
-  onSelectSlide = () => {},
+  onSelectSlide = () => { },
   className = '',
 }) {
   const activeItemRef = useRef(null);
@@ -22,7 +22,7 @@ export default function SlideThumbnailSidebar({
 
   return (
     <aside
-      className={`w-[280px] min-w-[280px] max-w-[280px] ppt-chrome-surface border-r border-[var(--ppt-chrome-border)] flex flex-col h-[calc(100vh-136px)] overflow-y-auto select-none ${className}`}
+      className={`w-[280px] min-w-[280px] max-w-[280px] ppt-chrome-surface border-r border-[var(--ppt-chrome-border)] flex flex-col h-[calc(100vh-105x)] overflow-y-auto select-none ${className}`}
       aria-label="Presentation Slide Thumbnails"
     >
       {/* Sidebar Header */}
@@ -58,22 +58,20 @@ export default function SlideThumbnailSidebar({
             >
               {/* Slide Number */}
               <span
-                className={`text-[11px] font-mono font-medium pt-1 w-4 text-right transition-colors ${
-                  isActive
-                    ? 'text-[#D24726] font-bold'
-                    : 'text-[var(--ppt-text-secondary)] group-hover:text-[var(--ppt-text-primary)]'
-                }`}
+                className={`text-[11px] font-mono font-medium pt-1 w-4 text-right transition-colors ${isActive
+                  ? 'text-[#D24726] font-bold'
+                  : 'text-[var(--ppt-text-secondary)] group-hover:text-[var(--ppt-text-primary)]'
+                  }`}
               >
                 {index + 1}
               </span>
 
               {/* 16:9 Thumbnail Card */}
               <div
-                className={`flex-1 aspect-[16/9] rounded-sm p-2 flex flex-col justify-between transition-all duration-200 relative overflow-hidden ppt-card-surface ${
-                  isActive
-                    ? 'ppt-active-slide ring-1 ring-[#D24726]'
-                    : 'hover:border-[#D24726]/60 opacity-80 hover:opacity-100'
-                }`}
+                className={`flex-1 aspect-[16/9] rounded-sm p-2 flex flex-col justify-between transition-all duration-200 relative overflow-hidden ppt-card-surface ${isActive
+                  ? 'ppt-active-slide ring-1 ring-[#D24726]'
+                  : 'hover:border-[#D24726]/60 opacity-80 hover:opacity-100'
+                  }`}
               >
                 {/* Mini Header / Category */}
                 <div className="flex items-center justify-between gap-1">

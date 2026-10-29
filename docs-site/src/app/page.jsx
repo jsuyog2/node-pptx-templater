@@ -34,12 +34,6 @@ const CORE_MODULES = [
     desc: 'Quickstart for npm, pnpm, yarn, dual ESM/CJS, and native TypeScript declarations.',
   },
   {
-    title: 'Capabilities & Matrix',
-    href: '/docs/capabilities',
-    icon: Cpu,
-    desc: 'Runtime matrix across AWS Lambda, Cloudflare Workers, Vercel Edge, Bun, and Deno.',
-  },
-  {
     title: 'Interactive API Reference',
     href: '/docs/api-reference',
     icon: Code2,
@@ -75,11 +69,11 @@ export default function HomePage() {
                 Comprehensive Documentation Suite
               </h2>
               <p className="text-sm text-[var(--ppt-text-secondary)] mt-2">
-                Structured into 4 focused PowerPoint slide presentations for instant developer productivity.
+                Structured into 3 focused PowerPoint slide presentations for instant developer productivity.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4">
               {CORE_MODULES.map((mod) => {
                 const Icon = mod.icon;
                 return (

@@ -13,10 +13,6 @@
       "href": "/docs/installation"
     },
     {
-      "title": "Capabilities",
-      "href": "/docs/capabilities"
-    },
-    {
       "title": "API Reference",
       "href": "/docs/api-reference"
     }
@@ -34,11 +30,6 @@
           "title": "Installation",
           "href": "/docs/installation",
           "icon": "Terminal"
-        },
-        {
-          "title": "Capabilities & Matrix",
-          "href": "/docs/capabilities",
-          "icon": "Cpu"
         },
         {
           "title": "API Reference",

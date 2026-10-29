@@ -10,7 +10,7 @@ export default function PowerPointSlideDeck({
   slides = [],
   initialIndex = 0,
   categoryTitle = 'Documentation',
-  onSlideChange = () => {},
+  onSlideChange = () => { },
 }) {
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [viewMode, setViewMode] = useState('normal');
@@ -140,7 +140,7 @@ export default function PowerPointSlideDeck({
         <div
           ref={stageRef}
           style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-          className="w-full max-w-5xl ppt-slide-card rounded-xl p-6 sm:p-10 border border-[var(--ppt-card-border)] relative my-auto min-h-[500px] flex flex-col justify-between transition-transform duration-150"
+          className="w-full max-w-5xl ppt-slide-card rounded-xl p-6 sm:p-10 border border-[var(--ppt-card-border)] overflow-y-auto relative my-auto min-h-[500px] flex flex-col justify-between transition-transform duration-150"
         >
           {/* Slide Top Accent Bar & Meta */}
           <div>
@@ -149,24 +149,21 @@ export default function PowerPointSlideDeck({
                 <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-[#D24726] text-white tracking-wide">
                   {activeSlide.category || categoryTitle}
                 </span>
-                <span className="text-xs text-[var(--ppt-text-secondary)] font-mono">
-                  Slide #{activeIndex + 1}
-                </span>
               </div>
 
               <div className="flex items-center gap-2 text-xs text-[var(--ppt-text-secondary)]">
-                <span className="hidden sm:inline">16:9 Widescreen</span>
+                <span className="hidden sm:inline font-mono">Slide #{activeIndex + 1}</span>
                 <div className="w-2 h-2 rounded-full bg-[#D24726]" />
               </div>
             </div>
 
             {/* Slide Title & Subtitle */}
-            <div className="space-y-1 mb-6">
+            <div className="space-y-1 mb-3">
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--ppt-text-primary)] tracking-tight">
                 {activeSlide.title}
               </h1>
               {activeSlide.subtitle && (
-                <p className="text-sm sm:text-base text-[var(--ppt-text-secondary)]">
+                <p className="text-sm text-[var(--ppt-text-secondary)]">
                   {activeSlide.subtitle}
                 </p>
               )}
@@ -182,8 +179,6 @@ export default function PowerPointSlideDeck({
           <div className="pt-6 mt-8 border-t border-[var(--ppt-card-border)]/60 flex items-center justify-between text-[11px] text-[var(--ppt-text-secondary)]">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-[var(--ppt-text-primary)]">node-pptx-templater</span>
-              <span>•</span>
-              <span>ISO/IEC 29500 PresentationML</span>
             </div>
 
             <div className="font-mono text-xs text-[var(--ppt-text-primary)]">

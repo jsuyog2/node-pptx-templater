@@ -25,7 +25,6 @@ export default function RibbonHeader() {
   const tabs = [
     { title: 'Overview', href: '/docs', icon: FileText },
     { title: 'Installation', href: '/docs/installation', icon: Terminal },
-    { title: 'Capabilities', href: '/docs/capabilities', icon: Cpu },
     { title: 'API Reference', href: '/docs/api-reference', icon: Code2 },
   ];
 

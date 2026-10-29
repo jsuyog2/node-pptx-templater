@@ -117,48 +117,6 @@ async function generateReport(): Promise<Buffer> {
       </div>
     ),
   },
-  {
-    id: 'install-4',
-    category: 'Serverless',
-    title: 'Cloud & Edge Setup',
-    subtitle: 'Deploy to AWS Lambda, Cloudflare Workers, and Vercel Edge',
-    signature: 'Serverless Ingest & Export',
-    content: (
-      <div className="space-y-3">
-        <p className="text-xs sm:text-sm text-[var(--ppt-text-secondary)]">
-          Export presentations straight to web responses or S3 without disk I/O:
-        </p>
-        <CodeBlock
-          code={`// Cloudflare Workers fetch handler
-import { PPTXTemplater } from 'node-pptx-templater';
-
-export default {
-  async fetch(req) {
-    const templateBytes = await (await fetch('https://cdn.example.com/slide.pptx')).arrayBuffer();
-    const ppt = await PPTXTemplater.load(templateBytes);
-    ppt.useSlide(1).replaceText({ '{{TITLE}}': 'Edge Generated' });
-
-    const outputBuffer = await ppt.toArrayBuffer();
-    return new Response(outputBuffer, {
-      headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }
-    });
-  }
-};`}
-          language="javascript"
-          filename="worker.js"
-        />
-        <div className="flex justify-end pt-2">
-          <Link
-            href="/docs/capabilities"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded text-xs font-bold bg-[#D24726] text-white hover:bg-[#b83b1e] transition-colors"
-          >
-            <span>Next: Capabilities &amp; Matrix</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </div>
-    ),
-  },
 ];
 
 export default function InstallationPage() {
