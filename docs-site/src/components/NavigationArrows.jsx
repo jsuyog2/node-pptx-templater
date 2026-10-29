@@ -34,7 +34,7 @@ export default function NavigationArrows({
     <div
       role="group"
       aria-label={`${label} Navigation Controls`}
-      className={`inline-flex items-center gap-1.5 sm:gap-2 select-none max-w-full ${className}`}
+      className={`inline-flex items-center gap-1.5 sm:gap-2 select-none max-w-full lg:hidden ${className}`}
     >
       {/* Previous Button */}
       <button
@@ -43,7 +43,7 @@ export default function NavigationArrows({
         disabled={isFirst}
         aria-label={`Previous ${label} (Slide #${currentIndex})`}
         title={`Previous ${label}`}
-        className="p-2 sm:p-2.5 rounded-full ppt-card-surface border border-[var(--ppt-card-border)] text-[var(--ppt-text-primary)] hover:text-[#D24726] hover:border-[#D24726] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-[var(--ppt-text-primary)] disabled:hover:border-[var(--ppt-card-border)] transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#D24726]"
+        className="p-1.5 sm:p-2.5 rounded-full ppt-card-surface border border-[var(--ppt-card-border)] text-[var(--ppt-text-primary)] hover:text-[#D24726] hover:border-[#D24726] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-[var(--ppt-text-primary)] disabled:hover:border-[var(--ppt-card-border)] transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#D24726]"
       >
         <ChevronLeft className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
       </button>
@@ -70,7 +70,7 @@ export default function NavigationArrows({
         disabled={isLast}
         aria-label={`Next ${label} (Slide #${currentIndex + 2})`}
         title={`Next ${label}`}
-        className="p-2 sm:p-2.5 rounded-full ppt-card-surface border border-[var(--ppt-card-border)] text-[var(--ppt-text-primary)] hover:text-[#D24726] hover:border-[#D24726] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-[var(--ppt-text-primary)] disabled:hover:border-[var(--ppt-card-border)] transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#D24726]"
+        className="p-1.5 sm:p-2.5 rounded-full ppt-card-surface border border-[var(--ppt-card-border)] text-[var(--ppt-text-primary)] hover:text-[#D24726] hover:border-[#D24726] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-[var(--ppt-text-primary)] disabled:hover:border-[var(--ppt-card-border)] transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#D24726]"
       >
         <ChevronRight className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
       </button>

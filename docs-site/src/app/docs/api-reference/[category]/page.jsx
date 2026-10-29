@@ -38,7 +38,7 @@ export default function CategoryPage({ params }) {
 
   return (
     <main className="w-full h-full overflow-hidden">
-      <CategoryDeckClient activeCategorySlug={categorySlug} />
+      <CategoryDeckClient activeCategorySlug={categorySlug} initalLoad={params?.category === undefined ? true : false} />
     </main>
   );
 }

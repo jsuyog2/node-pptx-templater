@@ -11,6 +11,7 @@ export default function PowerPointSlideDeck({
   slides = [],
   initialIndex = 0,
   categoryTitle = 'Documentation',
+  activeOnfirst,
   onSlideChange = () => { },
 }) {
   const [activeIndex, setActiveIndex] = useState(initialIndex);
@@ -319,7 +320,7 @@ export default function PowerPointSlideDeck({
         className="flex-1 flex flex-col items-center justify-start p-2 sm:p-6 lg:p-8 overflow-hidden pb-16 relative w-full max-w-full overscroll-contain isolate box-border"
       >
         {/* Stage Directional Arrow Navigation Controls (Accessible on Mobile, Tablet & Desktop) */}
-        <div className="fixed right-4 sm:right-6 top-[110px] sm:top-[120px] z-20">
+        <div className="fixed right-10 sm:right-20 bottom-11 sm:bottom-9 z-20">
           <NavigationArrows
             currentIndex={activeIndex}
             totalItems={totalSlides}
@@ -393,6 +394,7 @@ export default function PowerPointSlideDeck({
       <MobileSlideFilmstrip
         slides={slides}
         activeSlideIndex={activeIndex}
+        activeOnfirst={activeOnfirst}
         onSelectSlide={(idx) => goToSlide(idx, idx > activeIndex ? 'next' : 'prev')}
       />
 

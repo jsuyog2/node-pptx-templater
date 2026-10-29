@@ -257,6 +257,7 @@ export default function DocsPage() {
   return (
     <PowerPointSlideDeck
       slides={OVERVIEW_SLIDES}
+      activeOnfirst={true}
       categoryTitle="Overview"
     />
   );

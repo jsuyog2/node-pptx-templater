@@ -6,9 +6,10 @@ import { Layers, ChevronUp, ChevronDown } from 'lucide-react';
 export default function MobileSlideFilmstrip({
   slides = [],
   activeSlideIndex = 0,
+  activeOnfirst,
   onSelectSlide = () => { },
 }) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(activeOnfirst);
   const activeThumbnailRef = useRef(null);
 
   useEffect(() => {
@@ -60,11 +61,10 @@ export default function MobileSlideFilmstrip({
 
         {/* Expandable Horizontal Filmstrip Tray with Hardware-Accelerated Slide-Up / Slide-Down Animation */}
         <div
-          className={`overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] transform ${
-            isExpanded
-              ? 'max-h-40 opacity-100 translate-y-0'
-              : 'max-h-0 opacity-0 translate-y-4 pointer-events-none'
-          }`}
+          className={`overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] transform ${isExpanded
+            ? 'max-h-40 opacity-100 translate-y-0'
+            : 'max-h-0 opacity-0 translate-y-4 pointer-events-none'
+            }`}
           aria-hidden={!isExpanded}
         >
           <div className="flex items-center gap-2 overflow-x-auto max-w-full overscroll-x-contain px-3 py-2 no-scrollbar snap-x snap-mandatory border-t border-[var(--ppt-card-border)]/50 bg-black/10 dark:bg-black/20">
@@ -76,13 +76,17 @@ export default function MobileSlideFilmstrip({
                   ref={isActive ? activeThumbnailRef : null}
                   type="button"
                   onClick={() => {
-                    onSelectSlide(index);
+                    setIsExpanded(() => {
+                      setTimeout(() => {
+                        onSelectSlide(index);
+                      }, 300);
+                      return false;
+                    })
                   }}
-                  className={`snap-center flex-shrink-0 w-28 sm:w-32 aspect-[16/9] rounded p-1.5 flex flex-col justify-between text-left transition-all duration-200 ppt-card-surface border cursor-pointer ${
-                    isActive
-                      ? 'border-[#D24726] ring-2 ring-[#D24726] scale-105 shadow-md'
-                      : 'border-[var(--ppt-card-border)] opacity-70 hover:opacity-100'
-                  }`}
+                  className={`snap-center flex-shrink-0 w-28 sm:w-32 aspect-[16/9] rounded p-1.5 flex flex-col justify-between text-left transition-all duration-200 ppt-card-surface border cursor-pointer ${isActive
+                    ? 'border-[#D24726] ring-2 ring-[#D24726] scale-105 shadow-md'
+                    : 'border-[var(--ppt-card-border)] opacity-70 hover:opacity-100'
+                    }`}
                   aria-label={`Go to slide ${index + 1}: ${slide.title || ''}`}
                 >
                   <div className="flex items-center justify-between gap-1 w-full">

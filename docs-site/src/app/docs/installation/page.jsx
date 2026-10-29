@@ -123,6 +123,7 @@ export default function InstallationPage() {
   return (
     <PowerPointSlideDeck
       slides={INSTALLATION_SLIDES}
+      activeOnfirst={true}
       categoryTitle="Installation"
     />
   );

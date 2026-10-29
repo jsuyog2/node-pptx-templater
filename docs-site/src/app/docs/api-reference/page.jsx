@@ -20,8 +20,7 @@ function ApiReferenceDefault() {
       activeSlug = categoryParam.toLowerCase();
     }
   }
-
-  return <CategoryDeckClient activeCategorySlug={activeSlug} />;
+  return <CategoryDeckClient activeCategorySlug={activeSlug} initalLoad={!categoryParam ? true : false} />;
 }
 
 export default function ApiReferencePage() {

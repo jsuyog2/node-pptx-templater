@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PowerPointSlideDeck from './PowerPointSlideDeck';
 import ApiReferenceCard from './ApiReferenceCard';
@@ -12,9 +12,10 @@ import {
   SLUG_TO_CATEGORY_MAP,
 } from '../utils/categoryMapping';
 
-export default function CategoryDeckClient({ activeCategorySlug = 'import-export' }) {
+export default function CategoryDeckClient({ activeCategorySlug = 'import-export', initalLoad }) {
   const router = useRouter();
 
+  const [inital, setInital] = useState(initalLoad);
   // Normalize slug and find canonical category name
   const canonicalCategory = useMemo(() => {
     return SLUG_TO_CATEGORY_MAP[activeCategorySlug] || 'Import/Export';
@@ -30,6 +31,7 @@ export default function CategoryDeckClient({ activeCategorySlug = 'import-export
       const targetCategory = CATEGORIES[newIndex] || CATEGORIES[0];
       const targetSlug = CATEGORY_SLUG_MAP[targetCategory] || 'import-export';
       if (targetSlug !== activeCategorySlug) {
+        setInital(false);
         router.push(`/docs/api-reference/${targetSlug}`);
       }
     },
@@ -73,6 +75,7 @@ export default function CategoryDeckClient({ activeCategorySlug = 'import-export
       slides={slides}
       initialIndex={activeIndex}
       categoryTitle="API Reference"
+      activeOnfirst={inital}
       onSlideChange={handleSlideChange}
     />
   );

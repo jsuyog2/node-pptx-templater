@@ -622,7 +622,7 @@ export default function HomeFolderDeck() {
       </div>
 
       {/* Floating Directional Arrow Navigation Controls (Accessible on Mobile, Tablet & Desktop) */}
-      <div className="fixed bottom-12 sm:bottom-14 right-4 sm:right-6 z-30">
+      <div className="fixed right-3 sm:right-6 bottom-4 sm:bottom-3 z-30">
         <NavigationArrows
           currentIndex={activeFolderIndex}
           totalItems={FOLDERS.length}
