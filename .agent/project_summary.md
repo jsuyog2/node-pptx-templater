@@ -3,7 +3,8 @@
 > **Version**: 3.0.0-beta.1  
 > **Runtime**: Pure JavaScript (Node.js `>=18.x`, AWS Lambda, Cloudflare Workers, Vercel Edge, Deno, Bun)  
 > **Standard**: ISO/IEC 29500 (ECMA-376) Parts 1 & 2 (OPC & PresentationML)  
-> **API Catalog**: See `docs-site/src/data/apiReference.json` for full parameter definitions & examples
+> **CI/CD Pipeline**: Operational (Decoupled Push Gate, Release Publishing, Manual Docs Hosting)  
+> **API Catalog**: See `docs-site/src/data/apiReference.json` for full schemas and usage examples.
 
 ---
 
@@ -12,114 +13,68 @@
 `node-pptx-templater` is an in-memory OpenXML package manipulator operating on a Virtual File System (`Map<string, Uint8Array>`) with zero native binaries or office dependencies.
 
 ```
-Ingestion (PackageLoader, FlatOpcConverter, LegacyConverter)
-  └─► In-Memory VFS (VirtualFileSystem)
-        └─► AST Parsing & Serializing (XMLParser: standard & ordered [Z_ORDER_SYMBOL])
-              ├─► Core: TemplateEngine (run healing, lists), ValidationEngine (XXE, integrity)
-              ├─► Slide Subsystems: SlideManager, CommentManager
-              ├─► Element Subsystems: ElementManager, HyperlinkManager, ZOrderManager, TextManager, TableManager, ChartManager, ShapeManager, ImageManager, MediaManager
-              ├─► Package Manifests: RelationshipManager, ContentTypesManager, ZipManager
-              └─► Output Pipeline: OutputWriter & FrameworkAdapters (18-method I/O boundary)
+PackageLoader / Converters ──► In-Memory VFS (VirtualFileSystem)
+                                    └──► XMLParser (Lossless AST & Z-Order)
+                                          ├── Core: TemplateEngine, ValidationEngine
+                                          ├── Visual Elements: TableManager, ChartManager, ShapeManager,
+                                          │                     TextManager, ImageManager, ElementManager,
+                                          │                     HyperlinkManager, ZOrderManager
+                                          ├── Package Managers: SlideManager, CommentManager, MediaManager,
+                                          │                     ZipManager, ContentTypesManager, RelationshipManager
+                                          └── Output: OutputWriter (18-method I/O boundary)
 ```
 
-### Core Subsystem Managers
-- **`VirtualFileSystem`** (`src/core/VirtualFileSystem.js`): Normalized in-memory file store (`Map<string, Uint8Array>`).
-- **`PackageLoader`** (`src/core/PackageLoader.js`): Ingests local files, buffers, streams, URLs, directories, cloud objects, and Flat OPC XML.
-- **`XMLParser`** (`src/parsers/XMLParser.js`): Lossless `fast-xml-parser` with dual-mode AST parsing and Z-order preservation (`[Z_ORDER_SYMBOL]`).
-- **`StyleBuilder`** (`src/parsers/StyleBuilder.js`): DrawingML typography and shape style builder.
-- **`TemplateEngine`** (`src/core/TemplateEngine.js`): AST-level text run healing across fragmented `<a:r>`/`<a:t>` tags and native list generation.
-- **`ValidationEngine`** (`src/core/ValidationEngine.js`): XXE defense, entity bomb prevention, and structural package verification.
-- **`SlideManager`** (`src/managers/SlideManager.js`): 1-based slide operations, deep cloning, reordering, layout binding, sections, and comments.
-- **`TableManager`** (`src/elements/TableManager.js`): DrawingML table lifecycle, row/column CRUD, rectangular cell merges/splits, `<a16:rowId>` allocation, and polymorphic cell badges.
-- **`ChartManager`** (`src/elements/ChartManager.js`): DrawingML (`<c:chartSpace>`) and extended (`<cx:chartSpace>`) chart types with Dual-Sync updating of embedded Excel workbooks.
-- **`ShapeManager`** (`src/elements/ShapeManager.js`): Vector geometry, fills, borders, text, alignment, grouping, and coordinate math.
-- **`TextManager`** (`src/elements/TextManager.js`): Run substitutions, full text box replacement (`replaceTextByTag`), and DrawingML styling.
-- **`ElementManager`** (`src/elements/ElementManager.js`): Unified slide element inspection, querying, relationship-safe removal, and canvas resets.
-- **`HyperlinkManager`** (`src/elements/HyperlinkManager.js`): External web URLs, internal slide jumps (`action="ppaction://hlinksldjump"`), and slideshow actions.
-- **`ZOrderManager`** (`src/spatial/ZOrderManager.js`): Visual stacking operations while preserving `<p:nvGrpSpPr>` and `<p:grpSpPr>` header invariants.
-- **`ImageManager`** & **`MediaManager`** (`src/elements/ImageManager.js`, `src/managers/MediaManager.js`): Image, audio, and video insertion, MIME detection, aspect ratio, and timing tracks.
-- **`RelationshipManager`** & **`ContentTypesManager`** (`src/managers/`): `.rels` target graphs and `[Content_Types].xml` default/override mappings.
-- **`ZipManager`** (`src/managers/ZipManager.js`): In-memory ZIP packaging and extraction via JSZip.
-- **`OutputWriter`** (`src/writer/OutputWriter.js`): Multi-target output serialization with Express/Fastify adapters.
+### Core Subsystems:
+- **`VirtualFileSystem`** (`src/core/VirtualFileSystem.js`): Normalized in-memory store (`Map<string, Uint8Array>`); zero intermediate disk writes.
+- **`PackageLoader`** (`src/core/PackageLoader.js`): Ingests local files, buffers, streams, URLs, directories, and Flat OPC XML.
+- **`XMLParser`** (`src/parsers/XMLParser.js`): Dual-mode AST parser with `[Z_ORDER_SYMBOL]` preserving shape stacking.
+- **`TemplateEngine`** (`src/core/TemplateEngine.js`): AST-level run fragment healing across split `<a:r>`/`<a:t>` tags and native list generation.
+- **`ValidationEngine`** (`src/core/ValidationEngine.js`): Hardened against XXE, Billion Laughs, and Zip-Slip path traversals.
+- **`SlideManager`** (`src/managers/SlideManager.js`): 1-based slide operations, deep cloning, layout binding, sections, and comments.
+- **`TableManager`** (`src/elements/TableManager.js`): DrawingML tables, rectangular cell merge/split, unique 32-bit `<a16:rowId>`, auto-pagination.
+- **`ChartManager`** (`src/elements/ChartManager.js`): 17 chart types with DrawingML cache and embedded Excel workbook Dual-Sync.
+- **`ShapeManager`** (`src/elements/ShapeManager.js`): Vector geometry, fills, borders, text, alignment, and coordinate math.
+- **`TextManager`** (`src/elements/TextManager.js`): Variable substitutions, full text box replacement (`replaceTextByTag`), DrawingML typography.
+- **`ZOrderManager`** (`src/spatial/ZOrderManager.js`): Visual stacking operations while preserving `<p:nvGrpSpPr>` and `<p:grpSpPr>` invariants.
+- **`OutputWriter`** (`src/writer/OutputWriter.js`): Serialization pipeline with Express/Fastify framework streaming adapters.
+- **`ZipManager`** (`src/managers/ZipManager.js`): In-memory ZIP compression/decompression via JSZip.
 
 ---
 
-## 2. Exact 8 Standardized Categories & 130 Public Methods
+## 2. Standardized 8 Categories & Public API Boundary
 
-The public API surface of `PPTXTemplater` is strictly organized across 8 categories:
+All APIs, TypeScript interfaces (`index.d.ts`), and JSDocs strictly adhere to 8 canonical categories (130 methods total):
 
-1. **`Import/Export`** (18 Methods):
-   - *Static (7)*: `load`, `createBlank`, `extractPptx`, `buildPptx`, `preload`, `fromCache`, `clearCache` (plus `setLogLevel`).
-   - *Export (8)*: `saveToFile`, `toBuffer`, `toStream`, `toBase64`, `toArrayBuffer`, `toResponse`, `toExpress`, `toFastify`.
-   - *Extraction (3)*: `extractToZip`, `extractToXml`, `toFlatXml`.
-2. **`Slides`** (24 Methods):
-   - `useSlide`, `useAllSlides`, `addSlide`, `duplicateSlide`, `removeSlide`, `getSlides`, `getSlide`, `importSlideFrom`, `exportSlides`, `moveSlide`, `reorderSlides`, `tagSlide`, `getSlideDimensions`, `getSlideLayout`, `useSection`, `addSection`, `updateSection`, `removeSection`, `getSection`, `hideSlide`, `unhideSlide`, `resetSlide`, `addComment`, `removeComment`.
-3. **`Text & Placeholders`** (10 Methods):
-   - `replaceText`, `addText`, `replaceTextByTag`, `updateText`, `addLists`, `getList`, `findText`, `addStyle`, `removeStyle`, `updateStyle`.
-4. **`Tables`** (30 Methods):
-   - `addTable`, `updateTable`, `updateTableData`, `removeTable`, `getTables`, `getTable`, `cloneTable`, `addTableRow`, `addTableColumn`, `removeTableRow`, `removeTableColumn`, `updateRowData`, `updateColumnData`, `updateTableCell`, `clearRowData`, `clearColumnData`, `clearCellData`, `getTableData`, `getColumnData`, `getRowData`, `getColumn`, `getRow`, `getCell`, `getCellData`, `mergeCells`, `splitCell`, `styleTable`, `styleColumn`, `styleRow`, `styleCell`.
-5. **`Charts`** (11 Methods):
-   - `addChart`, `updateChart`, `updateChartData`, `removeChart`, `clearCharts`, `getCharts`, `getChart`, `cloneChart`, `getDataLabels`, `getChartLabelPositions`.
-6. **`Shapes`** (11 Methods):
-   - `addShape`, `updateShape`, `removeShape`, `clearShapes`, `getShapes`, `getShape`, `cloneShape`, `getGroupShapes`, `groupShapes`, `ungroupShapes`.
-7. **`Images & Media`** (11 Methods):
-   - `addImage`, `updateImage`, `removeImage`, `addVideo`, `updateVideo`, `removeVideo`, `addAudio`, `updateAudio`, `removeAudio`, `getMedias`, `getMedia`, `cloneMedia`.
-8. **`Elements`** (15 Methods):
-   - *Element Queries (4)*: `getElements`, `getElement`, `removeElement`, `removeAllElements`.
-   - *Z-Ordering (5)*: `setZOrder`, `bringToFront`, `sendToBack`, `bringForward`, `sendBackward`.
-   - *Hyperlinks (6)*: `addHyperlink`, `updateHyperlink`, `removeHyperlink`, `getHyperlinks`, `getHyperlink`, `setHyperlink`.
-   - *Spatial Collision (2)*: `checkCollision`, `isContained`.
+### A. Approved 18-Method I/O Whitelist (`Import/Export`)
+- **Static Ingestion & Lifecycle (7)**: `PPTXTemplater.load`, `PPTXTemplater.createBlank`, `PPTXTemplater.extractPptx`, `PPTXTemplater.buildPptx`, `PPTXTemplater.preload`, `PPTXTemplater.fromCache`, `PPTXTemplater.clearCache` (plus utility `PPTXTemplater.setLogLevel`).
+- **Export Instance Methods (8)**: `saveToFile`, `toBuffer`, `toStream`, `toBase64`, `toArrayBuffer`, `toResponse`, `toExpress`, `toFastify`.
+- **Extraction & Conversion (3)**: `extractToZip`, `extractToXml`, `toFlatXml`.
+- *Mandate*: Deprecated aliases (`toFile`, `save`, `exportZip`, `exportXml`, `writeToBuffer`) are strictly prohibited.
+
+### B. Approved 24-Method Slide Management Whitelist (`Slides`)
+- **Slide CRUD & Selection (8)**: `useSlide`, `useAllSlides`, `addSlide`, `duplicateSlide`, `removeSlide`, `getSlides`, `getSlide`, `resetSlide`.
+- **Cross-Deck & Ordering (4)**: `importSlideFrom`, `exportSlides`, `moveSlide`, `reorderSlides`.
+- **Layout & Metadata (4)**: `tagSlide`, `getSlideDimensions`, `getSlideLayout`, `hideSlide`, `unhideSlide`.
+- **Sections & Comments (8)**: `useSection`, `addSection`, `updateSection`, `removeSection`, `getSection`, `addComment`, `removeComment`.
+
+### C. Other Canonical Categories (Detailed in `docs-site/src/data/apiReference.json`)
+- **`Text & Placeholders`** (10): Text replacement, tag styling, list generation.
+- **`Tables`** (30): Table lifecycle, rows/cols CRUD, cell styling, rectangular merge/split, auto-pagination.
+- **`Charts`** (11): Chart CRUD, data sync, series manipulation, data labels.
+- **`Shapes`** (11): Shape geometry, grouping, borders, fills.
+- **`Images & Media`** (11): Images, audio, video embedding, playback configuration.
+- **`Elements`** (15): Unified element querying (4), Z-ordering (5), and Hyperlinks (6).
 
 ---
 
 ## 3. Documentation Portal (`docs-site/`)
 
-The documentation portal is redesigned into an authentic Microsoft PowerPoint desktop software environment built with Next.js 14+ App Router (`output: 'export'`, `images: { unoptimized: true }`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`).
-
-### Architecture & UI System:
-- **Microsoft PowerPoint Desktop Chrome**:
-  - **Top Title Bar (36px)**: Quick Access icons (Save, Undo, Redo, Slide Show), file title `"node-pptx-templater.pptx — PowerPoint"`, AutoSave indicator, Theme Toggle, and Window Controls (`—`, `□`, `✕`).
-  - **Subheader Ribbon (68px)**: Persistent `#D24726` "File" tab, primary navigation tabs, and quick action ribbon tools (npm copy, GitHub, npm).
-  - **Fixed Left Slide Thumbnail Strip (280px)**: Vertical 16:9 thumbnail previews showing method/section titles with slide numbers and active `#D24726` selection outline.
-  - **Center Slide Stage (16:9 Aspect Ratio)**: Centered presentation slide cards with syntax-highlighted code blocks, parameter tables, and 1-click Copy buttons.
-  - **Bottom Status Bar (32px)**: Slide counter (`"Slide X of Y"`), pure JS OpenXML engine indicator, view mode selectors, and zoom controls.
-- **Strict 4-Route Hierarchy**:
-  - `/` — Main Home Landing Page with HeroSection, ScrollTrigger reveals, interactive recipe playground, and comparison matrix.
-  - `/docs` — Documentation Overview presentation deck.
-  - `/docs/installation` — Dedicated Installation & Setup presentation deck.
-  - `/docs/capabilities` — Capabilities, Architecture & Runtime Compatibility Matrix.
-  - `/docs/api-reference` — Complete API Reference presentation deck covering all 8 canonical categories.
-- **GSAP Animation Engine**:
-  - `docs-site/src/animations/gsapSlideTransitions.js`: ScrollTrigger staggered reveals on the hero section and smooth vertical push / slide-up slide transitions on wheel/keyboard navigation synchronizing with the thumbnail sidebar.
-- **Comprehensive SEO & AI Ingestion**:
-  - `docs-site/public/llms.txt`: Machine-optimized LLM crawler documentation for Perplexity, Google AI Overviews, Claude, and ChatGPT Search.
-  - Schema.org JSON-LD structured data (`SoftwareApplication`, `TechArticle`, `FAQPage`).
-  - Standard `sitemap.xml` and `robots.txt` generated automatically via Next.js route handlers.
-- **v4.2.0 UI/UX & Responsive Enhancements**:
-  - **Internal Card Scroll Guard**: Slide deck detects boundary conditions (`scrollTop <= 0` and `scrollTop + clientHeight >= scrollHeight - 2`) so internal content scrolls naturally before deck snapping triggers.
-  - **Thumbnail Collision Fix**: Sidebar header has opaque backdrop fill (`bg-[#E6DEC8] dark:bg-[rgba(38,38,38,0.98)]`) and thumbnails sit in an isolated flex scroll sub-container with `pt-3` and `overscroll-contain`.
-  - **Horizontal Folder Deck**: Landing page converts sections into a horizontal presentation folder flow powered by GSAP ScrollTrigger and touch swipes.
-  - **Mobile Slide Filmstrip**: Responsive breakpoint switching (`max-lg:hidden` on left sidebar, bottom horizontal 16:9 filmstrip with auto-centering on `< 1024px`).
-  - **Global Omnisearch**: Universal search dialog (`Cmd+K` / `Ctrl+K` and header trigger button) indexing all 135+ methods, categories, and slides with keyboard navigation and instant deep linking.
+The documentation portal is built with Next.js 14+ App Router (`output: 'export'`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`). Content and API references are fully decoupled into JSON schemas under `docs-site/src/data/`, with 100% API coverage enforced via `npm run docs:validate`.
 
 ---
 
-## 4. CI/CD Publishing Pipeline & Multi-Package Manager Distribution
+## 4. CI/CD Topology & Staged Release Architecture
 
-Automated release pipeline maintained in `.github/workflows/publish.yml`:
-- **Decoupled Modular Architecture (4 Isolated Jobs)**:
-  1. `build-and-test`: Checks out repository, sets up Node 22.x LTS, executes `npm ci`, `npm run lint`, `npm test`, `npm run build`, verifies canonical un-scoped package outputs, resolves semantic version & distribution tags, packs the production tarball (`npm pack`), and uploads it as an artifact (`actions/upload-artifact@v4`).
-  2. `verify-package-managers` (depends on `build-and-test`): Downloads the pre-built tarball artifact and tests isolated CJS/ESM package consumption in clean sandbox directories across all 4 modern JavaScript runtimes/package managers: `npm`, `pnpm` (v9+), `yarn` (Corepack Yarn Berry v4 configured with `nodeLinker: node-modules` to ensure standard `node_modules` resolution), and `bun` (latest).
-  3. `publish-github-packages` (depends on `build-and-test`, runs in parallel with npm publish): Targets GitHub Packages (`https://npm.pkg.github.com`) under `@<owner>/node-pptx-templater` with automated package manifest mapping and `--ignore-scripts` to bypass redundant `prepublishOnly` lifecycle compilation.
-  4. `publish-npm-registry` (depends on `build-and-test`, runs in parallel with GitHub Packages publish): Publishes the canonical un-scoped `node-pptx-templater` package to npm (`https://registry.npmjs.org`) using `NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` and `--ignore-scripts` (with cryptographically signed provenance fallback) to resolve `ENEEDAUTH` and satisfy registry authentication requirements.
-- **Idempotent Pre-Publish Existence Checks**:
-  - Eliminates pipeline failure loops caused by immutable release policies (e.g. GitHub Packages `409 Conflict` on re-runs).
-  - Queries target registries (`npm view`) before invoking `npm publish`.
-  - If a version is already published on GitHub Packages or npm, logs an informational notice (`::notice::Version <version> already published to <registry>. Skipping.`) and exits cleanly with exit code `0`.
-- **Dual Triggers**: GitHub Releases (`release: [published]`) and manual dispatch (`workflow_dispatch` with tag input: `latest`, `beta`, `alpha`, `next`, `dry-run`, and target registry: `both`, `github`, `npmjs`).
-- **Canonical Package Name Enforcement**: Enforces `node-pptx-templater` as canonical un-scoped package for direct `npm install node-pptx-templater` installation.
-- **Dynamic Pre-Release Tag Routing**:
-  - `*-alpha*` -> npm distribution tag `alpha`
-  - `*-beta*` -> npm distribution tag `beta`
-  - `*-rc*` / `*-next*` -> npm distribution tag `next`
-  - `v*` (stable) -> npm distribution tag `latest`
+- **Push Gating (`.github/workflows/ci.yml`)**: On push/PR to `main`, `develop`, `v3.0.0`, executes sequential verification: (1) `ci` (lint, format:check, test), (2) `verify-package-managers` (npm, pnpm, yarn with `nodeLinker: node-modules`, bun), (3) `build` (compile and dry-run pack). Hard stop with zero publishing.
+- **Release Publishing (`.github/workflows/publish.yml`)**: Triggered strictly on GitHub Releases or manual dispatch. Ingests pre-built tarball, runs idempotent checks (`npm view`), and publishes to npm (`node-pptx-templater`) and GitHub Packages (`@<owner>/node-pptx-templater`) using `--ignore-scripts`.
+- **Documentation Deployment (`.github/workflows/docs.yml`)**: Manual-only `workflow_dispatch` deploying static exports to Cloudflare Pages (`npm run docs:deploy`).

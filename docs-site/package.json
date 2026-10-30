@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "deploy": "wrangler pages deploy out --project-name=node-pptx-templater"
   },
   "dependencies": {
     "gsap": "^3.15.0",
