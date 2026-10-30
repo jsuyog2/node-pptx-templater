@@ -275,11 +275,11 @@ jobs:
 
           if [ "$IS_DRY_RUN" = "true" ]; then
             echo "Executing GitHub Packages publish dry-run (tag: $DIST_TAG)..."
-            npm publish --dry-run --registry=https://npm.pkg.github.com/ --tag "$DIST_TAG"
+            npm publish --dry-run --registry=https://npm.pkg.github.com/ --tag "$DIST_TAG" --ignore-scripts
             echo "GH_PUBLISH_RESULT=Dry Run Success (Not Published)" >> $GITHUB_ENV
           else
             echo "Publishing to GitHub Packages with dist-tag: $DIST_TAG..."
-            npm publish --registry=https://npm.pkg.github.com/ --tag "$DIST_TAG"
+            npm publish --registry=https://npm.pkg.github.com/ --tag "$DIST_TAG" --ignore-scripts
             echo "GH_PUBLISH_RESULT=Published (@${{ github.repository_owner }}/node-pptx-templater, tag '$DIST_TAG')" >> $GITHUB_ENV
           fi
 
@@ -289,23 +289,27 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'npmjs'))
     permissions:
-      contents: read
       id-token: write
+      contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Setup Node.js 22.x LTS
-        uses: actions/setup-node@v4
+      - name: Setup Node.js 24.x LTS (NPM Registry)
+        uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
 
       - name: Download Packaged Tarball
         uses: actions/download-artifact@v4
         with:
           name: package-tarball
 
-      - name: Check NPM Registry Existence & Publish via OIDC Trusted Publisher
+      - name: Check NPM Registry Existence & Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NODE_AUTH_TOKEN }}
         run: |
           VERSION="${{ needs.build-and-test.outputs.version }}"
           DIST_TAG="${{ needs.build-and-test.outputs.dist_tag }}"
@@ -322,10 +326,11 @@ jobs:
 
           if [ "$IS_DRY_RUN" = "true" ]; then
             echo "Executing npm publish dry-run (tag: $DIST_TAG)..."
-            npm publish "$TARBALL_PATH" --dry-run --tag "$DIST_TAG" --access public
+            npm publish "$TARBALL_PATH" --dry-run --tag "$DIST_TAG" --access public --ignore-scripts
             echo "NPM_PUBLISH_RESULT=Dry Run Success (Not Published)" >> $GITHUB_ENV
           else
-            echo "Publishing via Keyless OIDC Trusted Publishing with provenance..."
-            npm publish "$TARBALL_PATH" --tag "$DIST_TAG" --access public --provenance
+            echo "Publishing canonical 'node-pptx-templater' to npm with dist-tag: $DIST_TAG..."
+            npm publish "$TARBALL_PATH" --tag "$DIST_TAG" --access public --ignore-scripts --provenance || \
+            npm publish "$TARBALL_PATH" --tag "$DIST_TAG" --access public --ignore-scripts
             echo "NPM_PUBLISH_RESULT=Published (node-pptx-templater, tag '$DIST_TAG')" >> $GITHUB_ENV
           fi
