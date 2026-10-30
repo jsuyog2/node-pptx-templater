@@ -1,33 +1,42 @@
 {
     "project": "node-pptx-templater",
-    "category": "CI/CD & Multi-Registry Release Pipeline",
-    "scope": "Split publish workflow into isolated matrix/dependent jobs and add idempotent pre-publish existence checks for GitHub Packages and npm",
+    "category": "CI/CD & Keyless OIDC Trusted Publishing",
+    "scope": "Bump release version to 3.0.0-beta.1, configure pure keyless OIDC Trusted Publishing without registry-url in setup-node, and validate the pending Trusted Publisher configuration on npm",
     "tasks": [
         {
-            "id": "TASK-CICD-SPLIT-001",
-            "title": "Decouple CI/CD Pipeline into Independent Verification and Publish Jobs",
+            "id": "TASK-OIDC-BUMP-001",
+            "title": "Bump Package Version to 3.0.0-beta.1",
             "status": "completed",
-            "description": "Refactor .github/workflows/publish.yml to separate monolithic tasks into independent modular jobs: (1) 'build-and-test' (lint, vitest, build, tarball generation), (2) 'verify-package-managers' (isolated checks for npm, pnpm, yarn with nodeLinker node-modules, and bun), (3) 'publish-github-packages', and (4) 'publish-npm-registry'. Ensure a failure in publish does not require re-running full lint/build suites unnecessarily.",
+            "description": "Update version to '3.0.0-beta.1' in package.json (and package-lock.json / docs-site/package.json if applicable) so npm accepts the new release and does not reject with 409 Conflict.",
+            "deliverables": [
+                "package.json"
+            ]
+        },
+        {
+            "id": "TASK-OIDC-WORKFLOW-002",
+            "title": "Refactor publish-npm-registry for Pure Keyless OIDC Publishing",
+            "status": "completed",
+            "description": "Fix .github/workflows/publish.yml: (1) In 'publish-npm-registry', remove 'registry-url' from actions/setup-node to stop it from generating an auth-token-demanding ~/.npmrc, (2) Remove all NODE_AUTH_TOKEN and secrets.NPM_TOKEN environment declarations, (3) Ensure top-level/job permissions have 'id-token: write' and 'contents: read', (4) Execute 'npm publish \"$TARBALL_PATH\" --tag \"$DIST_TAG\" --access public --provenance' directly against npm.",
             "deliverables": [
                 ".github/workflows/publish.yml"
             ]
         },
         {
-            "id": "TASK-CICD-IDEMPOTENT-002",
-            "title": "Implement Idempotent Version Existence Guard for GitHub Packages and npm",
+            "id": "TASK-OIDC-LOCAL-003",
+            "title": "Validate Clean Build, Tarball Packaging & Linting",
             "status": "completed",
-            "description": "Fix rerun release failures caused by GitHub Packages rejecting already-published versions ('409 Conflict' / 'version already exists'). Before executing publish commands, query each registry (npm view / npm show / curl registry metadata). If the version already exists in GitHub Packages, log a clean informational warning and safely skip publishing to GitHub Packages while continuing to publish to npm (and vice versa).",
+            "description": "Run local checks: verify 'npm run lint', 'npm test', 'npm run build', and 'npm pack --dry-run' to ensure the tarball contains node-pptx-templater-3.0.0-beta.1.tgz with zero test regressions.",
             "deliverables": [
-                ".github/workflows/publish.yml"
+                "package.json"
             ]
         },
         {
-            "id": "TASK-CICD-VALIDATE-003",
-            "title": "Validate Release Pipeline & Synchronize Agent Memory",
+            "id": "TASK-OIDC-SYNC-004",
+            "title": "Update Documentation, CHANGELOG & Workspace Memory",
             "status": "completed",
-            "description": "Validate the updated workflow syntax, ensure secrets and permissions (GITHUB_TOKEN, NPM_TOKEN) are correctly scoped per job, and update .agent/project_summary.md with the decoupled multi-job architecture.",
+            "description": "Update CHANGELOG.md for 3.0.0-beta.1 and synchronize .agent/project_summary.md with the keyless OIDC Trusted Publishing pipeline status.",
             "deliverables": [
-                ".github/workflows/publish.yml",
+                "CHANGELOG.md",
                 ".agent/project_summary.md"
             ]
         }

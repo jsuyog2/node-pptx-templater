@@ -130,7 +130,7 @@ export default function RibbonHeader() {
 
           <div className="hidden lg:flex items-center gap-1 text-[10px]">
             <span className="opacity-70">Engine:</span>
-            <span className="font-semibold text-[var(--ppt-text-primary)]">v3.0.0-beta.0</span>
+            <span className="font-semibold text-[var(--ppt-text-primary)]">v3.0.0-beta.1</span>
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@
 
 ## Architectural Mandates & Core Advantages
 
-`node-pptx-templater` (v3.0.0-beta.0) is an enterprise presentation engine designed to programmatically create, populate, mutate, and export PowerPoint presentations (.pptx, Flat OPC .xml) at machine scale.
+`node-pptx-templater` (v3.0.0-beta.1) is an enterprise presentation engine designed to programmatically create, populate, mutate, and export PowerPoint presentations (.pptx, Flat OPC .xml) at machine scale.
 
 - **100% Pure JavaScript Runtime**: Zero `node-gyp`, zero native C/C++ addons, zero Java VM, zero LibreOffice daemon (500MB+ Docker images), and zero Windows COM interop. Fully portable across Node.js (>=18.x, 20.x, 22.x+), AWS Lambda, Cloudflare Workers (V8 Isolates), Vercel Edge, Deno, and Bun.
 - **Sub-15ms Cold-Start Latency**: In-memory Virtual File System (VFS) with streaming zip inflation and selective XML AST serialization. Writes 0 temporary files to `/tmp`.

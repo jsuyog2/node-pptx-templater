@@ -1,6 +1,6 @@
 # AGENTS.md — Master AI Operating Manual & Architecture Charter
 
-> **Workspace Target**: `node-pptx-templater` (v3.0.0-beta.0)  
+> **Workspace Target**: `node-pptx-templater` (v3.0.0-beta.1)  
 > **Standard**: ISO/IEC 29500 (ECMA-376) OPC & PresentationML
 
 ---

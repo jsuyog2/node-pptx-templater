@@ -1,6 +1,6 @@
 {
   "name": "node-pptx-templater",
-  "version": "3.0.0-beta.0",
+  "version": "3.0.0-beta.1",
   "description": "High-performance, pure JavaScript PowerPoint (PPTX) OpenXML & Flat OPC template engine for Node.js, Express, Fastify, AWS Lambda, and edge runtimes. Dynamically create and update PPTX templates with zero Microsoft Office dependencies.",
   "main": "./src/index.js",
   "module": "./src/index.mjs",
