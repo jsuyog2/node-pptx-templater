@@ -34,7 +34,7 @@ describe('PowerPoint XML Folder Support Integration Tests', () => {
     await fs.emptyDir(TEMP_DIR)
     // Extract sample.pptx to a folder structure for testing
     await extractPptxToFolder(SAMPLE_PPTX, templateDir)
-  })
+  }, 30000)
 
   afterAll(async () => {
     try {

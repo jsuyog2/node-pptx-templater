@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AI & LLM Discoverability (`llms.txt`)**: Authored `docs-site/public/llms.txt` structured for AI search crawlers (Perplexity, ChatGPT Search, Gemini, Claude) with library advantages, pure JS invariants, sub-50ms serverless benchmarks, and quick-start guides.
 - **Schema.org JSON-LD**: Injected semantic structured data (`SoftwareApplication`, `TechArticle`, `HowTo`) into `docs-site/src/data/siteMeta.json` and rendered across documentation pages for search indexing.
 - **Canonical Sitemap & Robots Directives**: Synchronized `sitemap.xml`, `sitemap.js`, and `robots.txt` with the 8 standardized categories.
+- **Multi-Package Manager CI/CD Pipeline & Pre-Release Tag Routing**: Implemented unified GitHub Actions publishing workflow (`.github/workflows/publish.yml`) with automated distribution tag resolution (`latest`, `beta`, `alpha`, `next`), multi-package manager verification (`npm`, `pnpm`, `yarn`, `bun`), and automated release step summaries.
 
 ### Changed
 - **Performance & Memory Leak Optimizations**:

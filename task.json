@@ -1,23 +1,36 @@
 {
-    "project": "node-pptx-templater-docs-site",
-    "version": "4.7.0",
-    "scope": "Documentation Site Responsive Viewport Lockdown: Eliminate Horizontal Overflow & Disable Body Horizontal Scroll on Mobile and Tablet",
-    "rules": {
-        "preserveContent": true,
-        "scopeStrict": "docs-site/"
-    },
+    "project": "node-pptx-templater",
+    "category": "CI/CD & Release Pipeline",
+    "scope": "Multi-package manager publishing (pnpm, yarn, bun), pre-release distribution tagging (alpha/beta), and final pre-release validation audit",
     "tasks": [
         {
-            "id": "TASK-DOCS-RESPONSIVE-OVERFLOW-001",
-            "title": "Eliminate Horizontal Viewport Overflow and Page X-Scroll on Mobile and Tablet",
+            "id": "TASK-RELEASE-001",
+            "title": "Build Multi-Package-Manager CI/CD Publish Workflow",
             "status": "completed",
-            "description": "Lock down horizontal viewport dimensions across mobile (< 768px) and tablet (< 1024px) viewports so that the main page cannot scroll horizontally or bounce sideways. Apply `max-w-full`, `overflow-x-hidden`, and `w-full` at the root document layers (`html`, `body`, and Next.js layout wrappers). Inspect and audit inner cards, fixed desktop width utilities, PowerPoint ribbon headers, and wide flex/grid containers to ensure child elements are clamped to `100vw` / `max-w-full`, allowing horizontal scrolling only within dedicated nested code blocks and data tables without triggering page-level horizontal scroll.",
+            "description": "Create a unified GitHub Actions workflow (.github/workflows/publish.yml) triggered on GitHub release events and workflow_dispatch. Set up Node.js, Bun, pnpm, and Yarn environments, configure NPM registry authentication via NPM_TOKEN, verify package tarball contents, and establish automated package verification and publishing across pnpm, yarn, bun, and npm.",
             "deliverables": [
-                "docs-site/src/styles/globals.css",
-                "docs-site/src/app/layout.jsx",
-                "docs-site/src/app/docs/layout.jsx",
-                "docs-site/src/components/PowerPointSlideDeck.jsx",
-                "docs-site/src/components/HomeFolderDeck.jsx"
+                ".github/workflows/publish.yml"
+            ]
+        },
+        {
+            "id": "TASK-RELEASE-002",
+            "title": "Configure Dynamic Alpha and Beta Tag Routing in Release Pipeline",
+            "status": "completed",
+            "description": "Implement automated tag parsing logic in the workflow triggered upon GitHub Release creation (or tag push). Detect semantic pre-release identifiers from the release tag or version string (e.g., v*.*.*-alpha.* -> npm dist-tag 'alpha', v*.*.*-beta.* -> npm dist-tag 'beta', otherwise default to 'latest'). Publish using the resolved distribution tag (--tag alpha, --tag beta, or --tag latest) across package managers and generate GitHub release verification summaries.",
+            "deliverables": [
+                ".github/workflows/publish.yml"
+            ]
+        },
+        {
+            "id": "TASK-RELEASE-003",
+            "title": "Final Pre-Release Audit, Verification & Manifest Synchronization",
+            "status": "completed",
+            "description": "Execute complete pre-release checks prior to publishing: ensure all unit/integration tests pass cleanly, verify package.json (version bump, files whitelist, main/module/types exports, scripts), validate TypeScript declarations (index.d.ts), audit CHANGELOG.md, build docs site assets, run npm pack dry-run to ensure no unwanted scratch/test artifacts are packaged, and synchronize workspace status in .agent/.",
+            "deliverables": [
+                "package.json",
+                "CHANGELOG.md",
+                "index.d.ts",
+                ".agent/project_summary.md"
             ]
         }
     ]

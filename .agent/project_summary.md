@@ -101,3 +101,19 @@ The documentation portal is redesigned into an authentic Microsoft PowerPoint de
   - **Horizontal Folder Deck**: Landing page converts sections into a horizontal presentation folder flow powered by GSAP ScrollTrigger and touch swipes.
   - **Mobile Slide Filmstrip**: Responsive breakpoint switching (`max-lg:hidden` on left sidebar, bottom horizontal 16:9 filmstrip with auto-centering on `< 1024px`).
   - **Global Omnisearch**: Universal search dialog (`Cmd+K` / `Ctrl+K` and header trigger button) indexing all 135+ methods, categories, and slides with keyboard navigation and instant deep linking.
+
+---
+
+## 4. CI/CD Publishing Pipeline & Multi-Package Manager Distribution
+
+Automated release pipeline maintained in `.github/workflows/publish.yml`:
+- **Dual Triggers**: GitHub Releases (`release: [published]`) and manual dispatch (`workflow_dispatch` with tag input: `latest`, `beta`, `alpha`, `next`, `dry-run`).
+- **Dynamic Pre-Release Tag Routing**:
+  - `*-alpha*` -> npm distribution tag `alpha`
+  - `*-beta*` -> npm distribution tag `beta`
+  - `*-rc*` / `*-next*` -> npm distribution tag `next`
+  - `v*` (stable) -> npm distribution tag `latest`
+- **Multi-Package Manager Verification**:
+  - Automatically packs the production tarball via `npm pack`.
+  - Installs and verifies CJS/ESM runtime consumption across all 4 package managers: `npm`, `pnpm` (v9+), `yarn` (Corepack), and `bun` (latest).
+- **GitHub Actions Step Summary**: Emits structured release reports documenting resolved dist-tags, publish status, and package manager compatibility matrices.

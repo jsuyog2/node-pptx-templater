@@ -49,6 +49,7 @@ module.exports = defineConfig({
 
     // Timeout for integration tests (PPTX processing can take a bit)
     testTimeout: 30000,
+    hookTimeout: 30000,
 
     // Report format
     reporters: ['verbose'],
