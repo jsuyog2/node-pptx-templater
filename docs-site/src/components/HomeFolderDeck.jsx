@@ -315,7 +315,7 @@ export default function HomeFolderDeck() {
       {/* Horizontal Folders Presentation Track */}
       <div
         ref={trackRef}
-        className="flex w-[400%] h-full flex-1 transition-transform"
+        className="flex w-[400%] h-full flex-1 items-center transition-transform"
       >
         {/* ==================== FOLDER 01: HERO & OVERVIEW ==================== */}
         <section className="w-1/4 max-w-full h-full flex-shrink-0 px-2 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-center overflow-hidden box-border">

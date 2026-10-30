@@ -334,7 +334,7 @@ export default function PowerPointSlideDeck({
         <div
           ref={stageRef}
           style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-          className="w-full max-w-5xl ppt-slide-card rounded-xl p-2.5 sm:p-6 lg:p-8 border border-[var(--ppt-card-border)] relative my-auto min-h-[460px] max-h-[calc(100vh-140px)] flex flex-col justify-between overflow-hidden max-w-full overscroll-contain isolate transition-transform duration-150 box-border"
+          className="w-full max-w-7xl ppt-slide-card rounded-xl p-2.5 sm:p-6 lg:p-8 border border-[var(--ppt-card-border)] relative my-auto min-h-[460px] max-h-[calc(100vh-140px)] flex flex-col justify-between overflow-hidden overscroll-contain isolate transition-transform duration-150 box-border"
         >
           {activeSlide.hideDefaultHeader ? (
             /* Custom Slide Card Header & Content (Used by ApiReferenceCard for Unified Header) */
