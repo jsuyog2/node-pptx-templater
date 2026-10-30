@@ -1,37 +1,37 @@
 {
-    "project": "node-pptx-templater",
-    "category": "CI/CD & Release Pipeline",
-    "scope": "Multi-package manager publishing (pnpm, yarn, bun), pre-release distribution tagging (alpha/beta), and final pre-release validation audit",
-    "tasks": [
-        {
-            "id": "TASK-RELEASE-001",
-            "title": "Build Multi-Package-Manager CI/CD Publish Workflow",
-            "status": "completed",
-            "description": "Create a unified GitHub Actions workflow (.github/workflows/publish.yml) triggered on GitHub release events and workflow_dispatch. Set up Node.js, Bun, pnpm, and Yarn environments, configure NPM registry authentication via NPM_TOKEN, verify package tarball contents, and establish automated package verification and publishing across pnpm, yarn, bun, and npm.",
-            "deliverables": [
-                ".github/workflows/publish.yml"
-            ]
-        },
-        {
-            "id": "TASK-RELEASE-002",
-            "title": "Configure Dynamic Alpha and Beta Tag Routing in Release Pipeline",
-            "status": "completed",
-            "description": "Implement automated tag parsing logic in the workflow triggered upon GitHub Release creation (or tag push). Detect semantic pre-release identifiers from the release tag or version string (e.g., v*.*.*-alpha.* -> npm dist-tag 'alpha', v*.*.*-beta.* -> npm dist-tag 'beta', otherwise default to 'latest'). Publish using the resolved distribution tag (--tag alpha, --tag beta, or --tag latest) across package managers and generate GitHub release verification summaries.",
-            "deliverables": [
-                ".github/workflows/publish.yml"
-            ]
-        },
-        {
-            "id": "TASK-RELEASE-003",
-            "title": "Final Pre-Release Audit, Verification & Manifest Synchronization",
-            "status": "completed",
-            "description": "Execute complete pre-release checks prior to publishing: ensure all unit/integration tests pass cleanly, verify package.json (version bump, files whitelist, main/module/types exports, scripts), validate TypeScript declarations (index.d.ts), audit CHANGELOG.md, build docs site assets, run npm pack dry-run to ensure no unwanted scratch/test artifacts are packaged, and synchronize workspace status in .agent/.",
-            "deliverables": [
-                "package.json",
-                "CHANGELOG.md",
-                "index.d.ts",
-                ".agent/project_summary.md"
-            ]
-        }
-    ]
+  "project": "node-pptx-templater",
+  "category": "CI/CD & Package Distribution",
+  "scope": "Configure GitHub Packages publish pipeline, normalize package naming to 'node-pptx-templater', and ensure standard 'npm install node-pptx-templater' consumption",
+  "tasks": [
+    {
+      "id": "TASK-PKG-001",
+      "title": "Normalize Package Manifest Name to 'node-pptx-templater'",
+      "status": "completed",
+      "description": "Ensure package.json has 'name': 'node-pptx-templater' as the primary canonical package identifier so it installs directly via 'npm install node-pptx-templater'. Verify repository URL, publishConfig, and export map declarations.",
+      "deliverables": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "TASK-PKG-002",
+      "title": "Add GitHub Packages & NPM Publishing CI/CD Workflow",
+      "status": "completed",
+      "description": "Create or update .github/workflows/publish.yml to automate publishing to GitHub Packages (npm.pkg.github.com) while keeping the package installable as 'node-pptx-templater'. Configure GITHUB_TOKEN permissions (contents: read, packages: write), registry routing, scope mapping (.npmrc setup), and automated packaging triggers.",
+      "deliverables": [
+        ".github/workflows/publish.yml",
+        ".npmrc"
+      ]
+    },
+    {
+      "id": "TASK-PKG-003",
+      "title": "Update Documentation, Showcase & Installation References",
+      "status": "completed",
+      "description": "Audit README.md, docs-site configuration, showcase scripts, and .agent memory to ensure all installation instructions, import statements, and code blocks uniformly demonstrate 'npm install node-pptx-templater' and const { PPTXTemplater } = require('node-pptx-templater').",
+      "deliverables": [
+        "README.md",
+        "docs-site/src/data/siteMeta.json",
+        ".agent/project_summary.md"
+      ]
+    }
+  ]
 }

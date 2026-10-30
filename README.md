@@ -70,9 +70,10 @@ Public APIs are strictly structured across 8 canonical categories:
 ## 📦 Installation
 
 ```bash
-# npm
+# npm (canonical package)
 npm install node-pptx-templater
-# or pre-release beta:
+
+# or install pre-release beta:
 npm install node-pptx-templater@beta
 
 # pnpm
@@ -83,6 +84,9 @@ yarn add node-pptx-templater
 
 # bun
 bun add node-pptx-templater
+
+# or via GitHub Packages registry:
+npm install @jsuyog2/node-pptx-templater --registry=https://npm.pkg.github.com
 ```
 
 **Requirements:** Node.js `>= 18.x` (fully verified on `18.x`, `20.x`, `22.x+`). Dual CommonJS (`require`) and ESM (`import`) distribution.
