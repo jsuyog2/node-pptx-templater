@@ -29,6 +29,7 @@
     "docs:dev": "npm --prefix docs-site run dev",
     "docs:build": "npm --prefix docs-site run build",
     "docs:preview": "npx serve docs-site/out",
+    "docs:deploy": "npm --prefix docs-site run build && npm --prefix docs-site run deploy",
     "docs:data": "node scripts/generate-next-data.js",
     "docs:validate": "vitest run tests/unit/DocCoverage.test.js",
     "validate": "vitest run tests/unit/PackageSetup.test.js && node showcase/examples.js",
