@@ -314,19 +314,6 @@ jobs:
           DIST_TAG="${{ needs.build-and-test.outputs.dist_tag }}"
           IS_DRY_RUN="${{ needs.build-and-test.outputs.is_dry_run }}"
 
-          echo "Checking if node-pptx-templater@$VERSION is already published on npm..."
-          if npm view "node-pptx-templater@$VERSION" version --registry=https://registry.npmjs.org/ > /dev/null 2>&1; then
-            echo "::notice::Version $VERSION is already published to npm. Skipping."
-            echo "NPM_PUBLISH_RESULT=Skipped (Version $VERSION already exists)" >> $GITHUB_ENV
-            exit 0
-          fi
-
-          if [ -z "$NODE_AUTH_TOKEN" ] && [ "$IS_DRY_RUN" != "true" ]; then
-            echo "::warning::NPM_TOKEN secret not configured. Skipping npm publish."
-            echo "NPM_PUBLISH_RESULT=Skipped (NPM_TOKEN not configured)" >> $GITHUB_ENV
-            exit 0
-          fi
-
           TARBALL_PATH=$(find . -maxdepth 1 -name "node-pptx-templater-*.tgz" | head -n 1)
 
           if [ "$IS_DRY_RUN" = "true" ]; then
