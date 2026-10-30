@@ -107,17 +107,19 @@ The documentation portal is redesigned into an authentic Microsoft PowerPoint de
 ## 4. CI/CD Publishing Pipeline & Multi-Package Manager Distribution
 
 Automated release pipeline maintained in `.github/workflows/publish.yml`:
+- **Decoupled Modular Architecture (4 Isolated Jobs)**:
+  1. `build-and-test`: Checks out repository, sets up Node 22.x LTS, executes `npm ci`, `npm run lint`, `npm test`, `npm run build`, verifies canonical un-scoped package outputs, resolves semantic version & distribution tags, packs the production tarball (`npm pack`), and uploads it as an artifact (`actions/upload-artifact@v4`).
+  2. `verify-package-managers` (depends on `build-and-test`): Downloads the pre-built tarball artifact and tests isolated CJS/ESM package consumption in clean sandbox directories across all 4 modern JavaScript runtimes/package managers: `npm`, `pnpm` (v9+), `yarn` (Corepack Yarn Berry v4 configured with `nodeLinker: node-modules` to ensure standard `node_modules` resolution), and `bun` (latest).
+  3. `publish-github-packages` (depends on `build-and-test`, runs in parallel with npm publish): Targets GitHub Packages (`https://npm.pkg.github.com`) under `@<owner>/node-pptx-templater` with automated package manifest mapping.
+  4. `publish-npm-registry` (depends on `build-and-test`, runs in parallel with GitHub Packages publish): Publishes the canonical un-scoped `node-pptx-templater` package to npm (`https://registry.npmjs.org`) with provenance.
+- **Idempotent Pre-Publish Existence Checks**:
+  - Eliminates pipeline failure loops caused by immutable release policies (e.g. GitHub Packages `409 Conflict` on re-runs).
+  - Queries target registries (`npm view`) before invoking `npm publish`.
+  - If a version is already published on GitHub Packages or npm, logs an informational notice (`::notice::Version <version> already published to <registry>. Skipping.`) and exits cleanly with exit code `0`.
 - **Dual Triggers**: GitHub Releases (`release: [published]`) and manual dispatch (`workflow_dispatch` with tag input: `latest`, `beta`, `alpha`, `next`, `dry-run`, and target registry: `both`, `github`, `npmjs`).
 - **Canonical Package Name Enforcement**: Enforces `node-pptx-templater` as canonical un-scoped package for direct `npm install node-pptx-templater` installation.
-- **Dual Registry Publishing**:
-  - **GitHub Packages** (`https://npm.pkg.github.com`): Automated scoped mapping (`@jsuyog2/node-pptx-templater`) with `NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` and `permissions: packages: write`.
-  - **NPM Registry** (`https://registry.npmjs.org`): Canonical package publication (`node-pptx-templater`) with provenance.
 - **Dynamic Pre-Release Tag Routing**:
   - `*-alpha*` -> npm distribution tag `alpha`
   - `*-beta*` -> npm distribution tag `beta`
   - `*-rc*` / `*-next*` -> npm distribution tag `next`
   - `v*` (stable) -> npm distribution tag `latest`
-- **Multi-Package Manager Verification**:
-  - Automatically packs the production tarball via `npm pack`.
-  - Installs and verifies CJS/ESM runtime consumption across all 4 package managers: `npm`, `pnpm` (v9+), `yarn` (Corepack Yarn Berry v4 configured with `nodeLinker: node-modules` to ensure standard `node_modules` resolution), and `bun` (latest).
-- **GitHub Actions Step Summary**: Emits structured release reports documenting resolved dist-tags, publish status across both registries, and package manager compatibility matrices.

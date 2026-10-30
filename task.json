@@ -1,34 +1,35 @@
 {
-  "project": "node-pptx-templater",
-  "category": "CI/CD & Multi-Package-Manager Pipeline",
-  "scope": "Resolve Yarn Berry PnP module resolution failure in CI workflow and ensure 100% test passing across npm, pnpm, yarn, and bun",
-  "tasks": [
-    {
-      "id": "TASK-CI-YARN-001",
-      "title": "Configure Yarn Node-Modules Linker in CI/CD Verification Suite",
-      "status": "completed",
-      "description": "Fix the MODULE_NOT_FOUND error during Yarn verification in .github/workflows/publish.yml. Because modern Yarn (v4 Corepack) defaults to Plug'n'Play (PnP) linking without a node_modules folder, raw node -e calls fail. Update the temporary Yarn test step to set 'yarn config set nodeLinker node-modules' prior to adding the tarball, or execute tests using 'yarn node -e'.",
-      "deliverables": [
-        ".github/workflows/publish.yml"
-      ]
-    },
-    {
-      "id": "TASK-CI-YARN-002",
-      "title": "Local Tarball & Multi-Package-Manager Verification",
-      "status": "completed",
-      "description": "Simulate the exact CI runner isolation steps locally: pack the tarball via 'npm pack', create isolated temporary test directories for npm, pnpm, yarn (v4), and bun, and verify that 'const { PPTXTemplater } = require(\"node-pptx-templater\")' and ESM imports resolve cleanly across all four package managers.",
-      "deliverables": [
-        ".github/workflows/publish.yml"
-      ]
-    },
-    {
-      "id": "TASK-CI-YARN-003",
-      "title": "Synchronize Pipeline Docs & Workspace Memory",
-      "status": "completed",
-      "description": "Update .agent/project_summary.md and CI/CD workflow documentation to record the Yarn modern node-modules linker requirement during automated release testing.",
-      "deliverables": [
-        ".agent/project_summary.md"
-      ]
-    }
-  ]
+    "project": "node-pptx-templater",
+    "category": "CI/CD & Multi-Registry Release Pipeline",
+    "scope": "Split publish workflow into isolated matrix/dependent jobs and add idempotent pre-publish existence checks for GitHub Packages and npm",
+    "tasks": [
+        {
+            "id": "TASK-CICD-SPLIT-001",
+            "title": "Decouple CI/CD Pipeline into Independent Verification and Publish Jobs",
+            "status": "completed",
+            "description": "Refactor .github/workflows/publish.yml to separate monolithic tasks into independent modular jobs: (1) 'build-and-test' (lint, vitest, build, tarball generation), (2) 'verify-package-managers' (isolated checks for npm, pnpm, yarn with nodeLinker node-modules, and bun), (3) 'publish-github-packages', and (4) 'publish-npm-registry'. Ensure a failure in publish does not require re-running full lint/build suites unnecessarily.",
+            "deliverables": [
+                ".github/workflows/publish.yml"
+            ]
+        },
+        {
+            "id": "TASK-CICD-IDEMPOTENT-002",
+            "title": "Implement Idempotent Version Existence Guard for GitHub Packages and npm",
+            "status": "completed",
+            "description": "Fix rerun release failures caused by GitHub Packages rejecting already-published versions ('409 Conflict' / 'version already exists'). Before executing publish commands, query each registry (npm view / npm show / curl registry metadata). If the version already exists in GitHub Packages, log a clean informational warning and safely skip publishing to GitHub Packages while continuing to publish to npm (and vice versa).",
+            "deliverables": [
+                ".github/workflows/publish.yml"
+            ]
+        },
+        {
+            "id": "TASK-CICD-VALIDATE-003",
+            "title": "Validate Release Pipeline & Synchronize Agent Memory",
+            "status": "completed",
+            "description": "Validate the updated workflow syntax, ensure secrets and permissions (GITHUB_TOKEN, NPM_TOKEN) are correctly scoped per job, and update .agent/project_summary.md with the decoupled multi-job architecture.",
+            "deliverables": [
+                ".github/workflows/publish.yml",
+                ".agent/project_summary.md"
+            ]
+        }
+    ]
 }
