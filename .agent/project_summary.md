@@ -107,7 +107,11 @@ The documentation portal is redesigned into an authentic Microsoft PowerPoint de
 ## 4. CI/CD Publishing Pipeline & Multi-Package Manager Distribution
 
 Automated release pipeline maintained in `.github/workflows/publish.yml`:
-- **Dual Triggers**: GitHub Releases (`release: [published]`) and manual dispatch (`workflow_dispatch` with tag input: `latest`, `beta`, `alpha`, `next`, `dry-run`).
+- **Dual Triggers**: GitHub Releases (`release: [published]`) and manual dispatch (`workflow_dispatch` with tag input: `latest`, `beta`, `alpha`, `next`, `dry-run`, and target registry: `both`, `github`, `npmjs`).
+- **Canonical Package Name Enforcement**: Enforces `node-pptx-templater` as canonical un-scoped package for direct `npm install node-pptx-templater` installation.
+- **Dual Registry Publishing**:
+  - **GitHub Packages** (`https://npm.pkg.github.com`): Automated scoped mapping (`@jsuyog2/node-pptx-templater`) with `NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` and `permissions: packages: write`.
+  - **NPM Registry** (`https://registry.npmjs.org`): Canonical package publication (`node-pptx-templater`) with provenance.
 - **Dynamic Pre-Release Tag Routing**:
   - `*-alpha*` -> npm distribution tag `alpha`
   - `*-beta*` -> npm distribution tag `beta`
@@ -116,4 +120,4 @@ Automated release pipeline maintained in `.github/workflows/publish.yml`:
 - **Multi-Package Manager Verification**:
   - Automatically packs the production tarball via `npm pack`.
   - Installs and verifies CJS/ESM runtime consumption across all 4 package managers: `npm`, `pnpm` (v9+), `yarn` (Corepack), and `bun` (latest).
-- **GitHub Actions Step Summary**: Emits structured release reports documenting resolved dist-tags, publish status, and package manager compatibility matrices.
+- **GitHub Actions Step Summary**: Emits structured release reports documenting resolved dist-tags, publish status across both registries, and package manager compatibility matrices.
