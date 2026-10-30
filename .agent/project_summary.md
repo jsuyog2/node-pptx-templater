@@ -1,6 +1,6 @@
 # Project Architecture Summary: `node-pptx-templater`
 
-> **Version**: 3.0.0-beta.0  
+> **Version**: 3.0.0-beta.1  
 > **Runtime**: Pure JavaScript (Node.js `>=18.x`, AWS Lambda, Cloudflare Workers, Vercel Edge, Deno, Bun)  
 > **Standard**: ISO/IEC 29500 (ECMA-376) Parts 1 & 2 (OPC & PresentationML)  
 > **API Catalog**: See `docs-site/src/data/apiReference.json` for full parameter definitions & examples
@@ -111,7 +111,7 @@ Automated release pipeline maintained in `.github/workflows/publish.yml`:
   1. `build-and-test`: Checks out repository, sets up Node 22.x LTS, executes `npm ci`, `npm run lint`, `npm test`, `npm run build`, verifies canonical un-scoped package outputs, resolves semantic version & distribution tags, packs the production tarball (`npm pack`), and uploads it as an artifact (`actions/upload-artifact@v4`).
   2. `verify-package-managers` (depends on `build-and-test`): Downloads the pre-built tarball artifact and tests isolated CJS/ESM package consumption in clean sandbox directories across all 4 modern JavaScript runtimes/package managers: `npm`, `pnpm` (v9+), `yarn` (Corepack Yarn Berry v4 configured with `nodeLinker: node-modules` to ensure standard `node_modules` resolution), and `bun` (latest).
   3. `publish-github-packages` (depends on `build-and-test`, runs in parallel with npm publish): Targets GitHub Packages (`https://npm.pkg.github.com`) under `@<owner>/node-pptx-templater` with automated package manifest mapping.
-  4. `publish-npm-registry` (depends on `build-and-test`, runs in parallel with GitHub Packages publish): Publishes the canonical un-scoped `node-pptx-templater` package to npm (`https://registry.npmjs.org`) with provenance.
+  4. `publish-npm-registry` (depends on `build-and-test`, runs in parallel with GitHub Packages publish): Publishes the canonical un-scoped `node-pptx-templater` package to npm (`https://registry.npmjs.org`) via pure keyless OIDC Trusted Publishing with cryptographically signed provenance (`--provenance`) and zero static secret requirements.
 - **Idempotent Pre-Publish Existence Checks**:
   - Eliminates pipeline failure loops caused by immutable release policies (e.g. GitHub Packages `409 Conflict` on re-runs).
   - Queries target registries (`npm view`) before invoking `npm publish`.

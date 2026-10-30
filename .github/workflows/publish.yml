@@ -295,20 +295,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22.x LTS (NPM Registry)
+      - name: Setup Node.js 22.x LTS
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Download Packaged Tarball
         uses: actions/download-artifact@v4
         with:
           name: package-tarball
 
-      - name: Check NPM Registry Existence & Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NODE_AUTH_TOKEN }}
+      - name: Check NPM Registry Existence & Publish via OIDC Trusted Publisher
         run: |
           VERSION="${{ needs.build-and-test.outputs.version }}"
           DIST_TAG="${{ needs.build-and-test.outputs.dist_tag }}"
@@ -321,30 +318,14 @@ jobs:
             exit 0
           fi
 
-          if [ -z "$NODE_AUTH_TOKEN" ] && [ "$IS_DRY_RUN" != "true" ]; then
-            echo "::warning::NPM_TOKEN secret not configured. Skipping npm publish."
-            echo "NPM_PUBLISH_RESULT=Skipped (NPM_TOKEN not configured)" >> $GITHUB_ENV
-            exit 0
-          fi
-
           TARBALL_PATH=$(find . -maxdepth 1 -name "node-pptx-templater-*.tgz" | head -n 1)
 
           if [ "$IS_DRY_RUN" = "true" ]; then
             echo "Executing npm publish dry-run (tag: $DIST_TAG)..."
-            if [ -n "$TARBALL_PATH" ]; then
-              npm publish "$TARBALL_PATH" --dry-run --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/
-            else
-              npm publish --dry-run --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/
-            fi
+            npm publish "$TARBALL_PATH" --dry-run --tag "$DIST_TAG" --access public
             echo "NPM_PUBLISH_RESULT=Dry Run Success (Not Published)" >> $GITHUB_ENV
           else
-            echo "Publishing canonical 'node-pptx-templater' to npm with dist-tag: $DIST_TAG..."
-            if [ -n "$TARBALL_PATH" ]; then
-              npm publish "$TARBALL_PATH" --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/ --provenance || \
-              npm publish "$TARBALL_PATH" --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/
-            else
-              npm publish --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/ --provenance || \
-              npm publish --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/
-            fi
+            echo "Publishing via Keyless OIDC Trusted Publishing with provenance..."
+            npm publish "$TARBALL_PATH" --tag "$DIST_TAG" --access public --provenance
             echo "NPM_PUBLISH_RESULT=Published (node-pptx-templater, tag '$DIST_TAG')" >> $GITHUB_ENV
           fi

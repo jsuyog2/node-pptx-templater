@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0-beta.1] - 2026-10-30
+
+### Added
+- **Keyless OIDC Trusted Publishing**: Configured pure keyless OpenID Connect (OIDC) publishing to npm with cryptographically signed provenance (`--provenance`) via GitHub Actions and Sigstore.
+- **Decoupled CI/CD Workflow Architecture**: Split monolithic publishing workflow into 4 independent, modular jobs (`build-and-test`, `verify-package-managers`, `publish-github-packages`, and `publish-npm-registry`).
+- **Idempotent Registry Existence Guards**: Added automated `npm view` queries before publishing to eliminate `409 Conflict` errors when re-running release workflows on GitHub Packages and npm.
+
+### Fixed
+- **Yarn Berry Corepack PnP Compatibility**: Configured `nodeLinker: node-modules` in isolated test runners to ensure seamless CJS and ESM module resolution.
+- **Removed Extraneous Registry Setup**: Removed `registry-url` and static auth token configurations from `actions/setup-node` during npm publishing to allow pure OIDC token exchange without requesting `.npmrc` legacy credentials.
+
 ## [3.0.0-beta.0] - 2026-10-27
 
 ### Added
