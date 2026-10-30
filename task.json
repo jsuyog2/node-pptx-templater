@@ -1,35 +1,32 @@
 {
   "project": "node-pptx-templater",
-  "category": "CI/CD & Package Distribution",
-  "scope": "Configure GitHub Packages publish pipeline, normalize package naming to 'node-pptx-templater', and ensure standard 'npm install node-pptx-templater' consumption",
+  "category": "CI/CD & Multi-Package-Manager Pipeline",
+  "scope": "Resolve Yarn Berry PnP module resolution failure in CI workflow and ensure 100% test passing across npm, pnpm, yarn, and bun",
   "tasks": [
     {
-      "id": "TASK-PKG-001",
-      "title": "Normalize Package Manifest Name to 'node-pptx-templater'",
+      "id": "TASK-CI-YARN-001",
+      "title": "Configure Yarn Node-Modules Linker in CI/CD Verification Suite",
       "status": "completed",
-      "description": "Ensure package.json has 'name': 'node-pptx-templater' as the primary canonical package identifier so it installs directly via 'npm install node-pptx-templater'. Verify repository URL, publishConfig, and export map declarations.",
+      "description": "Fix the MODULE_NOT_FOUND error during Yarn verification in .github/workflows/publish.yml. Because modern Yarn (v4 Corepack) defaults to Plug'n'Play (PnP) linking without a node_modules folder, raw node -e calls fail. Update the temporary Yarn test step to set 'yarn config set nodeLinker node-modules' prior to adding the tarball, or execute tests using 'yarn node -e'.",
       "deliverables": [
-        "package.json"
+        ".github/workflows/publish.yml"
       ]
     },
     {
-      "id": "TASK-PKG-002",
-      "title": "Add GitHub Packages & NPM Publishing CI/CD Workflow",
+      "id": "TASK-CI-YARN-002",
+      "title": "Local Tarball & Multi-Package-Manager Verification",
       "status": "completed",
-      "description": "Create or update .github/workflows/publish.yml to automate publishing to GitHub Packages (npm.pkg.github.com) while keeping the package installable as 'node-pptx-templater'. Configure GITHUB_TOKEN permissions (contents: read, packages: write), registry routing, scope mapping (.npmrc setup), and automated packaging triggers.",
+      "description": "Simulate the exact CI runner isolation steps locally: pack the tarball via 'npm pack', create isolated temporary test directories for npm, pnpm, yarn (v4), and bun, and verify that 'const { PPTXTemplater } = require(\"node-pptx-templater\")' and ESM imports resolve cleanly across all four package managers.",
       "deliverables": [
-        ".github/workflows/publish.yml",
-        ".npmrc"
+        ".github/workflows/publish.yml"
       ]
     },
     {
-      "id": "TASK-PKG-003",
-      "title": "Update Documentation, Showcase & Installation References",
+      "id": "TASK-CI-YARN-003",
+      "title": "Synchronize Pipeline Docs & Workspace Memory",
       "status": "completed",
-      "description": "Audit README.md, docs-site configuration, showcase scripts, and .agent memory to ensure all installation instructions, import statements, and code blocks uniformly demonstrate 'npm install node-pptx-templater' and const { PPTXTemplater } = require('node-pptx-templater').",
+      "description": "Update .agent/project_summary.md and CI/CD workflow documentation to record the Yarn modern node-modules linker requirement during automated release testing.",
       "deliverables": [
-        "README.md",
-        "docs-site/src/data/siteMeta.json",
         ".agent/project_summary.md"
       ]
     }
