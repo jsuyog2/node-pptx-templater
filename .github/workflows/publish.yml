@@ -28,45 +28,61 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
 
 jobs:
-  publish:
-    name: Build, Verify & Publish
+  build-and-test:
+    name: Build, Test & Package
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      dist_tag: ${{ steps.resolve.outputs.dist_tag }}
+      is_dry_run: ${{ steps.resolve.outputs.is_dry_run }}
+      tarball_name: ${{ steps.resolve.outputs.tarball_name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22.x LTS (GitHub Packages Registry)
+      - name: Setup Node.js 22.x LTS
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@${{ github.repository_owner }}'
+          cache: 'npm'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
+      - name: Install Dependencies
+        run: npm ci
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+      - name: Run Linting
+        run: npm run lint
 
-      - name: Setup Yarn (Corepack)
+      - name: Run Test Suites
+        run: npm test
+
+      - name: Build Package Artifacts
+        run: npm run build
+
+      - name: Verify Package Outputs & Exports
         run: |
-          corepack enable
-          corepack prepare yarn@stable --activate
-          yarn --version
+          node -e "
+            const fs = require('fs');
+            const pkg = require('./package.json');
+            
+            if (pkg.name !== 'node-pptx-templater') throw new Error('Package name must be node-pptx-templater, found: ' + pkg.name);
+            if (!fs.existsSync(pkg.main)) throw new Error('Missing pkg.main: ' + pkg.main);
+            if (!fs.existsSync(pkg.module)) throw new Error('Missing pkg.module: ' + pkg.module);
+            if (!fs.existsSync(pkg.types)) throw new Error('Missing pkg.types: ' + pkg.types);
+            if (!fs.existsSync('./index.d.ts')) throw new Error('Missing root index.d.ts');
+            if (!fs.existsSync('./dist/index.js')) throw new Error('Missing dist/index.js');
+            if (!fs.existsSync('./dist/index.mjs')) throw new Error('Missing dist/index.mjs');
+            console.log('✓ All package entry points, canonical name, and build outputs verified successfully.');
+          "
 
-      - name: Resolve Release Version & Distribution Tag
-        id: resolve-tag
+      - name: Resolve Release Version, Tag & Pack Tarball
+        id: resolve
         run: |
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
+          TARBALL_NAME=$(npm pack)
           
           IS_DRY_RUN=false
           DIST_TAG="latest"
@@ -111,56 +127,61 @@ jobs:
             DIST_TAG="latest"
           fi
 
-          echo "DIST_TAG=$DIST_TAG" >> $GITHUB_ENV
-          echo "IS_DRY_RUN=$IS_DRY_RUN" >> $GITHUB_ENV
-          echo "RESOLVED_SOURCE=$RESOLVED_SOURCE" >> $GITHUB_ENV
-          echo "Resolved Tag: $DIST_TAG (Dry-run: $IS_DRY_RUN, Source: $RESOLVED_SOURCE)"
+          echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+          echo "dist_tag=$DIST_TAG" >> $GITHUB_OUTPUT
+          echo "is_dry_run=$IS_DRY_RUN" >> $GITHUB_OUTPUT
+          echo "tarball_name=$TARBALL_NAME" >> $GITHUB_OUTPUT
+          echo "Resolved Tag: $DIST_TAG (Version: $PACKAGE_VERSION, Dry-run: $IS_DRY_RUN, Source: $RESOLVED_SOURCE)"
 
-      - name: Install Dependencies
-        run: npm ci
+      - name: Upload Packaged Tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-tarball
+          path: node-pptx-templater-*.tgz
+          if-no-files-found: error
+          retention-days: 1
 
-      - name: Run Lint & Test Suites
+  verify-package-managers:
+    name: Verify Package Managers (npm, pnpm, yarn, bun)
+    needs: [build-and-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Setup Node.js 22.x LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Yarn (Corepack)
         run: |
-          npm run lint
-          npm test
+          corepack enable
+          corepack prepare yarn@stable --activate
+          yarn --version
 
-      - name: Build Package Artifacts
-        run: npm run build
-
-      - name: Verify Package Outputs & Exports
-        run: |
-          node -e "
-            const fs = require('fs');
-            const pkg = require('./package.json');
-            
-            if (pkg.name !== 'node-pptx-templater') throw new Error('Package name must be node-pptx-templater, found: ' + pkg.name);
-            if (!fs.existsSync(pkg.main)) throw new Error('Missing pkg.main: ' + pkg.main);
-            if (!fs.existsSync(pkg.module)) throw new Error('Missing pkg.module: ' + pkg.module);
-            if (!fs.existsSync(pkg.types)) throw new Error('Missing pkg.types: ' + pkg.types);
-            if (!fs.existsSync('./index.d.ts')) throw new Error('Missing root index.d.ts');
-            if (!fs.existsSync('./dist/index.js')) throw new Error('Missing dist/index.js');
-            if (!fs.existsSync('./dist/index.mjs')) throw new Error('Missing dist/index.mjs');
-            console.log('✓ All package entry points, canonical name, and build outputs verified successfully.');
-          "
-
-      - name: Inspect Package Tarball (Dry-Run)
-        run: npm pack --dry-run
-
-      - name: Create Production Tarball for Multi-Manager Verification
-        id: create-tarball
-        run: |
-          TARBALL_NAME=$(npm pack)
-          echo "TARBALL_NAME=$TARBALL_NAME" >> $GITHUB_ENV
-          echo "Created tarball: $TARBALL_NAME"
+      - name: Download Packaged Tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: package-tarball
 
       - name: Multi-Package Manager Install & Consumption Verification
         run: |
-          TARBALL_PATH="$(pwd)/$TARBALL_NAME"
+          TARBALL_PATH="$(pwd)/${{ needs.build-and-test.outputs.tarball_name }}"
           TEST_DIR=$(mktemp -d)
           echo "Verifying in temporary directory: $TEST_DIR"
           cd "$TEST_DIR"
 
-          # 1. NPM Verification (canonical un-scoped package name)
+          # 1. NPM Verification
           echo "=== Testing NPM ==="
           mkdir test-npm && cd test-npm
           npm init -y
@@ -199,14 +220,49 @@ jobs:
 
           echo "✓ All 4 package managers (npm, pnpm, yarn, bun) verified successfully!"
 
-      - name: Publish to GitHub Packages
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'github'))
+  publish-github-packages:
+    name: Publish to GitHub Packages
+    needs: [build-and-test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'github'))
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x LTS (GitHub Packages Registry)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@${{ github.repository_owner }}'
+
+      - name: Download Packaged Tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: package-tarball
+
+      - name: Check GitHub Packages Existence & Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Configuring package for GitHub Packages publishing..."
-          cp package.json package.json.bak
+          VERSION="${{ needs.build-and-test.outputs.version }}"
+          DIST_TAG="${{ needs.build-and-test.outputs.dist_tag }}"
+          IS_DRY_RUN="${{ needs.build-and-test.outputs.is_dry_run }}"
+          OWNER="${{ github.repository_owner }}"
+          SCOPED_NAME="@${OWNER,,}/node-pptx-templater"
 
+          echo "Checking if $SCOPED_NAME@$VERSION is already published on GitHub Packages..."
+          if npm view "$SCOPED_NAME@$VERSION" version --registry=https://npm.pkg.github.com/ > /dev/null 2>&1 || \
+             npm view "node-pptx-templater@$VERSION" version --registry=https://npm.pkg.github.com/ > /dev/null 2>&1; then
+            echo "::notice::Version $VERSION is already published to GitHub Packages. Skipping."
+            echo "GH_PUBLISH_RESULT=Skipped (Version $VERSION already exists)" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          echo "Configuring package manifest for GitHub Packages..."
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
@@ -219,65 +275,76 @@ jobs:
 
           if [ "$IS_DRY_RUN" = "true" ]; then
             echo "Executing GitHub Packages publish dry-run (tag: $DIST_TAG)..."
-            npm publish --dry-run --registry=https://npm.pkg.github.com --tag "$DIST_TAG"
-            GH_PUBLISH_RESULT="Dry Run Success (Not Published)"
+            npm publish --dry-run --registry=https://npm.pkg.github.com/ --tag "$DIST_TAG"
+            echo "GH_PUBLISH_RESULT=Dry Run Success (Not Published)" >> $GITHUB_ENV
           else
             echo "Publishing to GitHub Packages with dist-tag: $DIST_TAG..."
-            npm publish --registry=https://npm.pkg.github.com --tag "$DIST_TAG"
-            GH_PUBLISH_RESULT="Published to GitHub Packages (@${{ github.repository_owner }}/node-pptx-templater, tag '$DIST_TAG')"
+            npm publish --registry=https://npm.pkg.github.com/ --tag "$DIST_TAG"
+            echo "GH_PUBLISH_RESULT=Published (@${{ github.repository_owner }}/node-pptx-templater, tag '$DIST_TAG')" >> $GITHUB_ENV
           fi
-          echo "GH_PUBLISH_RESULT=$GH_PUBLISH_RESULT" >> $GITHUB_ENV
 
-          mv package.json.bak package.json
+  publish-npm-registry:
+    name: Publish to NPM Registry
+    needs: [build-and-test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'npmjs'))
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Publish to NPM Registry (Canonical 'node-pptx-templater')
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'npmjs'))
+      - name: Setup Node.js 22.x LTS (NPM Registry)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download Packaged Tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: package-tarball
+
+      - name: Check NPM Registry Existence & Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NODE_AUTH_TOKEN }}
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ] && [ "$IS_DRY_RUN" != "true" ]; then
-            echo "NPM_TOKEN secret not set. Skipping npmjs registry publish."
-            echo "NPM_PUBLISH_RESULT=Skipped (NPM_TOKEN not configured)" >> $GITHUB_ENV
-          else
-            if [ "$IS_DRY_RUN" = "true" ]; then
-              echo "Executing npmjs publish dry-run (tag: $DIST_TAG)..."
-              npm publish --dry-run --registry=https://registry.npmjs.org --tag "$DIST_TAG"
-              NPM_PUBLISH_RESULT="Dry Run Success (Not Published)"
-            else
-              echo "Publishing canonical 'node-pptx-templater' to npmjs with dist-tag: $DIST_TAG..."
-              npm publish --registry=https://registry.npmjs.org --tag "$DIST_TAG" --provenance || npm publish --registry=https://registry.npmjs.org --tag "$DIST_TAG"
-              NPM_PUBLISH_RESULT="Published to npmjs (node-pptx-templater, tag '$DIST_TAG')"
-            fi
-            echo "NPM_PUBLISH_RESULT=$NPM_PUBLISH_RESULT" >> $GITHUB_ENV
+          VERSION="${{ needs.build-and-test.outputs.version }}"
+          DIST_TAG="${{ needs.build-and-test.outputs.dist_tag }}"
+          IS_DRY_RUN="${{ needs.build-and-test.outputs.is_dry_run }}"
+
+          echo "Checking if node-pptx-templater@$VERSION is already published on npm..."
+          if npm view "node-pptx-templater@$VERSION" version --registry=https://registry.npmjs.org/ > /dev/null 2>&1; then
+            echo "::notice::Version $VERSION is already published to npm. Skipping."
+            echo "NPM_PUBLISH_RESULT=Skipped (Version $VERSION already exists)" >> $GITHUB_ENV
+            exit 0
           fi
 
-      - name: Generate GitHub Release Step Summary
-        if: always()
-        run: |
-          cat << 'EOF' >> $GITHUB_STEP_SUMMARY
-          ## 🚀 Publish & Release Pipeline Summary
+          if [ -z "$NODE_AUTH_TOKEN" ] && [ "$IS_DRY_RUN" != "true" ]; then
+            echo "::warning::NPM_TOKEN secret not configured. Skipping npm publish."
+            echo "NPM_PUBLISH_RESULT=Skipped (NPM_TOKEN not configured)" >> $GITHUB_ENV
+            exit 0
+          fi
 
-          | Metric | Value |
-          | :--- | :--- |
-          | **Package Name** | `node-pptx-templater` |
-          | **Package Version** | ${{ env.PACKAGE_VERSION }} |
-          | **Trigger Event** | ${{ github.event_name }} |
-          | **Tag Resolution Source** | ${{ env.RESOLVED_SOURCE }} |
-          | **Resolved Dist-Tag** | `${{ env.DIST_TAG }}` |
-          | **GitHub Packages Status** | ${{ env.GH_PUBLISH_RESULT || 'N/A' }} |
-          | **NPM Registry Status** | ${{ env.NPM_PUBLISH_RESULT || 'N/A' }} |
+          TARBALL_PATH=$(find . -maxdepth 1 -name "node-pptx-templater-*.tgz" | head -n 1)
 
-          ### 📦 Verified Package Managers (Canonical 'node-pptx-templater')
-          - [x] **npm** (v10+ / Node.js 22 LTS) — CJS & ESM loading verified
-          - [x] **pnpm** (v9+) — Tarball resolution and CJS loading verified
-          - [x] **yarn** (Corepack stable) — Tarball dependency installation verified
-          - [x] **bun** (latest) — Native Bun runtime ESM import verified
-
-          ### 🛡️ Pre-Publish Checks Passed
-          - [x] Canonical package name verified (`node-pptx-templater`)
-          - [x] Zero native binary dependencies (Pure JS boundary)
-          - [x] Unit & Integration tests passing (`npm test`)
-          - [x] Linting rules verified (`npm run lint`)
-          - [x] Dual CJS/ESM & TypeScript typings validated
-          - [x] Clean tarball content audit
-          EOF
+          if [ "$IS_DRY_RUN" = "true" ]; then
+            echo "Executing npm publish dry-run (tag: $DIST_TAG)..."
+            if [ -n "$TARBALL_PATH" ]; then
+              npm publish "$TARBALL_PATH" --dry-run --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/
+            else
+              npm publish --dry-run --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/
+            fi
+            echo "NPM_PUBLISH_RESULT=Dry Run Success (Not Published)" >> $GITHUB_ENV
+          else
+            echo "Publishing canonical 'node-pptx-templater' to npm with dist-tag: $DIST_TAG..."
+            if [ -n "$TARBALL_PATH" ]; then
+              npm publish "$TARBALL_PATH" --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/ --provenance || \
+              npm publish "$TARBALL_PATH" --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/
+            else
+              npm publish --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/ --provenance || \
+              npm publish --tag "$DIST_TAG" --access public --registry=https://registry.npmjs.org/
+            fi
+            echo "NPM_PUBLISH_RESULT=Published (node-pptx-templater, tag '$DIST_TAG')" >> $GITHUB_ENV
+          fi
