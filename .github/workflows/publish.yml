@@ -83,7 +83,7 @@ jobs:
         run: |
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
           TARBALL_NAME=$(npm pack)
-          
+
           IS_DRY_RUN=false
           DIST_TAG="latest"
 
@@ -222,7 +222,7 @@ jobs:
 
   publish-github-packages:
     name: Publish to GitHub Packages
-    needs: [build-and-test]
+    needs: [build-and-test, verify-package-managers]
     runs-on: ubuntu-latest
     if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'github'))
     permissions:
@@ -285,7 +285,7 @@ jobs:
 
   publish-npm-registry:
     name: Publish to NPM Registry
-    needs: [build-and-test]
+    needs: [build-and-test, verify-package-managers]
     runs-on: ubuntu-latest
     if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'npmjs'))
     permissions:
