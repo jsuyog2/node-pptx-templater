@@ -119,5 +119,5 @@ Automated release pipeline maintained in `.github/workflows/publish.yml`:
   - `v*` (stable) -> npm distribution tag `latest`
 - **Multi-Package Manager Verification**:
   - Automatically packs the production tarball via `npm pack`.
-  - Installs and verifies CJS/ESM runtime consumption across all 4 package managers: `npm`, `pnpm` (v9+), `yarn` (Corepack), and `bun` (latest).
+  - Installs and verifies CJS/ESM runtime consumption across all 4 package managers: `npm`, `pnpm` (v9+), `yarn` (Corepack Yarn Berry v4 configured with `nodeLinker: node-modules` to ensure standard `node_modules` resolution), and `bun` (latest).
 - **GitHub Actions Step Summary**: Emits structured release reports documenting resolved dist-tags, publish status across both registries, and package manager compatibility matrices.

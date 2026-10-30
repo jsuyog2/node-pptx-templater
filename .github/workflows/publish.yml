@@ -175,14 +175,18 @@ jobs:
           pnpm init
           pnpm add "$TARBALL_PATH"
           node -e "const { PPTXTemplater } = require('node-pptx-templater'); if (typeof PPTXTemplater.load !== 'function') throw new Error('CJS import failed'); console.log('✓ pnpm CJS import verified');"
+          node --input-type=module -e "import { PPTXTemplater } from 'node-pptx-templater'; if (typeof PPTXTemplater.load !== 'function') throw new Error('ESM import failed'); console.log('✓ pnpm ESM import verified');"
           cd ..
 
-          # 3. Yarn Verification
+          # 3. Yarn Verification (configured with node-modules linker for Yarn Berry)
           echo "=== Testing Yarn ==="
           mkdir test-yarn && cd test-yarn
-          yarn init -y
-          yarn add "$TARBALL_PATH"
+          touch yarn.lock
+          yarn init -y || true
+          yarn config set nodeLinker node-modules || true
+          yarn add "$TARBALL_PATH" || yarn add "node-pptx-templater@$TARBALL_PATH"
           node -e "const { PPTXTemplater } = require('node-pptx-templater'); if (typeof PPTXTemplater.load !== 'function') throw new Error('CJS import failed'); console.log('✓ yarn CJS import verified');"
+          node --input-type=module -e "import { PPTXTemplater } from 'node-pptx-templater'; if (typeof PPTXTemplater.load !== 'function') throw new Error('ESM import failed'); console.log('✓ yarn ESM import verified');"
           cd ..
 
           # 4. Bun Verification
