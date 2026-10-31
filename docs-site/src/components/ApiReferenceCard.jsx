@@ -27,12 +27,28 @@ export default function ApiReferenceCard({
   initialMethodName = '',
   slideNumber = 1,
   totalSlides = 8,
+  activeFunctionIndex = 0,
+  onFunctionIndexChange,
 }) {
   const [search, setSearch] = useState('');
-  const [selectedMethodName, setSelectedMethodName] = useState(
-    initialMethodName || methods[0]?.name || ''
-  );
+  const [selectedMethodName, setSelectedMethodName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace(/^#/, '').trim();
+      if (hash && methods.some((m) => m.name === hash)) {
+        return hash;
+      }
+    }
+    if (initialMethodName && methods.some((m) => m.name === initialMethodName)) {
+      return initialMethodName;
+    }
+    if (typeof activeFunctionIndex === 'number' && methods[activeFunctionIndex]) {
+      return methods[activeFunctionIndex].name;
+    }
+    return methods[0]?.name || '';
+  });
   const detailContainerRef = useRef(null);
+  const activeSidebarItemRef = useRef(null);
+  const isInitialMountRef = useRef(true);
 
   // Sync with URL hash for deep-linking
   useEffect(() => {
@@ -41,20 +57,56 @@ export default function ApiReferenceCard({
       const hash = window.location.hash.replace(/^#/, '').trim();
       if (hash && methods.some((m) => m.name === hash)) {
         setSelectedMethodName(hash);
+        const idx = methods.findIndex((m) => m.name === hash);
+        if (idx !== -1 && onFunctionIndexChange) {
+          onFunctionIndexChange(idx);
+        }
       }
     };
 
     handleHashSync();
     window.addEventListener('hashchange', handleHashSync);
     return () => window.removeEventListener('hashchange', handleHashSync);
-  }, [methods]);
+  }, [methods, onFunctionIndexChange]);
+
+  // Sync with activeFunctionIndex prop
+  useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      if (typeof window !== 'undefined') {
+        const hash = window.location.hash.replace(/^#/, '').trim();
+        if (hash) {
+          const hashIdx = methods.findIndex((m) => m.name === hash);
+          if (hashIdx !== -1) {
+            setSelectedMethodName(hash);
+            if (onFunctionIndexChange && hashIdx !== activeFunctionIndex) {
+              onFunctionIndexChange(hashIdx);
+            }
+            return;
+          }
+        }
+      }
+    }
+
+    if (typeof activeFunctionIndex === 'number' && methods[activeFunctionIndex]) {
+      const targetMethod = methods[activeFunctionIndex].name;
+      setSelectedMethodName(targetMethod);
+      if (detailContainerRef.current) {
+        detailContainerRef.current.scrollTop = 0;
+      }
+    }
+  }, [activeFunctionIndex, methods, onFunctionIndexChange]);
 
   // If initialMethodName changes from prop
   useEffect(() => {
     if (initialMethodName && methods.some((m) => m.name === initialMethodName)) {
       setSelectedMethodName(initialMethodName);
+      const idx = methods.findIndex((m) => m.name === initialMethodName);
+      if (idx !== -1 && onFunctionIndexChange) {
+        onFunctionIndexChange(idx);
+      }
     }
-  }, [initialMethodName, methods]);
+  }, [initialMethodName, methods, onFunctionIndexChange]);
 
   // Filter methods based on search input
   const filteredMethods = useMemo(() => {
@@ -78,10 +130,25 @@ export default function ApiReferenceCard({
     );
   }, [filteredMethods, selectedMethodName, methods]);
 
+  // Synchronize and auto-scroll desktop function list to active function
+  useEffect(() => {
+    if (activeSidebarItemRef.current) {
+      activeSidebarItemRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [activeMethod.name, activeFunctionIndex]);
+
   const handleSelectMethod = (name) => {
     setSelectedMethodName(name);
     if (typeof window !== 'undefined') {
       window.history.replaceState(null, '', `#${name}`);
+    }
+    const idx = methods.findIndex((m) => m.name === name);
+    if (idx !== -1 && onFunctionIndexChange) {
+      onFunctionIndexChange(idx);
     }
     // Scroll detail container back to top smoothly when method changes
     if (detailContainerRef.current) {
@@ -168,6 +235,7 @@ export default function ApiReferenceCard({
         <MobileFunctionReel
           methods={filteredMethods}
           activeMethodName={activeMethod.name}
+          activeFunctionIndex={activeFunctionIndex}
           onSelectMethod={handleSelectMethod}
         />
       </div>
@@ -184,6 +252,7 @@ export default function ApiReferenceCard({
             return (
               <button
                 key={m.name}
+                ref={isSelected ? activeSidebarItemRef : null}
                 type="button"
                 onClick={() => handleSelectMethod(m.name)}
                 className={`w-full text-left px-3 py-2 rounded text-xs transition-all flex items-center justify-between border cursor-pointer ${isSelected

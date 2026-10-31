@@ -103,6 +103,8 @@ export function transitionSlide(stageElement, direction = 'next', onComplete = (
     return;
   }
 
+  gsap.killTweensOf(stageElement);
+
   const yOffset = direction === 'next' ? 40 : -40;
 
   gsap.fromTo(
