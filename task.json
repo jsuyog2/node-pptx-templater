@@ -1,56 +1,45 @@
 {
-    "project": "node-pptx-templater",
-    "category": "Workspace & Context Optimization",
-    "task": "Audit, Consolidate, and Prune .agent Directory to Reduce Token Bloat",
+    "project": "node-pptx-templater-docs-site",
+    "version": "4.9.8",
+    "scope": "Documentation Site Navigation & Slide Selection Fix: Restore Standard Slide Scrolling and Thumbnail Click Switching on Overview and Installation Sections Without Altering API Reference",
+    "rules": {
+        "preserveContent": true,
+        "scopeStrict": "docs-site/",
+        "targetSections": [
+            "/docs",
+            "/docs/installation"
+        ],
+        "preserveSection": "/docs/api-reference"
+    },
     "tasks": [
         {
-            "id": "TASK-AGENT-OPT-001",
-            "title": "Audit .agent Tree, Stale Cache Artifacts, and Token Footprint",
+            "id": "TASK-DOCS-SLIDE-STATE-FIX-001",
+            "title": "Decouple API Reference Function Scoping & Fix Slide State Lock on Overview and Installation",
             "status": "completed",
-            "description": "Inspect all files and directories inside `.agent/` (including `rules/`, `skills/`, `agents/`, `tools/`, `memory/`, `context/`, `workflows/`, and config files). Identify redundant explanations, bloated chat transcript dumps, duplicate API catalogs already present in `docs-site/src/data/`, stale temporary output files, and unpruned `.agentignore` exclusions.",
+            "description": "Diagnose and fix why the Overview (/docs) and Installation (/docs/installation) sections remain pinned to Slide 1 and refuse to switch slides on scroll or click. Root cause: The hierarchical function-stepping logic (`activeFunctionIndex === 0` lockout checks or conditional route guards in `PowerPointSlideDeck.jsx`) is leaking into non-API sections where slides have no sub-functions, causing the slide state to continually evaluate as bounded at index 0 and reset or ignore slide updates. Add explicit section detection (`const isApiReference = pathname.includes('/docs/api-reference')`) so function-level stepping is executed strictly when `isApiReference === true`, and standard direct slide-stepping runs on Overview and Installation.",
             "deliverables": [
-                ".agent/.agentignore"
+                "docs-site/src/components/PowerPointSlideDeck.jsx",
+                "docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx"
             ]
         },
         {
-            "id": "TASK-AGENT-OPT-002",
-            "title": "Strengthen .agent/.agentignore Exclusions",
+            "id": "TASK-DOCS-SIDEBAR-CLICK-RESTORE-002",
+            "title": "Restore Direct Slide Selection via Thumbnail Clicks on Overview and Installation",
             "status": "completed",
-            "description": "Ensure `.agent/.agentignore` explicitly prevents heavy binaries, logs, test outputs, and compiler caches from being pulled into the LLM context window. Verify exclusions for `node_modules/`, `dist/`, `.next/`, `docs-site/out/`, `docs-site/.next/`, `coverage/`, `scratch/`, `output/`, `*.pptx`, `*.xlsx`, `*.zip`, `*.log`, and temporary raw XML diff fixtures.",
+            "description": "Fix the thumbnail click handler (`onSelectSlide` / `setCurrentSlideIndex`) in `SlideThumbnailSidebar.jsx` and `PowerPointSlideDeck.jsx` for the Overview and Installation pages. Ensure that clicking any slide thumbnail directly updates the active slide index (`currentSlideIndex = clickedIndex`), triggers the slide transition cleanly, updates the thumbnail highlight outline (`2px solid #D24726`), and immediately mounts the corresponding slide card without being intercepted or clamped back to index 0.",
             "deliverables": [
-                ".agent/.agentignore"
+                "docs-site/src/components/PowerPointChrome/SlideThumbnailSidebar.jsx",
+                "docs-site/src/components/PowerPointSlideDeck.jsx"
             ]
         },
         {
-            "id": "TASK-AGENT-OPT-003",
-            "title": "Consolidate and Deduplicate Rules, Memory, and Architectural Docs",
+            "id": "TASK-DOCS-SCROLL-TRANSITION-RESTORE-003",
+            "title": "Restore Native Slide-to-Slide Wheel & Touch Transitions on Overview and Installation",
             "status": "completed",
-            "description": "Refactor and prune prose in `.agent/rules/` (`general.md`, `features.md`, `io-whitelist.md`), `.agent/memory/architectural-decisions.md`, and `.agent/project_summary.md`. Replace verbose narrative descriptions with compact bullet points, concise table maps, and targeted code constraints while retaining critical invariants (zero native dependencies, pure JS, 18-method I/O boundary, XML security, run healing, and chart/table integrity rules).",
+            "description": "Ensure mouse wheel and touch gestures on Overview and Installation sections advance and reverse slide decks directly: (1) If internal card content is scrollable, allow normal scrolling until hitting top/bottom boundaries, (2) Once at the bottom boundary (`scrollTop + clientHeight >= scrollHeight - 2`), scrolling downward advances directly to `currentSlideIndex + 1` (up to `totalSlides - 1`), (3) Once at the top boundary (`scrollTop <= 0`), scrolling upward reverts directly to `currentSlideIndex - 1` (down to `0`), and (4) Verify API Reference continues to execute hierarchical function-stepping independently.",
             "deliverables": [
-                ".agent/project_summary.md",
-                ".agent/rules/general.md",
-                ".agent/rules/features.md",
-                ".agent/memory/architectural-decisions.md"
-            ]
-        },
-        {
-            "id": "TASK-AGENT-OPT-004",
-            "title": "Streamline Agent Roster, Skills, and Workflow SOPs",
-            "status": "completed",
-            "description": "Optimize `.agent/AGENTS.md`, `.agent/agents/*.md`, and `.agent/workflows/*.md`. Consolidate overlapping instructions between agent role definitions and individual skill playbooks (`skills/*.md`). Purge deprecated workflows or duplicate schema definitions that mirror `docs-site/src/data/apiReference.json`.",
-            "deliverables": [
-                ".agent/AGENTS.md",
-                ".agent/skills/",
-                ".agent/workflows/"
-            ]
-        },
-        {
-            "id": "TASK-AGENT-OPT-005",
-            "title": "Validate Total Context Size and Test Agent Performance",
-            "status": "completed",
-            "description": "Verify that total character/token weight of the `.agent/` directory is significantly reduced without breaking Antigravity agent role execution or omitting core OpenXML/OPC constraints. Ensure the project build (`npm test`) and documentation export (`npm run docs:build`) remain completely unaffected.",
-            "deliverables": [
-                "task.json"
+                "docs-site/src/components/PowerPointSlideDeck.jsx",
+                "docs-site/src/animations/gsapSlideTransitions.js"
             ]
         }
     ]

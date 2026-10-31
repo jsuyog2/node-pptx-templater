@@ -15,6 +15,7 @@ import React, { useRef, useEffect } from 'react';
 export default function MobileFunctionReel({
   methods = [],
   activeMethodName = '',
+  activeFunctionIndex = 0,
   onSelectMethod = () => { },
 }) {
   const containerRef = useRef(null);
@@ -29,7 +30,7 @@ export default function MobileFunctionReel({
         inline: 'center',
       });
     }
-  }, [activeMethodName]);
+  }, [activeMethodName, activeFunctionIndex]);
 
   if (!methods || methods.length === 0) return null;
 

@@ -70,7 +70,7 @@ export default function SlideThumbnailSidebar({
               {/* 16:9 Thumbnail Card */}
               <div
                 className={`flex-1 aspect-[16/9] rounded-sm p-2 flex flex-col justify-between transition-all duration-200 relative overflow-hidden ppt-card-surface ${isActive
-                  ? 'ppt-active-slide ring-1 ring-[#D24726]'
+                  ? 'ppt-active-slide ring-2 ring-[#D24726] border-2 border-[#D24726]'
                   : 'hover:border-[#D24726]/60 opacity-80 hover:opacity-100'
                   }`}
               >

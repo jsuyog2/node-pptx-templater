@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import SlideThumbnailSidebar from './PowerPointChrome/SlideThumbnailSidebar';
 import MobileSlideFilmstrip from './PowerPointChrome/MobileSlideFilmstrip';
 import StatusBar from './PowerPointChrome/StatusBar';
@@ -14,13 +15,33 @@ export default function PowerPointSlideDeck({
   activeOnfirst,
   onSlideChange = () => { },
 }) {
+  const pathname = usePathname();
+  const isApiReference = pathname?.includes('/docs/api-reference');
+
   const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const [activeFunctionIndex, setActiveFunctionIndex] = useState(0);
   const [viewMode, setViewMode] = useState('normal');
   const [zoomLevel, setZoomLevel] = useState(100);
   const stageRef = useRef(null);
   const mainRef = useRef(null);
   const isTransitioningRef = useRef(false);
   const lastTransitionTimeRef = useRef(0);
+
+  const lastStepTimeRef = useRef(0);
+  const STEP_COOLDOWN_MS = 280;
+
+  const prevInitialIndexRef = useRef(initialIndex);
+
+  // Synchronize activeIndex only when initialIndex prop actually changes (e.g. category route change in API Reference)
+  useEffect(() => {
+    if (prevInitialIndexRef.current !== initialIndex) {
+      prevInitialIndexRef.current = initialIndex;
+      setActiveIndex(initialIndex);
+      if (isApiReference) {
+        setActiveFunctionIndex(0);
+      }
+    }
+  }, [initialIndex, isApiReference]);
 
   // Wheel damping and boundary threshold refs
   const wheelAccumulatorRef = useRef(0);
@@ -39,17 +60,19 @@ export default function PowerPointSlideDeck({
 
   // Jump to specific slide with GSAP transition and cooldown debounce
   const goToSlide = useCallback(
-    (newIndex, direction = 'next') => {
+    (newIndex, direction = 'next', targetFunctionIndex = 0) => {
       const now = Date.now();
       if (now - lastTransitionTimeRef.current < COOLDOWN_MS) return;
       if (newIndex < 0 || newIndex >= totalSlides || newIndex === activeIndex) return;
       if (isTransitioningRef.current) return;
 
       lastTransitionTimeRef.current = now;
+      lastStepTimeRef.current = now;
       isTransitioningRef.current = true;
       wheelAccumulatorRef.current = 0;
       boundaryReachedTimeRef.current = 0;
       setActiveIndex(newIndex);
+      setActiveFunctionIndex(targetFunctionIndex);
       onSlideChange(newIndex);
 
       // Reset scroll position to top for incoming slide
@@ -72,11 +95,11 @@ export default function PowerPointSlideDeck({
   );
 
   const nextSlide = useCallback(() => {
-    goToSlide(activeIndex + 1, 'next');
+    goToSlide(activeIndex + 1, 'next', 0);
   }, [activeIndex, goToSlide]);
 
   const prevSlide = useCallback(() => {
-    goToSlide(activeIndex - 1, 'prev');
+    goToSlide(activeIndex - 1, 'prev', 0);
   }, [activeIndex, goToSlide]);
 
   // Helper to find scrollable container for event target
@@ -119,6 +142,11 @@ export default function PowerPointSlideDeck({
     (e) => {
       if (Math.abs(e.deltaY) < 10) return;
 
+      if (isTransitioningRef.current) {
+        e.preventDefault();
+        return;
+      }
+
       const currentDirection = e.deltaY > 0 ? 1 : -1;
       // Reset accumulator if user reverses scroll direction
       if (lastScrollDirectionRef.current !== currentDirection) {
@@ -128,7 +156,7 @@ export default function PowerPointSlideDeck({
       }
 
       const scrollEl = getScrollableElement(e.target);
-      const isScrollable = scrollEl && scrollEl.scrollHeight > scrollEl.clientHeight + 2;
+      const isScrollable = scrollEl && scrollEl !== stageRef.current && scrollEl.scrollHeight > scrollEl.clientHeight + 2;
       const isAtTop = scrollEl ? scrollEl.scrollTop <= 1 : true;
       const isAtBottom = scrollEl
         ? scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 2
@@ -136,9 +164,113 @@ export default function PowerPointSlideDeck({
 
       const now = Date.now();
 
+      // =========================================================================
+      // API REFERENCE SECTION: Function-First Step-Scrolling & Slide Boundary Handoff
+      // =========================================================================
+      if (isApiReference) {
+        const currentSlide = slides[activeIndex] || {};
+        const methods = currentSlide.methods || [];
+        const totalFunctions = methods.length;
+
+        // If active function card has internal overflow (long code blocks or parameter tables),
+        // allow internal card scrolling first.
+        if (isScrollable) {
+          if (e.deltaY > 0) {
+            // Scrolling downward: if not yet at bottom of card, permit free native scroll
+            if (!isAtBottom) {
+              wheelAccumulatorRef.current = 0;
+              boundaryReachedTimeRef.current = 0;
+              return;
+            }
+          } else {
+            // Scrolling upward: if not yet at top of card, permit free native scroll
+            if (!isAtTop) {
+              wheelAccumulatorRef.current = 0;
+              boundaryReachedTimeRef.current = 0;
+              return;
+            }
+          }
+
+          // Card boundary reached: require pause / debounce before stepping function
+          if (!boundaryReachedTimeRef.current) {
+            boundaryReachedTimeRef.current = now;
+            wheelAccumulatorRef.current = 0;
+            return;
+          }
+          if (now - boundaryReachedTimeRef.current < 200) {
+            return;
+          }
+        }
+
+        // Add a debounce threshold (~250ms–350ms cooldown) to prevent a single physical
+        // wheel tick or trackpad flick from skipping multiple functions.
+        if (now - lastStepTimeRef.current < STEP_COOLDOWN_MS) {
+          return;
+        }
+
+        // Wheel threshold damping
+        wheelAccumulatorRef.current += Math.abs(e.deltaY);
+        if (wheelAccumulatorRef.current < WHEEL_THRESHOLD) {
+          return;
+        }
+
+        wheelAccumulatorRef.current = 0;
+        boundaryReachedTimeRef.current = 0;
+
+        if (e.deltaY > 0) {
+          // Downward Scroll (deltaY > 0)
+          // Hard terminal lockout: Last Slide AND Last Function
+          if (activeIndex === totalSlides - 1 && activeFunctionIndex >= totalFunctions - 1) {
+            return;
+          }
+
+          e.preventDefault();
+
+          if (activeFunctionIndex < totalFunctions - 1) {
+            // Sub-Step A: Increment activeFunctionIndex by 1. Keep current slide unchanged.
+            lastStepTimeRef.current = now;
+            setActiveFunctionIndex((prev) => prev + 1);
+          } else if (activeFunctionIndex === totalFunctions - 1 && activeIndex < totalSlides - 1) {
+            // Sub-Step B (Handoff to Next Slide): Advance to next slide and set activeFunctionIndex = 0
+            lastStepTimeRef.current = now;
+            goToSlide(activeIndex + 1, 'next', 0);
+          }
+        } else {
+          // Upward Scroll (deltaY < 0)
+          // Hard terminal lockout: First Slide AND First Function
+          if (activeIndex === 0 && activeFunctionIndex === 0) {
+            return;
+          }
+
+          e.preventDefault();
+
+          if (activeFunctionIndex > 0) {
+            // Sub-Step A: Decrement activeFunctionIndex by 1. Keep current slide unchanged.
+            lastStepTimeRef.current = now;
+            setActiveFunctionIndex((prev) => prev - 1);
+          } else if (activeFunctionIndex === 0 && activeIndex > 0) {
+            // Sub-Step B (Handoff to Previous Slide): Revert to previous slide and select its last function
+            lastStepTimeRef.current = now;
+            const prevSlideMethods = slides[activeIndex - 1]?.methods || [];
+            const targetFuncIdx = Math.max(0, prevSlideMethods.length - 1);
+            goToSlide(activeIndex - 1, 'prev', targetFuncIdx);
+          }
+        }
+        return;
+      }
+
+      // =========================================================================
+      // NON-API REFERENCE SECTIONS (Overview, Installation, Home):
+      // Direct slide-to-slide navigation with internal card scroll handling
+      // =========================================================================
+      // Maintain a 300ms–350ms cooldown debounce so a single scroll gesture advances exactly one slide at a time
+      if (now - lastTransitionTimeRef.current < 320) {
+        return;
+      }
+
       if (isScrollable) {
         if (e.deltaY > 0) {
-          // Scrolling downward: if not yet at bottom of card, permit free native scroll
+          // If the slide card content overflows vertically, permit native scrolling until reaching the boundary
           if (!isAtBottom) {
             wheelAccumulatorRef.current = 0;
             boundaryReachedTimeRef.current = 0;
@@ -157,17 +289,21 @@ export default function PowerPointSlideDeck({
           // Require intentional extra delta and delay before advancing slide
           if (
             wheelAccumulatorRef.current < WHEEL_THRESHOLD ||
-            now - boundaryReachedTimeRef.current < 200
+            now - boundaryReachedTimeRef.current < 160
           ) {
             return;
           }
 
           wheelAccumulatorRef.current = 0;
           boundaryReachedTimeRef.current = 0;
-          e.preventDefault();
-          nextSlide();
+
+          // Downward Scroll (deltaY > 0): Advance to next slide or do nothing at last slide
+          if (activeIndex < totalSlides - 1) {
+            e.preventDefault();
+            nextSlide();
+          }
         } else {
-          // Scrolling upward: if not yet at top of card, permit free native scroll
+          // If the slide card content overflows vertically, permit native scrolling until reaching the boundary
           if (!isAtTop) {
             wheelAccumulatorRef.current = 0;
             boundaryReachedTimeRef.current = 0;
@@ -186,15 +322,19 @@ export default function PowerPointSlideDeck({
           // Require intentional extra delta and delay before reverting slide
           if (
             wheelAccumulatorRef.current < WHEEL_THRESHOLD ||
-            now - boundaryReachedTimeRef.current < 200
+            now - boundaryReachedTimeRef.current < 160
           ) {
             return;
           }
 
           wheelAccumulatorRef.current = 0;
           boundaryReachedTimeRef.current = 0;
-          e.preventDefault();
-          prevSlide();
+
+          // Upward Scroll (deltaY < 0): Revert to previous slide or do nothing at first slide
+          if (activeIndex > 0) {
+            e.preventDefault();
+            prevSlide();
+          }
         }
       } else {
         // Not internally scrollable: require deliberate wheel threshold
@@ -205,15 +345,28 @@ export default function PowerPointSlideDeck({
         boundaryReachedTimeRef.current = 0;
 
         if (e.deltaY > 0) {
-          e.preventDefault();
-          nextSlide();
+          if (activeIndex < totalSlides - 1) {
+            e.preventDefault();
+            nextSlide();
+          }
         } else {
-          e.preventDefault();
-          prevSlide();
+          if (activeIndex > 0) {
+            e.preventDefault();
+            prevSlide();
+          }
         }
       }
     },
-    [nextSlide, prevSlide]
+    [
+      isApiReference,
+      activeIndex,
+      activeFunctionIndex,
+      slides,
+      totalSlides,
+      goToSlide,
+      nextSlide,
+      prevSlide,
+    ]
   );
 
   // Handle Touch Gestures with Horizontal Drag & Swipe Detection
@@ -262,17 +415,62 @@ export default function PowerPointSlideDeck({
     // Mobile Vertical Boundary Swipe: absY >= 75px, predominantly vertical, and card at boundary
     if (absY >= 75 && absY > absX * 1.5) {
       const scrollEl = getScrollableElement(e.target);
-      const isScrollable = scrollEl && scrollEl.scrollHeight > scrollEl.clientHeight + 2;
+      const isScrollable = scrollEl && scrollEl !== stageRef.current && scrollEl.scrollHeight > scrollEl.clientHeight + 2;
       const isAtTop = scrollEl ? scrollEl.scrollTop <= 1 : true;
       const isAtBottom = scrollEl
         ? scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 2
         : true;
 
+      if (isApiReference) {
+        const currentSlide = slides[activeIndex] || {};
+        const methods = currentSlide.methods || [];
+        const totalFunctions = methods.length;
+
+        if (deltaY > 0 && (!isScrollable || isAtBottom)) {
+          // Swipe up = scroll down
+          if (activeIndex === totalSlides - 1 && activeFunctionIndex >= totalFunctions - 1) {
+            return;
+          }
+          if (activeFunctionIndex < totalFunctions - 1) {
+            setActiveFunctionIndex((prev) => prev + 1);
+          } else if (activeFunctionIndex === totalFunctions - 1 && activeIndex < totalSlides - 1) {
+            goToSlide(activeIndex + 1, 'next', 0);
+          }
+        } else if (deltaY < 0 && (!isScrollable || isAtTop)) {
+          // Swipe down = scroll up
+          if (activeIndex === 0 && activeFunctionIndex === 0) {
+            return;
+          }
+          if (activeFunctionIndex > 0) {
+            setActiveFunctionIndex((prev) => prev - 1);
+          } else if (activeFunctionIndex === 0 && activeIndex > 0) {
+            const prevSlideMethods = slides[activeIndex - 1]?.methods || [];
+            const targetFuncIdx = Math.max(0, prevSlideMethods.length - 1);
+            goToSlide(activeIndex - 1, 'prev', targetFuncIdx);
+          }
+        }
+        return;
+      }
+
       if (isScrollable) {
         if (deltaY > 0 && isAtBottom) {
-          nextSlide();
+          if (activeIndex < totalSlides - 1) {
+            nextSlide();
+          }
         } else if (deltaY < 0 && isAtTop) {
-          prevSlide();
+          if (activeIndex > 0) {
+            prevSlide();
+          }
+        }
+      } else {
+        if (deltaY > 0) {
+          if (activeIndex < totalSlides - 1) {
+            nextSlide();
+          }
+        } else if (deltaY < 0) {
+          if (activeIndex > 0) {
+            prevSlide();
+          }
         }
       }
     }
@@ -281,14 +479,41 @@ export default function PowerPointSlideDeck({
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
       if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
-        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-          e.preventDefault();
+        e.preventDefault();
+        if (isApiReference) {
+          const currentSlide = slides[activeIndex] || {};
+          const methods = currentSlide.methods || [];
+          const totalFunctions = methods.length;
+          if (activeIndex === totalSlides - 1 && activeFunctionIndex >= totalFunctions - 1) {
+            return;
+          }
+          if (activeFunctionIndex < totalFunctions - 1) {
+            setActiveFunctionIndex((prev) => prev + 1);
+          } else if (activeFunctionIndex === totalFunctions - 1 && activeIndex < totalSlides - 1) {
+            goToSlide(activeIndex + 1, 'next', 0);
+          }
+        } else {
           nextSlide();
         }
       } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
-        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-          e.preventDefault();
+        e.preventDefault();
+        if (isApiReference) {
+          if (activeIndex === 0 && activeFunctionIndex === 0) {
+            return;
+          }
+          if (activeFunctionIndex > 0) {
+            setActiveFunctionIndex((prev) => prev - 1);
+          } else if (activeFunctionIndex === 0 && activeIndex > 0) {
+            const prevSlideMethods = slides[activeIndex - 1]?.methods || [];
+            const targetFuncIdx = Math.max(0, prevSlideMethods.length - 1);
+            goToSlide(activeIndex - 1, 'prev', targetFuncIdx);
+          }
+        } else {
           prevSlide();
         }
       }
@@ -296,7 +521,16 @@ export default function PowerPointSlideDeck({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nextSlide, prevSlide]);
+  }, [
+    isApiReference,
+    activeIndex,
+    activeFunctionIndex,
+    slides,
+    totalSlides,
+    goToSlide,
+    nextSlide,
+    prevSlide,
+  ]);
 
   const activeSlide = slides[activeIndex] || slides[0] || {};
 
@@ -306,8 +540,8 @@ export default function PowerPointSlideDeck({
       <SlideThumbnailSidebar
         slides={slides}
         activeSlideIndex={activeIndex}
-        onSelectSlide={(idx) => goToSlide(idx, idx > activeIndex ? 'next' : 'prev')}
-        sectionTitle="API Reference"
+        onSelectSlide={(idx) => goToSlide(idx, idx > activeIndex ? 'next' : 'prev', 0)}
+        sectionTitle={categoryTitle}
       />
 
       {/* Center Slide Stage Canvas */}
@@ -324,8 +558,8 @@ export default function PowerPointSlideDeck({
           <NavigationArrows
             currentIndex={activeIndex}
             totalItems={totalSlides}
-            onPrev={prevSlide}
-            onNext={nextSlide}
+            onPrev={() => goToSlide(activeIndex - 1, 'prev', 0)}
+            onNext={() => goToSlide(activeIndex + 1, 'next', 0)}
             label="Slide"
           />
         </div>
@@ -339,7 +573,12 @@ export default function PowerPointSlideDeck({
           {activeSlide.hideDefaultHeader ? (
             /* Custom Slide Card Header & Content (Used by ApiReferenceCard for Unified Header) */
             <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden w-full max-w-full overscroll-contain isolate box-border">
-              {activeSlide.content}
+              {React.isValidElement(activeSlide.content)
+                ? React.cloneElement(activeSlide.content, {
+                    activeFunctionIndex: isApiReference ? activeFunctionIndex : undefined,
+                    onFunctionIndexChange: isApiReference ? setActiveFunctionIndex : undefined,
+                  })
+                : activeSlide.content}
             </div>
           ) : (
             /* Standard Presentation Slide Layout (Used by Guides & Installation Decks) */
