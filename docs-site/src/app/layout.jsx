@@ -26,8 +26,8 @@ export const metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: 'node-pptx-templater — High-Performance PowerPoint OpenXML Template Engine',
-    description: 'Populate PowerPoint templates dynamically in Node.js & Serverless runtimes without Microsoft Office dependencies.',
+    title: 'node-pptx-templater — Automate Your Slide Generation',
+    description: 'Automate Your Slide Generation - Programmatically generate and edit .pptx decks. Dynamically inject text, media, tables, and charts into blank or pre-designed templates, then export to any format.',
     url: siteMeta.domainUrl,
     siteName: 'node-pptx-templater',
     images: [
@@ -35,7 +35,7 @@ export const metadata = {
         url: '/og-banner.png',
         width: 1200,
         height: 630,
-        alt: 'node-pptx-templater — High-Performance PowerPoint OpenXML Template Engine',
+        alt: 'node-pptx-templater — Automate Your Slide Generation',
       },
     ],
     locale: 'en_US',
@@ -43,8 +43,8 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'node-pptx-templater — High-Performance PowerPoint OpenXML Template Engine',
-    description: 'Populate PowerPoint templates dynamically in Node.js & Serverless runtimes without Microsoft Office dependencies.',
+    title: 'node-pptx-templater — Automate Your Slide Generation',
+    description: 'Automate Your Slide Generation - Programmatically generate and edit .pptx decks. Dynamically inject text, media, tables, and charts into blank or pre-designed templates, then export to any format.',
     images: ['/twitter-card.png'],
     creator: '@jsuyog2',
   },
