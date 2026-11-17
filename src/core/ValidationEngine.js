@@ -38,6 +38,11 @@ class ValidationEngine {
     errors.push(...presRelResult.errors.map(e => `Presentation relationship error: ${e}`))
     warnings.push(...presRelResult.warnings.map(w => `Presentation relationship warning: ${w}`))
 
+    // 3. Verify sldIdLst r:id values resolve to slide relationships in presentation.xml.rels
+    const sldIdResult = this.validatePresentationSlideIds(ppt)
+    errors.push(...sldIdResult.errors)
+    warnings.push(...sldIdResult.warnings)
+
     return {
       valid: errors.length === 0,
       errors,
@@ -92,16 +97,12 @@ class ValidationEngine {
         }
       }
 
-      // Verify image references on the slide
-      const images = ppt.imageManager.getImages(
-        slideIndex,
-        ppt.slideManager,
-        ppt.relationshipManager
-      )
-      for (const image of images) {
-        if (image.targetPath && !ppt.zipManager.hasFile(image.targetPath)) {
+      // Verify media references on the slide
+      const medias = ppt.GetMedias(slideIndex)
+      for (const media of medias) {
+        if (media.targetPath && !ppt.zipManager.hasFile(media.targetPath)) {
           errors.push(
-            `Slide ${slideIndex} referenced image file does not exist at ${image.targetPath}`
+            `Slide ${slideIndex} referenced media file does not exist at ${media.targetPath}`
           )
         }
       }
@@ -197,6 +198,41 @@ class ValidationEngine {
       })
     } catch (err) {
       errors.push(`Table validation error: ${err.message}`)
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    }
+  }
+
+  /**
+   * Ensures each p:sldId entry references a valid slide relationship in presentation.xml.rels.
+   *
+   * @param {PPTXTemplater} ppt
+   * @returns {{ valid: boolean, errors: string[], warnings: string[] }}
+   */
+  static validatePresentationSlideIds(ppt) {
+    const errors = []
+    const warnings = []
+
+    const slides = ppt.slideManager.getAllSlideInfo()
+    if (slides.length === 0) {
+      return { valid: true, errors, warnings }
+    }
+
+    const presRels = ppt.relationshipManager
+      .getRelationships('ppt/presentation.xml')
+      .filter(r => r.type.endsWith('/slide'))
+    const slideRelIds = new Set(presRels.map(r => r.id))
+
+    for (const slide of slides) {
+      if (!slideRelIds.has(slide.relationshipId)) {
+        errors.push(
+          `Slide ${slide.index} relationshipId "${slide.relationshipId}" is not defined in presentation.xml.rels`
+        )
+      }
     }
 
     return {

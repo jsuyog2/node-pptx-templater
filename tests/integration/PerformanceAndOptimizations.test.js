@@ -104,15 +104,15 @@ describe('Performance and Optimizations Integration Tests', () => {
     expect(readable).toBeDefined()
     expect(typeof readable.pipe).toBe('function')
 
-    // 2. Save to stream (returns readable)
-    const streamRes = await ppt.saveToStream()
-    expect(streamRes).toBeDefined()
-    expect(typeof streamRes.pipe).toBe('function')
-
-    // 3. Save to stream piping to writable
+    // 2. Save to stream piping to writable
     const outputPath = resolve(OUTPUT_DIR, 'stream-out.pptx')
     const writeStream = fsExtra.createWriteStream(outputPath)
-    await ppt.saveToStream(writeStream)
+    const streamRes = await ppt.toStream()
+    await new Promise((resolvePromise, rejectPromise) => {
+      streamRes.pipe(writeStream)
+      writeStream.on('finish', resolvePromise)
+      writeStream.on('error', rejectPromise)
+    })
 
     expect(existsSync(outputPath)).toBe(true)
     const stat = fsExtra.statSync(outputPath)
@@ -127,10 +127,10 @@ describe('Performance and Optimizations Integration Tests', () => {
       const imgStream = createReadStream(imagePath)
 
       ppt.useSlide(1)
-      const imagesBefore = ppt.getImages()
+      const imagesBefore = ppt.GetMedias()
       if (imagesBefore.length > 0) {
         const firstImageId = imagesBefore[0].id
-        await ppt.replaceImage(firstImageId, imgStream)
+        await ppt.UpdateImage(firstImageId, { source: imgStream })
 
         const buf = await ppt.toBuffer()
         expect(buf).toBeDefined()

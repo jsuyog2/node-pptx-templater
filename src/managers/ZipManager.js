@@ -99,6 +99,47 @@ class ZipManager {
       const path = require('path')
       const fs = require('fs-extra')
 
+      if (source && typeof source === 'object' && typeof source.readBytes === 'function') {
+        const cachedMap = new Map()
+        const decoder =
+          typeof globalThis.TextDecoder !== 'undefined'
+            ? new globalThis.TextDecoder('utf-8')
+            : new (require('util').TextDecoder)('utf-8')
+        for (const [relPath, data] of source.entries.entries()) {
+          const ext = relPath.split('.').pop().toLowerCase()
+          const isText = ext === 'xml' || ext === 'rels' || ext === 'txt'
+          if (isText) {
+            cachedMap.set(relPath, { type: 'text', content: decoder.decode(data) })
+          } else {
+            cachedMap.set(relPath, { type: 'binary', content: data })
+          }
+        }
+        await this.loadFromCache(cachedMap)
+        return
+      }
+
+      if (
+        (typeof source === 'string' &&
+          (source.startsWith('http://') ||
+            source.startsWith('https://') ||
+            source.endsWith('.ppt') ||
+            source.endsWith('.odp'))) ||
+        (typeof source === 'object' && source !== null && source.provider)
+      ) {
+        const { PackageLoader } = require('../core/PackageLoader.js')
+        const vfs = await PackageLoader.load(source)
+        return this.load(vfs)
+      }
+
+      if (Buffer.isBuffer(source) || source instanceof Uint8Array) {
+        const { isLegacyPpt, isOdp, isPkZip } = require('../converters/LegacyFormatConverter.js')
+        if (isLegacyPpt(source) || (await isOdp(source)) || !isPkZip(source)) {
+          const { PackageLoader } = require('../core/PackageLoader.js')
+          const vfs = await PackageLoader.load(source)
+          return this.load(vfs)
+        }
+      }
+
       let isFolder = false
       let rootDir = null
       let presentationPath = null
@@ -109,7 +150,7 @@ class ZipManager {
         rootDir = source.root
       } else if (typeof source === 'string') {
         try {
-          const stat = fs.statSync(source)
+          const stat = await fs.stat(source)
           if (stat.isDirectory()) {
             isFolder = true
             rootDir = source
@@ -143,7 +184,7 @@ class ZipManager {
             path.join(rootDir, 'presentation.xml'),
           ]
           for (const cand of candidates) {
-            if (fs.existsSync(cand)) {
+            if (await fs.pathExists(cand)) {
               presentationPath = cand
               break
             }
@@ -181,14 +222,22 @@ class ZipManager {
         logger.debug(`Folder loaded successfully. Files: ${this.#folderFiles.size}`)
       } else {
         let data
-        if (typeof source === 'string') {
+        const isStream =
+          source &&
+          typeof source === 'object' &&
+          (typeof source.pipe === 'function' || typeof source.getReader === 'function')
+
+        if (isStream) {
+          const { streamToBuffer } = require('../core/PackageLoader.js')
+          data = await streamToBuffer(source)
+        } else if (typeof source === 'string') {
           logger.debug(`Reading file: ${source}`)
           data = await fsExtra.readFile(source)
         } else if (Buffer.isBuffer(source) || source instanceof Uint8Array) {
           data = source
         } else {
           throw new PPTXError(
-            `Invalid source type: ${typeof source}. Expected string path or Buffer.`
+            `Invalid source type: ${typeof source}. Expected string path, Buffer, or ReadableStream.`
           )
         }
 
@@ -203,14 +252,22 @@ class ZipManager {
   }
 
   /**
-   * Creates a blank PPTX structure from the embedded minimal template.
+   * Creates a blank PPTX structure from minimal template XML or legacy embedded template.
+   * @param {Object} [options={}]
    * @returns {Promise<void>}
    */
-  async createBlank() {
-    const buffer = Buffer.from(BLANK_PPTX_BASE64, 'base64')
-    this.#zip = await JSZip.loadAsync(buffer)
-    await this.#loadCoreProperties()
-    logger.debug('Created blank PPTX structure')
+  async createBlank(options = {}) {
+    if (options && options.legacy) {
+      const buffer = Buffer.from(BLANK_PPTX_BASE64, 'base64')
+      this.#zip = await JSZip.loadAsync(buffer)
+      await this.#loadCoreProperties()
+      logger.debug('Created blank PPTX structure from legacy fixture')
+      return
+    }
+    const { createBlankPresentationVfs } = require('../templates/blankPresentation.js')
+    const vfs = createBlankPresentationVfs(options)
+    await this.load(vfs)
+    logger.debug('Created blank template-free PPTX structure')
   }
 
   /**
@@ -672,7 +729,38 @@ class ZipManager {
           }
         }
       }
+    } else if (this.#cachedFiles) {
+      const allFiles = new Set([
+        ...this.#cachedFiles.keys(),
+        ...this.#dirtyFiles.keys(),
+        ...this.#dirtyBinaryFiles.keys(),
+      ])
+
+      for (const relPath of allFiles) {
+        if (this.#removedFiles.has(relPath)) {
+          const targetPath = path.join(destPath, relPath)
+          await fs.remove(targetPath)
+          continue
+        }
+
+        const targetPath = path.join(destPath, relPath)
+        await fs.ensureDir(path.dirname(targetPath))
+
+        if (this.#dirtyFiles.has(relPath)) {
+          await fs.writeFile(targetPath, this.#dirtyFiles.get(relPath), 'utf8')
+        } else if (this.#dirtyBinaryFiles.has(relPath)) {
+          await fs.writeFile(targetPath, this.#dirtyBinaryFiles.get(relPath))
+        } else {
+          const entry = this.#cachedFiles.get(relPath)
+          if (entry.type === 'text') {
+            await fs.writeFile(targetPath, entry.content, 'utf8')
+          } else {
+            await fs.writeFile(targetPath, entry.content)
+          }
+        }
+      }
     } else {
+      await this.#ensureZipForExport()
       const files = this.#zip.files
       for (const [name, file] of Object.entries(files)) {
         if (file.dir) continue

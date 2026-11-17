@@ -1,0 +1,44 @@
+[
+    {
+        "feature": "Runtime Architecture",
+        "pptxTemplater": "100% Pure JavaScript (Node.js & Edge)",
+        "libreOffice": "Heavy C++ CLI daemon",
+        "poi": "Java Virtual Machine (JVM)",
+        "pythonPptx": "Python CPython runtime"
+    },
+    {
+        "feature": "Design Approach",
+        "pptxTemplater": "Template-first & blank generation",
+        "libreOffice": "Conversion / Print-first (headless rendering)",
+        "poi": "Code-first (element-by-element via Java)",
+        "pythonPptx": "Code-first (programmatic Python scripts)"
+    },
+    {
+        "feature": "Primary Ecosystem",
+        "pptxTemplater": "JavaScript / TypeScript",
+        "libreOffice": "Language-agnostic (via CLI/subprocess)",
+        "poi": "Java / JVM languages",
+        "pythonPptx": "Python"
+    },
+    {
+        "feature": "External Dependencies",
+        "pptxTemplater": "Zero native dependencies",
+        "libreOffice": "Heavy native binary required",
+        "poi": "JDK / JRE required",
+        "pythonPptx": "Python & lxml"
+    },
+    {
+        "feature": "Chart & Table Support",
+        "pptxTemplater": "Dynamic rows & chart data updates",
+        "libreOffice": "Conversion only (no direct data mapping)",
+        "poi": "Deep low-level control over all elements",
+        "pythonPptx": "Basic built-in charts and tables"
+    },
+    {
+        "feature": "Best Use Case",
+        "pptxTemplater": "Dynamic reports from templates or scratch",
+        "libreOffice": "Converting PPTX to PDF/images",
+        "poi": "Enterprise Java document automation",
+        "pythonPptx": "Python data science pipelines"
+    }
+]

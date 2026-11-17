@@ -67,24 +67,15 @@ function isValidRelationshipId(str) {
  * remapRelationshipIds(xml, new Map([['rId1', 'rId5'], ['rId2', 'rId6']]));
  */
 function remapRelationshipIds(xml, idMap) {
-  let updated = xml
+  if (!idMap || idMap.size === 0) return xml
 
-  // Sort by length descending to avoid partial replacements (e.g., rId1 replacing part of rId10)
-  const sortedEntries = Array.from(idMap.entries()).sort(([a], [b]) => b.length - a.length)
-
-  for (const [oldId, newId] of sortedEntries) {
-    // Replace rId references in attribute values: r:id="rId1", r:embed="rId1"
-    const pattern = new RegExp(`(r:[a-zA-Z]+=")${oldId}(")|rId="${oldId}(")`, 'g')
-    updated = updated.replace(pattern, (match, pre, post) => {
-      if (pre) return `${pre}${newId}${post}`
-      return match.replace(oldId, newId)
-    })
-
-    // Simple global replace as fallback
-    updated = updated.split(`"${oldId}"`).join(`"${newId}"`)
-  }
-
-  return updated
+  // Match any relationship ID attribute reference prefixed with r: (e.g. r:id, r:embed, r:link, r:dm, r:lo, r:qs, r:cs)
+  return xml.replace(/\b(r:[a-zA-Z0-9_]+)=(["'])(rId\d+)\2/g, (match, attr, quote, id) => {
+    if (idMap.has(id)) {
+      return `${attr}=${quote}${idMap.get(id)}${quote}`
+    }
+    return match
+  })
 }
 
 module.exports = {

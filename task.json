@@ -1,0 +1,48 @@
+{
+    "project": "node-pptx-templater",
+    "version": "3.0.0",
+    "scope": "Prepare for v3 main merge, remove beta tags, configure GitHub Pages docs, and create PR",
+    "tasks": [
+        {
+            "id": "TASK-V3-001",
+            "title": "Remove Beta Tags and Prepare for v3.0.0 Stable",
+            "status": "completed",
+            "description": "Audit package.json, package-lock.json, README.md, docs-site/package.json, and docs-site/src/data/siteMeta.json. Strip out '3.0.0-beta.x' versions and update them to the stable '3.0.0'. Ensure all textual references to 'beta' are removed from the docs and README.",
+            "deliverables": [
+                "package.json",
+                "docs-site/package.json",
+                "docs-site/src/data/siteMeta.json",
+                "README.md"
+            ]
+        },
+        {
+            "id": "TASK-V3-002",
+            "title": "Configure Docs Site for GitHub Pages Deployment",
+            "status": "completed",
+            "description": "Update docs-site/next.config.mjs to ensure it works on GitHub Pages. Add `basePath: '/node-pptx-templater'` and `assetPrefix: '/node-pptx-templater/'` (or conditionally inject via environment variables). Ensure the GitHub Actions workflow (.github/workflows/docs.yml) is properly configured with GitHub Pages deployment steps and permissions.",
+            "deliverables": [
+                "docs-site/next.config.mjs",
+                ".github/workflows/docs.yml"
+            ]
+        },
+        {
+            "id": "TASK-V3-003",
+            "title": "Pre-Merge Verification & Memory Update",
+            "status": "completed",
+            "description": "Run `npm test`, `npm run lint`, and `npm --prefix docs-site run build` to ensure zero regressions. Update .agent/project_summary.md and CHANGELOG.md to reflect the stable v3.0.0 transition.",
+            "deliverables": [
+                "CHANGELOG.md",
+                ".agent/project_summary.md"
+            ]
+        },
+        {
+            "id": "TASK-V3-004",
+            "title": "Create Pull Request to Main Branch",
+            "status": "completed",
+            "description": "Stage all modified files, commit with message 'chore: release v3.0.0 stable', push to the remote branch, and utilize the GitHub CLI to generate a pull request into the main branch.",
+            "deliverables": [
+                "Git commit and PR creation"
+            ]
+        }
+    ]
+} 

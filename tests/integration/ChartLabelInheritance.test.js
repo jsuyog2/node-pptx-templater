@@ -6,7 +6,7 @@ import { ChartCacheGenerator } from '../../src/managers/charts/ChartCacheGenerat
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const FIXTURE_FILE = resolve(__dirname, '../fixtures/sample.pptx')
-const TEMPLATE_FILE = resolve(__dirname, '../../templates/sample.pptx')
+const TEMPLATE_FILE = resolve(__dirname, '../../showcase/templates/sample.pptx')
 
 let PPTXTemplater
 

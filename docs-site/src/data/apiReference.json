@@ -1,0 +1,4311 @@
+{
+  "version": "3.0.0",
+  "totalMethods": 130,
+  "categories": [
+    "Import/Export",
+    "Slides",
+    "Text & Placeholders",
+    "Tables",
+    "Charts",
+    "Shapes",
+    "Images & Media",
+    "Elements"
+  ],
+  "categoryDescriptions": {
+    "Import/Export": "Manage presentation ingest, serialization, in-memory VFS lifecycle, buffer and stream exports, and Flat OPC XML conversions without disk I/O.",
+    "Slides": "Slide lifecycle management, addition, cloning, layout assignments, reordering, deletion, and slide master relationship bindings.",
+    "Text & Placeholders": "AST run-fragment healing, placeholder text substitution, inline text mutations, character formatting, and bullet styling.",
+    "Tables": "Dynamic table generation, auto-pagination EMU calculation, repeating headers, cell styling, and row/column mutations.",
+    "Charts": "Update DrawingML charts with simultaneous embedded Excel spreadsheet (XLSX) dual-sync to prevent Microsoft PowerPoint repair warnings.",
+    "Shapes": "Insert geometric shapes, customize presets, fills, strokes, coordinates, and DrawingML transformations in EMU units.",
+    "Images & Media": "Inject and replace high-resolution raster images, SVGs, and audio/video media with automatic Content Types and relationship mappings.",
+    "Elements": "Low-level PresentationML shape tree (<p:spTree>) traversal, Z-order reindexing, spatial geometry math, and XML node inspection."
+  },
+  "methodsByCategory": {
+    "Import/Export": [
+      {
+        "id": "load",
+        "name": "load",
+        "signature": "PPTXTemplater.load(source, options = {})",
+        "category": "Import/Export",
+        "description": "Loads an existing PowerPoint presentation from a file path (.pptx, .xml, .ppt), directory tree, remote URL, Buffer or stream. Inflates the PKZip container or Flat OPC XML, parses relationships, and mounts the in-memory Virtual File System (VFS).",
+        "openXmlImpact": "Reads ZIP archive entries: [Content_Types].xml, _rels/.rels, ppt/presentation.xml, ppt/_rels/presentation.xml.rels.",
+        "edgeCases": "Inspects ZIP magic bytes. Rejects malformed archives and XXE entity expansion attacks.",
+        "isStatic": true,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "source",
+            "type": "string | Buffer | Uint8Array | ReadableStream",
+            "required": true,
+            "default": "—",
+            "description": "File path, directory path, remote HTTP/HTTPS URL, raw binary buffer, readable stream."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Configuration options for parser, timeout, headers, and logger."
+          },
+          {
+            "name": "options.logLevel",
+            "type": "'silent' | 'info' | 'debug'",
+            "required": false,
+            "default": "'warn'",
+            "description": "Logging verbosity level during parsing and manipulations."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to an initialized, chainable PPTXTemplater instance ready for templating operations."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// 1. Load from local file (.pptx or Flat OPC .xml)\nconst ppt = await PPTXTemplater.load('./templates/report.pptx');\n\n// 2. Load from remote HTTP/HTTPS URL\nconst webPpt = await PPTXTemplater.load('https://example.com/templates/deck.pptx');\n\n// 3. Load from in-memory Buffer or stream\nconst bufferPpt = await PPTXTemplater.load(templateBuffer);\n\n"
+      },
+      {
+        "id": "createblank",
+        "name": "createBlank",
+        "signature": "PPTXTemplater.createBlank(options = {})",
+        "category": "Import/Export",
+        "description": "Creates a minimal, template-free blank PowerPoint presentation in memory from clean, valid OpenXML schemas with custom aspect ratio (16:9, 4:3, 16:10) or custom EMU/pixel dimensions. Contains 1 initial blank slide.",
+        "openXmlImpact": "Synthesizes minimal [Content_Types].xml, _rels/.rels, presentation.xml with specified dimensions, slideMaster1.xml, slideLayout1.xml, theme1.xml, and slide1.xml.",
+        "edgeCases": "Accepts '16:9', '4:3', '16:10' string aliases or explicit { width, height } in EMUs or pixels. Rejects invalid dimension inputs with PPTXError.",
+        "isStatic": true,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Creation options including aspect ratio, dimensions, and theme settings."
+          },
+          {
+            "name": "options.aspectRatio",
+            "type": "'16:9' | '4:3' | '16:10'",
+            "required": false,
+            "default": "'16:9'",
+            "description": "Aspect ratio preset for slide canvas dimensions."
+          },
+          {
+            "name": "options.width",
+            "type": "number",
+            "required": false,
+            "default": "12192000",
+            "description": "Custom slide width in EMUs (or pixels if options.unit is 'px')."
+          },
+          {
+            "name": "options.height",
+            "type": "number",
+            "required": false,
+            "default": "6858000",
+            "description": "Custom slide height in EMUs (or pixels if options.unit is 'px')."
+          },
+          {
+            "name": "options.unit",
+            "type": "'emu' | 'px'",
+            "required": false,
+            "default": "'emu'",
+            "description": "Unit of measurement for custom dimensions."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to an initialized PPTXTemplater instance with a single blank slide ready for adding content."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Create 16:9 widescreen presentation\nconst ppt = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });\nppt.useSlide(1);\nawait ppt.addShape('rect', { x: '10%', y: '10%', width: '80%', height: '30%', text: 'Created from scratch!' });\nawait ppt.saveToFile('./output/brand-new.pptx');"
+      },
+      {
+        "id": "extractpptx",
+        "name": "extractPptx",
+        "signature": "PPTXTemplater.extractPptx(pptxPath, destinationFolder, options = {})",
+        "category": "Import/Export",
+        "description": "Unpacks a binary .pptx file into a folder of formatted OpenXML documents for automated inspection, security auditing, or batch transformation.",
+        "openXmlImpact": "Extracts and formats [Content_Types].xml, ppt/presentation.xml, slide XML, and relationships.",
+        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "isStatic": true,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "pptxPath",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Path to source .pptx file."
+          },
+          {
+            "name": "destinationFolder",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Destination folder for unpacked OpenXML assets."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Extraction options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<void>",
+          "description": "Resolves once extraction completes."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\nawait PPTXTemplater.extractPptx('./input.pptx', './debug-unpacked');"
+      },
+      {
+        "id": "buildpptx",
+        "name": "buildPptx",
+        "signature": "PPTXTemplater.buildPptx(folderPath, outputPath)",
+        "category": "Import/Export",
+        "description": "Compiles an extracted OpenXML directory back into a valid, zipped PowerPoint presentation file. Guarantees proper zip compression and relationship integrity.",
+        "openXmlImpact": "Scans directory, preserves binary media bytes, and zips back to compliant PresentationML package.",
+        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "isStatic": true,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "folderPath",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Source folder containing extracted OpenXML files."
+          },
+          {
+            "name": "outputPath",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target destination .pptx file path."
+          }
+        ],
+        "returns": {
+          "type": "Promise<void>",
+          "description": "Resolves once archive creation finishes."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Repackage modified XML folder into binary PPTX\nawait PPTXTemplater.buildPptx('./extracted-template', './dist/rebuilt.pptx');"
+      },
+      {
+        "id": "preload",
+        "name": "preload",
+        "signature": "PPTXTemplater.preload(source)",
+        "category": "Import/Export",
+        "description": "Pre-reads, inflates, and caches a PPTX template into a high-speed memory cache. Subsequent calls to PPTXTemplater.fromCache() clone this pre-parsed memory state directly, eliminating disk reads and zip decompression overhead.",
+        "openXmlImpact": "Caches inflated OpenXML parts in memory; avoids repeating JSZip.loadAsync on heavy batch jobs.",
+        "edgeCases": "Inspects ZIP magic bytes. Rejects malformed archives and XXE entity expansion attacks.",
+        "isStatic": true,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "source",
+            "type": "string | Buffer",
+            "required": true,
+            "default": "—",
+            "description": "Template file path or binary Buffer to inflate and cache."
+          }
+        ],
+        "returns": {
+          "type": "Promise<VirtualFileSystem>",
+          "description": "Resolves to the preloaded VirtualFileSystem representation stored in the global cache."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Warm up template cache at service startup\nawait PPTXTemplater.preload('./templates/monthly-statement.pptx');\nconsole.log('Template cache primed for sub-millisecond cloning.');"
+      },
+      {
+        "id": "fromcache",
+        "name": "fromCache",
+        "signature": "PPTXTemplater.fromCache(source)",
+        "category": "Import/Export",
+        "description": "Instantiates a new PPTXTemplater by deep-cloning an existing preloaded template cache. Delivers up to 10x higher throughput for concurrent report generation in high-concurrency API servers and cloud functions.",
+        "openXmlImpact": "Fast deep-copies the virtual OpenXML byte tree without reading from disk or re-parsing the zip container.",
+        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "isStatic": true,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "source",
+            "type": "string | Buffer",
+            "required": true,
+            "default": "—",
+            "description": "Cache key (file path string or Buffer identifier) previously passed to preload()."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to an isolated, ready-to-mutate PPTXTemplater instance."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// In high-concurrency HTTP handler\napp.post('/api/generate-deck', async (req, res) => {\n  const ppt = await PPTXTemplater.fromCache('./templates/monthly-statement.pptx');\n  ppt.useSlide(1).replaceText(req.body.replacements);\n  await ppt.toExpress(res, 'statement.pptx');\n});"
+      },
+      {
+        "id": "clearcache",
+        "name": "clearCache",
+        "signature": "PPTXTemplater.clearCache()",
+        "category": "Import/Export",
+        "description": "Clears all cached template packages from memory. Ideal for test teardown, memory reclamation, or when template files on disk have been hot-reloaded.",
+        "openXmlImpact": "Flushes global in-memory maps holding pre-inflated OpenXML byte arrays.",
+        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "isStatic": true,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "void",
+          "description": "Does not return a value."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\n// Evict cached templates during maintenance or reload\nPPTXTemplater.clearCache();"
+      },
+      {
+        "id": "savetofile",
+        "name": "saveToFile",
+        "signature": "ppt.saveToFile(outputPath, options = {})",
+        "category": "Import/Export",
+        "description": "Serializes the entire in-memory PresentationML package, generates a standardized PKZip archive with DEFLATE compression, and writes the output file to disk. Creates any missing parent directories automatically.",
+        "openXmlImpact": "Recompresses all modified XML parts (ppt/slides/slide*.xml, [Content_Types].xml, etc.) into compliant binary PPTX container.",
+        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "outputPath",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target destination file path where the generated .pptx will be saved."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Export configuration options."
+          },
+          {
+            "name": "options.compressionLevel",
+            "type": "number",
+            "required": false,
+            "default": "6",
+            "description": "Zip compression level from 1 (fastest) to 9 (maximum compression)."
+          }
+        ],
+        "returns": {
+          "type": "Promise<void>",
+          "description": "Resolves once the file stream has completely flushed and closed on disk."
+        },
+        "exampleCode": "const ppt = await PPTXTemplater.load('./template.pptx');\nppt.useSlide(1).replaceText({ '{{title}}': 'Q3 Results' });\n\nawait ppt.saveToFile('./output/q3-results.pptx');\nconsole.log('Saved presentation successfully.');"
+      },
+      {
+        "id": "tobuffer",
+        "name": "toBuffer",
+        "signature": "ppt.toBuffer(options = {})",
+        "category": "Import/Export",
+        "description": "Serializes the entire PowerPoint presentation into an in-memory Node.js binary Buffer. Essential for serverless architectures (AWS Lambda, Vercel Functions, Google Cloud Run) where local disk writes are prohibited or ephemeral.",
+        "openXmlImpact": "Compresses all OpenXML package parts directly into memory without touching the filesystem.",
+        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Serialization configuration."
+          },
+          {
+            "name": "options.compression",
+            "type": "'DEFLATE' | 'STORE'",
+            "required": false,
+            "default": "'DEFLATE'",
+            "description": "Zip compression algorithm."
+          }
+        ],
+        "returns": {
+          "type": "Promise<Buffer>",
+          "description": "Resolves to a binary Node.js Buffer containing the complete, valid .pptx file."
+        },
+        "exampleCode": "const ppt = await PPTXTemplater.load(templateBuffer);\nppt.useSlide(1).replaceText({ '{{client}}': 'Acme Corp' });\n\nconst generatedBuffer = await ppt.toBuffer();\n\n// Upload directly to cloud object storage (e.g. AWS S3)\nawait s3Client.send(new PutObjectCommand({\n  Bucket: 'client-reports',\n  Key: 'report-2026.pptx',\n  Body: generatedBuffer,\n  ContentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'\n}));"
+      },
+      {
+        "id": "tostream",
+        "name": "toStream",
+        "signature": "ppt.toStream(options = {})",
+        "category": "Import/Export",
+        "description": "Returns a Node.js Readable stream emitting binary chunks of the compressed PPTX archive. Enables streaming responses with low memory footprints when producing massive decks.",
+        "openXmlImpact": "Streams zipped binary data directly from internal archive compression pipeline.",
+        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Stream configuration options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<ReadableStream>",
+          "description": "Resolves to a Readable stream emitting binary chunks of the presentation."
+        },
+        "exampleCode": "const ppt = await PPTXTemplater.load('./large-template.pptx');\nconst stream = await ppt.toStream();\n\nconst writeStream = fs.createWriteStream('./output/streamed.pptx');\nstream.pipe(writeStream);"
+      },
+      {
+        "id": "tobase64",
+        "name": "toBase64",
+        "signature": "ppt.toBase64(options = { dataUri: false })",
+        "category": "Import/Export",
+        "description": "Serializes the presentation archive and returns it as a Base64 string or full Data URI string (data:application/vnd...;base64,...). Ideal for JSON API responses, client downloads, or webhook payloads.",
+        "openXmlImpact": "Converts in-memory zipped binary buffer into Base64 encoding.",
+        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{ dataUri: false }",
+            "description": "Formatting options."
+          },
+          {
+            "name": "options.dataUri",
+            "type": "boolean",
+            "required": false,
+            "default": "false",
+            "description": "When true, prepends MIME type data URI scheme."
+          }
+        ],
+        "returns": {
+          "type": "Promise<string>",
+          "description": "Resolves to the base64-encoded presentation string."
+        },
+        "exampleCode": "const ppt = await PPTXTemplater.load('./template.pptx');\nconst base64Data = await ppt.toBase64({ dataUri: true });\n\n// Send in JSON response\nres.json({\n  filename: 'report.pptx',\n  dataUri: base64Data\n});"
+      },
+      {
+        "id": "toarraybuffer",
+        "name": "toArrayBuffer",
+        "signature": "ppt.toArrayBuffer()",
+        "category": "Import/Export",
+        "description": "Serializes presentation into a raw in-memory ArrayBuffer, ideal for Cloudflare Workers, Vercel Edge, and Fetch API streaming.",
+        "openXmlImpact": "Flushes VirtualFileSystem into an uncompressed or compressed PKZip ArrayBuffer payload.",
+        "edgeCases": "Returns standard ArrayBuffer compatible with Web Streams and Edge Response objects.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [],
+        "returns": {
+          "type": "Promise<ArrayBuffer>",
+          "description": "Resolves to binary ArrayBuffer representing the PPTX archive."
+        },
+        "exampleCode": "const arrayBuffer = await ppt.toArrayBuffer();\nreturn new Response(arrayBuffer, { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation' } });"
+      },
+      {
+        "id": "toresponse",
+        "name": "toResponse",
+        "signature": "ppt.toResponse(options = {})",
+        "category": "Import/Export",
+        "description": "Compiles the presentation and returns a web-standard Web API Response object with binary ArrayBuffer body, correct OpenXML Content-Type headers, and optional Content-Disposition attachment header. Ideal for Next.js Route Handlers, Remix, SvelteKit, and Edge workers.",
+        "openXmlImpact": "Serializes VirtualFileSystem into PKZip binary buffer wrapped in standard Response.",
+        "edgeCases": "Encodes Unicode filenames safely into RFC-5987 Content-Disposition header.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Response configuration options."
+          },
+          {
+            "name": "options.filename",
+            "type": "string",
+            "required": false,
+            "default": "'presentation.pptx'",
+            "description": "Suggested download filename."
+          },
+          {
+            "name": "options.status",
+            "type": "number",
+            "required": false,
+            "default": "200",
+            "description": "HTTP response status code."
+          },
+          {
+            "name": "options.headers",
+            "type": "Record<string, string>",
+            "required": false,
+            "default": "{}",
+            "description": "Additional HTTP response headers."
+          }
+        ],
+        "returns": {
+          "type": "Promise<Response>",
+          "description": "Resolves to a standard Web API Response object."
+        },
+        "exampleCode": "// Next.js App Router (app/api/export/route.js)\nimport { PPTXTemplater } from 'node-pptx-templater';\n\nexport async function GET() {\n  const ppt = await PPTXTemplater.createBlank({ aspectRatio: '16:9' });\n  ppt.useSlide(1);\n  await ppt.addShape('textBox', { text: 'Next.js Edge PPTX' });\n  return await ppt.toResponse({ filename: 'nextjs-deck.pptx' });\n}"
+      },
+      {
+        "id": "toexpress",
+        "name": "toExpress",
+        "signature": "ppt.toExpress(res, filename, options = {})",
+        "category": "Import/Export",
+        "description": "Streams the presentation directly to an Express.js response object. Automatically sets the correct OpenXML MIME type (application/vnd.openxmlformats-officedocument.presentationml.presentation), Content-Disposition attachment header with encoded filename, and Content-Length.",
+        "openXmlImpact": "Direct HTTP response serialization with standardized OpenXML MIME headers.",
+        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "res",
+            "type": "Express.Response",
+            "required": true,
+            "default": "—",
+            "description": "Active Express HTTP response object."
+          },
+          {
+            "name": "filename",
+            "type": "string",
+            "required": false,
+            "default": "'presentation.pptx'",
+            "description": "Filename suggested to the user client browser for download."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Additional streaming and header options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<void>",
+          "description": "Resolves when the response transmission completes."
+        },
+        "exampleCode": "app.get('/download-deck', async (req, res) => {\n  const ppt = await PPTXTemplater.load('./template.pptx');\n  ppt.useSlide(1).replaceText({ '{{title}}': 'Dynamic Presentation' });\n  \n  // Directly sends file download to client browser\n  await ppt.toExpress(res, 'Executive-Summary-2026.pptx');\n});"
+      },
+      {
+        "id": "tofastify",
+        "name": "toFastify",
+        "signature": "ppt.toFastify(reply, filename = 'presentation.pptx', options = {})",
+        "category": "Import/Export",
+        "description": "Pipes the presentation binary Buffer directly to a Fastify reply instance with correct OpenXML MIME type, Content-Length, and Content-Disposition download headers.",
+        "openXmlImpact": "Serializes in-memory presentation into binary buffer dispatched through Fastify reply pipeline.",
+        "edgeCases": "Handles Fastify header chaining (.type, .header, .send).",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "reply",
+            "type": "FastifyReply",
+            "required": true,
+            "default": "—",
+            "description": "Active Fastify reply object."
+          },
+          {
+            "name": "filename",
+            "type": "string",
+            "required": false,
+            "default": "'presentation.pptx'",
+            "description": "Download filename for client browser."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Additional export and header options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<FastifyReply>",
+          "description": "Resolves to the Fastify reply once transmitted."
+        },
+        "exampleCode": "fastify.get('/download', async (request, reply) => {\n  const ppt = await PPTXTemplater.load('./templates/report.pptx');\n  return await ppt.toFastify(reply, 'quarterly-report.pptx');\n});"
+      },
+      {
+        "id": "extracttozip",
+        "name": "extractToZip",
+        "signature": "ppt.extractToZip(destinationPath, options = {})",
+        "category": "Import/Export",
+        "description": "Packages the in-memory presentation and writes a raw compressed PKZip archive file to disk. Ensures all directories exist before writing.",
+        "openXmlImpact": "Serializes entire VirtualFileSystem into compressed ZIP container written to destinationPath.",
+        "edgeCases": "Creates nested parent directories recursively.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "destinationPath",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target file path for the output ZIP archive."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "ZIP compression options."
+          }
+        ],
+        "returns": {
+          "type": "Promise<void>",
+          "description": "Resolves once archive file is written to disk."
+        },
+        "exampleCode": "const ppt = await PPTXTemplater.load('./presentation.pptx');\nawait ppt.extractToZip('./backups/presentation-raw.zip');"
+      },
+      {
+        "id": "extracttoxml",
+        "name": "extractToXml",
+        "signature": "ppt.extractToXml(destinationDir, options = {})",
+        "category": "Import/Export",
+        "description": "Unpacks all OpenXML presentation parts (slides, charts, relationships, content types, themes) into an uncompressed folder on disk. Supports formatting and pretty-printing XML files for version control inspection.",
+        "openXmlImpact": "Writes individual files into directory structure mirroring the OpenXML package ([Content_Types].xml, _rels/, ppt/slides/, etc.).",
+        "edgeCases": "Preserves binary media files as raw buffers while optionally formatting XML documents with indentation.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "destinationDir",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target folder path on disk where parts will be unpacked."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Extraction options."
+          },
+          {
+            "name": "options.formatXml",
+            "type": "boolean",
+            "required": false,
+            "default": "false",
+            "description": "When true, pretty-prints XML files with 2-space indentation for readable diffs and code review."
+          }
+        ],
+        "returns": {
+          "type": "Promise<void>",
+          "description": "Resolves once all presentation files have been written to the destination directory."
+        },
+        "exampleCode": "const ppt = await PPTXTemplater.load('./template.pptx');\n// Unpack with pretty-printed XML for Git commit\nawait ppt.extractToXml('./unpacked-deck', { formatXml: true });"
+      },
+      {
+        "id": "toflatxml",
+        "name": "toFlatXml",
+        "signature": "ppt.toFlatXml(destinationPathOrOptions = {})",
+        "category": "Import/Export",
+        "description": "Serializes the entire in-memory presentation into a Microsoft Flat OPC XML string (<pkg:package>). If a file path string is provided, writes directly to local disk and returns the XML string. If options are provided or omitted, returns the XML string directly in memory.",
+        "openXmlImpact": "Constructs a valid ISO/IEC 29500-2 Flat OPC XML document from the current VirtualFileSystem state without disk or ZIP overhead.",
+        "edgeCases": "Infers OpenXML MIME types for all parts and strips root [Content_Types].xml which is not part of Flat OPC schema.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "destinationPathOrOptions",
+            "type": "string | Object",
+            "required": false,
+            "default": "{}",
+            "description": "Destination file path string to save the XML file on disk, or formatting options object."
+          }
+        ],
+        "returns": {
+          "type": "Promise<string>",
+          "description": "Resolves to the serialized Flat OPC XML string."
+        },
+        "exampleCode": "const { PPTXTemplater } = require('node-pptx-templater');\n\nconst ppt = await PPTXTemplater.load('./template.pptx');\nppt.useSlide(1).replaceText({ '{{title}}': 'Converted Deck' });\n\n// Option 1: Commit Flat OPC XML directly to disk\nawait ppt.toFlatXml('./output/deck.xml');\n\n// Option 2: Get Flat OPC XML string in memory\nconst flatXml = await ppt.toFlatXml();"
+      }
+    ],
+    "Slides": [
+      {
+        "id": "useSlide",
+        "name": "useSlide",
+        "signature": "ppt.useSlide(...slideRefs)",
+        "category": "Slides",
+        "description": "Selects one or more slides to target for subsequent operations (adding shapes, text, tables, charts, or modifying layout). Can be chained or stored in a variable as an isolated slide handle.",
+        "openXmlImpact": "Sets internal presentation selection state and mounts slide XML (ppt/slides/slideN.xml) into memory.",
+        "edgeCases": "Supports 1-based indexing, string identifiers, and tags. Throws SlideNotFoundError if the slide index exceeds slideCount.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideRefs",
+            "type": "...(number | string | number[])",
+            "required": true,
+            "default": "—",
+            "description": "1-based slide index number, ID string, or custom tag name."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Returns the active slide context (or presentation engine) for method chaining."
+        },
+        "exampleCode": "// Usage 1: Method chaining\nppt.useSlide(1)\n   .addText('Hello', { x: 100, y: 100 })\n   .addShape('rectangle', { x: 100, y: 100, width: 100, height: 100 });\n\n// Usage 2: Assigned instance handles\nconst slide1 = ppt.useSlide(1);\nconst slide2 = ppt.useSlide(2);\n\nslide1.addText('Hello', { x: 100, y: 100 });\nslide2.addShape('circle', { x: 100, y: 100, width: 100, height: 100 });"
+      },
+      {
+        "id": "useAllSlides",
+        "name": "useAllSlides",
+        "signature": "ppt.useAllSlides()",
+        "category": "Slides",
+        "description": "Selects all slides across the presentation. Subsequent operations (such as global text replacements, watermarks, or styling) will be applied across every slide.",
+        "openXmlImpact": "Sets target selection context to all slide XML parts.",
+        "edgeCases": "No-op on empty decks.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation instance targeting all slides."
+        },
+        "exampleCode": "ppt.useAllSlides().replaceText({ '{{CONFIDENTIAL}}': 'INTERNAL USE ONLY' });"
+      },
+      {
+        "id": "addSlide",
+        "name": "addSlide",
+        "signature": "ppt.addSlide(options = {}, position)",
+        "category": "Slides",
+        "description": "Adds a new slide to the presentation. If position is omitted or exceeds slideCount, it appends to the end; if position < 0 or 0, it inserts at the first position; otherwise it inserts at that position and shifts remaining slides forward.",
+        "openXmlImpact": "Creates ppt/slides/slideM.xml and ppt/slides/_rels/slideM.xml.rels, appends reference to <p:sldIdLst> in presentation.xml, and updates [Content_Types].xml.",
+        "edgeCases": "Normalizes out-of-bounds positions: < 0 becomes 1; > totalSlides becomes totalSlides + 1.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Slide creation configuration (layout name, title, initial elements, or layout index)."
+          },
+          {
+            "name": "position",
+            "type": "number",
+            "required": false,
+            "default": "undefined",
+            "description": "1-based insertion index. Clamped to 1 if < 0, clamped to slideCount + 1 if > slideCount."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation templater instance."
+        },
+        "exampleCode": "// Add empty slide at the end\nppt.addSlide();\n\n// Add slide at position 2, shifting remaining slides next\nppt.addSlide({ layout: 'Title and Content' }, 2);"
+      },
+      {
+        "id": "duplicateSlide",
+        "name": "duplicateSlide",
+        "signature": "ppt.duplicateSlide(sourceIndex, atPosition)",
+        "category": "Slides",
+        "description": "Duplicates an existing slide including layout, elements, and properties. If sourceIndex is not specified, it duplicates the last slide. If atPosition is not specified or > slideCount, inserts at the last position; if < 0, inserts at the first position.",
+        "openXmlImpact": "Clones slide XML and .rels file, re-maps relationship IDs, allocates a unique 32-bit slide ID in <p:sldIdLst>, and updates [Content_Types].xml.",
+        "edgeCases": "Clones all shapes, animations, notes, and embedded charts safely to prevent OpenXML corruption.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "sourceIndex",
+            "type": "number",
+            "required": false,
+            "default": "slideCount",
+            "description": "1-based index of the slide to duplicate. Defaults to the last slide."
+          },
+          {
+            "name": "atPosition",
+            "type": "number",
+            "required": false,
+            "default": "undefined",
+            "description": "1-based destination index for the cloned slide. Clamped within [1, slideCount + 1]."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to the chainable presentation engine."
+        },
+        "exampleCode": "// Duplicate slide 1 and insert at position 2\nawait ppt.duplicateSlide(1, 2);\n\n// Duplicate last slide and append to the end\nawait ppt.duplicateSlide();"
+      },
+      {
+        "id": "removeSlide",
+        "name": "removeSlide",
+        "signature": "ppt.removeSlide(position)",
+        "category": "Slides",
+        "description": "Removes a slide at a specific position. If position is omitted or > slideCount, removes the last slide. If position < 0, removes the first slide. Remaining subsequent slides shift backward.",
+        "openXmlImpact": "Deletes <p:sldId> from ppt/presentation.xml, purges relationships, removes [Content_Types].xml override, and deletes slide XML from the VFS.",
+        "edgeCases": "Throws error if attempting to delete the only remaining slide in the presentation.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "position",
+            "type": "number",
+            "required": false,
+            "default": "slideCount",
+            "description": "1-based position to delete. Clamped to 1 if < 0, clamped to slideCount if > slideCount."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation instance."
+        },
+        "exampleCode": "// Remove slide 3\nppt.removeSlide(3);\n\n// Remove last slide\nppt.removeSlide();"
+      },
+      {
+        "id": "getSlides",
+        "name": "getSlides",
+        "signature": "ppt.getSlides()",
+        "category": "Slides",
+        "description": "Returns an array of all slides in the deck with comprehensive metadata including placeholders, titles, text, media, tables, charts, animations, transitions, notes, dimensions, and layout properties.",
+        "openXmlImpact": "Parses all slide XML files, relationships, notes, masters, and presentation manifests in read-only mode.",
+        "edgeCases": "Returns structured empty arrays/objects for slides with missing optional components (e.g. without Cameo or 3D models).",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "Array<Object>",
+          "description": "Array of slide detail objects containing elements, dimensions, animations, notes, transitions, and z-index ordering."
+        },
+        "exampleCode": "const slides = ppt.getSlides();\nconsole.log(`Inspected ${slides.length} slides.`);\nconsole.log(slides[0].titles, slides[0].tables, slides[0].transitions);"
+      },
+      {
+        "id": "getSlide",
+        "name": "getSlide",
+        "signature": "ppt.getSlide(index)",
+        "category": "Slides",
+        "description": "Returns full metadata and elements of a single slide. If index is not specified, returns the slide currently active via useSlide().",
+        "openXmlImpact": "Reads and decodes the target slide's DrawingML, PresentationML, and relationship graph.",
+        "edgeCases": "Clamps out-of-range index to 1 (if < 0) or slideCount (if > slideCount).",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "index",
+            "type": "number",
+            "required": false,
+            "default": "activeSlideIndex",
+            "description": "1-based slide index. Defaults to current active slide if omitted."
+          }
+        ],
+        "returns": {
+          "type": "Object",
+          "description": "Complete slide metadata object (placeholders, shapes, tables, charts, background, dimensions, speaker notes, animations, Cameo, etc.)."
+        },
+        "exampleCode": "// Get metadata of slide 2\nconst slideMeta = ppt.getSlide(2);\n\n// Get metadata of active slide\nppt.useSlide(1);\nconst activeMeta = ppt.getSlide();"
+      },
+      {
+        "id": "importSlideFrom",
+        "name": "importSlideFrom",
+        "signature": "ppt.importSlideFrom(sourcePpt, sourceIndex, atPosition)",
+        "category": "Slides",
+        "description": "Imports a slide from another PPTX instance into this presentation. Can be customized before insertion. Inserts at position (defaults to end; clamps < 0 to start, > slideCount to end) and shifts remaining slides.",
+        "openXmlImpact": "Copies slide AST, deduplicates masters/layouts/media, generates non-colliding relationship IDs, and registers new parts in [Content_Types].xml.",
+        "edgeCases": "Source deck must be loaded. Automatically deduplicates assets to avoid PowerPoint repair prompts.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "sourcePpt",
+            "type": "PPTXTemplater",
+            "required": true,
+            "default": "—",
+            "description": "Source PPTXTemplater instance."
+          },
+          {
+            "name": "sourceIndex",
+            "type": "number",
+            "required": false,
+            "default": "1",
+            "description": "1-based index or tag of slide in source presentation."
+          },
+          {
+            "name": "atPosition",
+            "type": "number",
+            "required": false,
+            "default": "undefined",
+            "description": "1-based insertion position in target presentation. Defaults to append."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Chainable target presentation instance."
+        },
+        "exampleCode": "const sourceDeck = await PPTXTemplater.load('catalog.pptx');\n\n// Import slide 3 from sourceDeck to position 2 of current deck\nawait ppt.importSlideFrom(sourceDeck, 3, 2);"
+      },
+      {
+        "id": "exportSlides",
+        "name": "exportSlides",
+        "signature": "ppt.exportSlides(...slideIndices)",
+        "category": "Slides",
+        "description": "Exports selected slides to a new standalone PPTXTemplater instance. If slideIndices is omitted, exports the currently targeted slide(s).",
+        "openXmlImpact": "Constructs a new PresentationML container including only referenced slides, re-binding layouts, themes, and embedded assets.",
+        "edgeCases": "Clones master slides and required relationships so the exported deck opens independently without corruption.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "slideIndices",
+            "type": "...number",
+            "required": false,
+            "default": "activeSlides",
+            "description": "1-based slide indices to export into the new presentation."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to a new, isolated PPTXTemplater instance containing only exported slides."
+        },
+        "exampleCode": "// Export slides 1 and 3 into a new presentation instance\nconst newDeck = await ppt.exportSlides(1, 3);\nawait newDeck.saveToFile('./output/summary.pptx');"
+      },
+      {
+        "id": "moveSlide",
+        "name": "moveSlide",
+        "signature": "ppt.moveSlide(fromIndex, toIndex)",
+        "category": "Slides",
+        "description": "Moves a slide from one position to another within the presentation, shifting intermediate slides accordingly.",
+        "openXmlImpact": "Reorders <p:sldId> nodes in <p:sldIdLst> in ppt/presentation.xml.",
+        "edgeCases": "Validates 1-based indices against slideCount.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "fromIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "1-based source position."
+          },
+          {
+            "name": "toIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "1-based target destination position."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation templater instance."
+        },
+        "exampleCode": "ppt.moveSlide(3, 1); // Move slide 3 to the beginning"
+      },
+      {
+        "id": "reorderSlides",
+        "name": "reorderSlides",
+        "signature": "ppt.reorderSlides(order)",
+        "category": "Slides",
+        "description": "Completely reorders all slides in the deck according to an array of 1-based indices.",
+        "openXmlImpact": "Rebuilds <p:sldIdLst> order in ppt/presentation.xml.",
+        "edgeCases": "Order array length must match total slide count and contain valid slide indices without duplicates.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "order",
+            "type": "number[]",
+            "required": true,
+            "default": "—",
+            "description": "Array of 1-based slide indices reflecting desired sequence (e.g. [3, 1, 2])."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation templater instance."
+        },
+        "exampleCode": "ppt.reorderSlides([3, 1, 2]);"
+      },
+      {
+        "id": "tagSlide",
+        "name": "tagSlide",
+        "signature": "ppt.tagSlide(slideIndex, tag)",
+        "category": "Slides",
+        "description": "Assigns a custom string identifier/tag to a slide for semantic referencing in useSlide() or getSlide().",
+        "openXmlImpact": "Attaches tag identifier into slide non-visual custom properties or comment streams.",
+        "edgeCases": "Throws SlideNotFoundError if slideIndex is invalid.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "1-based slide index."
+          },
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Custom identifier name (e.g., 'ExecutiveSummary', 'PricingGrid')."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation templater instance."
+        },
+        "exampleCode": "ppt.tagSlide(1, 'ExecutiveSummary');\nppt.useSlide('ExecutiveSummary').replaceText({ '{{title}}': 'Updated Title' });"
+      },
+      {
+        "id": "getSlideDimensions",
+        "name": "getSlideDimensions",
+        "signature": "ppt.getSlideDimensions()",
+        "category": "Slides",
+        "description": "Retrieves the presentation canvas dimensions, aspect ratio preset (16:9 widescreen, 4:3 standard, custom), and pixel/EMU coordinates.",
+        "openXmlImpact": "Reads <p:sldSz> element attributes in ppt/presentation.xml.",
+        "edgeCases": "Supports both standard presets and arbitrary custom dimensions.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "Object",
+          "description": "{ width: number, height: number, widthEmu: number, heightEmu: number, type: string }"
+        },
+        "exampleCode": "const dims = ppt.getSlideDimensions();\nconsole.log(`Slide aspect: ${dims.type}, Width: ${dims.width}px, Height: ${dims.height}px`);"
+      },
+      {
+        "id": "getSlideLayout",
+        "name": "getSlideLayout",
+        "signature": "ppt.getSlideLayout(slideIndex)",
+        "category": "Slides",
+        "description": "Retrieves the layout configuration, layout master reference, and placeholder layout map for a given slide.",
+        "openXmlImpact": "Resolves slide layout relationship in ppt/slides/_rels/slideN.xml.rels.",
+        "edgeCases": "Defaults to active slide if slideIndex is omitted.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideIndex",
+            "type": "number",
+            "required": false,
+            "default": "activeSlideIndex",
+            "description": "1-based slide index."
+          }
+        ],
+        "returns": {
+          "type": "Object",
+          "description": "{ name: string, type: string, master: string, rId: string }"
+        },
+        "exampleCode": "const layout = ppt.getSlideLayout(1);\nconsole.log(`Slide 1 uses layout: ${layout.name} under master: ${layout.master}`);"
+      },
+      {
+        "id": "useSection",
+        "name": "useSection",
+        "signature": "ppt.useSection(sectionRef)",
+        "category": "Slides",
+        "description": "Selects all slides contained within a specific section (group of slides) to target for subsequent batch operations (such as text replacements, table updates, chart modifications, or formatting).",
+        "openXmlImpact": "Resolves slide IDs registered under the target <p14:section> block in ppt/presentation.xml and updates the internal #selectedSlides state context.",
+        "edgeCases": "Supports section name, section UUID string, or 1-based index of a slide within the section. Throws SectionNotFoundError if the target section is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "sectionRef",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Section display name, section UUID string, or a 1-based index of any slide inside the desired section."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation instance targeting all slides within the specified section."
+        },
+        "exampleCode": "// Target a section by name and execute replacements across its slides\nppt.useSection('Financials')\n   .replaceText({ '{{quarter}}': 'Q3', '{{status}}': 'Audited' });\n\n// Target a section containing slide 5\nppt.useSection(5)\n   .replaceText({ '{{CONFIDENTIAL}}': 'INTERNAL ONLY' });"
+      },
+      {
+        "id": "addSection",
+        "name": "addSection",
+        "signature": "ppt.addSection(name, startSlideIndex)",
+        "category": "Slides",
+        "description": "Creates a new named section grouping slides together starting from a specified slide index.",
+        "openXmlImpact": "Appends a <p14:section> entry to <p14:sectionLst> inside ppt/presentation.xml (or presentation extension lists) and associates slide IDs.",
+        "edgeCases": "Clamps startSlideIndex within [1, slideCount]. If a section with the same name exists, generates a unique identifier or renames gracefully.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Display name of the section group."
+          },
+          {
+            "name": "startSlideIndex",
+            "type": "number",
+            "required": false,
+            "default": "1",
+            "description": "1-based index of the first slide belonging to this section."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation templater instance."
+        },
+        "exampleCode": "// Create a section starting at slide 1\nppt.addSection('Introduction', 1);\n\n// Create another section starting at slide 4\nppt.addSection('Financials', 4);"
+      },
+      {
+        "id": "updateSection",
+        "name": "updateSection",
+        "signature": "ppt.updateSection(sectionIdentifier, options)",
+        "category": "Slides",
+        "description": "Updates metadata, display name, or slide assignments of an existing slide section.",
+        "openXmlImpact": "Updates attributes (name, id) and slide reference nodes under the corresponding <p14:section> block.",
+        "edgeCases": "Throws SectionNotFoundError if sectionIdentifier does not resolve to an existing section ID or name.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "sectionIdentifier",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Name or UUID of the target section to modify."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": true,
+            "default": "{}",
+            "description": "Configuration object containing newName (string) or slideIndices (number[])."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation templater instance."
+        },
+        "exampleCode": "ppt.updateSection('Financials', {\n  newName: 'Q3 Financial Overview'\n});"
+      },
+      {
+        "id": "removeSection",
+        "name": "removeSection",
+        "signature": "ppt.removeSection(sectionIdentifier, removeSlides = false)",
+        "category": "Slides",
+        "description": "Deletes a section. Slides within the section are preserved and merged into the previous section unless removeSlides is explicitly set to true.",
+        "openXmlImpact": "Deletes the matching <p14:section> element from <p14:sectionLst>. If removeSlides is true, also purges member <p:sldId> nodes and associated slide XML parts.",
+        "edgeCases": "Throws SectionNotFoundError if section does not exist. Prevents removing the only remaining section if removeSlides is true and deck would be left slide-less.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "sectionIdentifier",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Section name or identifier to remove."
+          },
+          {
+            "name": "removeSlides",
+            "type": "boolean",
+            "required": false,
+            "default": "false",
+            "description": "If true, also removes all slides contained within the section."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation templater instance."
+        },
+        "exampleCode": "// Remove section grouping only (keeps slides)\nppt.removeSection('Appendix');\n\n// Remove section and all its slides\nppt.removeSection('Deprecated', true);"
+      },
+      {
+        "id": "getSection",
+        "name": "getSection",
+        "signature": "ppt.getSection(sectionRef)",
+        "category": "Slides",
+        "description": "Retrieves metadata, slide count, and member slide references for a specific section group by name, UUID identifier, or 1-based slide index belonging to that section.",
+        "openXmlImpact": "Reads and parses the matching <p14:section> element inside ppt/presentation.xml (or presentation extension lists) in read-only mode.",
+        "edgeCases": "Returns null or throws SectionNotFoundError if the target section name, UUID, or slide index does not resolve to an existing section.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "sectionRef",
+            "type": "...(number | string | number[] | string[])",
+            "required": true,
+            "default": "—",
+            "description": "Section display name, section UUID string, 1-based member slide index, or array of slide references."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Section metadata object: { id: string, name: string, startSlideIndex: number, slideCount: number, slideIndices: number[] }, or null if not found."
+        },
+        "exampleCode": "// 1. Query by section name\nconst finSection = ppt.getSection('Financials');\n\n// 2. Query by slide number to discover containing section\nconst currentSection = ppt.getSection(4);\n\n// 3. Chain slides from section directly into useSlide\nif (finSection) {\n  ppt.useSlide(...finSection.slideIndices)\n     .replaceText({ '{{CONFIDENTIAL}}': 'TRUE' });\n}"
+      },
+      {
+        "id": "hideSlide",
+        "name": "hideSlide",
+        "signature": "ppt.hideSlide(...slideRefs)",
+        "category": "Slides",
+        "description": "Hides one or more slides from the slide show view without deleting slide XML, elements, or relationship data.",
+        "openXmlImpact": "Sets show=\"0\" on the root <p:sld> element inside ppt/slides/slideN.xml.",
+        "edgeCases": "Idempotent if the slide is already hidden. Supports 1-based indices, slide IDs, or custom tags.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideRefs",
+            "type": "...(number | string)",
+            "required": false,
+            "default": "activeSlideIndex",
+            "description": "1-based slide indices, IDs, or tags to hide. Defaults to the active slide."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation templater instance."
+        },
+        "exampleCode": "// Hide active slide\nppt.useSlide(2).hideSlide();\n\n// Hide multiple slides by index\nppt.hideSlide(3, 4);"
+      },
+      {
+        "id": "unhideSlide",
+        "name": "unhideSlide",
+        "signature": "ppt.unhideSlide(...slideRefs)",
+        "category": "Slides",
+        "description": "Restores visibility of one or more hidden slides so they appear during slide shows.",
+        "openXmlImpact": "Removes the show attribute (or sets show=\"1\") on the root <p:sld> element inside ppt/slides/slideN.xml.",
+        "edgeCases": "No-op if slide is already visible. Throws SlideNotFoundError if index is out of bounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideRefs",
+            "type": "...(number | string)",
+            "required": false,
+            "default": "activeSlideIndex",
+            "description": "1-based slide indices, IDs, or tags to unhide. Defaults to the active slide."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation templater instance."
+        },
+        "exampleCode": "// Unhide slide 2\nppt.unhideSlide(2);\n\n// Unhide multiple slides\nppt.unhideSlide(3, 4);"
+      },
+      {
+        "id": "resetSlide",
+        "name": "resetSlide",
+        "signature": "ppt.resetSlide(slideRef, options = {})",
+        "category": "Slides",
+        "description": "Clears all custom user elements, text, shapes, charts, and tables from a slide, resetting it to an empty canvas while preserving slide layout bindings and master relationships.",
+        "openXmlImpact": "Empties children under <p:spTree> (retaining non-visual group properties <p:nvGrpSpPr> and <p:grpSpPr>) and purges orphaned entries in ppt/slides/_rels/slideN.xml.rels.",
+        "edgeCases": "Preserves slide dimensions, master layouts, and background theme elements unless preservePlaceholders option is configured otherwise.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideRef",
+            "type": "number | string",
+            "required": false,
+            "default": "activeSlideIndex",
+            "description": "1-based slide index, ID, or custom tag. Defaults to active slide."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Reset options (e.g. preservePlaceholders: boolean, clearNotes: boolean)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "Chainable presentation templater instance."
+        },
+        "exampleCode": "// Reset active slide completely\nppt.useSlide(2).resetSlide();\n\n// Reset slide 3 while keeping layout placeholders intact\nppt.resetSlide(3, { preservePlaceholders: true });"
+      },
+      {
+        "id": "addComment",
+        "name": "addComment",
+        "signature": "ppt.addComment(text, options = {})",
+        "category": "Slides",
+        "description": "Attaches a collaborative review comment to one or more slides or to a targeted shape/coordinate position, attributing the author, timestamp, and optional comment thread parent.",
+        "openXmlImpact": "Creates or updates ppt/comments/commentN.xml and ppt/commentAuthors.xml, establishes the comment relationship in ppt/slides/_rels/slideN.xml.rels, and registers the comment content type override in [Content_Types].xml.",
+        "edgeCases": "Generates a unique author ID index in commentAuthors.xml if the author does not already exist. Defaults to targeting the active slide index if slideRef is omitted.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "text",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Body text content of the review comment."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Comment metadata, author profile, and positioning options."
+          },
+          {
+            "name": "options.author",
+            "type": "string",
+            "required": false,
+            "default": "'Reviewer'",
+            "description": "Display name of the comment author."
+          },
+          {
+            "name": "options.initials",
+            "type": "string",
+            "required": false,
+            "default": "'REV'",
+            "description": "Initials of the comment author."
+          },
+          {
+            "name": "options.slideRef",
+            "type": "number | string",
+            "required": false,
+            "default": "activeSlideIndex",
+            "description": "1-based slide index or custom tag where the comment will be pinned."
+          },
+          {
+            "name": "options.x",
+            "type": "number | string",
+            "required": false,
+            "default": "0",
+            "description": "Horizontal pin coordinate position (in pixels, inches, or EMUs)."
+          },
+          {
+            "name": "options.y",
+            "type": "number | string",
+            "required": false,
+            "default": "0",
+            "description": "Vertical pin coordinate position (in pixels, inches, or EMUs)."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to the chainable presentation templater instance."
+        },
+        "exampleCode": "// 1. Add comment to the active slide\nawait ppt.useSlide(1).addComment('Please verify these revenue projections before publishing.', {\n  author: 'Sarah Connor',\n  initials: 'SC'\n});\n\n// 2. Add pinned comment at specific slide coordinates\nawait ppt.addComment('Update chart legend styling here.', {\n  slideRef: 2,\n  author: 'Design Lead',\n  x: '4.5in',\n  y: '2.0in'\n});"
+      },
+      {
+        "id": "removeComment",
+        "name": "removeComment",
+        "signature": "ppt.removeComment(commentIdentifier, options = {})",
+        "category": "Slides",
+        "description": "Removes one or all collaborative review comments from a slide by comment index, comment ID, author name, or regex pattern.",
+        "openXmlImpact": "Deletes the matching <p:cm> element inside ppt/comments/commentN.xml and purges the relationship from ppt/slides/_rels/slideN.xml.rels and [Content_Types].xml if no comments remain on the slide.",
+        "edgeCases": "If commentIdentifier is omitted, purges all comments on the targeted slide. Throws SlideNotFoundError if the slide reference is invalid.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "commentIdentifier",
+            "type": "number | string | RegExp",
+            "required": false,
+            "default": "undefined",
+            "description": "1-based comment index, comment ID, author name, or text pattern to remove. If omitted, removes all comments on the slide."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Optional targeting configuration."
+          },
+          {
+            "name": "options.slideRef",
+            "type": "number | string",
+            "required": false,
+            "default": "activeSlideIndex",
+            "description": "1-based slide index or tag from which comments should be removed."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "Resolves to the chainable presentation templater instance."
+        },
+        "exampleCode": "// 1. Remove all comments from active slide\nawait ppt.useSlide(1).removeComment();\n\n// 2. Remove comment by 1-based comment index on slide 2\nawait ppt.removeComment(1, { slideRef: 2 });\n\n// 3. Remove comments matching author name\nawait ppt.removeComment('Sarah Connor', { slideRef: 1 });"
+      }
+    ],
+    "Text & Placeholders": [
+      {
+        "id": "replacetext",
+        "name": "replaceText",
+        "signature": "ppt.replaceText(replacements)",
+        "category": "Text & Placeholders",
+        "description": "Replaces template placeholders across targeted slides. Analyzes DrawingML AST paragraphs (<a:p>) and unifies fragmented text runs (<a:r> / <a:t>) split across spellchecks or editing sessions before substituting values.",
+        "openXmlImpact": "Parses <a:p> and <a:r>, joins adjacent <a:t> text nodes, preserves original <a:rPr> formatting, and updates slide XML.",
+        "edgeCases": "Throws PPTXError if presentation package is uninitialized or invalid.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "replacements",
+            "type": "Object.<string, string | number>",
+            "required": true,
+            "default": "—",
+            "description": "Key-value map of placeholders (e.g. {\"{{title}}\": \"Q3 Report\"})."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).replaceText({\n  \"{{title}}\": \"Executive Quarterly Business Review\",\n  \"{{date}}\": \"October 11, 2026\"\n});"
+      },
+      {
+        "id": "addtext",
+        "name": "addText",
+        "signature": "ppt.addText(textContent, options = {})",
+        "category": "Text & Placeholders",
+        "description": "Appends a new text paragraph or creates a new positioned text box shape with specified geometry and typography styling.",
+        "openXmlImpact": "Generates <p:sp> with <p:nvSpPr>, <p:spPr> (<a:xfrm>, <a:prstGeom>), and <p:txBody> containing <a:p> and <a:r> styled via <a:rPr> and <a:pPr>.",
+        "edgeCases": "Coordinates support EMUs, points, pixels, inches, or percentage strings.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "textContent",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Text content to add."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Positioning, sizing, tag, and style options (e.g. x, y, width, height, color, fontSize, bold)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).addText(\"Confidential Report\", {\n  tag: \"ConfidentialBadge\",\n  x: 50, y: 50, width: 300, height: 40,\n  fontSize: 14, color: \"#DC2626\", bold: true\n});"
+      },
+      {
+        "id": "replacetextbytag",
+        "name": "replaceTextByTag",
+        "signature": "ppt.replaceTextByTag(tagOrId, newText, options = {})",
+        "category": "Text & Placeholders",
+        "description": "Replaces the entire text content of a text box or shape identified by shape ID, shape name, or semantic tag. Clears all existing text runs across paragraphs in <p:txBody> and replaces the entire box content with newText while preserving root paragraph layout (<a:pPr>) and base character formatting (<a:rPr>). Supports multi-line strings (split on \\n) and optional style overrides.",
+        "openXmlImpact": "Resolves target <p:sp> by <p:cNvPr id=\"...\">, <p:cNvPr name=\"...\">, or semantic tag. Retains <p:nvSpPr>, <p:spPr>, <a:xfrm>, and <p:txBody>/<a:bodyPr>. Clones base <a:pPr> and <a:rPr>, splits newText on newlines into separate <a:p> elements, and updates slide XML.",
+        "edgeCases": "If tagOrId is not found, logs a warning and skips gracefully without throwing. Supports options.slide to override slide targeting.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tagOrId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Target text box ID (e.g. \"2\"), shape name (e.g. \"Title 1\"), or semantic tag."
+          },
+          {
+            "name": "newText",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Full replacement text for the text box. Supports newlines (\\n) for multi-line paragraphs."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Optional style overrides (fontSize, bold, color, etc.) or slide override ({ slide: 1 })."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "// Replace text box content by shape ID or name\\nppt.useSlide(1)\\n   .replaceTextByTag(\"TitleBox\", \"Q4 Executive Summary\\nStrategic Highlights & Goals\", {\\n     bold: true,\\n     color: \"#1E3A8A\"\\n   });\\n\\n// Target by numeric ID string with slide override\\nppt.replaceTextByTag(\"2\", \"Board Approved Financial Guidance\", { slide: 2 });"
+      },
+      {
+        "id": "gettextelements",
+        "name": "getTextElements",
+        "signature": "ppt.getTextElements()",
+        "category": "Text & Placeholders",
+        "description": "Extracts a structured catalog of all text elements and paragraphs across all shapes on the active slide.",
+        "openXmlImpact": "Iterates through <p:spTree> and extracts text, run properties, styling metadata, and bounding coordinates.",
+        "edgeCases": "Returns empty array if no text shapes exist on the active slide.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "Array.<Object>",
+          "description": "Array of structured text paragraph descriptors with shapeName, text, and styling information."
+        },
+        "exampleCode": "const elements = ppt.useSlide(1).getTextElements();\nelements.forEach(el => console.log(el.shapeName, el.text));"
+      },
+      {
+        "id": "findtext",
+        "name": "findText",
+        "signature": "ppt.findText(query)",
+        "category": "Text & Placeholders",
+        "description": "Locates occurrences of text across shapes on the active slide, normalizing fragmented AST text runs before querying.",
+        "openXmlImpact": "Traverses <p:spTree> shapes and unified text runs, returning match positions, shape identifiers, and paragraph indices.",
+        "edgeCases": "Supports exact string or RegExp matching; heals runs split across <a:r> nodes.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "query",
+            "type": "string | RegExp",
+            "required": true,
+            "default": "—",
+            "description": "Search query string or regular expression."
+          }
+        ],
+        "returns": {
+          "type": "Array.<Object>",
+          "description": "Array of match descriptor objects with shapeName, shapeId, paragraphIndex, and matched text."
+        },
+        "exampleCode": "const matches = ppt.useSlide(1).findText(\"Quarterly\");\nconsole.log(\"Matches found:\", matches.length);"
+      },
+      {
+        "id": "gettext",
+        "name": "getText",
+        "signature": "ppt.getText(tag)",
+        "category": "Text & Placeholders",
+        "description": "Extracts raw plain-text content from a target shape identified by tag or shape name, concatenating all internal runs and paragraphs.",
+        "openXmlImpact": "Reads <p:txBody> in target shape, extracts all <a:t> nodes, and joins paragraphs with newline delimiters.",
+        "edgeCases": "Returns null if no shape with the given tag or name exists.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape name or semantic tag."
+          }
+        ],
+        "returns": {
+          "type": "string | null",
+          "description": "Extracted plain text or null if shape not found."
+        },
+        "exampleCode": "const title = ppt.useSlide(1).getText(\"HeaderTitle\");\nconsole.log(\"Slide title:\", title);"
+      },
+      {
+        "id": "removetext",
+        "name": "removeText",
+        "signature": "ppt.removeText(tag)",
+        "category": "Text & Placeholders",
+        "description": "Removes a text shape completely from the active slide shape tree (<p:spTree>).",
+        "openXmlImpact": "Deletes the corresponding <p:sp> node from slide XML and updates element indices.",
+        "edgeCases": "Silently ignores if target shape is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape name or semantic tag to remove."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeText(\"DraftWatermark\");"
+      },
+      {
+        "id": "cleartext",
+        "name": "clearText",
+        "signature": "ppt.clearText(tag)",
+        "category": "Text & Placeholders",
+        "description": "Clears all text paragraphs and runs from a target shape while strictly retaining the shape container, bounding box coordinates, and preset geometry.",
+        "openXmlImpact": "Replaces <p:txBody> paragraphs with a single empty <a:p> while leaving <p:spPr> and geometry intact.",
+        "edgeCases": "Preserves shape position, dimensions, rotation, fill, and borders.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape name or semantic tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).clearText(\"PlaceholderContainer\");"
+      },
+      {
+        "id": "addlists",
+        "name": "addLists",
+        "signature": "ppt.addLists(items, options = {})",
+        "category": "Text & Placeholders",
+        "description": "Creates or appends a multi-level bulleted or numbered list container with custom bullet characters, colors, sizing, and indentation levels.",
+        "openXmlImpact": "Generates <a:p> elements with <a:pPr> configuring <a:buChar>, <a:buClr>, <a:buSzPts>, <a:buSzPct>, and lvl attribute.",
+        "edgeCases": "Handles nested list item arrays and custom bullet glyphs.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "items",
+            "type": "Array.<string | Object>",
+            "required": true,
+            "default": "—",
+            "description": "Array of list item strings or structured objects with nested children and level definitions."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Placement coordinates, bullet type (bulletChar, bulletColor, bulletFontSize, bulletStyle), and shape tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).addLists([\n  \"Executive summary of operational performance\",\n  \"Quarterly milestone verification\",\n  \"Statutory compliance certifications\"\n], {\n  tag: \"DeliverablesList\",\n  x: 100, y: 150, width: 600, height: 200,\n  bulletChar: \"•\",\n  bulletColor: \"#2563EB\",\n  fontSize: 14\n});"
+      },
+      {
+        "id": "replacelist",
+        "name": "replaceList",
+        "signature": "ppt.replaceList(tag, newItems, options = {})",
+        "category": "Text & Placeholders",
+        "description": "Replaces existing list items in a shape with a new set of bulleted or numbered items, preserving or updating bullet styling.",
+        "openXmlImpact": "Replaces <a:p> elements in <p:txBody> with new styled paragraphs while maintaining shape geometry and container properties.",
+        "edgeCases": "Supports hierarchical indentation and bullet override options.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target list shape name or semantic tag."
+          },
+          {
+            "name": "newItems",
+            "type": "Array.<string | Object>",
+            "required": true,
+            "default": "—",
+            "description": "New list items to populate."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Bullet styling options (bulletChar, bulletColor, fontSize, etc.)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).replaceList(\"KeyObjectivesList\", [\n  \"Achieve ISO-27001 certification\",\n  \"Complete quarterly security audit\",\n  \"Deploy zero-trust network policy\"\n], { bulletChar: \"✓\", bulletColor: \"#10B981\" });"
+      },
+      {
+        "id": "getlists",
+        "name": "getLists",
+        "signature": "ppt.getLists()",
+        "category": "Text & Placeholders",
+        "description": "Discovers and extracts all bulleted and numbered list structures across all shapes on the active slide.",
+        "openXmlImpact": "Scans all <p:sp> elements in <p:spTree>, identifies paragraphs containing bullet configurations or indent levels, and returns structured data.",
+        "edgeCases": "Returns empty array if no lists exist on the slide.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "Array.<Object>",
+          "description": "Array of list structures with shapeId, shapeName, and items array."
+        },
+        "exampleCode": "const allLists = ppt.useSlide(1).getLists();\nconsole.log(\"Total lists on slide:\", allLists.length);"
+      },
+      {
+        "id": "getlist",
+        "name": "getList",
+        "signature": "ppt.getList(tag)",
+        "category": "Text & Placeholders",
+        "description": "Retrieves structured items from a bulleted or numbered list shape matching the specified tag or name, including indentation levels and text runs.",
+        "openXmlImpact": "Inspects <p:txBody> in target shape and parses <a:p> elements, reading <a:pPr lvl=\"...\"> attributes and <a:t> text nodes.",
+        "edgeCases": "Returns null if no matching list shape is found on the active slide.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target list shape name or semantic tag."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Object containing tag, items array with level and text, or null."
+        },
+        "exampleCode": "const listData = ppt.useSlide(1).getList(\"DeliverablesList\");\nconsole.log(listData.items.map(item => item.text));"
+      },
+      {
+        "id": "findlists",
+        "name": "findLists",
+        "signature": "ppt.findLists(query)",
+        "category": "Text & Placeholders",
+        "description": "Searches all bulleted and numbered lists on the active slide matching a text query string or regular expression.",
+        "openXmlImpact": "Queries list paragraph text across shapes and returns matching list objects and their associated items.",
+        "edgeCases": "Case-insensitive by default; supports regex patterns.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "query",
+            "type": "string | RegExp",
+            "required": true,
+            "default": "—",
+            "description": "Search query string or pattern."
+          }
+        ],
+        "returns": {
+          "type": "Array.<Object>",
+          "description": "Array of matched list descriptors containing items that satisfied the query."
+        },
+        "exampleCode": "const securityLists = ppt.useSlide(1).findLists(\"Security\");\nconsole.log(\"Found security lists:\", securityLists);"
+      },
+      {
+        "id": "removelist",
+        "name": "removeList",
+        "signature": "ppt.removeList(tag)",
+        "category": "Text & Placeholders",
+        "description": "Removes a bulleted or numbered list shape completely from the active slide shape tree.",
+        "openXmlImpact": "Deletes the <p:sp> container representing the list from <p:spTree>.",
+        "edgeCases": "Silently ignores if target list shape is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target list shape name or semantic tag to remove."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeList(\"TemporaryList\");"
+      },
+      {
+        "id": "clearlist",
+        "name": "clearList",
+        "signature": "ppt.clearList(tag)",
+        "category": "Text & Placeholders",
+        "description": "Clears all list item paragraphs from a list container while retaining the shape position, dimensions, and bullet configuration properties.",
+        "openXmlImpact": "Empties paragraph runs in <p:txBody> while preserving <a:pPr> bullet definitions and <p:spPr> layout.",
+        "edgeCases": "Retains preset bullet formatting for future item additions.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tag",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target list shape name or semantic tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).clearList(\"ExecutiveActionItems\");"
+      },
+      {
+        "id": "addstyle",
+        "name": "addStyle",
+        "signature": "ppt.addStyle(target, style)",
+        "category": "Text & Placeholders",
+        "description": "Applies one or more of the 31 DrawingML typography, casing, spacing, bullet, or shadow style properties to a target shape or text run.",
+        "openXmlImpact": "Translates style properties into DrawingML <a:pPr>, <a:rPr>, <a:effectLst>, and <a:outerShdw> nodes without altering text strings.",
+        "edgeCases": "Merges non-destructively with existing run properties.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "target",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape name or semantic tag."
+          },
+          {
+            "name": "style",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Style dictionary supporting 31 properties (fontSize, color, bold, italic, uppercase, lineSpacing, textShadow, etc.)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).addStyle(\"HeroTitle\", {\n  fontSize: 28,\n  bold: true,\n  color: \"#1E3A8A\",\n  textShadow: true,\n  shadowColor: \"#94A3B8\"\n});"
+      },
+      {
+        "id": "removestyle",
+        "name": "removeStyle",
+        "signature": "ppt.removeStyle(target, styleProperties)",
+        "category": "Text & Placeholders",
+        "description": "Strips specified style properties from a target shape text runs or paragraphs, resetting them to inherited presentation defaults.",
+        "openXmlImpact": "Purges corresponding DrawingML attributes and tags from <a:rPr> and <a:pPr> (e.g. deletes b, i, u, <a:highlight>, <a:effectLst>).",
+        "edgeCases": "Preserves text content and unremoved styling attributes intact.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "target",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape name or semantic tag."
+          },
+          {
+            "name": "styleProperties",
+            "type": "string | Array.<string>",
+            "required": true,
+            "default": "—",
+            "description": "Property name or array of property names to strip (e.g. [\"bold\", \"highlight\", \"underline\"])."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeStyle(\"HeroTitle\", [\"highlight\", \"underline\", \"strikethrough\"]);"
+      },
+      {
+        "id": "updatestyle",
+        "name": "updateStyle",
+        "signature": "ppt.updateStyle(target, style)",
+        "category": "Text & Placeholders",
+        "description": "Updates and merges style properties on a target shape, overwriting specified properties while keeping other applied styles intact.",
+        "openXmlImpact": "Merges new DrawingML <a:rPr> and <a:pPr> definitions into existing shape text properties.",
+        "edgeCases": "Overwrites matching properties; retains non-specified properties.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "target",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape name or semantic tag."
+          },
+          {
+            "name": "style",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Updated style properties to merge."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).updateStyle(\"HeroTitle\", {\n  fontSize: 32,\n  color: \"#2563EB\",\n  alignment: \"center\"\n});"
+      }
+    ],
+    "Charts": [
+      {
+        "id": "addchart",
+        "name": "addChart",
+        "signature": "ppt.addChart(slideId, chartType, data, options = {})",
+        "category": "Charts",
+        "description": "Creates and inserts a new native PowerPoint chart on the targeted slide. Fully supports all 17 chart types across standard OpenXML (<c:chartSpace>) and Office 2016+ extended schemas (<cx:chartSpace>): column, line, pie, bar, area, scatter, map, stock, surface, radar, treemap, sunburst, histogram, boxWhisker, waterfall, funnel, and combo. Automatically generates the backing embedded Excel worksheet (ppt/embeddings/*.xlsx) maintaining the Dual-Sync invariant.",
+        "openXmlImpact": "Generates <c:chartSpace> or <cx:chartSpace> part, registers relationships in slide rels, creates embedded XLSX workbook, and injects <p:graphicFrame> into <p:spTree>.",
+        "edgeCases": "Normalizes aliases (col -> column, xy -> scatter, boxAndWhisker -> boxWhisker). Cleanses embedded Excel table markup to avoid PowerPoint repair prompts.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number|string",
+            "required": true,
+            "default": "—",
+            "description": "1-based slide index, slide ID, or tag name."
+          },
+          {
+            "name": "chartType",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "One of the 17 supported chart types (column, line, pie, bar, area, scatter, map, stock, surface, radar, treemap, sunburst, histogram, boxWhisker, waterfall, funnel, combo)."
+          },
+          {
+            "name": "data",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Chart data containing categories and series."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Chart styling, coordinates (x, y, width, height), title, and display toggles."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.addChart(1, 'column', {\n  categories: ['Q1', 'Q2', 'Q3', 'Q4'],\n  series: [{ name: 'ARR', values: [100, 200, 350, 500] }]\n}, {\n  name: 'RevenueChart',\n  title: 'Annual Revenue Run Rate',\n  x: '1in',\n  y: '1.5in',\n  width: '6in',\n  height: '4in'\n});"
+      },
+      {
+        "id": "updatechart",
+        "name": "updateChart",
+        "signature": "ppt.updateChart(chartId, options)",
+        "category": "Charts",
+        "description": "Updates chart categories, series names, numerical values, title, and canvas layout on the active slide. Simultaneously synchronizes both the DrawingML ChartSpace XML (ppt/charts/chart{N}.xml) and the embedded Excel worksheet data cache (ppt/embeddings/Microsoft_Excel_Worksheet{N}.xlsx), preventing PowerPoint 'Repair Workbook' warnings.",
+        "openXmlImpact": "Mutates <c:chartSpace> or <cx:chartSpace> series, categories, values, and updates embedded Excel sheet1.xml & sharedStrings.xml.",
+        "edgeCases": "Ensures synchronization between drawingML series and embedded Excel worksheet to avoid Office Repair prompts. Handles missing categories gracefully.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "chartId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Chart title, shape name, or chart relationship ID."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "New chart data payload or options object (categories, series, title, x, y, width, height)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(2).updateChart('RevenueTrend', {\n  categories: ['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],\n  series: [\n    { name: 'Enterprise Cloud', values: [18.4, 22.1, 26.8, 31.5] },\n    { name: 'AI Solutions', values: [8.2, 12.6, 17.4, 23.0] }\n  ],\n  title: 'Updated Revenue Trajectory'\n});"
+      },
+      {
+        "id": "updatechartdata",
+        "name": "updateChartData",
+        "signature": "ppt.updateChartData(chartId, data)",
+        "category": "Charts",
+        "description": "Dedicated data updater for named chart series and category axes. Enforces the Dual-Sync invariant across slide XML and embedded Excel worksheet.",
+        "openXmlImpact": "Updates <c:numCache>, <c:strCache>, and worksheet cells in Sheet1.xml.",
+        "edgeCases": "Clears orphaned cell coordinates outside the updated matrix dimension.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "chartId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Chart name or ID."
+          },
+          {
+            "name": "data",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Data object containing categories and series arrays."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).updateChartData('QuarterlyARR', {\n  categories: ['Q1', 'Q2', 'Q3', 'Q4'],\n  series: [{ name: 'Velocity', values: [55.1, 66.2, 77.3, 88.4] }]\n});"
+      },
+      {
+        "id": "removechart",
+        "name": "removeChart",
+        "signature": "ppt.removeChart(chartId)",
+        "category": "Charts",
+        "description": "Removes a specific chart graphic frame from the targeted slide, unlinks its relationship node from slide rels, and purges orphaned chart XML parts and unreferenced embedded Excel workbooks.",
+        "openXmlImpact": "Deletes <p:graphicFrame> referencing the chart, removes relationship from ppt/slides/_rels/slide{N}.xml.rels, unlinks chart XML and unreferenced workbook.",
+        "edgeCases": "Leaves non-chart shapes, text frames, and tables completely intact. Checks for shared workbook references before purging binary Excel embeddings.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "chartId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Chart name, shape ID, or relationship ID."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeChart('LegacyChart');"
+      },
+      {
+        "id": "clearcharts",
+        "name": "clearCharts",
+        "signature": "ppt.clearCharts(slideRefOrChartId?)",
+        "category": "Charts",
+        "description": "Evacuates chart graphic frames from targeted slide(s) or removes a specific chart cleanly when given a chart ID. Strictly preserves layout shapes, tables, and text boxes. Unlinks chart relationships and cleans unreferenced parts and workbooks from the VFS.",
+        "openXmlImpact": "Iterates <p:graphicFrame> elements, unlinks chart relationships, and cleans orphaned parts from the VFS.",
+        "edgeCases": "Supports polymorphic arguments: clearCharts() clears active slide, clearCharts(slideIndex) clears designated slide, clearCharts(chartId) removes specific chart without throwing.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideRefOrChartId",
+            "type": "number|string",
+            "required": false,
+            "default": "—",
+            "description": "Optional slide index/tag to clear all charts on that slide, or specific chartId to remove that individual chart."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(2).clearCharts();\nppt.clearCharts('StandaloneBarChart');"
+      },
+      {
+        "id": "getcharts",
+        "name": "getCharts",
+        "signature": "ppt.getCharts(slideId)",
+        "category": "Charts",
+        "description": "Discovers and returns normalized metadata descriptors for all charts on targeted slide(s) or across the entire presentation.",
+        "openXmlImpact": "Inspects <p:graphicFrame> elements and parses chart XML headers.",
+        "edgeCases": "Resolves slide tags or numerical indices. Returns empty array if no charts are present.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number|string",
+            "required": false,
+            "default": "—",
+            "description": "Optional slide index, ID, or tag. Defaults to active slide selection."
+          }
+        ],
+        "returns": {
+          "type": "Array<Object>",
+          "description": "Array of normalized chart descriptors."
+        },
+        "exampleCode": "const charts = ppt.getCharts(1);\nconsole.log(`Slide 1 has ${charts.length} charts:`, charts.map(c => c.name));"
+      },
+      {
+        "id": "getchart",
+        "name": "getChart",
+        "signature": "ppt.getChart(chartId)",
+        "category": "Charts",
+        "description": "Retrieves the normalized metadata descriptor for a specific chart, including canonical chart type, series configuration, categories, spatial coordinates, title, legend, and data labels.",
+        "openXmlImpact": "Inspects chart graphic frame and parses chart XML.",
+        "edgeCases": "Throws ChartNotFoundError if the chart cannot be located.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "chartId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Chart name, shape ID, or relationship ID."
+          }
+        ],
+        "returns": {
+          "type": "Object",
+          "description": "Normalized chart descriptor object."
+        },
+        "exampleCode": "const chart = ppt.getChart('RevenueChart');\nconsole.log(chart.type, chart.series, chart.coordinates);"
+      },
+      {
+        "id": "clonechart",
+        "name": "cloneChart",
+        "signature": "ppt.cloneChart(chartId, clonedChartId, clonedOptions = {})",
+        "category": "Charts",
+        "description": "Deeply clones an existing chart on the active slide, duplicating its graphic frame, relationship entry, chart XML part, and backing Excel binary workbook with unique IDs to prevent rId collisions.",
+        "openXmlImpact": "Duplicates <p:graphicFrame>, creates new relationship in slide rels, clones chart XML, duplicates embedded XLSX workbook.",
+        "edgeCases": "Ensures clean separation so mutating the clone never impacts the original chart or its embedded workbook.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "chartId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Chart name or ID to clone."
+          },
+          {
+            "name": "clonedChartId",
+            "type": "string",
+            "required": false,
+            "default": "—",
+            "description": "Unique name for the cloned chart."
+          },
+          {
+            "name": "clonedOptions",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Optional layout/coordinate overrides (x, y, width, height)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).cloneChart('Q1_Chart', 'Q2_Chart', { x: '5.5in', y: '1.5in' });"
+      }
+    ],
+    "Shapes": [
+      {
+        "id": "addshape",
+        "name": "addShape",
+        "signature": "ppt.addShape(slideId, type, options = {})",
+        "category": "Shapes",
+        "description": "Creates and inserts a new vector shape onto the targeted slide. Supports preset geometries (rect, roundRect, ellipse, triangle, rightArrow, star5, diamond, etc.), solid or gradient fills, borders, opacity, rotation, flips, and embedded text frames.",
+        "openXmlImpact": "Inserts <p:sp> containing <p:nvSpPr>, <p:spPr> (<a:prstGeom prst=\"...\">, <a:xfrm>, <a:solidFill>), and <p:txBody> into <p:spTree>.",
+        "edgeCases": "Throws PPTXError if slide index is invalid or shape options fail schema validation.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "1-based target slide index."
+          },
+          {
+            "name": "type",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Preset geometry type (e.g. 'rectangle', 'roundRect', 'circle', 'triangle', 'star5')."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Shape properties (x, y, width, height, fill, border, rotation, flipH, flipV, text, textStyle)."
+          }
+        ],
+        "returns": {
+          "type": "string",
+          "description": "Assigned unique shape ID."
+        },
+        "exampleCode": "ppt.addShape(1, 'rectangle', {\n  x: 50, y: 50, width: 300, height: 120,\n  fill: '#1E293B',\n  border: { color: '#38BDF8', width: 2 },\n  text: 'Overview',\n  textStyle: { fontSize: 16, bold: true, color: '#FFFFFF', align: 'center' }\n});"
+      },
+      {
+        "id": "updateshape",
+        "name": "updateShape",
+        "signature": "ppt.updateShape(targetId, options = {})",
+        "category": "Shapes",
+        "description": "Updates spatial coordinates, dimensions, fills, borders, rotation, or inner text of an existing shape by shape ID or name in-place.",
+        "openXmlImpact": "Mutates <a:xfrm> (<a:off>, <a:ext>), <a:solidFill>, <a:ln>, and <p:txBody> under <p:sp>.",
+        "edgeCases": "Throws PPTXError if targeted shape is not found on the slide.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "targetId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape ID or shape name."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Properties to update (x, y, width, height, fill, border, rotation, text, textStyle)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.updateShape('card1', {\n  x: 100, y: 150,\n  fill: '#10B981',\n  text: 'Updated Metric'\n});"
+      },
+      {
+        "id": "removeshape",
+        "name": "removeShape",
+        "signature": "ppt.removeShape(shapeId)",
+        "category": "Shapes",
+        "description": "Removes a shape element from the targeted slide(s) by shape ID or name and updates slide z-order.",
+        "openXmlImpact": "Evacuates targeted <p:sp> node from <p:spTree> and clears its z-order entry.",
+        "edgeCases": "Throws PPTXError if targeted shape is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "shapeId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Shape identifier or name to remove."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.removeShape('draft_watermark');"
+      },
+      {
+        "id": "clearshapes",
+        "name": "clearShapes",
+        "signature": "ppt.clearShapes()",
+        "category": "Shapes",
+        "description": "Evacuates all user-created shapes from targeted slide(s) while strictly preserving layout placeholders, master placeholders, and background elements.",
+        "openXmlImpact": "Filters <p:spTree> child nodes, removing non-placeholder <p:sp> and <p:grpSp> elements.",
+        "edgeCases": "Does not remove layout titles, footers, slide numbers, or prompt placeholders.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.clearShapes();"
+      },
+      {
+        "id": "getshapes",
+        "name": "getShapes",
+        "signature": "ppt.getShapes()",
+        "category": "Shapes",
+        "description": "Returns metadata for all shapes on the targeted slide(s) including IDs, names, preset geometries, pixel coordinates, EMU bounds, style metadata, and text.",
+        "openXmlImpact": "Recursively scans DrawingML nodes (<p:sp>, <p:grpSp>) under <p:spTree> in read-only mode.",
+        "edgeCases": "Returns empty array if slide has no shapes.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [],
+        "returns": {
+          "type": "Array<Object>",
+          "description": "List of normalized shape descriptors."
+        },
+        "exampleCode": "const shapes = ppt.getShapes();\nshapes.forEach(s => console.log(s.name, s.x, s.y));"
+      },
+      {
+        "id": "getshape",
+        "name": "getShape",
+        "signature": "ppt.getShape(shapeId)",
+        "category": "Shapes",
+        "description": "Discovers and retrieves normalized metadata for a specific shape by shape ID or name on the targeted slide(s).",
+        "openXmlImpact": "Inspects target <p:sp> or <p:grpSp> node and computes coordinate bounds.",
+        "edgeCases": "Returns null if shape is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "shapeId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Target shape ID or shape name."
+          }
+        ],
+        "returns": {
+          "type": "Object|null",
+          "description": "Normalized shape descriptor or null if not found."
+        },
+        "exampleCode": "const shape = ppt.getShape('HeroCard');\nif (shape) console.log(shape.width, shape.height);"
+      },
+      {
+        "id": "cloneshape",
+        "name": "cloneShape",
+        "signature": "ppt.cloneShape(shapeId, clonedShapeId, clonedOptions = {})",
+        "category": "Shapes",
+        "description": "Duplicates an existing shape with a new ID, optional coordinate offsets or overrides, preserving formatting.",
+        "openXmlImpact": "Deep-clones <p:sp> node, assigns unique <p:cNvPr id=\"...\" name=\"...\">, and adjusts <a:off>.",
+        "edgeCases": "Throws PPTXError if source shape is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "shapeId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Source shape ID to duplicate."
+          },
+          {
+            "name": "clonedShapeId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "New identifier for cloned shape."
+          },
+          {
+            "name": "clonedOptions",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Position overrides (x, y) or styling properties."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.cloneShape('card_template', 'card_copy', { x: 400, y: 150, text: 'Second Card' });"
+      },
+      {
+        "id": "getgroupshapes",
+        "name": "getGroupShapes",
+        "signature": "ppt.getGroupShapes(groupId)",
+        "category": "Shapes",
+        "description": "Inspects a composite group container (<p:grpSp>) and returns normalized descriptors for all direct child shapes.",
+        "openXmlImpact": "Inspects <p:grpSp> children (<p:sp>) and reads their geometry and coordinates.",
+        "edgeCases": "Returns empty array if group ID does not exist or target element is not a group.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "groupId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Group shape ID or name."
+          }
+        ],
+        "returns": {
+          "type": "Array<Object>",
+          "description": "Array of child shape descriptors."
+        },
+        "exampleCode": "const children = ppt.getGroupShapes('CardGroup');\nchildren.forEach(c => console.log(c.name));"
+      },
+      {
+        "id": "groupshapes",
+        "name": "groupShapes",
+        "signature": "ppt.groupShapes(shapeIds, groupOptions = {})",
+        "category": "Shapes",
+        "description": "Groups multiple shapes into a composite group container (<p:grpSp>), computing composite bounding boxes (<p:grpSpPr> with <a:xfrm>, <a:chOff>, <a:chExt>).",
+        "openXmlImpact": "Constructs <p:grpSp>, moves targeted <p:sp> nodes into it, and updates slide z-order.",
+        "edgeCases": "Throws PPTXError if fewer than 2 shapes are provided or any shape is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "shapeIds",
+            "type": "string[]",
+            "required": true,
+            "default": "—",
+            "description": "Array of shape IDs or names to group."
+          },
+          {
+            "name": "groupOptions",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Group options (name, id)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.groupShapes(['icon', 'title', 'bg'], { name: 'CardGroup' });"
+      },
+      {
+        "id": "ungroupshapes",
+        "name": "ungroupShapes",
+        "signature": "ppt.ungroupShapes(groupId)",
+        "category": "Shapes",
+        "description": "Dissolves a composite group container (<p:grpSp>), re-projecting child coordinate transforms back to canvas absolute EMUs, and appends shapes back to parent slide.",
+        "openXmlImpact": "Unnests child <p:sp> nodes from <p:grpSp>, removes <p:grpSp>, and updates slide z-order.",
+        "edgeCases": "Throws PPTXError if group shape is not found or is not a group.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "groupId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Group shape ID or name to dissolve."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.ungroupShapes('CardGroup');"
+      }
+    ],
+    "Images & Media": [
+      {
+        "id": "addimage",
+        "name": "addImage",
+        "signature": "ppt.addImage(source, options = {}) / ppt.addImage(slideId, source, options = {})",
+        "category": "Images & Media",
+        "description": "Embeds a new image (PNG, JPEG, GIF, SVG, WebP) onto the specified slide or the active slide selected via useSlide(). Copies image binary data to ppt/media/, creates a relationship link in slide{N}.xml.rels, and synthesizes a compliant <p:pic> DrawingML picture element.",
+        "openXmlImpact": "Writes binary payload to ppt/media/image{N}.ext, registers relationship in slide{N}.xml.rels, and inserts <p:pic> with <a:blip r:embed=\"rId...\"/>.",
+        "edgeCases": "Supports file paths, remote URLs, Base64 Data URIs, raw Base64 strings, and binary Buffers. Accepts EMU and percentage coordinates.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "Active slide",
+            "description": "Optional 1-based slide index, slide ID, or tag. Inferred from useSlide() when omitted."
+          },
+          {
+            "name": "source",
+            "type": "string | Buffer",
+            "required": true,
+            "default": "—",
+            "description": "Local file path, remote URL, Base64 Data URI, raw Base64, or binary Buffer."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Position (x, y, width, height), rotation, opacity, crop, border, shadow."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "await ppt.useSlide(1).addImage('./assets/logo.png', { x: '5%', y: '5%', width: '20%', height: '15%' });"
+      },
+      {
+        "id": "updateimage",
+        "name": "updateImage",
+        "signature": "ppt.updateImage(imageId, options = {})",
+        "category": "Images & Media",
+        "description": "Updates an existing image element's position, dimensions, rotation, crop, opacity, border, shadow, or swaps its underlying binary source.",
+        "openXmlImpact": "Modifies <a:xfrm>, <a:srcRect>, <a:ln>, <a:alphaModFix>, and updates target relationship if source is swapped.",
+        "edgeCases": "Preserves aspect ratio if locked. Reuses existing relationship entry when updating source.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "imageId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID or name of the image."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Updated properties or replacement source."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "await ppt.updateImage('CompanyLogo', { x: '10%', y: '10%', rotation: 45 });"
+      },
+      {
+        "id": "removeimage",
+        "name": "removeImage",
+        "signature": "ppt.removeImage(imageId)",
+        "category": "Images & Media",
+        "description": "Locates and deletes an image shape from <p:spTree> and purges orphaned relationship references from the slide's .rels file.",
+        "openXmlImpact": "Deletes <p:pic> from <p:spTree> and removes orphaned <Relationship> from slide .rels.",
+        "edgeCases": "Safely handles non-existent IDs without throwing errors.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "imageId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID, name, or relationship ID of the image to remove."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.removeImage('OldLogo');"
+      },
+      {
+        "id": "addvideo",
+        "name": "addVideo",
+        "signature": "ppt.addVideo(source, options = {}) / ppt.addVideo(slideId, source, options = {})",
+        "category": "Images & Media",
+        "description": "Embeds a video (MP4, AVI, MOV) onto the specified slide or active slide selected via useSlide() with poster frame, coordinates, and playback timing bindings.",
+        "openXmlImpact": "Stores video file in ppt/media/, creates video and media relationships, and appends <p:pic> with <a:videoFile>, <p14:media>, and optional <p:timing> sequences.",
+        "edgeCases": "Supports local file path, remote URL, Base64 Data URI, raw Base64, or binary Buffer. Automatically generates poster frame if none provided.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "Active slide",
+            "description": "Optional 1-based slide index, slide ID, or tag. Inferred from useSlide() when omitted."
+          },
+          {
+            "name": "source",
+            "type": "string | Buffer",
+            "required": true,
+            "default": "—",
+            "description": "Video file path, remote URL, Base64 string, or binary Buffer."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Position, poster, loop, mute, autoplay, startTime, endTime."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "await ppt.useSlide(1).addVideo('./video.mp4', { x: '10%', y: '10%', width: '50%', height: '40%', autoplay: true, loop: true });"
+      },
+      {
+        "id": "updatevideo",
+        "name": "updateVideo",
+        "signature": "ppt.updateVideo(videoId, options = {})",
+        "category": "Images & Media",
+        "description": "Updates an existing video's bounding dimensions, poster frame, loop, mute, autoplay, and trim timing.",
+        "openXmlImpact": "Updates <a:xfrm>, <p14:media> loop/mute/trim attributes, poster blip, and <p:timing> nodes.",
+        "edgeCases": "Preserves existing video stream while modifying metadata or poster frame.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "videoId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID or name of the video."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Updated bounds, loop, mute, autoplay, startTime, endTime, poster, or source."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "await ppt.updateVideo('PromoVideo', { loop: false, mute: true, startTime: 2.0, endTime: 10.0 });"
+      },
+      {
+        "id": "removevideo",
+        "name": "removeVideo",
+        "signature": "ppt.removeVideo(videoId)",
+        "category": "Images & Media",
+        "description": "Removes a video shape, associated playback timing sequences in <p:timing>, and relationship entries without schema corruption.",
+        "openXmlImpact": "Deletes <p:pic> node, clears timing sequence triggers, and removes video/media relationships.",
+        "edgeCases": "Prevents orphaned timing nodes in <p:timing> that could trigger PowerPoint repair prompts.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "videoId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID or name of the video to remove."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.removeVideo('PromoVideo');"
+      },
+      {
+        "id": "addaudio",
+        "name": "addAudio",
+        "signature": "ppt.addAudio(source, options = {}) / ppt.addAudio(slideId, source, options = {})",
+        "category": "Images & Media",
+        "description": "Embeds an audio file (MP3, WAV, M4A) onto the specified slide or active slide selected via useSlide() with volume control, loop setting, autoplay, and icon visibility toggles.",
+        "openXmlImpact": "Embeds audio in ppt/media/, creates audio relationship, and builds <p:pic> with <a:audioFile> and <p14:media> action geometry.",
+        "edgeCases": "Supports hideDuringShow to hide the speaker icon during presentation slide shows.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "Active slide",
+            "description": "Optional 1-based slide index, slide ID, or tag. Inferred from useSlide() when omitted."
+          },
+          {
+            "name": "source",
+            "type": "string | Buffer",
+            "required": true,
+            "default": "—",
+            "description": "Audio file path, remote URL, Base64 Data URI, raw Base64, or binary Buffer."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Position, volume, loop, autoplay, hideDuringShow, startTime, endTime."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "await ppt.useSlide(1).addAudio('./bgm.mp3', { volume: 75, loop: true, hideDuringShow: true });"
+      },
+      {
+        "id": "updateaudio",
+        "name": "updateAudio",
+        "signature": "ppt.updateAudio(audioId, options = {})",
+        "category": "Images & Media",
+        "description": "Updates audio playback properties including volume, loop, start/end trim time, icon position, and visibility during slide show.",
+        "openXmlImpact": "Modifies <p14:media> vol/loop/trim attributes and <p14:showWhenStopped> icon visibility flag.",
+        "edgeCases": "Supports volume scaling from 0 to 100%.",
+        "isStatic": false,
+        "isAsync": true,
+        "parameters": [
+          {
+            "name": "audioId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID or name of the audio element."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": true,
+            "default": "—",
+            "description": "Updated bounds, volume, loop, hideDuringShow, startTime, endTime, or source."
+          }
+        ],
+        "returns": {
+          "type": "Promise<PPTXTemplater>",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "await ppt.updateAudio('BackgroundMusic', { volume: 100, loop: false });"
+      },
+      {
+        "id": "removeaudio",
+        "name": "removeAudio",
+        "signature": "ppt.removeAudio(audioId)",
+        "category": "Images & Media",
+        "description": "Removes an audio shape, related sound timing nodes, and slide relationship entries.",
+        "openXmlImpact": "Deletes audio <p:pic> node and removes associated audio and icon relationships.",
+        "edgeCases": "Safely removes without leaving orphaned media pointers.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "audioId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID or name of the audio element to remove."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.removeAudio('BackgroundMusic');"
+      },
+      {
+        "id": "getmedias",
+        "name": "getMedias",
+        "signature": "ppt.getMedias(slideId)",
+        "category": "Images & Media",
+        "description": "Queries and returns metadata descriptors for all media items (images, videos, audio) on a slide or entire presentation.",
+        "openXmlImpact": "Inspects slide <p:spTree>, resolves relationship targets, extracts dimensions, format, MIME types, and sizes.",
+        "edgeCases": "Classifies images, videos, and audio accurately based on DrawingML element signatures.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "undefined",
+            "description": "Optional slide index, ID, or tag. Defaults to active slide(s) or all slides."
+          }
+        ],
+        "returns": {
+          "type": "Array<Object>",
+          "description": "Array of media metadata objects."
+        },
+        "exampleCode": "const medias = ppt.useSlide(1).getMedias();\nconsole.log('Medias on slide 1:', medias);"
+      },
+      {
+        "id": "getmedia",
+        "name": "getMedia",
+        "signature": "ppt.getMedia(mediaId)",
+        "category": "Images & Media",
+        "description": "Locates a specific media element by ID, name, or relationship ID across slides and returns detailed metadata.",
+        "openXmlImpact": "Traverses DrawingML shape tree to find matching media item.",
+        "edgeCases": "Returns null if media item is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "mediaId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID, name, or relationship ID."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Media metadata object or null."
+        },
+        "exampleCode": "const logo = ppt.getMedia('CompanyLogo');"
+      },
+      {
+        "id": "clonemedia",
+        "name": "cloneMedia",
+        "signature": "ppt.cloneMedia(mediaId, clonedMediaId, clonedOptions = {})",
+        "category": "Images & Media",
+        "description": "Duplicates an existing media item and places it on the slide with property overrides while deduplicating underlying binary assets in ppt/media/.",
+        "openXmlImpact": "Clones <p:pic> XML node and reuses existing relationship rId without creating duplicate media files.",
+        "edgeCases": "Guarantees zero byte duplication for cloned assets in ppt/media/.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "mediaId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID or name of media item to clone."
+          },
+          {
+            "name": "clonedMediaId",
+            "type": "string | number",
+            "required": false,
+            "default": "undefined",
+            "description": "New name or ID for cloned shape."
+          },
+          {
+            "name": "clonedOptions",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Position, dimensions, or rotation overrides."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).cloneMedia('CompanyLogo', 'SecondaryLogo', { x: '50%', y: '50%' });"
+      }
+    ],
+    "Elements": [
+      {
+        "id": "getelements",
+        "name": "getElements",
+        "signature": "ppt.getElements(slideIdOrFilter, filter)",
+        "category": "Elements",
+        "description": "Queries all visual elements (shapes, images, videos, audio, tables, charts) residing on targeted slide(s) with complete normalized metadata.",
+        "openXmlImpact": "Traverses child nodes of <p:spTree> across <p:sp>, <p:pic>, <p:graphicFrame>, <p:grpSp>, and <p:cxnSp>.",
+        "edgeCases": "Returns empty array if slide has no visual elements. Supports spatial bounds and type filters.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideIdOrFilter",
+            "type": "number | string | Object",
+            "required": false,
+            "default": "—",
+            "description": "1-based slide index, tag, or filter options object."
+          },
+          {
+            "name": "filter",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Optional filter criteria: { type, name, id, within, intersects }."
+          }
+        ],
+        "returns": {
+          "type": "ElementDescriptor[]",
+          "description": "Array of normalized element metadata descriptors."
+        },
+        "exampleCode": "const elements = ppt.useSlide(1).getElements();\nconst shapes = ppt.getElements(1, { type: 'shape' });"
+      },
+      {
+        "id": "getelement",
+        "name": "getElement",
+        "signature": "ppt.getElement(elementId, slideId)",
+        "category": "Elements",
+        "description": "Inspects and retrieves detailed metadata for a single element by its ID or name on targeted slide(s).",
+        "openXmlImpact": "Locates the matching node in <p:spTree> and computes its bounding coordinates.",
+        "edgeCases": "Returns null if element identifier is not found on targeted slide.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "elementId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Element ID or shape name."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
+          }
+        ],
+        "returns": {
+          "type": "ElementDescriptor | null",
+          "description": "Normalized element descriptor or null."
+        },
+        "exampleCode": "const header = ppt.useSlide(1).getElement('HeroHeader');\nconsole.log(header.type, header.bounds);"
+      },
+      {
+        "id": "removeelement",
+        "name": "removeElement",
+        "signature": "ppt.removeElement(elementId, slideId)",
+        "category": "Elements",
+        "description": "Safely purges any visual element type from the slide canvas and unlinks orphaned relationship references in ppt/slides/_rels/slideN.xml.rels.",
+        "openXmlImpact": "Deletes element node from <p:spTree> and unlinks unreferenced relationship IDs from slide .rels.",
+        "edgeCases": "Preserves slide layout relationships and shared assets. No-op with warning if element not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "elementId",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeElement('TemporaryLogo');\nppt.removeElement({ slide: 2, elementId: 'OldChart' });"
+      },
+      {
+        "id": "removeallelements",
+        "name": "removeAllElements",
+        "signature": "ppt.removeAllElements(slideId, options)",
+        "category": "Elements",
+        "description": "Clears all visual elements from the slide canvas while strictly preserving <p:nvGrpSpPr>, <p:grpSpPr>, and layout bindings.",
+        "openXmlImpact": "Empties visual child arrays in <p:spTree> and unlinks orphaned element relationships.",
+        "edgeCases": "Retains slide layout references and optionally preserves layout placeholders with { preservePlaceholders: true }.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number | string | Object",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index, tag, or options object."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Options: { preservePlaceholders?: boolean }."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeAllElements();\nppt.removeAllElements(2, { preservePlaceholders: true });"
+      },
+      {
+        "id": "setzorder",
+        "name": "setZOrder",
+        "signature": "ppt.setZOrder(elementId, zIndex, slideId)",
+        "category": "Elements",
+        "description": "Sets the explicit visual stacking order (Z-index) of an element within the slide shape tree.",
+        "openXmlImpact": "Reorders child nodes inside <p:spTree> without altering required leading group properties.",
+        "edgeCases": "Clamps index within valid bounds [1, count]. Protects non-visual container headers.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "elementId",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "zIndex",
+            "type": "number",
+            "required": false,
+            "default": "—",
+            "description": "Target stacking order index."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).setZOrder('WatermarkShape', 1);\nppt.setZOrder('ForegroundCard', 4);"
+      },
+      {
+        "id": "bringtofront",
+        "name": "bringToFront",
+        "signature": "ppt.bringToFront(elementId, slideId)",
+        "category": "Elements",
+        "description": "Moves an element to the very top of the visual stacking order, ensuring it renders above all other elements.",
+        "openXmlImpact": "Repositions element node to the end of child elements in <p:spTree>.",
+        "edgeCases": "Safe no-op if element is already at the topmost layer.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "elementId",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).bringToFront('active_badge');"
+      },
+      {
+        "id": "sendtoback",
+        "name": "sendToBack",
+        "signature": "ppt.sendToBack(elementId, slideId)",
+        "category": "Elements",
+        "description": "Moves an element to the bottom of the visual stacking order, behind all other shapes and content.",
+        "openXmlImpact": "Repositions element node to the beginning of drawing child elements in <p:spTree> directly after group headers.",
+        "edgeCases": "Safe no-op if element is already at the bottommost layer.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "elementId",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).sendToBack('background_card');"
+      },
+      {
+        "id": "bringforward",
+        "name": "bringForward",
+        "signature": "ppt.bringForward(elementId, slideId)",
+        "category": "Elements",
+        "description": "Increments the visual layer of an element by one step forward in the stacking hierarchy.",
+        "openXmlImpact": "Swaps element node with its immediate next sibling in <p:spTree>.",
+        "edgeCases": "Safe no-op if element is already at the topmost position.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "elementId",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).bringForward('icon_overlay');"
+      },
+      {
+        "id": "sendbackward",
+        "name": "sendBackward",
+        "signature": "ppt.sendBackward(elementId, slideId)",
+        "category": "Elements",
+        "description": "Decrements the visual layer of an element by one step backward in the stacking hierarchy.",
+        "openXmlImpact": "Swaps element node with its immediate previous sibling in <p:spTree>.",
+        "edgeCases": "Safe no-op if element is already at the bottommost position.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "elementId",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Element ID, shape name, or options object."
+          },
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "active",
+            "description": "1-based slide index or tag."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).sendBackward('shadow_shape');"
+      },
+      {
+        "id": "addhyperlink",
+        "name": "addHyperlink",
+        "signature": "ppt.addHyperlink(targetId, urlOrAction, options)",
+        "category": "Elements",
+        "description": "Binds an external web URL, inter-slide transition jump, or slideshow navigation action to an entire shape, textbox, image, or container.",
+        "openXmlImpact": "Generates <a:hlinkClick r:id=\"rId...\" tooltip=\"...\" action=\"...\"/> inside <p:cNvPr> and adds corresponding relationship to slide .rels.",
+        "edgeCases": "Rejects unsafe javascript: URLs with PPTXError. Supports targetSlide numbers for internal slide jumps. Replaces any existing shape hyperlink safely.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "targetId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID or shape name to make clickable."
+          },
+          {
+            "name": "urlOrAction",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Destination web URL (e.g. \"https://...\"), decoupled action preset (\"nextSlide\", \"previousSlide\", \"firstSlide\", \"lastSlide\", \"endShow\"), slide index (number), or options object."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Additional hyperlink options (tooltip, action, targetSlide, slide, color, underline, bold, italic, fontSize)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).addHyperlink(\"NextBtn\", \"nextSlide\", { tooltip: \"Advance\" });\nppt.addHyperlink(\"Slide3Btn\", 3);"
+      },
+      {
+        "id": "updatehyperlink",
+        "name": "updateHyperlink",
+        "signature": "ppt.updateHyperlink(targetId, urlOrAction, options)",
+        "category": "Elements",
+        "description": "Modifies the target URL destination, action type, or ScreenTip tooltip of an existing hyperlink on a shape or container.",
+        "openXmlImpact": "Rewrites <a:hlinkClick> attributes in <p:cNvPr> and updates or replaces relationship targets in slide .rels.",
+        "edgeCases": "If target has no hyperlink, adds it automatically. Cleans up old orphaned relationships when changing link types.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "targetId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID or name whose hyperlink to update."
+          },
+          {
+            "name": "urlOrAction",
+            "type": "string | number | Object",
+            "required": false,
+            "default": "—",
+            "description": "New target URL, decoupled action preset (\"nextSlide\", \"previousSlide\", etc.), slide index, or options object."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Options object (tooltip, action, targetSlide, slide, color, underline, bold, italic)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).updateHyperlink(\"NextBtn\", \"previousSlide\");"
+      },
+      {
+        "id": "removehyperlink",
+        "name": "removeHyperlink",
+        "signature": "ppt.removeHyperlink(targetId)",
+        "category": "Elements",
+        "description": "Detaches a hyperlink from a shape, textbox, image, or text run, and purges orphaned relationship entries from slide .rels.",
+        "openXmlImpact": "Removes <a:hlinkClick> node from <p:cNvPr> or <a:rPr> and unlinks relationship from slide{N}.xml.rels.",
+        "edgeCases": "Safely verifies relationship is not shared before removing from .rels. Supports shape ID, shape name, or text query.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "targetId",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID, name, or options object { targetId, shapeName, text, slide }."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).removeHyperlink('OldLinkBtn');\nppt.removeHyperlink({ text: 'Deprecated link', slide: 2 });"
+      },
+      {
+        "id": "gethyperlinks",
+        "name": "getHyperlinks",
+        "signature": "ppt.getHyperlinks(slideId)",
+        "category": "Elements",
+        "description": "Extracts and inspects all hyperlinks (shape-level and inline text run-level) defined on the targeted slide.",
+        "openXmlImpact": "Read-only traversal of slide XML AST and slide{N}.xml.rels mappings without mutating DOM.",
+        "edgeCases": "Returns empty array if slide has no hyperlinks or invalid slide ID. Normalizes internal slide destinations.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number",
+            "required": false,
+            "default": "active slide",
+            "description": "1-based slide index."
+          }
+        ],
+        "returns": {
+          "type": "Array<Object>",
+          "description": "List of normalized hyperlink descriptors with targetId, url, isInternal, targetSlide, tooltip, and type."
+        },
+        "exampleCode": "const links = ppt.useSlide(1).getHyperlinks();\nconsole.log('Slide 1 links:', links);"
+      },
+      {
+        "id": "gethyperlink",
+        "name": "getHyperlink",
+        "signature": "ppt.getHyperlink(targetId)",
+        "category": "Elements",
+        "description": "Retrieves the hyperlink configuration and target destination for a specific element or text run.",
+        "openXmlImpact": "Read-only inspection of target shape <p:cNvPr> or text run <a:rPr>.",
+        "edgeCases": "Returns null if target element has no hyperlink attached or target is not found.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "targetId",
+            "type": "string | number",
+            "required": true,
+            "default": "—",
+            "description": "Shape ID, shape name, or text string to query."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Hyperlink descriptor object or null if not found."
+        },
+        "exampleCode": "const link = ppt.useSlide(1).getHyperlink('LearnMoreBtn');\nif (link) console.log('Target URL:', link.url);"
+      },
+      {
+        "id": "sethyperlink",
+        "name": "setHyperlink",
+        "signature": "ppt.setHyperlink(targetId, text, urlOrAction, options)",
+        "category": "Elements",
+        "description": "Locates a specific text substring inside a shape/textbox, isolates it into a split text run via AST run splitting/healing, attaches an OpenXML hyperlink, and applies custom typography styling overrides.",
+        "openXmlImpact": "Splits <a:r> text runs in <p:txBody>, attaches <a:hlinkClick> under <a:rPr>, and applies styling attributes (<a:solidFill>, @_u, @_b, @_i).",
+        "edgeCases": "Handles substrings split across multiple fractured runs. Applies PowerPoint link blue (#0563C1) and underline by default.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "targetId",
+            "type": "string | number | null",
+            "required": false,
+            "default": "null",
+            "description": "Shape ID or name containing text, or null to search across active slide."
+          },
+          {
+            "name": "text",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Exact text substring to make clickable."
+          },
+          {
+            "name": "urlOrAction",
+            "type": "string | number | Object",
+            "required": true,
+            "default": "—",
+            "description": "Target destination URL, decoupled action preset (\"nextSlide\", etc.), destination slide number, or options object."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Styling and hyperlink options (color, underline, bold, italic, fontSize, tooltip, slide)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (chainable)."
+        },
+        "exampleCode": "ppt.useSlide(1).setHyperlink(\"SummaryCard\", \"Next Step\", \"nextSlide\", {\n  color: \"#0066CC\",\n  underline: true,\n  bold: true,\n  tooltip: \"Go to Next Step\"\n});"
+      }
+    ],
+    "Tables": [
+      {
+        "id": "addtable",
+        "name": "addTable",
+        "signature": "ppt.addTable(slideId, rows, columns, data, options)",
+        "category": "Tables",
+        "description": "Creates a brand-new DrawingML table with support for polymorphic cell data (primitives, styled values, and shape overlays with inside/outside text).",
+        "openXmlImpact": "Appends a new <p:graphicFrame> enclosing <a:tbl> with <a:tblPr>, <a:tblGrid>, and <a:tr> rows to <p:spTree>.",
+        "edgeCases": "Generates ISO/IEC 29500 compliant unique row GUIDs (<a16:rowId>) and handles percentage coordinate scaling across slide dimensions.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number | string | Object",
+            "required": true,
+            "default": "—",
+            "description": "Slide number/ID, or table configuration object."
+          },
+          {
+            "name": "rows",
+            "type": "number",
+            "required": false,
+            "default": "2",
+            "description": "Number of table rows."
+          },
+          {
+            "name": "columns",
+            "type": "number",
+            "required": false,
+            "default": "2",
+            "description": "Number of table columns."
+          },
+          {
+            "name": "data",
+            "type": "Array<Array<TableCellData>>",
+            "required": false,
+            "default": "[]",
+            "description": "Initial 2D matrix of row and cell values. Supports primitives (string, number, boolean), styled objects ({ value, style: { fontSize, color, bold, fill, ... } }), and shape overlays ({ shape: { type, fill, ... }, text, textPosition: \"inside\" | \"outside\" })."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Geometry, styling, and positioning options (x, y, width, height, firstRow, bandRow, styleId)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.addTable(1, 3, 3, [\n  [\"Department\", \"Target\", \"Status\"],\n  [\"Engineering\", 125000, { shape: { type: \"roundRect\", fill: \"#10B981\" }, text: \"Done\", textPosition: \"inside\" }],\n  [\"Marketing\", { value: 85000, style: { bold: true, color: \"#15803D\" } }, { shape: { type: \"circle\", fill: \"#EF4444\" }, text: \"Critical\", textPosition: \"outside\" }]\n], { x: \"10%\", y: \"15%\", width: \"80%\", height: \"50%\", firstRow: true });"
+      },
+      {
+        "id": "updatetable",
+        "name": "updateTable",
+        "signature": "ppt.updateTable(tableId, options)",
+        "category": "Tables",
+        "description": "Updates table geometry, position, column widths, row heights, or table-level properties.",
+        "openXmlImpact": "Mutates <a:xfrm> transform coordinates and <a:tblPr> table properties.",
+        "edgeCases": "Maintains proportional column distributions if overall width changes without explicit colWidths.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Updates for position (x, y, width, height), firstRow, bandRow, etc."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.updateTable('SalesTable', { x: 200, y: 150, width: 600, height: 300, firstRow: true });"
+      },
+      {
+        "id": "updatetabledata",
+        "name": "updateTableData",
+        "signature": "ppt.updateTableData(tableId, data)",
+        "category": "Tables",
+        "description": "Replaces matrix cell data while strictly preserving existing column widths, cell styling, and row heights.",
+        "openXmlImpact": "Iterates existing <a:tr> and <a:tc> nodes, replacing text content in <a:txBody> without schema reconstruction.",
+        "edgeCases": "Gracefully expands or truncates cells if incoming matrix dimensions differ from existing grid.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "data",
+            "type": "Array<Array<TableCellData>>",
+            "required": true,
+            "default": "[]",
+            "description": "2D matrix of cell data. Accepts primitives, styled values, and shape overlays ({ shape, text, textPosition })."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.updateTableData('SalesTable', [\n  ['Metric', 'Target', 'Actual'],\n  ['Revenue', '$1.2M', '$1.35M'],\n  ['EBITDA', '$300K', '$340K']\n]);"
+      },
+      {
+        "id": "removetable",
+        "name": "removeTable",
+        "signature": "ppt.removeTable(tableId)",
+        "category": "Tables",
+        "description": "Purges a table and its container graphic frame from the slide cleanly without orphaned relationships.",
+        "openXmlImpact": "Removes the target <p:graphicFrame> from the slide <p:spTree>.",
+        "edgeCases": "Throws TableNotFoundError if the table identifier cannot be located across targeted slides.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.removeTable('OldFinancialTable');"
+      },
+      {
+        "id": "gettables",
+        "name": "getTables",
+        "signature": "ppt.getTables(slideId)",
+        "category": "Tables",
+        "description": "Discovers and retrieves normalized metadata for all tables on the specified or active slides.",
+        "openXmlImpact": "Non-destructive read of <p:graphicFrame> nodes and <a:tbl> properties.",
+        "edgeCases": "Returns an empty array if no tables exist on the slide.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "slideId",
+            "type": "number | string",
+            "required": false,
+            "default": "undefined",
+            "description": "Optional slide number or ID (queries active slides if omitted)."
+          }
+        ],
+        "returns": {
+          "type": "Array<Object>",
+          "description": "List of table descriptors (id, name, rows, columns, x, y, width, height, properties)."
+        },
+        "exampleCode": "const tables = ppt.getTables(1);\nconsole.log(`Found ${tables.length} tables on Slide 1.`);"
+      },
+      {
+        "id": "gettable",
+        "name": "getTable",
+        "signature": "ppt.getTable(tableId)",
+        "category": "Tables",
+        "description": "Retrieves detailed metadata, row/col counts, position, properties, and cell data for a specific table.",
+        "openXmlImpact": "Non-destructive query of table graphic frame AST.",
+        "edgeCases": "Returns null if the table identifier is not found on targeted slides.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Normalized table metadata object, or null if not found."
+        },
+        "exampleCode": "const table = ppt.getTable('SalesTable');\nif (table) console.log(`Dimensions: ${table.rows}x${table.columns}`);"
+      },
+      {
+        "id": "clonetable",
+        "name": "cloneTable",
+        "signature": "ppt.cloneTable(tableId, clonedTableId, clonedOptions)",
+        "category": "Tables",
+        "description": "Deep-clones an existing table, assigning a new identifier and applying positioning or dimension overrides.",
+        "openXmlImpact": "Duplicates <p:graphicFrame>, re-keys shape ID (<p:cNvPr>), and assigns fresh ISO/IEC 29500 row IDs (<a16:rowId>).",
+        "edgeCases": "Preserves complete cell styling, formatting, and border hierarchy in the cloned copy.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Source table name or shape ID."
+          },
+          {
+            "name": "clonedTableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Unique identifier for the cloned table."
+          },
+          {
+            "name": "clonedOptions",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Positioning and dimension overrides (x, y, width, height)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.cloneTable('QuarterlyTemplate', 'Q2Summary', { y: '55%' });"
+      },
+      {
+        "id": "addtablerow",
+        "name": "addTableRow",
+        "signature": "ppt.addTableRow(tableId, rowIndex, data)",
+        "category": "Tables",
+        "description": "Inserts or appends a row to a table with cell values, automatically generating unique row IDs.",
+        "openXmlImpact": "Constructs a new <a:tr> with <a:tc> cells and unique <a16:rowId>, inserting into <a:tbl>.",
+        "edgeCases": "Clones formatting from adjacent row template when inserting to maintain visual consistency.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number | Array<*>",
+            "required": false,
+            "default": "undefined",
+            "description": "0-based insertion row index, or row data array if appending."
+          },
+          {
+            "name": "data",
+            "type": "Array<*>",
+            "required": false,
+            "default": "[]",
+            "description": "Row cell data array if rowIndex was specified."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.addTableRow('SalesTable', ['North Region', '$120,000', '+8%']);\nppt.addTableRow('SalesTable', 1, ['East Region', '$95,000', '+5%']);"
+      },
+      {
+        "id": "addtablecolumn",
+        "name": "addTableColumn",
+        "signature": "ppt.addTableColumn(tableId, columnIndex, data)",
+        "category": "Tables",
+        "description": "Inserts or appends a column in <a:tblGrid> and creates corresponding cells across all rows.",
+        "openXmlImpact": "Inserts <a:gridCol> into <a:tblGrid> and appends/inserts <a:tc> cell in every <a:tr>.",
+        "edgeCases": "Calculates default column width from adjacent grid columns to preserve total table geometry.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number | Array<*>",
+            "required": false,
+            "default": "undefined",
+            "description": "0-based insertion column index, or column data array if appending."
+          },
+          {
+            "name": "data",
+            "type": "Array<*>",
+            "required": false,
+            "default": "[]",
+            "description": "Column cell data if columnIndex was specified."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.addTableColumn('SalesTable', ['Q4 Target', '$140K', '$110K', '$160K']);"
+      },
+      {
+        "id": "removetablerow",
+        "name": "removeTableRow",
+        "signature": "ppt.removeTableRow(tableId, rowIndex)",
+        "category": "Tables",
+        "description": "Removes a row from a table by 0-based row index.",
+        "openXmlImpact": "Splices the target <a:tr> element from <a:tbl>.",
+        "edgeCases": "Validates row index bounds and throws PPTXError if out of bounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index to remove."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.removeTableRow('SalesTable', 2);"
+      },
+      {
+        "id": "removetablecolumn",
+        "name": "removeTableColumn",
+        "signature": "ppt.removeTableColumn(tableId, columnIndex)",
+        "category": "Tables",
+        "description": "Removes a column from a table by 0-based column index.",
+        "openXmlImpact": "Splices target <a:gridCol> from <a:tblGrid> and removes corresponding <a:tc> from each <a:tr>.",
+        "edgeCases": "Validates column index bounds and throws PPTXError if out of bounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index to remove."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.removeTableColumn('SalesTable', 1);"
+      },
+      {
+        "id": "updaterowdata",
+        "name": "updateRowData",
+        "signature": "ppt.updateRowData(tableId, rowIndex, data)",
+        "category": "Tables",
+        "description": "Updates cell text values along target row rowIndex while preserving existing cell styling.",
+        "openXmlImpact": "Mutates text runs (<a:t>) inside <a:txBody> of cells across the row.",
+        "edgeCases": "Preserves individual cell formatting, font colors, and backgrounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "data",
+            "type": "Array<TableCellData>",
+            "required": true,
+            "default": "[]",
+            "description": "Array of row values. Accepts primitives, styled values, and shape overlays."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.updateRowData('SalesTable', 1, ['Updated Region', '$150K', '12%']);"
+      },
+      {
+        "id": "updatecolumndata",
+        "name": "updateColumnData",
+        "signature": "ppt.updateColumnData(tableId, columnIndex, data)",
+        "category": "Tables",
+        "description": "Updates cell text values down target column columnIndex while preserving existing cell styling.",
+        "openXmlImpact": "Mutates text runs (<a:t>) inside <a:txBody> of cells down the column.",
+        "edgeCases": "Preserves individual cell formatting, font colors, and backgrounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          },
+          {
+            "name": "data",
+            "type": "Array<TableCellData>",
+            "required": true,
+            "default": "[]",
+            "description": "Array of column values. Accepts primitives, styled values, and shape overlays."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.updateColumnData('SalesTable', 1, ['$100', '$200', '$300']);"
+      },
+      {
+        "id": "updatetablecell",
+        "name": "updateTableCell",
+        "signature": "ppt.updateTableCell(tableId, rowIndex, columnIndex, options)",
+        "category": "Tables",
+        "description": "Updates cell text, typography, alignments, background fills, or attaches a positioned shape overlay (inside or outside text).",
+        "openXmlImpact": "Mutates <a:tcPr> cell properties and <a:txBody> text paragraph runs.",
+        "edgeCases": "Supports multiline strings (splits into paragraphs <a:p>) and XML entity escaping.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          },
+          {
+            "name": "options",
+            "type": "string | number | boolean | Object",
+            "required": true,
+            "default": "{}",
+            "description": "New cell value (primitive string/number/boolean), styled value object ({ value, style: { color, fill, ... } }), or cell shape overlay ({ shape: { type, fill, ... }, text, textPosition: \"inside\" | \"outside\" })."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.updateTableCell(\"Table1\", 1, 2, {\n  shape: { type: \"roundRect\", fill: \"#10B981\" },\n  text: \"Completed\",\n  textPosition: \"inside\",\n  textStyle: { color: \"#FFFFFF\", bold: true }\n});"
+      },
+      {
+        "id": "clearrowdata",
+        "name": "clearRowData",
+        "signature": "ppt.clearRowData(tableId, rowIndex)",
+        "category": "Tables",
+        "description": "Purges text content from all cells across rowIndex while preserving formatting, borders, and fills.",
+        "openXmlImpact": "Empties <a:t> text nodes in <a:txBody> without removing <a:tcPr> formatting.",
+        "edgeCases": "Ensures cell remains valid OpenXML by retaining an empty paragraph node <a:p>.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.clearRowData('SalesTable', 2);"
+      },
+      {
+        "id": "clearcolumndata",
+        "name": "clearColumnData",
+        "signature": "ppt.clearColumnData(tableId, columnIndex)",
+        "category": "Tables",
+        "description": "Purges text content from all cells down columnIndex while preserving formatting, borders, and fills.",
+        "openXmlImpact": "Empties <a:t> text nodes in <a:txBody> of target column cells without removing <a:tcPr>.",
+        "edgeCases": "Retains valid empty paragraph nodes <a:p> in DrawingML specification.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.clearColumnData('SalesTable', 1);"
+      },
+      {
+        "id": "clearcelldata",
+        "name": "clearCellData",
+        "signature": "ppt.clearCellData(tableId, rowIndex, columnIndex)",
+        "category": "Tables",
+        "description": "Purges text content from a single table cell while preserving underlying formatting and properties.",
+        "openXmlImpact": "Empties text node <a:t> in <a:txBody> while leaving <a:tcPr> intact.",
+        "edgeCases": "Preserves cell background fills, borders, anchors, and margins.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.clearCellData('SalesTable', 0, 0);"
+      },
+      {
+        "id": "gettabledata",
+        "name": "getTableData",
+        "signature": "ppt.getTableData(tableId)",
+        "category": "Tables",
+        "description": "Extracts raw string data from all cells in the table as a 2D matrix array.",
+        "openXmlImpact": "Non-destructive read of table cell text bodies.",
+        "edgeCases": "Returns empty strings for unpopulated or blank cells.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          }
+        ],
+        "returns": {
+          "type": "Array<Array<string>>",
+          "description": "2D matrix array of cell string values."
+        },
+        "exampleCode": "const matrix = ppt.getTableData('SalesTable');\nconsole.log(matrix);"
+      },
+      {
+        "id": "getcolumndata",
+        "name": "getColumnData",
+        "signature": "ppt.getColumnData(tableId, columnIndex)",
+        "category": "Tables",
+        "description": "Returns array of cell text values down the specified column index.",
+        "openXmlImpact": "Non-destructive read of column cells.",
+        "edgeCases": "Returns empty array if table or column index does not exist.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "Array<string>",
+          "description": "Column cell values."
+        },
+        "exampleCode": "const values = ppt.getColumnData('SalesTable', 1);"
+      },
+      {
+        "id": "getrowdata",
+        "name": "getRowData",
+        "signature": "ppt.getRowData(tableId, rowIndex)",
+        "category": "Tables",
+        "description": "Returns array of cell text values along the specified row index.",
+        "openXmlImpact": "Non-destructive read of row cells.",
+        "edgeCases": "Returns empty array if table or row index does not exist.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          }
+        ],
+        "returns": {
+          "type": "Array<string>",
+          "description": "Row cell values."
+        },
+        "exampleCode": "const values = ppt.getRowData('SalesTable', 0);"
+      },
+      {
+        "id": "getcolumn",
+        "name": "getColumn",
+        "signature": "ppt.getColumn(tableId, columnIndex)",
+        "category": "Tables",
+        "description": "Returns column metadata: index, width (EMU and pixels), and cell text data.",
+        "openXmlImpact": "Queries <a:tblGrid> col definitions and cell values.",
+        "edgeCases": "Returns null if table or column index is out of bounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Column descriptor object (index, width, widthPx, data)."
+        },
+        "exampleCode": "const col = ppt.getColumn('SalesTable', 0);\nconsole.log(`Col width: ${col.widthPx}px`);"
+      },
+      {
+        "id": "getrow",
+        "name": "getRow",
+        "signature": "ppt.getRow(tableId, rowIndex)",
+        "category": "Tables",
+        "description": "Returns row metadata: index, height (EMU and pixels), and cell text data.",
+        "openXmlImpact": "Queries <a:tr> definitions and row height attributes.",
+        "edgeCases": "Returns null if table or row index is out of bounds.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Row descriptor object (index, height, heightPx, data)."
+        },
+        "exampleCode": "const row = ppt.getRow('SalesTable', 0);\nconsole.log(`Row height: ${row.heightPx}px`);"
+      },
+      {
+        "id": "getcell",
+        "name": "getCell",
+        "signature": "ppt.getCell(tableId, rowIndex, columnIndex)",
+        "category": "Tables",
+        "description": "Returns detailed cell metadata, bounds, fill, anchor, rowSpan, gridSpan, and merge state.",
+        "openXmlImpact": "Queries <a:tc>, <a:tcPr>, and calculated spatial coordinates.",
+        "edgeCases": "Returns null if cell coordinate does not exist.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "Object | null",
+          "description": "Cell descriptor object (row, column, text, fill, anchor, rowSpan, gridSpan, isMerged, bounds)."
+        },
+        "exampleCode": "const cell = ppt.getCell('SalesTable', 0, 0);\nconsole.log(`Cell fill: ${cell.fill}`);"
+      },
+      {
+        "id": "getcelldata",
+        "name": "getCellData",
+        "signature": "ppt.getCellData(tableId, rowIndex, columnIndex)",
+        "category": "Tables",
+        "description": "Extracts raw string text from cell at (rowIndex, columnIndex).",
+        "openXmlImpact": "Non-destructive read of cell <a:txBody>.",
+        "edgeCases": "Returns empty string if cell is empty or does not exist.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "string",
+          "description": "Cell string text."
+        },
+        "exampleCode": "const text = ppt.getCellData('SalesTable', 0, 0);"
+      },
+      {
+        "id": "mergecells",
+        "name": "mergeCells",
+        "signature": "ppt.mergeCells(tableId, startRow, startColumn, endRow, endColumn)",
+        "category": "Tables",
+        "description": "Merges a rectangular region of table cells with ISO/IEC 29500 DrawingML compliance.",
+        "openXmlImpact": "Applies rowSpan/gridSpan to primary cell and hMerge/vMerge tags to covered secondary cells.",
+        "edgeCases": "Empties covered secondary cells to prevent duplicated rendering in PowerPoint.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string | Object",
+            "required": true,
+            "default": "—",
+            "description": "Table ID string or merge options object."
+          },
+          {
+            "name": "startRow",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based start row index."
+          },
+          {
+            "name": "startColumn",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based start column index."
+          },
+          {
+            "name": "endRow",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based end row index."
+          },
+          {
+            "name": "endColumn",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based end column index."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.mergeCells('SalesTable', 0, 0, 0, 2);"
+      },
+      {
+        "id": "splitcell",
+        "name": "splitCell",
+        "signature": "ppt.splitCell(tableId, rowIndex, columnIndex)",
+        "category": "Tables",
+        "description": "Restores a merged region back into independent matrix cells by clearing rowSpan, gridSpan, hMerge, and vMerge.",
+        "openXmlImpact": "Purges merge attributes across the merged rectangle, restoring cell boundaries.",
+        "edgeCases": "Can be called on the primary anchor cell or any covered secondary cell in the region.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string | Object",
+            "required": true,
+            "default": "—",
+            "description": "Table ID string or split options object."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": false,
+            "default": "0",
+            "description": "0-based column index."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.splitCell('SalesTable', 0, 0);"
+      },
+      {
+        "id": "styletable",
+        "name": "styleTable",
+        "signature": "ppt.styleTable(tableId, options)",
+        "category": "Tables",
+        "description": "Applies table-wide styling, alternating row/column bands, headers, and borders.",
+        "openXmlImpact": "Configures <a:tblPr> properties and iterates <a:tcPr> cells applying alternating solid fills and borders.",
+        "edgeCases": "Supports headerFill, oddFill, evenFill, bandRow, bandCol, and border presets.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Styling options (firstRow, bandRow, headerFill, oddFill, evenFill, border, fontSize)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.styleTable('SalesTable', { headerFill: '1E3A8A', oddFill: 'F8FAFC', evenFill: 'FFFFFF', border: { color: 'CBD5E1', width: 1 } });"
+      },
+      {
+        "id": "stylecolumn",
+        "name": "styleColumn",
+        "signature": "ppt.styleColumn(tableId, columnIndex, options)",
+        "category": "Tables",
+        "description": "Applies fills, typography, alignments, and borders down a target column.",
+        "openXmlImpact": "Mutates <a:tcPr> and text properties of every cell in the column.",
+        "edgeCases": "Preserves individual row height and other column formatting.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Column styling options (fill, bold, color, align, border)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.styleColumn('SalesTable', 1, { fill: 'E0E7FF', bold: true, align: 'ctr' });"
+      },
+      {
+        "id": "stylerow",
+        "name": "styleRow",
+        "signature": "ppt.styleRow(tableId, rowIndex, options)",
+        "category": "Tables",
+        "description": "Applies fills, typography, height, and borders across a target row.",
+        "openXmlImpact": "Mutates <a:tr @_h=\"...\"> height and cell properties <a:tcPr> across the row.",
+        "edgeCases": "Translates row height from points to EMUs accurately.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Row styling options (fill, color, bold, height, border)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.styleRow('SalesTable', 0, { fill: '1E3A8A', color: 'FFFFFF', bold: true, height: 35 });"
+      },
+      {
+        "id": "stylecell",
+        "name": "styleCell",
+        "signature": "ppt.styleCell(tableId, rowIndex, columnIndex, options)",
+        "category": "Tables",
+        "description": "Applies solid fill, vertical alignment, margins, typography, and borders to a specific cell.",
+        "openXmlImpact": "Mutates cell <a:tcPr> (<a:solidFill>, @_anchor, @_marL, @_marR, @_marT, @_marB, <a:lnL>, <a:lnR>, <a:lnT>, <a:lnB>).",
+        "edgeCases": "Supports hex colors, borders on individual edges (borderLeft, borderRight, borderTop, borderBottom), and padding.",
+        "isStatic": false,
+        "isAsync": false,
+        "parameters": [
+          {
+            "name": "tableId",
+            "type": "string",
+            "required": true,
+            "default": "—",
+            "description": "Table name or shape ID."
+          },
+          {
+            "name": "rowIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based row index."
+          },
+          {
+            "name": "columnIndex",
+            "type": "number",
+            "required": true,
+            "default": "—",
+            "description": "0-based column index."
+          },
+          {
+            "name": "options",
+            "type": "Object",
+            "required": false,
+            "default": "{}",
+            "description": "Cell styling options (fill, align, verticalAlign, margins, border)."
+          }
+        ],
+        "returns": {
+          "type": "PPTXTemplater",
+          "description": "this (fluent chaining)"
+        },
+        "exampleCode": "ppt.styleCell('SalesTable', 1, 2, { fill: '10B981', align: 'ctr', verticalAlign: 'ctr', border: { color: '047857', width: 2 } });"
+      }
+    ]
+  }
+}

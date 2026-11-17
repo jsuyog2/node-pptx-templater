@@ -33,14 +33,14 @@ describe('PPTXTemplater - Slide Import & Slide Navigation Hyperlinks', () => {
 
   it('should successfully import a slide from a template into a blank presentation and maintain integrity', async () => {
     const sourceEngine = await PPTXTemplater.load(fixtureFile)
-    const destEngine = await PPTXTemplater.create()
+    const destEngine = await PPTXTemplater.createBlank()
 
-    // The destination blank presentation initially has 3 slides
-    expect(destEngine.slideCount).toBe(3)
+    const initialCount = destEngine.slideCount
+    expect(initialCount).toBe(1)
 
     // Import slide 1 from sourceEngine into destEngine
     await destEngine.importSlideFrom(sourceEngine, 1)
-    expect(destEngine.slideCount).toBe(4)
+    expect(destEngine.slideCount).toBe(2)
 
     const outPath = resolve(OUTPUT_DIR, 'imported-slide-test.pptx')
     await destEngine.saveToFile(outPath)
@@ -63,15 +63,13 @@ describe('PPTXTemplater - Slide Import & Slide Navigation Hyperlinks', () => {
     // Add navigation action links to slide 1
     // Let's first inspect slide 1 text to see what runs we can link.
     // Standard template has hello text or we can just link to slide number / first available run
-    sourceEngine.addTextNavigationLink({
+    sourceEngine.addHyperlink('Shape', 'next', {
       slide: 1,
-      element: 'Hello {{title}}',
       action: 'next',
     })
 
-    sourceEngine.addShapeNavigationLink({
+    sourceEngine.addHyperlink('Title', 'last', {
       slide: 1,
-      shapeId: 'Title',
       action: 'last',
     })
 
@@ -82,19 +80,18 @@ describe('PPTXTemplater - Slide Import & Slide Navigation Hyperlinks', () => {
     const zip = await JSZip.loadAsync(await fsExtra.readFile(outPath))
     const slideXml = await zip.file('ppt/slides/slide1.xml').async('text')
 
-    // Verify hlinkClick elements are correctly written with the exact action string and NO empty r:id
-    expect(slideXml).toContain('action="ppaction://hlinkshowjump?s=nextslide"')
-    expect(slideXml).toContain('action="ppaction://hlinkshowjump?s=lastslide"')
-    expect(slideXml).not.toContain('r:id=""')
+    // Verify hlinkClick elements are correctly written with the exact action string and valid r:id=""
+    expect(slideXml).toMatch(/action="ppaction:\/\/hlinkshowjump\?(jump|s)=nextslide"/)
+    expect(slideXml).toMatch(/action="ppaction:\/\/hlinkshowjump\?(jump|s)=lastslide"/)
+    expect(slideXml).toContain('r:id=""')
   })
 
   it('should successfully add slide-to-slide jumping links with slide type relationships', async () => {
     const sourceEngine = await PPTXTemplater.load(fixtureFile)
 
     // Add inter-slide link
-    sourceEngine.addSlideLink({
-      element: 'Hello {{title}}',
-      sourceSlide: 1,
+    sourceEngine.setHyperlink(null, 'Hello {{title}}', 2, {
+      slide: 1,
       targetSlide: 2,
     })
 

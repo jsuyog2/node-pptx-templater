@@ -106,7 +106,7 @@ describe('PPTX Lists Integration Tests', () => {
 
   it('should support replacing simple bulleted lists inside shapes', async () => {
     const ppt = await PPTXTemplater.load(FIXTURE_FILE)
-    ppt.useSlide(1).updateText('Title', {
+    ppt.useSlide(1).replaceList('Title', {
       list: ['Bullet Point A', 'Bullet Point B'],
     })
 
@@ -122,7 +122,7 @@ describe('PPTX Lists Integration Tests', () => {
 
   it('should support numbered/ordered lists', async () => {
     const ppt = await PPTXTemplater.load(FIXTURE_FILE)
-    ppt.useSlide(1).updateText('Title', {
+    ppt.useSlide(1).replaceList('Title', {
       ordered: true,
       list: ['Step 1', 'Step 2'],
     })
@@ -138,7 +138,7 @@ describe('PPTX Lists Integration Tests', () => {
 
   it('should support multi-level nested lists', async () => {
     const ppt = await PPTXTemplater.load(FIXTURE_FILE)
-    ppt.useSlide(1).updateText('Title', {
+    ppt.useSlide(1).replaceList('Title', {
       list: [
         'Root item',
         {
@@ -174,7 +174,7 @@ describe('PPTX Lists Integration Tests', () => {
 
   it('should support styled lists with fonts, colors, bullet custom character, and size overrides', async () => {
     const ppt = await PPTXTemplater.load(FIXTURE_FILE)
-    ppt.useSlide(1).updateText('Title', {
+    ppt.useSlide(1).replaceList('Title', {
       list: ['Point Alpha', 'Point Beta'],
       style: {
         fontFamily: 'Arial',
@@ -207,7 +207,7 @@ describe('PPTX Lists Integration Tests', () => {
       ['{{CellPlaceholder}}', 'Cell Value', '', '', ''],
     ])
 
-    ppt.updateText('CellPlaceholder', {
+    ppt.replaceList('CellPlaceholder', {
       list: ['Table Bullet 1', 'Table Bullet 2'],
     })
 

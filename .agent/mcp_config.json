@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "e:/Code/pptx-templater"
+      ],
+      "env": {},
+      "description": "Local filesystem access server for inspecting repository sources, XML assets, test fixtures, and documentation schemas."
+    },
+    "git": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-server-git"
+      ],
+      "env": {},
+      "description": "Git repository operations server for inspecting branches, commit histories, staging diffs, and verifying clean working trees."
+    },
+    "test-runner": {
+      "command": "node",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "--run"
+      ],
+      "env": {
+        "NODE_ENV": "test",
+        "PPTX_LOG_LEVEL": "silent"
+      },
+      "description": "Automated test runner server executing unit and integration test suites via Vitest."
+    }
+  }
+}

@@ -22,10 +22,10 @@ module.exports = defineConfig({
       'tests/snapshot/**/*.test.js',
     ],
 
-    // Exclude benchmarks and examples
+    // Exclude benchmarks and showcase
     exclude: [
       'benchmarks/**',
-      'examples/**',
+      'showcase/**',
       'node_modules/**',
     ],
 
@@ -49,6 +49,7 @@ module.exports = defineConfig({
 
     // Timeout for integration tests (PPTX processing can take a bit)
     testTimeout: 30000,
+    hookTimeout: 30000,
 
     // Report format
     reporters: ['verbose'],

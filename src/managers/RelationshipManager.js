@@ -49,6 +49,9 @@ const REL_TYPES = {
   SLIDE_LAYOUT: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout',
   SLIDE_MASTER: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster',
   CHART: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart',
+  CHART_EX: 'http://schemas.microsoft.com/office/2014/relationships/chartEx',
+  CHART_STYLE: 'http://schemas.microsoft.com/office/2011/relationships/chartStyle',
+  CHART_COLOR_STYLE: 'http://schemas.microsoft.com/office/2011/relationships/chartColorStyle',
   IMAGE: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',
   HYPERLINK: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
   NOTES_SLIDE: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide',
@@ -61,6 +64,12 @@ const REL_TYPES = {
   EXTENDED_PROPERTIES:
     'http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties',
   PACKAGE: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/package',
+  COMMENT_AUTHORS:
+    'http://schemas.openxmlformats.org/officeDocument/2006/relationships/commentAuthors',
+  COMMENTS: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments',
+  VIDEO: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/video',
+  AUDIO: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/audio',
+  MEDIA: 'http://schemas.microsoft.com/office/2007/relationships/media',
 }
 
 /**
@@ -245,6 +254,16 @@ class RelationshipManager {
   }
 
   /**
+   * Completely removes all relationships for a part from the cache.
+   *
+   * @param {string} partPath - ZIP path of the part.
+   */
+  deleteRelationships(partPath) {
+    const key = this.#getNormalizedKey(partPath)
+    this.#relationships.delete(key)
+  }
+
+  /**
    * Updates the target of an existing relationship.
    *
    * @param {string} partPath - ZIP path of the owning part.
@@ -398,6 +417,27 @@ class RelationshipManager {
   }
 
   /**
+   * Sets the relationships array for a part in memory.
+   *
+   * @param {string} partPath
+   * @param {Relationship[]} rels
+   */
+  setRelationships(partPath, rels) {
+    const key = this.#getNormalizedKey(partPath)
+    this.#relationships.set(key, rels)
+  }
+
+  /**
+   * Flushes the relationships of a part.
+   *
+   * @param {string} partPath
+   */
+  flushRelationships(partPath) {
+    const key = this.#getNormalizedKey(partPath)
+    this.#flushRels(key, partPath)
+  }
+
+  /**
    * Scans all relationships and removes those pointing to missing internal targets.
    * This is part of the repair functionality.
    *
@@ -429,6 +469,28 @@ class RelationshipManager {
       }
     }
     logger.debug(`Removed ${removedCount} orphan relationship(s).`)
+  }
+
+  /**
+   * Checks if an internal target ZIP path is referenced by any relationship.
+   *
+   * @param {string} targetZipPath
+   * @returns {boolean}
+   */
+  isTargetReferenced(targetZipPath) {
+    if (!targetZipPath) return false
+    const normalizedTarget = targetZipPath.replace(/\\/g, '/')
+    for (const [relsPath, rels] of this.#relationships.entries()) {
+      const partPath = relsPath.replace('_rels/', '').replace('.rels', '')
+      for (const rel of rels) {
+        if (rel.targetMode === 'External') continue
+        const resolved = this.resolveTarget(partPath, rel.target)
+        if (resolved === normalizedTarget) {
+          return true
+        }
+      }
+    }
+    return false
   }
 }
 

@@ -364,6 +364,26 @@ function reportXmlComplexity(xmlString) {
   }
 }
 
+/**
+ * Sanitizes and validates a URL for use in OpenXML hyperlinks.
+ * Strips dangerous protocols (e.g. javascript:) to prevent code execution.
+ *
+ * @param {string} url - Target URL.
+ * @returns {string} Sanitized URL.
+ * @throws {PPTXError} If URL contains an unsafe protocol.
+ */
+function sanitizeUrl(url) {
+  if (typeof url !== 'string') {
+    if (url === null || url === undefined) return ''
+    return String(url).trim()
+  }
+  const trimmed = url.trim()
+  if (/^javascript:/i.test(trimmed)) {
+    throw new PPTXError('Unsafe javascript: URL is not permitted')
+  }
+  return trimmed
+}
+
 module.exports = {
   validateXml,
   validateXML,
@@ -375,4 +395,5 @@ module.exports = {
   scanForEntities,
   analyzeXmlFile,
   reportXmlComplexity,
+  sanitizeUrl,
 }

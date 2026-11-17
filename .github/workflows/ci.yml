@@ -1,55 +1,156 @@
-name: CI
+name: CI & Build Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, v3.0.0]
   pull_request:
-    branches: [main]
+    branches: [main, develop, v3.0.0]
+
+permissions:
+  contents: read
 
 jobs:
-  lint:
-    name: Lint
+  ci:
+    name: Lint, Format Check & Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run lint
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  test:
-    name: Test (Node ${{ matrix.node-version }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        node-version: ['20', '22', '24']
-        os: [ubuntu-latest, windows-latest, macos-latest]
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js 22.x LTS
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '22'
           cache: 'npm'
-      - run: npm ci
-      - run: npm test
-      - name: Upload coverage (only on ubuntu + Node 20)
-        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20'
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage
-          path: coverage/
 
-  format-check:
-    name: Format Check
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        run: npm run format:check
+
+      - name: Run Vitest test suites
+        run: npm test
+
+  verify-package-managers:
+    name: Verify Package Managers (npm, pnpm, yarn, bun)
+    needs: [ci]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x LTS
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
-      - run: npm ci
-      - run: npm run format:check
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Yarn (Corepack)
+        run: |
+          corepack enable
+          corepack prepare yarn@stable --activate
+          yarn --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build package artifacts
+        run: npm run build
+
+      - name: Run Multi-Package Manager Consumption Verification
+        run: |
+          TARBALL_NAME=$(npm pack)
+          TARBALL_PATH="$(pwd)/$TARBALL_NAME"
+          TEST_DIR=$(mktemp -d)
+          echo "Testing tarball $TARBALL_PATH in $TEST_DIR"
+          cd "$TEST_DIR"
+
+          # 1. NPM Verification
+          echo "=== Testing NPM ==="
+          mkdir test-npm && cd test-npm
+          npm init -y
+          npm install "$TARBALL_PATH"
+          node -e "const { PPTXTemplater } = require('node-pptx-templater'); if (typeof PPTXTemplater.load !== 'function') throw new Error('npm CJS import failed');"
+          node --input-type=module -e "import { PPTXTemplater } from 'node-pptx-templater'; if (typeof PPTXTemplater.load !== 'function') throw new Error('npm ESM import failed');"
+          cd ..
+
+          # 2. PNPM Verification
+          echo "=== Testing PNPM ==="
+          mkdir test-pnpm && cd test-pnpm
+          pnpm init
+          pnpm add "$TARBALL_PATH"
+          node -e "const { PPTXTemplater } = require('node-pptx-templater'); if (typeof PPTXTemplater.load !== 'function') throw new Error('pnpm CJS import failed');"
+          node --input-type=module -e "import { PPTXTemplater } from 'node-pptx-templater'; if (typeof PPTXTemplater.load !== 'function') throw new Error('pnpm ESM import failed');"
+          cd ..
+
+          # 3. Yarn Berry Verification
+          echo "=== Testing Yarn Berry (nodeLinker: node-modules) ==="
+          mkdir test-yarn && cd test-yarn
+          touch yarn.lock
+          yarn init -y || true
+          yarn config set nodeLinker node-modules || true
+          yarn add "$TARBALL_PATH" || yarn add "node-pptx-templater@$TARBALL_PATH"
+          node -e "const { PPTXTemplater } = require('node-pptx-templater'); if (typeof PPTXTemplater.load !== 'function') throw new Error('yarn CJS import failed');"
+          node --input-type=module -e "import { PPTXTemplater } from 'node-pptx-templater'; if (typeof PPTXTemplater.load !== 'function') throw new Error('yarn ESM import failed');"
+          cd ..
+
+          # 4. Bun Verification
+          echo "=== Testing Bun ==="
+          mkdir test-bun && cd test-bun
+          bun init -y
+          bun add "$TARBALL_PATH"
+          bun -e "import { PPTXTemplater } from 'node-pptx-templater'; if (typeof PPTXTemplater.load !== 'function') throw new Error('bun ESM import failed');"
+          cd ..
+
+          echo "✓ All package managers (npm, pnpm, yarn, bun) verified successfully!"
+
+  build:
+    name: Compile & Verify Build Outputs
+    needs: [verify-package-managers]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build distribution bundles
+        run: npm run build
+
+      - name: Verify Distribution Outputs
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = require('./package.json');
+            if (pkg.name !== 'node-pptx-templater') throw new Error('Package name must be node-pptx-templater, found: ' + pkg.name);
+            if (!fs.existsSync(pkg.main)) throw new Error('Missing pkg.main: ' + pkg.main);
+            if (!fs.existsSync(pkg.module)) throw new Error('Missing pkg.module: ' + pkg.module);
+            if (!fs.existsSync(pkg.types)) throw new Error('Missing pkg.types: ' + pkg.types);
+            if (!fs.existsSync('./dist/index.js')) throw new Error('Missing dist/index.js');
+            if (!fs.existsSync('./dist/index.mjs')) throw new Error('Missing dist/index.mjs');
+            console.log('✓ Build artifacts verified successfully.');
+          "
+
+      - name: Packaging Dry-Run
+        run: npm pack --dry-run

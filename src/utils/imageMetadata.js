@@ -21,16 +21,22 @@ async function getImageMetadata(source) {
   if (isBuffer) {
     buffer = Buffer.isBuffer(source) ? source : Buffer.from(source)
   } else if (typeof source === 'string') {
-    // Read only the first 8KB of the file
-    let fd
-    try {
-      fd = await openAsync(source, 'r')
-      const tempBuffer = Buffer.alloc(8192)
-      const { bytesRead } = await readAsync(fd, tempBuffer, 0, 8192, 0)
-      buffer = tempBuffer.subarray(0, bytesRead)
-    } finally {
-      if (fd !== undefined) {
-        await closeAsync(fd).catch(() => {})
+    if (source.startsWith('data:')) {
+      const commaIdx = source.indexOf(',')
+      const base64Data = commaIdx !== -1 ? source.slice(commaIdx + 1) : source
+      buffer = Buffer.from(base64Data, 'base64')
+    } else {
+      // Read only the first 8KB of the file
+      let fd
+      try {
+        fd = await openAsync(source, 'r')
+        const tempBuffer = Buffer.alloc(8192)
+        const { bytesRead } = await readAsync(fd, tempBuffer, 0, 8192, 0)
+        buffer = tempBuffer.subarray(0, bytesRead)
+      } finally {
+        if (fd !== undefined) {
+          await closeAsync(fd).catch(() => {})
+        }
       }
     }
   } else {
@@ -56,6 +62,30 @@ async function getImageMetadata(source) {
 
   if (buffer[0] === 0x42 && buffer[1] === 0x4d) {
     return parseBmp(buffer)
+  }
+
+  // WebP: RIFF....WEBP
+  if (
+    buffer.length >= 12 &&
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x45 &&
+    buffer[10] === 0x42 &&
+    buffer[11] === 0x50
+  ) {
+    return parseWebP(buffer)
+  }
+
+  // TIFF: II*. or MM.*
+  if (
+    buffer.length >= 8 &&
+    ((buffer[0] === 0x49 && buffer[1] === 0x49 && buffer[2] === 0x2a && buffer[3] === 0x00) ||
+      (buffer[0] === 0x4d && buffer[1] === 0x4d && buffer[2] === 0x00 && buffer[3] === 0x2a))
+  ) {
+    return parseTiff(buffer)
   }
 
   // Check for SVG (starts with XML declaration or <svg)
@@ -221,6 +251,78 @@ function parseSvg(text) {
     height,
     aspectRatio: width / height,
     type: 'svg',
+  }
+}
+
+function parseWebP(buffer) {
+  if (buffer.length < 30) {
+    throw new Error('WebP header too short')
+  }
+  const chunkHeader = buffer.toString('ascii', 12, 16)
+  let width = 0
+  let height = 0
+
+  if (chunkHeader === 'VP8 ') {
+    width = buffer.readUInt16LE(26) & 0x3fff
+    height = buffer.readUInt16LE(28) & 0x3fff
+  } else if (chunkHeader === 'VP8L') {
+    const b1 = buffer[21]
+    const b2 = buffer[22]
+    const b3 = buffer[23]
+    const b4 = buffer[24]
+    width = 1 + (((b2 & 0x3f) << 8) | b1)
+    height = 1 + (((b4 & 0x0f) << 10) | (b3 << 2) | ((b2 & 0xc0) >> 6))
+  } else if (chunkHeader === 'VP8X') {
+    width = 1 + buffer.readUIntLE(24, 3)
+    height = 1 + buffer.readUIntLE(27, 3)
+  } else {
+    width = 800
+    height = 600
+  }
+
+  return {
+    width,
+    height,
+    aspectRatio: width / height,
+    type: 'webp',
+  }
+}
+
+function parseTiff(buffer) {
+  if (buffer.length < 8) throw new Error('TIFF header too short')
+  const isLittle = buffer[0] === 0x49
+  const readUInt16 = off => (isLittle ? buffer.readUInt16LE(off) : buffer.readUInt16BE(off))
+  const readUInt32 = off => (isLittle ? buffer.readUInt32LE(off) : buffer.readUInt32BE(off))
+
+  let width = 0
+  let height = 0
+  const firstIFD = readUInt32(4)
+
+  if (firstIFD + 2 <= buffer.length) {
+    const numEntries = readUInt16(firstIFD)
+    let entryOffset = firstIFD + 2
+    for (let i = 0; i < numEntries && entryOffset + 12 <= buffer.length; i++, entryOffset += 12) {
+      const tag = readUInt16(entryOffset)
+      const type = readUInt16(entryOffset + 2)
+      let val = 0
+      if (type === 3) {
+        val = readUInt16(entryOffset + 8)
+      } else if (type === 4) {
+        val = readUInt32(entryOffset + 8)
+      }
+      if (tag === 0x0100) width = val
+      if (tag === 0x0101) height = val
+      if (width && height) break
+    }
+  }
+
+  width = width || 800
+  height = height || 600
+  return {
+    width,
+    height,
+    aspectRatio: width / height,
+    type: 'tiff',
   }
 }
 

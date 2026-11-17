@@ -20,7 +20,6 @@
 
 const { Command } = require('commander')
 const chalk = require('chalk')
-const { readFileSync } = require('fs')
 const { resolve } = require('path')
 const { buildCommand } = require('./commands/build.js')
 const { validateCommand } = require('./commands/validate.js')
@@ -28,8 +27,8 @@ const { inspectCommand } = require('./commands/inspect.js')
 const { extractCommand } = require('./commands/extract.js')
 const { debugCommand } = require('./commands/debug.js')
 
-// Read version from package.json
-const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8'))
+// Read version from package.json (static require — no fs.promises.readFile)
+const pkg = require(resolve(__dirname, '../../package.json'))
 
 /**
  * CLI banner displayed on startup.
@@ -96,11 +95,16 @@ program
 // ─── extract command ────────────────────────────────────────────────────────
 program
   .command('extract <file>')
-  .description('Extract specific parts from a PPTX file')
+  .description('Extract specific parts or entire directory trees from a PPTX file')
   .option('-s, --slide <number>', 'Slide number to extract XML from')
-  .option('-o, --out <path>', 'Output file path (default: stdout)')
+  .option('-o, --out <path>', 'Output file or directory path (default: stdout)')
+  .option('--all', 'Extract all OpenXML parts into an uncompressed folder')
+  .option('--folder <path>', 'Destination folder for unpacked OpenXML parts')
+  .option('--zip <path>', 'Extract/re-export as a clean compressed ZIP package')
   .option('--chart <name>', 'Extract chart XML by name')
   .option('--rels', 'Extract relationship files')
+  .option('--format', 'Format XML output with 2-space indentation for git inspection')
+  .option('--format-xml', 'Alias for --format')
   .action(async (file, opts) => {
     await extractCommand(file, opts)
   })

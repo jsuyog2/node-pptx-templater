@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Zero Office Dependencies and Pure JavaScript Runtime",
+    "desc": "Runs entirely in memory without Microsoft Office, LibreOffice, Java, or Electron. It requires no heavy third-party generator packages like Puppeteer or PptxGenJS. This enables lightweight execution across Node.js, serverless runtimes, and edge workers."
+  },
+  {
+    "title": "Versatile Input and Multi-Target Export Pipeline",
+    "desc": "Ingests presentations from files, Buffers, URLs, streams, directories, and Flat OPC XML. It exports directly to disk files, Node.js Buffers, Streams, ArrayBuffers, and Base64 strings. It also features dedicated streaming pipe adapters directly for Express.js and Fastify."
+  },
+  {
+    "title": "Create Presentations from Scratch via Clean Blank Deck APIs",
+    "desc": "Initialize minimal, compliant PowerPoint decks entirely in memory without loading external template files. It supports custom aspect ratio presets such as 16:9, 4:3, or explicit EMU dimensions. You can immediately target slides and assemble full layouts from the ground up using fluent chaining methods."
+  },
+  {
+    "title": "Complete Slide and Element Lifecycle Management",
+    "desc": "Add, update, clone, move, style, reorder, or delete slides and elements with full layout control. It handles rich text, media, vector shapes, tables, and charts with absolute spatial positioning. You can easily bring elements forward, send them backward, or set exact Z-index stacking orders."
+  },
+  {
+    "title": "Native Corporate Presentation and Classifier Support",
+    "desc": "Preserves corporate slide master templates, custom XML metadata, and enterprise security classifiers without file corruption. It maintains organization-mandated classification markings, headers, and footers during data injection. It avoids schema-breaking alterations to ensure enterprise-compliant presentations."
+  },
+  {
+    "title": "All 17 Native Chart Types and Matrix Table Engine",
+    "desc": "Supports all 17 PowerPoint chart types (Column, Line, Pie, Bar, Area, Scatter, Map, Stock, Surface, Radar, Treemap, Sunburst, Histogram, Box & Whisker, Waterfall, Funnel, and Combo) with dual Excel sync. It provides complete table management to add, style, merge, and remove tables, rows, or columns. You can also overlay anchored cell shapes without triggering table layout reflow."
+  }
+]

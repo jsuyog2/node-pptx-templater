@@ -1,0 +1,54 @@
+# Dependencies & package lock
+node_modules/
+package-lock.json
+
+# Build & compilation outputs
+dist/
+build/
+.next/
+*.tsbuildinfo
+
+# Documentation portal builds
+docs-site/.next/
+docs-site/out/
+docs-site/node_modules/
+
+# Temporary work directories & outputs
+scratch/
+output/
+showcase/output/
+tests/output/
+temp/
+tmp/
+*.log
+*.patch
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Version control & CI
+.git/
+
+# Office binary assets, archives & heavy media
+*.pptx
+*.pptm
+*.potx
+*.potm
+*.ppsx
+*.ppsm
+*.ppam
+*.ppt
+*.odp
+*.xlsx
+*.xls
+*.zip
+*.tar.gz
+*.tgz
+*.mp4
+*.mp3
+*.wav
+
+# OS artifacts
+.DS_Store
+Thumbs.db
