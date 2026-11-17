@@ -1,9 +1,9 @@
 # Project Architecture Summary: `node-pptx-templater`
 
-> **Version**: 3.0.0-beta.1  
+> **Version**: 3.0.0  
 > **Runtime**: Pure JavaScript (Node.js `>=18.x`, AWS Lambda, Cloudflare Workers, Vercel Edge, Deno, Bun)  
 > **Standard**: ISO/IEC 29500 (ECMA-376) Parts 1 & 2 (OPC & PresentationML)  
-> **CI/CD Pipeline**: Operational (Decoupled Push Gate, Release Publishing, Manual Docs Hosting)  
+> **CI/CD Pipeline**: Operational (Decoupled Push Gate, Release Publishing, GitHub Pages / Cloudflare Docs Hosting)  
 > **API Catalog**: See `docs-site/src/data/apiReference.json` for full schemas and usage examples.
 
 ---
@@ -69,7 +69,7 @@ All APIs, TypeScript interfaces (`index.d.ts`), and JSDocs strictly adhere to 8 
 
 ## 3. Documentation Portal (`docs-site/`)
 
-The documentation portal is built with Next.js 14+ App Router (`output: 'export'`, `trailingSlash: true`) and deployed to Cloudflare Pages (`https://node-pptx-templater.pages.dev`). Content and API references are fully decoupled into JSON schemas under `docs-site/src/data/`, with 100% API coverage enforced via `npm run docs:validate`.
+The documentation portal is built with Next.js 14+ App Router (`output: 'export'`, `trailingSlash: true`, `basePath: '/node-pptx-templater'`, `assetPrefix: '/node-pptx-templater/'`) and configured for deployment to GitHub Pages (`https://jsuyog2.github.io/node-pptx-templater`) and Cloudflare Pages (`https://node-pptx-templater.pages.dev`). Content and API references are fully decoupled into JSON schemas under `docs-site/src/data/`, with 100% API coverage enforced via `npm run docs:validate`.
 
 ---
 
@@ -77,4 +77,4 @@ The documentation portal is built with Next.js 14+ App Router (`output: 'export'
 
 - **Push Gating (`.github/workflows/ci.yml`)**: On push/PR to `main`, `develop`, `v3.0.0`, executes sequential verification: (1) `ci` (lint, format:check, test), (2) `verify-package-managers` (npm, pnpm, yarn with `nodeLinker: node-modules`, bun), (3) `build` (compile and dry-run pack). Hard stop with zero publishing.
 - **Release Publishing (`.github/workflows/publish.yml`)**: Triggered strictly on GitHub Releases or manual dispatch. Ingests pre-built tarball, runs idempotent checks (`npm view`), and publishes to npm (`node-pptx-templater`) and GitHub Packages (`@<owner>/node-pptx-templater`) using `--ignore-scripts`.
-- **Documentation Deployment (`.github/workflows/docs.yml`)**: Manual-only `workflow_dispatch` deploying static exports to Cloudflare Pages (`npm run docs:deploy`).
+- **Documentation Deployment (`.github/workflows/docs.yml`)**: Automated deployment on push to `main` (for docs-site changes) or manual `workflow_dispatch` deploying static exports to GitHub Pages (utilizing `actions/upload-pages-artifact` and `actions/deploy-pages`) or Cloudflare Pages.

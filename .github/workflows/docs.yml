@@ -1,18 +1,24 @@
-name: Documentation Deployment (Cloudflare / Pages)
+name: Documentation Deployment (GitHub Pages / Cloudflare)
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs-site/**'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
     inputs:
       target:
         description: 'Target platform'
         required: true
-        default: 'cloudflare'
+        default: 'github-pages'
         type: choice
         options:
-          - cloudflare
           - github-pages
+          - cloudflare
       environment:
-        description: 'Deployment environment'
+        description: 'Deployment environment (Cloudflare only)'
         required: true
         default: 'production'
         type: choice
@@ -33,6 +39,9 @@ jobs:
   build-and-deploy:
     name: Build & Deploy Documentation
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -66,16 +75,16 @@ jobs:
           fi
 
       - name: Setup GitHub Pages
-        if: inputs.target == 'github-pages'
+        if: github.event_name == 'push' || inputs.target == 'github-pages'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages Artifact
-        if: inputs.target == 'github-pages'
+        if: github.event_name == 'push' || inputs.target == 'github-pages'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs-site/out
 
       - name: Deploy to GitHub Pages
-        if: inputs.target == 'github-pages'
+        if: github.event_name == 'push' || inputs.target == 'github-pages'
         id: deployment
         uses: actions/deploy-pages@v4

@@ -3,7 +3,7 @@
   "tagline": "Automate Your Slide Generation",
   "description": "Programmatically generate and edit .pptx decks. Dynamically inject text, media, tables, and charts into blank or pre-designed templates, then export to any format.",
   "domainUrl": "https://node-pptx-templater.pages.dev",
-  "version": "3.0.0-beta.1",
+  "version": "3.0.0",
   "author": "node-pptx-templater contributors",
   "license": "MIT",
   "keywords": [
@@ -38,12 +38,12 @@
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "Presentation Automation & Template Engine",
         "operatingSystem": "Node.js (>=18.x, 20.x, 22.x+), AWS Lambda, Cloudflare Workers, Vercel Edge, Bun, Deno",
-        "softwareVersion": "3.0.0-beta.1",
+        "softwareVersion": "3.0.0",
         "license": "https://opensource.org/licenses/MIT",
         "description": "Programmatically generate and edit .pptx decks. Dynamically inject text, media, tables, and charts into blank or pre-designed templates, then export to any format.",
         "url": "https://node-pptx-templater.pages.dev",
         "downloadUrl": "https://www.npmjs.com/package/node-pptx-templater",
-        "releaseNotes": "https://github.com/jsuyog2/node-pptx-templater/releases/tag/v3.0.0-beta.1",
+        "releaseNotes": "https://github.com/jsuyog2/node-pptx-templater/releases/tag/v3.0.0",
         "featureList": [
           "100% Pure JavaScript Runtime with zero native binaries, C/C++ addons, or LibreOffice/Office dependencies",
           "Strict 18-Method Whitelisted I/O Surface (7 Static loaders, 8 Export channels, 3 Extraction tools)",
@@ -150,7 +150,7 @@
           },
           {
             "@type": "Question",
-            "name": "What are the 18 whitelisted I/O methods in v3.0.0-beta.1?",
+            "name": "What are the 18 whitelisted I/O methods in v3.0.0?",
             "acceptedAnswer": {
               "@type": "Answer",
               "text": "The public I/O surface is locked to 7 static loaders (load, createBlank, preload, fromCache, clearCache, extractPptx, buildPptx), 8 export methods (saveToFile, toBuffer, toStream, toBase64, toArrayBuffer, toResponse, toExpress, toFastify), and 3 extraction methods (extractToZip, inspectVfs, getMediaList)."
@@ -158,7 +158,7 @@
           },
           {
             "@type": "Question",
-            "name": "What are the 8 canonical categories in v3.0.0-beta.1?",
+            "name": "What are the 8 canonical categories in v3.0.0?",
             "acceptedAnswer": {
               "@type": "Answer",
               "text": "All API operations are organized into 8 canonical categories: Import/Export, Slides, Text & Placeholders, Tables, Charts, Shapes, Images & Media, and Elements."
