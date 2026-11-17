@@ -39,9 +39,6 @@ jobs:
   build-and-deploy:
     name: Build & Deploy Documentation
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -59,6 +56,8 @@ jobs:
         run: npm --prefix docs-site ci || npm --prefix docs-site install
 
       - name: Build Next.js Documentation Site
+        env:
+          DOCS_BASE_PATH: ${{ (github.event_name == 'push' || inputs.target == 'github-pages') && '/node-pptx-templater' || '' }}
         run: npm run docs:build
 
       - name: Deploy to Cloudflare Pages
