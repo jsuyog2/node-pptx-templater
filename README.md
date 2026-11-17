@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![npm version](https://img.shields.io/badge/npm-v3.0.0--beta.0-blue.svg?style=flat-square)](https://www.npmjs.com/package/node-pptx-templater)
+[![npm version](https://img.shields.io/badge/npm-v3.0.0-blue.svg?style=flat-square)](https://www.npmjs.com/package/node-pptx-templater)
 [![npm downloads](https://img.shields.io/npm/dm/node-pptx-templater.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/node-pptx-templater)
 [![Vitest Tests](https://img.shields.io/badge/tests-340%2B%20passing-brightgreen.svg?style=flat-square)](https://github.com/jsuyog2/node-pptx-templater/actions)
 [![Bundle Size](https://img.shields.io/badge/runtime-pure%20JS%20%3C2MB-success.svg?style=flat-square)](https://www.npmjs.com/package/node-pptx-templater)
@@ -72,9 +72,6 @@ Public APIs are strictly structured across 8 canonical categories:
 ```bash
 # npm (canonical package)
 npm install node-pptx-templater
-
-# or install pre-release beta:
-npm install node-pptx-templater@beta
 
 # pnpm
 pnpm add node-pptx-templater

@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
+  basePath: '/node-pptx-templater',
+  assetPrefix: '/node-pptx-templater/',
   images: {
     unoptimized: true,
   },
@@ -8,3 +10,4 @@ const nextConfig = {
 };
 
 export default nextConfig;
+

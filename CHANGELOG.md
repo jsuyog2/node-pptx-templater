@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-11-17
+
+### Added
+- **GitHub Pages Static Documentation Deployment**: Configured Next.js static HTML export with `basePath: '/node-pptx-templater'` and `assetPrefix: '/node-pptx-templater/'` for seamless hosting under project subpaths on GitHub Pages.
+- **Automated Docs CI/CD Workflow**: Updated `.github/workflows/docs.yml` with dual deployment support for GitHub Pages (`actions/deploy-pages@v4`) and Cloudflare Pages with cryptographic OIDC identity permissions.
+
+### Changed
+- **Official v3.0.0 Stable Release**: Promoted `node-pptx-templater` to stable release across core engine, documentation, types, and schema files.
+- **Removed Pre-Release Beta Designations**: Purged beta warnings, tags, and pre-release notes across `package.json`, `docs-site`, `README.md`, and architectural specifications.
+
 ## [3.0.0-beta.1] - 2026-10-30
 
 ### Added

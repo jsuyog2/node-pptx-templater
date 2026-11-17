@@ -1,6 +1,6 @@
 # Rule: General Architecture & Security Invariants
 
-> **Scope**: Repository-wide standard operating rules for `node-pptx-templater` (v3.0.0-beta.1).
+> **Scope**: Repository-wide standard operating rules for `node-pptx-templater` (v3.0.0).
 
 ---
 
